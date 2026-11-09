@@ -32,6 +32,7 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
   const [tim, setTim] = useState('');
   const [chiCt, setChiCt] = useState(true);
   const [chon, setChon] = useState<ChonO | null>(null);
+  const [xep, setXep] = useState<'luu' | 'gia'>('luu');   // luu: file lưu mới nhất lên đầu; gia: theo tổng giảm dần (như file)
 
   const tai = useCallback(() => {
     setDangTai(true);
@@ -48,8 +49,12 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
   const dong = useMemo(() => {
     if (!bc) return [];
     const t = tim.trim().toUpperCase();
-    return t ? bc.dong.filter(d => d.ten.toUpperCase().includes(t)) : bc.dong;
-  }, [bc, tim]);
+    const ds = t ? bc.dong.filter(d => d.ten.toUpperCase().includes(t)) : bc.dong;
+    if (xep === 'gia') return ds;
+    const luu = du?.luuFile ?? {};
+    // ISO cùng dạng => so chuỗi được; chưa có giờ lưu xuống cuối; cùng giờ thì theo tổng giảm dần (thứ tự sẵn của bc.dong)
+    return [...ds].sort((a, b) => (luu[b.ten] ?? '').localeCompare(luu[a.ten] ?? ''));
+  }, [bc, tim, xep, du]);
   const tongLoc = useMemo(() => {
     if (!bc || !tim.trim()) return null;
     const m: Record<string, number> = {};
@@ -114,6 +119,12 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
           title="Như lọc MÃ CÔNG TRÌNH của pivot trong file: chỉ mã CTxx-xxx, bỏ OEM / hàng lẻ / xuất khẩu (DM, EM, NB, SP, XK…)">
           <input type="checkbox" checked={chiCt} onChange={e => setChiCt(e.target.checked)} /> Chỉ mã CT (như file)
         </label>
+        <div className="ml-2 flex h-8 items-center rounded-md border border-slate-300 bg-white p-0.5 text-xs" role="group" aria-label="Sắp xếp">
+          {([['luu', 'Lưu file mới nhất'], ['gia', 'Giá trị (như file)']] as const).map(([k, nhan]) => (
+            <button key={k} type="button" aria-pressed={xep === k} onClick={() => setXep(k)}
+              className={`h-full rounded px-2 font-semibold ${xep === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{nhan}</button>
+          ))}
+        </div>
         <label className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2 text-sm">
           <Search className="h-4 w-4 text-slate-400" aria-hidden />
           <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm công trình / mã CT" className="w-48 outline-none" />
