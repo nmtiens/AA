@@ -24,6 +24,7 @@ import '../src/routes/overview.js';   // /api/overview/*
 import '../src/routes/stock.js';      // /api/stock/*, /api/warmup
 import '../src/routes/tonKhoVt.js';   // /api/ton-kho-vt/tong-hop, /api/ton-kho-vt/chi-tiet (tồn kho vật tư theo lần chốt tuần)
 import '../src/routes/bopM2.js';      // /api/bop-m2?ct= (tình trạng vật liệu BOP-M2, tab BOM)
+import '../src/routes/botTongHop.js'; // /api/bot-tong-hop (BÁO CÁO BOT như file MASTER_PROJECT_COORDINATION)
 import '../src/routes/revenue.js';    // /api/revenue
 import '../src/routes/settings.js';   // /api/view-project-mapping, /api/table-column-config
 import '../src/routes/auth.js';       // /api/auth/*

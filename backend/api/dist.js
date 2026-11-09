@@ -79952,6 +79952,71 @@ app.get("/api/bop-m2", async (req, res) => {
   }
 });
 
+// src/routes/botTongHop.ts
+var chuoi = (x) => x === null || x === void 0 ? "" : String(x);
+var LA_CT = `(COALESCE(ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
+app.get("/api/bot-tong-hop", async (_req, res) => {
+  try {
+    const [o, f] = await Promise.all([
+      timedQuery(`SELECT COALESCE(ten_ct, '') AS ten, COALESCE(ipo, '') AS ipo,
+                         COALESCE(to_char(ngay_can_giao, 'YYYY-MM'), '') AS thang, ${LA_CT} AS ct,
+                         SUM(tt_con_lai) AS tt, COUNT(*)::int AS so
+                    FROM bot_tong_hop GROUP BY 1, 2, 3, 4`),
+      timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc
+                    FROM bot_tong_hop_file`)
+    ]);
+    const capNhat = f.rows.reduce((m, r) => r.nap_luc > m ? r.nap_luc : m, "");
+    res.json({
+      coBang: true,
+      capNhat: capNhat || null,
+      soFile: f.rows.filter((r) => !r.loi).length,
+      fileLoi: f.rows.filter((r) => r.loi).map((r) => ({ nguon: chuoi(r.nguon), loi: chuoi(r.loi) })),
+      ipos: [...new Set(o.rows.map((r) => chuoi(r.ipo)))].sort(),
+      o: o.rows.map((r) => ({ ten: chuoi(r.ten), ipo: chuoi(r.ipo), thang: chuoi(r.thang), ct: !!r.ct, tt: r.tt === null ? null : Number(r.tt), so: r.so }))
+    });
+  } catch (e) {
+    if (e?.code === "42P01") return res.json({ coBang: false, capNhat: null, soFile: 0, fileLoi: [], ipos: [], o: [] });
+    console.error("[bot-tong-hop]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c d\u1EEF li\u1EC7u B\xC1O C\xC1O BOT" });
+  }
+});
+app.get("/api/bot-tong-hop/chi-tiet", async (req, res) => {
+  const ten = String(req.query.ten ?? "");
+  const ipos = String(req.query.ipo ?? "").split("|").filter(Boolean).slice(0, 20);
+  const thang2 = String(req.query.thang ?? "");
+  if (thang2 && !/^(CHUA|\d{4}|\d{4}-\d{2})$/.test(thang2)) return res.status(400).json({ error: "Sai th\xE1ng" });
+  const dk = [`COALESCE(ten_ct, '') = $1`];
+  const ts = [ten];
+  if (ipos.length) {
+    ts.push(ipos);
+    dk.push(`COALESCE(ipo, '') = ANY($${ts.length}::text[])`);
+  }
+  if (req.query.ct === "1") dk.push(LA_CT);
+  if (thang2 === "CHUA") dk.push("ngay_can_giao IS NULL");
+  else if (thang2) {
+    ts.push(thang2);
+    dk.push(`to_char(ngay_can_giao, '${thang2.length === 4 ? "YYYY" : "YYYY-MM"}') = $${ts.length}`);
+  }
+  try {
+    const r = await timedQuery(`SELECT ma_ct, hex, ipo, to_char(ngay_can_giao, 'DD/MM/YYYY') AS ngay, tt_con_lai, nguon
+                                  FROM bot_tong_hop WHERE ${dk.join(" AND ")}
+                                  ORDER BY ngay_can_giao NULLS FIRST, hex LIMIT 5000`, ts);
+    res.json({
+      dong: r.rows.map((x) => ({
+        maCt: chuoi(x.ma_ct),
+        hex: chuoi(x.hex),
+        ipo: chuoi(x.ipo),
+        ngay: chuoi(x.ngay),
+        tt: x.tt_con_lai === null ? null : Number(x.tt_con_lai),
+        nguon: chuoi(x.nguon)
+      }))
+    });
+  } catch (e) {
+    console.error("[bot-tong-hop/chi-tiet]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c chi ti\u1EBFt" });
+  }
+});
+
 // src/routes/revenue.ts
 var revenueCache = createCache(20);
 var REVENUE_VERSION_KEYS = ["yearlyPlan", "inventory", "production"];

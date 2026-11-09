@@ -21,6 +21,7 @@ import { ProjectHealthModal, dungHangMucCongTrinh, type ProjectHealthKeys } from
 import { BopTab } from './ProjectHealthTabs';
 import { BotKhnk } from './BotKhnk';
 import { BomTatCa, taiTruocBomTatCa } from './BopM2Section';
+import { BaoCaoBot } from './BaoCaoBot';
 import { HexTimelineModal } from './HexTimelineModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
@@ -198,7 +199,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // inDetail = mở từ cửa sổ chi tiết (vd PC): chỉ tính các dòng trong phạm vi cửa sổ đó
   const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(null);
   // View cho TẤT CẢ công trình đang xem (cùng bộ lọc trang): tổng quan / BOP / BOT / BOM (như tab trong cửa sổ 1 công trình)
-  const [viewCT, setViewCT] = useState<'tong' | 'bop' | 'bot' | 'bom'>('tong');
+  const [viewCT, setViewCT] = useState<'tong' | 'bop' | 'bot' | 'bom' | 'bcbot'>('tong');
   const [hexXem, setHexXem] = useState<string | null>(null);
   const healthCt = health?.ct ?? null;
   const [f, setF] = useState<Filters>({});
@@ -799,9 +800,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </button>
         </div>
         <div className="flex h-9 w-fit items-center rounded-lg border border-slate-300 bg-white p-0.5 text-sm" role="group" aria-label="Xem theo">
-          {([['tong', 'Tổng quan'], ['bop', 'BOP · Công đoạn'], ['bot', 'BOT · Kế hoạch nhập kho'], ['bom', 'BOM · Vật tư']] as const).map(([k, nhan]) => (
+          {([['tong', 'Tổng quan'], ['bop', 'BOP · Công đoạn'], ['bot', 'BOT · Kế hoạch nhập kho'], ['bom', 'BOM · Vật tư'], ['bcbot', 'BÁO CÁO BOT']] as const).map(([k, nhan]) => (
             <button key={k} type="button" onClick={() => setViewCT(k)} aria-pressed={viewCT === k}
-              title={k === 'tong' ? 'Báo cáo tổng quan' : `${nhan} của tất cả công trình đang xem (theo bộ lọc trang)`}
+              title={k === 'tong' ? 'Báo cáo tổng quan'
+                : k === 'bcbot' ? 'Giá trị đơn hàng còn lại theo dự án (như sheet BÁO CÁO BOT của file MASTER_PROJECT_COORDINATION) — cập nhật khi file công trình được lưu'
+                  : `${nhan} của tất cả công trình đang xem (theo bộ lọc trang)`}
               className={`h-full rounded-md px-3 font-semibold transition ${viewCT === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
               {nhan}
             </button>
@@ -824,9 +827,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
         {viewCT !== 'tong' && (
           <div className={`${cardCls} p-4 sm:p-5`}>
-            <p className="mb-4 text-sm text-slate-500">
-              Tất cả công trình đang xem: <b className="text-slate-800">{fmtInt(tenCtTatCa.length)}</b> công trình · <b className="text-slate-800">{fmtInt(rowsAll.length)}</b> hạng mục (theo nhóm / bộ lọc phía trên). Bấm HEX để xem chi tiết hạng mục.
-            </p>
+            {viewCT !== 'bcbot' && (
+              <p className="mb-4 text-sm text-slate-500">
+                Tất cả công trình đang xem: <b className="text-slate-800">{fmtInt(tenCtTatCa.length)}</b> công trình · <b className="text-slate-800">{fmtInt(rowsAll.length)}</b> hạng mục (theo nhóm / bộ lọc phía trên). Bấm HEX để xem chi tiết hạng mục.
+              </p>
+            )}
+            {viewCT === 'bcbot' && <BaoCaoBot onHexClick={setHexXem} />}
             {viewCT === 'bop' && (coBang
               ? <BopTab items={hangMucTatCa} onHexClick={setHexXem} extra={null} today={homNay} tatCa />
               : <p className="py-10 text-center text-sm font-semibold text-slate-500">Đang tải chi tiết hạng mục…</p>)}
