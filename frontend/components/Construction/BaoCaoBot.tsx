@@ -79,89 +79,97 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
 
   const tongHien = tongLoc ?? { o: bc.tongCot, tong: bc.tong };
   const oSo = (ten: string, cot: CotBot | null, v: number | undefined, dam = false) => (
-    <td className={`whitespace-nowrap border-b border-slate-100 px-2 py-1 text-right tabular-nums ${dam ? 'font-bold text-slate-900' : 'text-slate-800'}`}>
+    <td className={`whitespace-nowrap border-b border-slate-200/70 px-2.5 py-1 text-right tabular-nums ${dam ? 'font-bold text-slate-950' : 'text-slate-900'}`}>
       {v === undefined ? '' : (
         <button type="button" onClick={() => setChon({ ten, cot })} title="Bấm để xem các HEX" className="hover:text-blue-700 hover:underline">{fmtO(v)}</button>
       )}
     </td>
   );
+  const nutCls = (bat: boolean) => `h-full rounded px-2.5 font-semibold transition ${bat ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-        <span>Theo file công trình của PC (như sheet BÁO CÁO BOT của MASTER_PROJECT_COORDINATION) — không theo bộ lọc trang.</span>
-        <span>Cập nhật: <b className="text-slate-800">{fmtLuc(du.capNhat)}</b> · {fmtInt(du.soFile)} file</span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-green-100 ring-1 ring-green-500" aria-hidden />
-          Lưu file hôm nay: <b className="text-green-800">{fmtInt(soMoi)}</b>
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-red-50 ring-1 ring-red-500" aria-hidden />
-          Chưa cập nhật hôm nay: <b className="text-red-700">{fmtInt(dong.length - soMoi)}</b> (ô đỏ = ngày lưu gần nhất)
-        </span>
-        {du.fileLoi.length > 0 && (
-          <span className="text-amber-700" title={du.fileLoi.map(f => `${f.nguon}: ${f.loi}`).join('\n')}>{du.fileLoi.length} file đọc lỗi</span>
-        )}
-        <button type="button" onClick={tai} disabled={dangTai} className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-          <RefreshCw className={`h-3.5 w-3.5 ${dangTai ? 'animate-spin' : ''}`} aria-hidden /> Tải lại
-        </button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-slate-600">TÌNH TRẠNG IPO FINAL:</span>
-        {du.ipos.map(x => (
-          <button key={x || '(trống)'} type="button" aria-pressed={ipo.has(x)} onClick={() => doiIpo(x)}
-            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ipo.has(x) ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}>
-            {x || '(trống)'}
-          </button>
-        ))}
-        <label className="ml-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600"
-          title="Như lọc MÃ CÔNG TRÌNH của pivot trong file: chỉ mã CTxx-xxx, bỏ OEM / hàng lẻ / xuất khẩu (DM, EM, NB, SP, XK…)">
-          <input type="checkbox" checked={chiCt} onChange={e => setChiCt(e.target.checked)} /> Chỉ mã CT (như file)
-        </label>
-        <div className="ml-2 flex h-8 items-center rounded-md border border-slate-300 bg-white p-0.5 text-xs" role="group" aria-label="Sắp xếp">
-          {([['luu', 'Lưu file mới nhất'], ['gia', 'Giá trị (như file)']] as const).map(([k, nhan]) => (
-            <button key={k} type="button" aria-pressed={xep === k} onClick={() => setXep(k)}
-              className={`h-full rounded px-2 font-semibold ${xep === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{nhan}</button>
+    <div className="space-y-2.5">
+      {/* Dòng 1: lọc + sắp xếp + tìm */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex h-9 items-center rounded-lg border border-slate-300 bg-white p-0.5" role="group" aria-label="Tình trạng IPO FINAL" title="TÌNH TRẠNG IPO FINAL (lọc của pivot)">
+          {du.ipos.map(x => (
+            <button key={x || '(trống)'} type="button" aria-pressed={ipo.has(x)} onClick={() => doiIpo(x)} className={nutCls(ipo.has(x))}>
+              {x || '(trống)'}
+            </button>
           ))}
         </div>
-        <label className="ml-auto flex h-8 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2 text-sm">
+        <div className="flex h-9 items-center rounded-lg border border-slate-300 bg-white p-0.5" role="group" aria-label="Sắp xếp">
+          {([['luu', 'Lưu file mới nhất'], ['gia', 'Giá trị (như file)']] as const).map(([k, nhan]) => (
+            <button key={k} type="button" aria-pressed={xep === k} onClick={() => setXep(k)} className={nutCls(xep === k)}>{nhan}</button>
+          ))}
+        </div>
+        <label className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 font-semibold text-slate-700"
+          title="Như lọc MÃ CÔNG TRÌNH của pivot trong file: chỉ mã CTxx-xxx, bỏ OEM / hàng lẻ / xuất khẩu (DM, EM, NB, SP, XK…)">
+          <input type="checkbox" checked={chiCt} onChange={e => setChiCt(e.target.checked)} /> Chỉ mã CT
+        </label>
+        <label className="ml-auto flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5">
           <Search className="h-4 w-4 text-slate-400" aria-hidden />
-          <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm công trình / mã CT" className="w-48 outline-none" />
+          <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm công trình / mã CT" className="w-52 outline-none" />
           {tim && <button type="button" onClick={() => setTim('')} aria-label="Xoá tìm"><X className="h-4 w-4 text-slate-400" /></button>}
         </label>
       </div>
 
-      <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-200">
-        <table className="min-w-full border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-10">
-            <tr className="bg-lime-500 text-slate-900">
-              <th className="sticky left-0 z-20 border-b border-lime-600 bg-lime-500 px-2 py-1.5 text-left font-bold">TÊN CÔNG TRÌNH</th>
+      {/* Dòng 2: tình trạng cập nhật */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-green-100 px-2.5 py-1 font-semibold text-green-900">
+          <span className="h-2.5 w-2.5 rounded-full bg-green-600" aria-hidden />{fmtInt(soMoi)} lưu file hôm nay
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-red-100 px-2.5 py-1 font-semibold text-red-800">
+          <span className="h-2.5 w-2.5 rounded-full bg-red-600" aria-hidden />{fmtInt(dong.length - soMoi)} chưa cập nhật hôm nay
+        </span>
+        {du.fileLoi.length > 0 && (
+          <span className="rounded-md bg-amber-100 px-2.5 py-1 font-semibold text-amber-800" title={du.fileLoi.map(f => `${f.nguon}: ${f.loi}`).join('\n')}>
+            {du.fileLoi.length} file đọc lỗi
+          </span>
+        )}
+        <span className="text-slate-500" title="Theo file công trình của PC (như sheet BÁO CÁO BOT của MASTER_PROJECT_COORDINATION) — không theo bộ lọc trang">
+          Dữ liệu lúc <b className="text-slate-800">{fmtLuc(du.capNhat)}</b> · {fmtInt(du.soFile)} file · không theo bộ lọc trang
+        </span>
+        <button type="button" onClick={tai} disabled={dangTai} title="Lấy số mới nhất"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+          <RefreshCw className={`h-4 w-4 ${dangTai ? 'animate-spin' : ''}`} aria-hidden /> Tải lại
+        </button>
+      </div>
+
+      <div className="max-h-[calc(100vh-15rem)] min-h-[20rem] overflow-auto rounded-lg border border-slate-300">
+        <table className="w-max border-separate border-spacing-0 text-sm leading-6">
+          <thead className="sticky top-0 z-10 text-[13px]">
+            <tr className="bg-lime-500 text-slate-950">
+              <th className="sticky left-0 z-20 border-b border-lime-600 bg-lime-500 px-2.5 py-1.5 text-left font-bold">TÊN CÔNG TRÌNH</th>
+              <th className="border-b border-l border-lime-600 px-2.5 py-1.5 text-center font-bold" title="Giờ (hôm nay) / ngày lưu file công trình gần nhất">LƯU FILE</th>
               {bc.cot.map(c => (
-                <th key={c.khoa} className={`whitespace-nowrap border-b border-l border-lime-600 px-2 py-1.5 text-right font-bold ${c.loai === 'thang' ? 'bg-lime-300 font-semibold' : ''}`}>
+                <th key={c.khoa} className={`min-w-[5.5rem] whitespace-nowrap border-b border-l border-lime-600 px-2.5 py-1.5 text-right font-bold ${c.loai === 'thang' ? 'bg-lime-300 font-semibold' : ''}`}>
                   {c.loai === 'nam' ? (
                     <button type="button" onClick={() => doiNam(c.nam!)} aria-expanded={!!c.dangMo} title={c.dangMo ? 'Gộp lại theo năm' : 'Bung theo tháng'}
                       className="inline-flex items-center gap-0.5 hover:underline">
-                      {c.dangMo ? <ChevronDown className="h-3.5 w-3.5" aria-hidden /> : <ChevronRight className="h-3.5 w-3.5" aria-hidden />}{c.nhan}
+                      {c.dangMo ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}{c.nhan}
                     </button>
                   ) : c.nhan}
                 </th>
               ))}
-              <th className="border-b border-l border-lime-600 px-2 py-1.5 text-right font-bold">TỔNG</th>
+              <th className="min-w-[6.5rem] border-b border-l border-lime-600 px-2.5 py-1.5 text-right font-bold">TỔNG</th>
             </tr>
           </thead>
           <tbody>
             {dong.map(d => {
               const luu = du.luuFile?.[d.ten];
               const moi = homNay.has(d.ten);
+              const nen = moi ? 'bg-green-50' : 'bg-red-50/60';
               return (
-              <tr key={d.ten} className={moi ? 'bg-green-100 hover:bg-green-200' : 'bg-red-50 hover:bg-red-100'}
+              <tr key={d.ten} className={`${nen} hover:bg-blue-50`}
                 title={luu ? `File công trình lưu lần cuối: ${fmtLuc(luu)}` : 'Chưa thấy giờ lưu file công trình'}>
-                <td className={`sticky left-0 whitespace-nowrap border-b border-slate-100 px-2 py-1 ${moi ? 'bg-green-100 font-semibold text-green-900' : 'bg-red-50 text-red-800'}`}>
+                <td className={`sticky left-0 whitespace-nowrap border-b border-l-4 border-b-slate-200/70 px-2.5 py-1 font-medium text-slate-950 ${nen} ${moi ? 'border-l-green-600' : 'border-l-red-500'}`}>
                   {d.ten || '(trống)'}
-                  {moi
-                    ? <span className="ml-2 rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{new Date(luu!).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-                    : <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{luu ? fmtNgay(luu) : 'chưa có'}</span>}
+                </td>
+                <td className="whitespace-nowrap border-b border-slate-200/70 px-2.5 py-1 text-center">
+                  <span className={`inline-block min-w-[3.5rem] rounded px-1.5 text-sm font-bold tabular-nums text-white ${moi ? 'bg-green-600' : 'bg-red-600'}`}>
+                    {moi ? new Date(luu!).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : luu ? fmtNgay(luu) : 'chưa có'}
+                  </span>
                 </td>
                 {bc.cot.map(c => <React.Fragment key={c.khoa}>{oSo(d.ten, c, d.o[c.khoa], c.loai === 'nam' && !!c.dangMo)}</React.Fragment>)}
                 {oSo(d.ten, null, d.tong, true)}
@@ -169,14 +177,15 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
               );
             })}
             {dong.length === 0 && (
-              <tr><td colSpan={bc.cot.length + 2} className="py-8 text-center text-slate-500">Không có công trình nào{tim ? ' khớp ô tìm' : ' theo lọc IPO đang chọn'}.</td></tr>
+              <tr><td colSpan={bc.cot.length + 3} className="py-8 text-center text-slate-500">Không có công trình nào{tim ? ' khớp ô tìm' : ' theo lọc IPO đang chọn'}.</td></tr>
             )}
           </tbody>
           <tfoot className="sticky bottom-0">
-            <tr className="bg-slate-100 font-bold text-slate-900">
-              <td className="sticky left-0 border-t border-slate-300 bg-slate-100 px-2 py-1.5">TỔNG{tim ? ' (đang tìm)' : ''} · {fmtInt(dong.length)} công trình</td>
-              {bc.cot.map(c => <td key={c.khoa} className="whitespace-nowrap border-t border-slate-300 px-2 py-1.5 text-right tabular-nums">{fmtO(tongHien.o[c.khoa])}</td>)}
-              <td className="whitespace-nowrap border-t border-slate-300 px-2 py-1.5 text-right tabular-nums">{fmtInt(tongHien.tong)}</td>
+            <tr className="bg-slate-200 font-bold text-slate-950">
+              <td className="sticky left-0 border-t-2 border-slate-400 bg-slate-200 px-2.5 py-1.5" colSpan={1}>TỔNG{tim ? ' (đang tìm)' : ''} · {fmtInt(dong.length)} công trình</td>
+              <td className="border-t-2 border-slate-400 px-2.5 py-1.5" />
+              {bc.cot.map(c => <td key={c.khoa} className="whitespace-nowrap border-t-2 border-slate-400 px-2.5 py-1.5 text-right tabular-nums">{fmtO(tongHien.o[c.khoa])}</td>)}
+              <td className="whitespace-nowrap border-t-2 border-slate-400 px-2.5 py-1.5 text-right tabular-nums">{fmtInt(tongHien.tong)}</td>
             </tr>
           </tfoot>
         </table>
