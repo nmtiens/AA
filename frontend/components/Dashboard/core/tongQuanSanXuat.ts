@@ -6,15 +6,15 @@
 // ============================================================================
 import type { DataRow, ColumnDefinition } from '../../../types';
 import { TARGET_COLUMN_NAMES } from '../../../types';
-import { STATUS_GROUPS } from '../constants';
+import { NHOM_CHUA_THE_SX, NHOM_CO_THE_SX, maTinhTrang, nhomCuaMa } from '../constants';
 import { parseNumber } from '../utils/numberParsers';
 import { findColumnKey } from '../utils/columnKeyResolver';
 import { toFilterSet, matchesFilter, matchesCategory, categoryOptions, categoryValue, NO_DATA_LABEL } from '../utils/filterMatch';
 import {
-  isCancelledIpo, isStocked, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK,
-  BOP_STAGE_ORDER, projectMatchKey,
+  laHuy, daNhapDu, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK,
+  BOP_STAGE_ORDER, projectMatchKey, IPO_MAC_DINH,
 } from '../../../utils/productionMetrics';
-import { ON_LINE_STAGES, P002_STAGE } from './stages';
+import { extractStage, remainBucketOf, type RemainBucket } from './stages';
 import type { MetricType, BottleneckItem, WorkshopPivotData, ProjectPivotData } from '../types';
 import { mucBopTuDong, tinhBangCongTrinhBop, mucCongDoan, stageOfBop, khoMuc, type BangCongTrinhBop, type MucBop, type KhoCot } from '../../Construction/core/bopPivot';
 
@@ -64,7 +64,7 @@ export const DEFAULT_FILTERS: DashboardFiltersState = {
   congTrinh: [],
   xuong: [],
   tinhTrang: [],
-  tinhTrangIpo: ['01. ĐANG SẢN XUẤT'],
+  tinhTrangIpo: [IPO_MAC_DINH],
   khachHang: [],
   khuVucDuAn: [],
   phanLoai: [],
@@ -204,23 +204,9 @@ export function luaChonSanXuat(productionData: DataRow[], k: KhoaSanXuat) {
 export type BottleneckViewMode = 'BOP' | 'TÌNH TRẠNG';
 export type ProjectSummaryMetric = 'VALUE' | 'COUNT';
 
-const ON_LINE_STAGE_SET = new Set<string>(ON_LINE_STAGES);
-
-// Bảng "Tình trạng đơn hàng theo Công trình" (v2): phần CÒN LẠI của 1 hạng mục =
-// trị giá đơn hàng - đã nhập kho (không âm), xếp vào đúng 1 cột theo công đoạn BOP:
-//   P001 (hoặc tình trạng 15. CHƯA TRIỂN KHAI)  -> Chưa triển khai
-//   P002                                         -> Chưa tính phiếu
-//   GCVT, P012 -> P021                           -> Đang trên chuyền
-//   còn lại (P022 / P025 nhưng nhập kho chưa đủ) -> Nhập kho chưa đủ
-// => Tổng còn lại = tổng 4 cột = Tổng đơn hàng - Đã nhập kho (đơn HỦY không tính).
-export type RemainBucket = 'notDeployed' | 'p002' | 'onLine' | 'shortfall';
-
-export function remainBucketOf(statusUpper: string, stage: string | null): RemainBucket {
-  if (statusUpper.includes('15. CHƯA TRIỂN KHAI') || stage === 'P001') return 'notDeployed';
-  if (stage === P002_STAGE) return 'p002';
-  if (stage && ON_LINE_STAGE_SET.has(stage)) return 'onLine';
-  return 'shortfall';
-}
+// Nhóm công đoạn của phần còn lại: core/stages.remainBucketOf (phễu, bảng công trình, tab BOP dùng chung)
+export { remainBucketOf };
+export type { RemainBucket };
 
 // Hạng mục không có tên công trình: gom vào 1 dòng 'Chưa xác định' (giống phễu) để bảng / danh sách HEX
 // khớp tổng phễu thay vì bỏ mất các dòng này; dòng này luôn xếp cuối bảng.
@@ -235,31 +221,22 @@ type KhoaPivot = Pick<KhoaSanXuat,
   'tinhTrangKey' | 'tinhTrangIpoKey' | 'xuongKey' | 'bopKey' | 'congTrinhKey' | 'hangMucKey' | 'daysAtCurrentStageKey' |
   'triGiaDonHangTongKey' | 'thanhTienTinhPhieuKey' | 'thanhTienNhapKhoKey'>;
 
-/** Hàm tính giá trị theo dòng — đơn HỦY = 0; còn lại theo quy tắc chung (trị giá − đã nhập, chặn [0, trị giá]) */
+/**
+ * Hàm tính giá trị theo dòng, đơn HỦY = 0. Mọi số "còn lại" đi qua funnelValue:
+ * tiền = trị giá − đã nhập; đếm = hạng mục chưa nhập kho đủ (đủ tiền hoặc đủ số lượng thì bỏ).
+ */
 export function hamGiaTri(k: KhoaPivot) {
-  const isCancelledRow = (row: DataRow) => !!k.tinhTrangIpoKey && isCancelledIpo(row[k.tinhTrangIpoKey]);
+  const isCancelledRow = (row: DataRow) => !!k.tinhTrangIpoKey && laHuy(row[k.tinhTrangIpoKey]);
   const rowRemain = (row: DataRow) =>
     remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
-  const calculateMetricValue = (row: DataRow, metric: MetricType): number => {
-    // Đơn HỦY không tính cả khi ĐẾM
-    if (isCancelledRow(row)) return 0;
-    if (metric === 'COUNT_HEX') return 1;
-    if (metric === 'SUM_GT_CON_LAI' || metric === 'SUM_GT_DON_HANG') return rowRemain(row);
-    return 0;
-  };
-  // Phễu = phần CÒN LẠI theo công đoạn: khi ĐẾM chỉ đếm hạng mục chưa nhập kho đủ (đủ giá trị hoặc đủ số
-  // lượng thì bỏ) — khớp chế độ giá trị (hạng mục đã nhập đủ có giá trị còn lại 0)
   const funnelValue = (row: DataRow, metric: MetricType): number => {
-    if (metric !== 'COUNT_HEX') {
-      if (isCancelledRow(row)) return 0;
-      return remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
-    }
     if (isCancelledRow(row)) return 0;
+    if (metric !== 'COUNT_HEX') return rowRemain(row);
     const total = parseNumber(row[k.triGiaDonHangTongKey]);
     const nk = k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0;
-    return isStocked(total, nk, false, isQtyComplete(row)) ? 0 : 1;
+    return daNhapDu(total, nk, false, isQtyComplete(row)) ? 0 : 1;
   };
-  return { isCancelledRow, rowRemain, calculateMetricValue, funnelValue };
+  return { isCancelledRow, rowRemain, calculateMetricValue: funnelValue, funnelValue };
 }
 
 const statusOf = (row: DataRow, k: KhoaPivot, mode: BottleneckViewMode): string => {
@@ -275,34 +252,39 @@ const statusOf = (row: DataRow, k: KhoaPivot, mode: BottleneckViewMode): string 
 
 export function tinhBottleneck(rows: DataRow[], k: KhoaPivot, mode: BottleneckViewMode): BottleneckItem[] {
   if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const { funnelValue } = hamGiaTri(k);
   // Nhóm thời gian dùng chung (utils/productionMetrics.dwellBucket): 4–7 tuần và "từ 8 tuần"
   // đều vào "Từ 4 tuần trở lên"; "0"/trống vào "Chưa có số ngày" để công đoạn không bị mất cột.
   const agg: Record<string, BottleneckItem> = {};
   rows.forEach(row => {
     const status = statusOf(row, k, mode);
-    if (!status) return;
+    if (!status || !funnelValue(row, 'COUNT_HEX')) return; // bỏ HỦY và hạng mục đã nhập đủ
     if (!agg[status]) {
       agg[status] = { name: status } as BottleneckItem;
-      DWELL_KEYS.forEach(d => { agg[status][d] = 0; });
+      DWELL_KEYS.forEach(d => { agg[status][d] = 0; agg[status][`gt:${d}`] = 0; });
     }
     const d = dwellBucket(row[k.daysAtCurrentStageKey]);
     agg[status][d] = ((agg[status][d] as number) || 0) + 1;
+    agg[status][`gt:${d}`] = ((agg[status][`gt:${d}`] as number) || 0) + funnelValue(row, 'SUM_GT_CON_LAI');
   });
   return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function tinhTopBottlenecks(rows: DataRow[], k: KhoaPivot, mode: BottleneckViewMode): { name: string; count: number }[] {
+export function tinhTopBottlenecks(rows: DataRow[], k: KhoaPivot, mode: BottleneckViewMode): { name: string; count: number; gt: number }[] {
   if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const { funnelValue } = hamGiaTri(k);
   const counts: Record<string, number> = {};
+  const gt: Record<string, number> = {};
   rows.forEach(row => {
     const status = statusOf(row, k, mode);
-    if (status && dwellBucket(row[k.daysAtCurrentStageKey]) === DWELL_STUCK) {
+    if (status && funnelValue(row, 'COUNT_HEX') && dwellBucket(row[k.daysAtCurrentStageKey]) === DWELL_STUCK) {
       counts[status] = (counts[status] || 0) + 1;
+      gt[status] = (gt[status] || 0) + funnelValue(row, 'SUM_GT_CON_LAI');
     }
   });
   return Object.entries(counts)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
+    .map(([name, count]) => ({ name, count, gt: gt[name] || 0 }))
+    .sort((a, b) => b.gt - a.gt || b.count - a.count)
     // Lấy 6: P001 (chờ triển khai bản vẽ) được tách ra ô riêng ở BottleneckSection, còn lại top 5 sản xuất
     .slice(0, 6);
 }
@@ -310,25 +292,31 @@ export function tinhTopBottlenecks(rows: DataRow[], k: KhoaPivot, mode: Bottlene
 export interface CardMetrics {
   coTheSX: number; vecniFitting: number; chuyenKhac: number; coPhieuChuaSX: number;
   chuaTheSX: number; vuongSL: number; chuaTrienKhai: number;
+  /** Tổng còn lại của tập đang xem; phép kiểm: coTheSX + chuaTheSX + chuaXepNhom = tongConLai */
+  tongConLai: number;
+  /** Phần còn lại có mã tình trạng ngoài mọi nhóm (mặc định = 0; khác 0 là có mã mới cần xếp nhóm) */
+  chuaXepNhom: number;
 }
+const COT_NHOM = { VECNI_FITTING: 'vecniFitting', CHUYEN_KHAC: 'chuyenKhac', CO_PHIEU_CHUA_SX: 'coPhieuChuaSX', VUONG_SL: 'vuongSL', CHUA_TRIEN_KHAI: 'chuaTrienKhai' } as const;
+
 export function tinhCardMetrics(rows: DataRow[], k: KhoaPivot): CardMetrics {
-  const metrics = { coTheSX: 0, vecniFitting: 0, chuyenKhac: 0, coPhieuChuaSX: 0, chuaTheSX: 0, vuongSL: 0, chuaTrienKhai: 0 };
-  if (!k.tinhTrangKey) return metrics;
-  const { isCancelledRow, rowRemain } = hamGiaTri(k);
+  const m = { coTheSX: 0, vecniFitting: 0, chuyenKhac: 0, coPhieuChuaSX: 0, chuaTheSX: 0, vuongSL: 0, chuaTrienKhai: 0, tongConLai: 0, chuaXepNhom: 0 };
+  if (!k.tinhTrangKey) return m;
+  const { funnelValue } = hamGiaTri(k);
   rows.forEach(row => {
-    const status = String(row[k.tinhTrangKey] || '').trim().toUpperCase();
-    const val = isCancelledRow(row) ? 0 : rowRemain(row);
-    const isIn = (group: string[]) => group.some(s => status.includes(s));
-    if (isIn(STATUS_GROUPS.CO_THE_SX)) metrics.coTheSX += val;
-    if (isIn(STATUS_GROUPS.VECNI_FITTING)) metrics.vecniFitting += val;
-    else if (isIn(STATUS_GROUPS.CHUYEN_KHAC)) metrics.chuyenKhac += val;
-    else if (isIn(STATUS_GROUPS.CO_PHIEU_CHUA_SX)) metrics.coPhieuChuaSX += val;
-    if (isIn(STATUS_GROUPS.CHUA_THE_SX)) metrics.chuaTheSX += val;
-    if (isIn(STATUS_GROUPS.VUONG_SL)) metrics.vuongSL += val;
-    else if (isIn(STATUS_GROUPS.CHUA_TRIEN_KHAI)) metrics.chuaTrienKhai += val;
+    const val = funnelValue(row, 'SUM_GT_CON_LAI');
+    m.tongConLai += val;
+    const nhom = nhomCuaMa(maTinhTrang(row[k.tinhTrangKey]));
+    if (nhom) m[COT_NHOM[nhom]] += val;
+    else m.chuaXepNhom += val;
   });
-  return metrics;
+  m.coTheSX = NHOM_CO_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
+  m.chuaTheSX = NHOM_CHUA_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
+  return m;
 }
+
+/** Phép kiểm cộng nhóm = tổng còn lại (sai số dưới 1 triệu đồng) */
+export const khopNhomTinhTrang = (m: CardMetrics): boolean => Math.abs(m.coTheSX + m.chuaTheSX + m.chuaXepNhom - m.tongConLai) < 1;
 
 // Bảng "Tình trạng đơn hàng theo Công trình": mỗi dòng 1 công trình, cột theo cấu trúc bảng BOP của cửa sổ công trình
 // (Construction/core/bopPivot): công đoạn (gom nhóm Chưa triển khai / Chưa tính phiếu / Đang trên chuyền) + TỔNG +
@@ -372,7 +360,7 @@ export function hexOBangCongTrinh(rows: DataRow[], k: KhoaBangCongTrinh & { hexK
     const i = mucBopTuDong(row, khoa);
     const vao = 'donHang' in o ? true
       : stages ? mucCongDoan([i], m).length > 0 && stages.has(stageOfBop(i))
-      : 'kho' in o ? khoMuc(i, m).nk > 0 && khoMuc(i, m)[o.kho] > 0 : false;
+      : 'kho' in o ? khoMuc(i, m)[o.kho] > 0 : false;
     if (vao) out.push(String(row[k.hexKey || 'hex'] ?? '').trim());
   }
   return out.filter(Boolean);
@@ -431,6 +419,8 @@ export function tinhPivotWorkshop(rows: DataRow[], k: KhoaPivot, metric: MetricT
 }
 
 export interface FunnelPivot { data: { name: string; value: number }[]; total: number }
+/** Mã công đoạn của dòng, cùng cách đọc với bảng công trình */
+const bopCua = (row: DataRow, k: KhoaPivot) => extractStage(row[k.bopKey]) ?? (String(row[k.bopKey] || '').trim() || 'Chưa xác định');
 
 /** Phễu theo BOP — nguồn funnelProductionData (theo Tình trạng IPO của trang, không ăn filters.tinhTrang) */
 export function tinhPivotFunnel(rows: DataRow[], k: KhoaPivot, metric: MetricType): FunnelPivot | null {
@@ -439,14 +429,10 @@ export function tinhPivotFunnel(rows: DataRow[], k: KhoaPivot, metric: MetricTyp
   const agg: Record<string, number> = {};
   let total = 0;
   rows.forEach(row => {
-    const bop = String(row[k.bopKey] || 'Chưa xác định').trim();
-    const s = String(row[k.tinhTrangKey] || '').trim();
-    const w = String(row[k.xuongKey] || '').trim();
-    if (s && w) {
-      const val = funnelValue(row, metric);
-      agg[bop] = (agg[bop] || 0) + val;
-      total += val;
-    }
+    const bop = bopCua(row, k);
+    const val = funnelValue(row, metric);
+    agg[bop] = (agg[bop] || 0) + val;
+    total += val;
   });
   const bopOrder: readonly string[] = BOP_STAGE_ORDER;
   return {
@@ -472,10 +458,7 @@ export function tinhFunnelBreakdownByBop(rows: DataRow[], k: KhoaPivot, metric: 
   const agg: Record<string, Record<string, number>> = {}; // bop -> công trình -> value
   const totals: Record<string, number> = {};
   rows.forEach(row => {
-    const bop = String(row[k.bopKey] || 'Chưa xác định').trim();
-    const s = String(row[k.tinhTrangKey] || '').trim();
-    const w = String(row[k.xuongKey] || '').trim();
-    if (!s || !w) return;
+    const bop = bopCua(row, k);
     const project = projectNameOf(row[k.congTrinhKey]);
     const val = funnelValue(row, metric);
     if (!agg[bop]) agg[bop] = {};
@@ -627,7 +610,7 @@ export function mixRecords(data: DataRow[], columns: ColumnDefinition[]): MixRec
   for (const row of data) {
     if (!String(row[ctK] ?? '').trim()) continue;
     // Đơn HỦY không tính (cả số hạng mục lẫn giá trị) — quy tắc chung
-    if (String(row[ipoK] ?? '').toUpperCase().includes('HỦY')) continue;
+    if (laHuy(row[ipoK])) continue;
     out.push({
       ct: projectMatchKey(row[ctK]),
       kv: categoryValue(row[kvK]), kh: categoryValue(row[khK]), pl: categoryValue(row[plK]),

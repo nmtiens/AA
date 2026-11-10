@@ -186,8 +186,8 @@ describe('số lượng theo đơn vị hạng mục', () => {
   it('làm tròn 3 chữ số lẻ, hiển thị kiểu Việt Nam', () => {
     expect(lamTronSl(74.255 - 30.1)).toBe(44.155);
     expect(lamTronSl(0.1 + 0.2)).toBe(0.3);
-    expect(hienSl(74.255)).toBe('74,255');
-    expect(hienSl(1234.5)).toBe('1.234,5');
+    expect(hienSl(74.255)).toBe('74.255');
+    expect(hienSl(1234.5)).toBe('1,234.5');
   });
 });
 

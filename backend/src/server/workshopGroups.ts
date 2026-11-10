@@ -35,8 +35,12 @@ const load = async () => {
     rawToGroup = m;
     version = `${m.size}-${latest}`;
   } catch (err: any) {
-    // Chưa tạo bảng (chưa chạy file SQL) -> không gộp, giữ nguyên mã gốc
-    if (err?.code !== '42P01') console.error('Lỗi nạp setup gộp xưởng:', err);
+    // Lỗi tạm thời: giữ bản đang có, thử lại sau 1 phút. Chỉ chưa tạo bảng (42P01) mới coi là không gộp
+    if (err?.code !== '42P01') {
+      console.error('Lỗi nạp setup gộp xưởng:', err);
+      loadedAt = Date.now() - Math.max(0, REFRESH_MS - 60_000);
+      return;
+    }
     rawToGroup = new Map();
     version = '0';
   }

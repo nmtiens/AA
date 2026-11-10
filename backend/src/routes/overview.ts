@@ -170,6 +170,15 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
 
       const finalQuery = `WITH ${ctes.join(',\n')}\n${subQueries.join('\nUNION ALL\n')}`;
       const r = await timedQuery(finalQuery, allParams, { workMemMb: 32 });
+      // Ngày mới nhất từng nguồn (toàn bảng, không theo bộ lọc): thẻ phân biệt "chưa có số" với "số 0"
+      const maxQ = await timedQuery(
+        Object.values(ANALYSIS_TABLES)
+          .map(cfg => `SELECT '${cfg.table}' AS k, to_char(MAX(date_parsed), 'YYYY-MM-DD') AS d FROM ${cfg.table} WHERE date_parsed <= $1`)
+          .join(' UNION ALL '),
+        [vnTodayUtc().toISOString().slice(0, 10)]
+      );
+      const maxTheoBang = new Map(maxQ.rows.map(row => [row.k, row.d]));
+      const maxDates = Object.fromEntries(Object.entries(ANALYSIS_TABLES).map(([key, cfg]) => [key, maxTheoBang.get(cfg.table) ?? null]));
 
       const results: Record<string, any> = {};
       r.rows.forEach(row => {
@@ -180,7 +189,7 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
         };
       });
 
-      return { date: dateToStr, dateFrom: dateFromStr, ...results };
+      return { date: dateToStr, dateFrom: dateFromStr, maxDates, ...results };
     }, workshopGroupsVersion());
 
     res.json(overviewPayload);

@@ -1,4 +1,4 @@
-import { parseNameList, expandProjectNames, normNameSql, canonicalProjectName, projectAliasesVersion } from '../server/projectAlias.js';
+import { parseNameList, expandProjectNames, normName, normNameSql, canonicalProjectName, projectAliasesVersion } from '../server/projectAlias.js';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
@@ -77,19 +77,28 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
     joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
 
+  // Mọi ngày chốt của bảng, kể cả khi phạm vi lọc không còn dòng (ra 0): ngày chốt không phụ thuộc bộ lọc.
+  // count = mã giá trị ≠ 0; count0 = mã chỉ có dòng giá trị 0.
+  const giaTri = numericColQualified('ton_kho', 's', 'gia_tri');
   const q = `
-    ${cteClause}
-    SELECT s.date_parsed AS d,
-          COUNT(DISTINCT s.ma_id_sap) AS count,
-           COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
-    FROM ton_kho s
-    ${joinClause}
-    WHERE ${conds.join(' AND ')}
-    GROUP BY 1
+    ${cteClause ? `${cteClause},` : 'WITH'}
+    moi_ngay AS (SELECT DISTINCT date_parsed AS d FROM ton_kho WHERE date_parsed IS NOT NULL),
+    loc AS (
+      SELECT s.date_parsed AS d,
+             COUNT(DISTINCT s.ma_id_sap) FILTER (WHERE ${giaTri} <> 0) AS count,
+             COUNT(DISTINCT s.ma_id_sap) AS tat_ca,
+             COALESCE(SUM(${giaTri}), 0) AS value
+      FROM ton_kho s
+      ${joinClause}
+      WHERE ${conds.join(' AND ')}
+      GROUP BY 1
+    )
+    SELECT n.d, COALESCE(l.count, 0) AS count, COALESCE(l.tat_ca - l.count, 0) AS count0, COALESCE(l.value, 0) AS value
+    FROM moi_ngay n LEFT JOIN loc l ON l.d = n.d
     ORDER BY 1 DESC
   `;
   const r = await timedQuery(q, params);
-  const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
+  const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), count0: Number(row.count0), value: Number(row.value) }));
 
   stockDatesCache.set(cacheKey, { versions, payload });
   trimCache(stockDatesCache);
@@ -186,7 +195,8 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const needsJoin = hasProductionFilter(filters);
 
     const rows = await cachedByVersions(stockQueryCache, `by-project|${date}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
-    const conds: string[] = ['s.date_parsed = $1'];
+    // Chỉ dòng giá trị ≠ 0: cùng tập với thẻ 6 và báo cáo v5
+    const conds: string[] = ['s.date_parsed = $1', `${numericColQualified('ton_kho', 's', 'gia_tri')} <> 0`];
     const params: any[] = [date];
     if (filters.congTrinh.length) {
       params.push(filters.congTrinh);
@@ -265,8 +275,8 @@ const docDauVaoHealth = (date: string, filters: StockFilterParams) =>
       timedQuery(c.psa.sql, c.psa.params, { workMemMb: 32 }),
       timedQuery(c.luong.sql, c.luong.params, { workMemMb: 32 }),
     ]);
-    return ghepDauVaoV5(date, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows });
-  }), workshopGroupsVersion());
+    return { ...ghepDauVaoV5(date, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows }), tenChuan: t => normName(canonicalProjectName(t)) };
+  }), `${workshopGroupsVersion()}|${projectAliasesVersion()}`);
 
 app.get('/api/stock/health', async (req: Request, res: Response) => {
   try {
@@ -275,7 +285,7 @@ app.get('/api/stock/health', async (req: Request, res: Response) => {
     const filters = parseHealthFilters(req);
 
     const payload = await cachedByVersions(stockQueryCache, `health5|${date}|${JSON.stringify(filters)}`, stockHealthVersionKeys,
-      async () => tinhTonKhoV5(await docDauVaoHealth(date, filters)), workshopGroupsVersion());
+      async () => tinhTonKhoV5(await docDauVaoHealth(date, filters)), `${workshopGroupsVersion()}|${projectAliasesVersion()}`);
     res.json(payload);
   } catch (error) {
     console.error('Lỗi stock/health:', error);
@@ -338,7 +348,7 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
     const filters = parseStockFilters(req);
 
     const payload = await cachedByVersions(stockItemsCache, `items|${date}|${project}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
-    const conds: string[] = ['s.date_parsed = $1'];
+    const conds: string[] = ['s.date_parsed = $1', `${numericColQualified('ton_kho', 's', 'gia_tri')} <> 0`];
     const params: any[] = [date];
     if (project === 'CHƯA XÁC ĐỊNH') {
       conds.push(`TRIM(COALESCE(s.ten_cong_trinh, '')) = ''`);

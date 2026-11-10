@@ -229,7 +229,7 @@ export const choSoLe = (dvt: string | null | undefined, ...soLuong: Array<number
 /** Làm tròn 3 chữ số lẻ (khử sai số cộng trừ số thực) */
 export const lamTronSl = (n: number): number => Math.round(n * 1000) / 1000;
 /** Hiển thị số lượng kiểu Việt Nam: 74,255 */
-export const hienSl = (n: number): string => lamTronSl(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+export const hienSl = (n: number): string => lamTronSl(n).toLocaleString('en-US', { maximumFractionDigits: 3 });
 
 export const slConLam = (r: DongViec) => Math.max(0, r.slNhan - r.slHoanThanh);
 export const slChoGiao = (r: DongViec) => Math.max(0, r.slHoanThanh - r.slGiao);

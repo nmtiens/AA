@@ -8,7 +8,7 @@ const ngay = (d: number) => new Date(TODAY + d * 86_400_000);
 const rec = (p: Partial<Rec>): Rec => ({
   ct: 'CT A', pm: 'PM', pc: 'PC', kv: 'KV', kh: 'KH', pl: 'PL', nct: '', tda: '', ma: 'A', deadline: null, planMet: false,
   open: true, overdue: false, botDuAn: null, ctKey: 'ct a', month: 'none', status: 'CÓ PHIẾU SX',
-  total: 100, done: 0, exported: 0, exportedRecorded: 0, stock: 0, unmatched: 0, stockCut: 0, qtyDone: false,
+  total: 100, totalHuy: 0, done: 0, exported: 0, exportedRecorded: 0, xuatVuot: 0, stock: 0, unmatched: 0, stockCut: 0, qtyDone: false,
   row: {}, ipo: '', mk: 'ct a', bucket: 'onLine', ...p,
 });
 
@@ -39,7 +39,7 @@ describe('tinhChiSo', () => {
     rec({ planMet: true }),
     rec({}),
     rec({ open: false, done: 100 }),
-    rec({ open: false, status: 'HỦY' as Rec['status'], bucket: 'cancelled' }),
+    rec({ open: false, status: 'HỦY' as Rec['status'], bucket: 'cancelled', total: 0, totalHuy: 70, stock: 5 }),
   ];
   const cs = tinhChiSo(rows, TODAY);
 
@@ -55,6 +55,12 @@ describe('tinhChiSo', () => {
     expect(cs.done + cs.remain).toBe(cs.total);
     const theoCd = Object.values(cs.remainBy).reduce((s, v) => s + v, 0);
     expect(theoCd).toBe(cs.remain);
+  });
+  it('HỦY = 0 trong tổng, số hủy riêng, tồn vẫn gồm hủy, không đếm vào số hạng mục', () => {
+    expect(cs.total).toBe(700);
+    expect(cs.totalHuy).toBe(70);
+    expect(cs.stock).toBe(5);
+    expect(cs.items).toBe(7);
   });
   it('đếm đã nhập đủ / chưa nhập đủ / hủy tách bạch', () => {
     expect(cs.stocked).toBe(1);

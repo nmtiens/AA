@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { pool, timedQuery, withTransaction } from '../db.js';
 import { parseBotEnd } from '../vuongMacPush.js';
+import { gopKhac } from '../server/vuongMacNhom.js';
 import {
   notify, findMentionedIds, idsByFullName, idsByUsername, recipientsFor, displayName,
 } from '../notifications.js';
@@ -210,8 +211,11 @@ const canAddToVuongMacThread = async (actor: VuongMacActor, hex: string, categor
 // ---------- Hạn BOT ----------
 const DUE_SOON_MS = 24 * 60 * 60 * 1000;
 type DueState = 'overdue' | 'soon' | 'ok' | 'none';
-const dueState = (bot: string | null, now = Date.now()): DueState => {
-  const end = parseBotEnd(bot);
+/** Hạn duy nhất: bot_end; dòng cũ chưa có thì đọc từ chữ bot */
+const hanCua = (row: { bot?: string | null; bot_end?: Date | string | null }): Date | null =>
+  (row.bot_end ? new Date(row.bot_end) : parseBotEnd(row.bot ?? null));
+const dueState = (row: { bot?: string | null; bot_end?: Date | string | null }, now = Date.now()): DueState => {
+  const end = hanCua(row);
   if (!end) return 'none';
   const left = end.getTime() - now;
   return left < 0 ? 'overdue' : left <= DUE_SOON_MS ? 'soon' : 'ok';
@@ -705,10 +709,10 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
     let total = rows[0] ? Number(rows[0].total) : 0;
     if (byBot) {
       const now = Date.now();
-      if (due === 'overdue' || due === 'soon') rows = rows.filter(row => dueState(row.bot, now) === due);
+      if (due === 'overdue' || due === 'soon') rows = rows.filter(row => dueState(row, now) === due);
       if (sort === 'bot') {
         // Chưa xong trước; trong đó hạn BOT sớm nhất trước, không có BOT xuống cuối
-        const endOf = (row: any) => parseBotEnd(row.bot)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const endOf = (row: any) => hanCua(row)?.getTime() ?? Number.POSITIVE_INFINITY;
         rows = [...rows].sort((a, b) =>
           Number(a.is_resolved) - Number(b.is_resolved) || endOf(a) - endOf(b));
       }
@@ -775,7 +779,7 @@ app.get('/api/vuong-mac/stats', authenticateJWT, requireActiveUser, async (req: 
     const xuongs = new Map<string, { open: number; overdue: number }>();
     for (const row of openR.rows) {
       const st = statusOf(row);
-      const d = dueState(row.bot, now);
+      const d = dueState(row, now);
       const active = st === 'open' || st === 'doing';
       s.byStatus[st] = (s.byStatus[st] ?? 0) + 1;
       if (st === 'done') s.waiting++;
@@ -930,7 +934,7 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
       const groups = [totals, group(byCategory, row.category), group(byXuong, xuong), group(byStage, stage),
         group(byHandler, handlerName), group(byProject, project)];
       const active = st === 'open' || st === 'doing';
-      const d = active ? dueState(row.bot, now) : 'none';
+      const d = active ? dueState(row, now) : 'none';
 
       if (active) {
         for (const g of groups) { g.open++; if (st === 'doing') g.doing++; if (d === 'overdue') g.overdue++; else if (d === 'soon') g.soon++; }
@@ -965,11 +969,10 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
       const wz = st === 'closed' ? weekKeyOf(row.closed_at) : null; if (wz) weeks.get(wz)!.closed++;
     }
 
-    const out = (m: Map<string, Agg>, limit?: number) => [...m.entries()]
+    const out = (m: Map<string, Agg>, limit?: number) => gopKhac([...m.entries()]
       .map(([name, g]) => ({ name, open: g.open, doing: g.doing, waiting: g.waiting, overdue: g.overdue, soon: g.soon,
         created: g.created, done: g.done, closed: g.closed, avgDoneHours: avg(g.doneHours) }))
-      .sort((a, b) => b.overdue - a.overdue || b.open - a.open || b.created - a.created)
-      .slice(0, limit ?? 999);
+      .sort((a, b) => b.overdue - a.overdue || b.open - a.open || b.created - a.created), limit ?? 999);
     // Vướng mắc chưa xong lâu nhất: quá hạn trước, rồi tuổi lớn nhất
     oldest.sort((a, b) => Number(b.due === 'overdue') - Number(a.due === 'overdue') || b.ageHours - a.ageHours);
 
@@ -1066,7 +1069,7 @@ app.post(
 // ============================================================================
 // SỬA + ĐỔI TRẠNG THÁI THEO QUY TRÌNH
 // ============================================================================
-const STATUS_LABEL: Record<VmStatus, string> = { open: 'Mới', doing: 'Đang xử lý', done: 'Đã xử lý', closed: 'Đã đóng' };
+const STATUS_LABEL: Record<VmStatus, string> = { open: 'Mới', doing: 'Đang xử lý', done: 'Chờ xác nhận', closed: 'Đã đóng' };
 
 app.put(
   '/api/vuong-mac/:id',

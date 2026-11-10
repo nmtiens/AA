@@ -4,6 +4,7 @@ import { ProjectPivotData, MetricType } from '../../types';
 import { formatNumber } from '../../utils/numberParsers';
 import { MetricSwitcher } from '../shared/MetricSwitcher';
 import { useRowLimit, ShowMoreRows } from '../shared/ShowMoreRows';
+import { khung, soO, table, tdB, tfoot, thB, thead, trong0 } from '../../../shared/bangBaoCao';
 
 interface PivotProjectSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
@@ -26,6 +27,7 @@ export const PivotProjectSection = ({
   const { limit, showMore, showAll } = useRowLimit();
   const totalRows = pivotProjectData?.uniqueProjects.length ?? 0;
   const visibleProjects = pivotProjectData ? pivotProjectData.uniqueProjects.slice(0, limit) : [];
+  const so = (v: number) => trong0(v, x => formatNumber(x, projectMetric));
 
   return (
   <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-wood-100 flex flex-col">
@@ -54,62 +56,35 @@ export const PivotProjectSection = ({
       </div>
     </div>
     {pivotProjectData ? (
-      <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[550px]">
-        <table className="w-full text-sm text-right min-w-[800px] border-separate border-spacing-0">
-          <thead className="bg-blue-50/50 text-slate-700 font-semibold uppercase">
+      <div className={`${khung} max-h-[550px]`}>
+        <table className={`${table} min-w-[800px]`}>
+          <thead className={thead}>
             <tr>
-              {/* Góc trên-trái: ghim cả top + left, z cao nhất */}
-              <th className="px-3 py-2 text-left sticky left-0 top-0 bg-blue-100 border-b border-blue-200 z-40 min-w-[200px] shadow-[1px_1px_2px_rgba(0,0,0,0.05)]">
-                Tên Công Trình
-              </th>
+              <th className={`${thB} sticky left-0 z-[3] min-w-[200px] bg-emerald-300 text-center`}>Công trình</th>
               {pivotProjectData.uniqueStatuses.map((s: string) => (
-                <th key={s} className="px-3 py-2 border-b border-blue-200 whitespace-nowrap text-blue-900 sticky top-0 bg-blue-50 z-20">
-                  {s}
-                </th>
+                <th key={s} className={`${thB} whitespace-nowrap text-center`}>{s}</th>
               ))}
-              {/* Góc trên-phải: ghim cả top + right, z cao nhất */}
-              <th className="px-3 py-2 bg-blue-100 border-b border-blue-200 font-bold text-slate-800 sticky top-0 right-0 z-40 shadow-[-1px_1px_2px_rgba(0,0,0,0.05)]">
-                Tổng Cộng
-              </th>
+              <th className={`${thB} sticky right-0 z-[3] bg-emerald-300 text-center`}>Tổng</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {visibleProjects.map((p: string) => (
-              <tr key={p} className="hover:bg-slate-50 transition-colors group">
-                <td className="px-3 py-2 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                  {p}
-                </td>
-                {pivotProjectData.uniqueStatuses.map((s: string) => {
-                  const matrix = pivotProjectData.matrix || {};
-                  const val = matrix[p]?.[s] || 0;
-                  return (
-                    <td key={s} className={`px-3 py-2 whitespace-nowrap ${val === 0 ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {val === 0 ? '-' : formatNumber(val, projectMetric)}
-                    </td>
-                  );
-                })}
-                {/* Cột Tổng Cộng của từng dòng: ghim bên phải */}
-                <td className="px-3 py-2 font-bold text-slate-800 bg-blue-50/30 group-hover:bg-blue-50 sticky right-0 z-10 whitespace-nowrap shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                  {formatNumber(pivotProjectData.rowTotals[p], projectMetric)}
-                </td>
+              <tr key={p}>
+                <td className={`${tdB} sticky left-0 z-[1] whitespace-nowrap bg-white font-bold`}>{p}</td>
+                {pivotProjectData.uniqueStatuses.map((s: string) => (
+                  <td key={s} className={`${tdB} ${soO}`}>{so(pivotProjectData.matrix?.[p]?.[s] || 0)}</td>
+                ))}
+                <td className={`${tdB} ${soO} sticky right-0 z-[1] bg-white font-bold`}>{so(pivotProjectData.rowTotals[p])}</td>
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-blue-100 font-bold text-slate-800 border-t border-blue-300">
+          <tfoot className={tfoot}>
             <tr>
-              {/* Góc dưới-trái: ghim cả bottom + left, z cao nhất */}
-              <td className="px-3 py-2 text-left sticky left-0 bottom-0 z-40 bg-blue-100 shadow-[2px_-1px_2px_rgba(0,0,0,0.05)]">
-                Tổng Cộng
-              </td>
+              <td className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
               {pivotProjectData.uniqueStatuses.map((s: string) => (
-                <td key={s} className="px-3 py-2 whitespace-nowrap sticky bottom-0 z-20 bg-blue-100">
-                  {formatNumber(pivotProjectData.colTotals[s], projectMetric)}
-                </td>
+                <td key={s} className={`${tdB} ${soO}`}>{so(pivotProjectData.colTotals[s])}</td>
               ))}
-              {/* Góc dưới-phải: ghim cả bottom + right, z cao nhất */}
-              <td className="px-3 py-2 text-blue-900 text-base sticky bottom-0 right-0 z-40 bg-blue-100 shadow-[-2px_-1px_2px_rgba(0,0,0,0.05)]">
-                {formatNumber(pivotProjectData.grandTotal, projectMetric)}
-              </td>
+              <td className={`${tdB} ${soO} right-0 !z-[3]`}>{so(pivotProjectData.grandTotal)}</td>
             </tr>
           </tfoot>
         </table>

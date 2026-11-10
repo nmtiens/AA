@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import DetailDataModal from '../Dashboards/DetailDataModal';
 import { fetchStockItems } from '../../../../services/dataService';
+import { fmtInt, fmtDate } from '../../../../utils/format';
+import { dongTonKhac0 } from '../../core/chiTietHex';
 
 // ============================================================================
 // Chi tiết TỒN KHO (bước "P022. TỒN KHO" của phễu): từng mã tồn kho (mã ID SAP) tại ngày tồn kho đang xem,
@@ -47,17 +49,19 @@ export function StockItemsModal({ open, onClose, date, projectName, congTrinh, x
     return () => ctrl.abort();
   }, [open, dateISO, projectName, scopeKey, xuongKey]);
 
-  const dateLabel = date ? date.toLocaleDateString('vi-VN') : '';
+  const dateLabel = fmtDate(date);
+  // Số trên thẻ đếm mã có giá trị khác 0
+  const dong = useMemo(() => dongTonKhac0(rows), [rows]);
   // Số trên phễu / bảng (chế độ Số lượng) đếm MÃ ID SAP khác nhau; danh sách gom theo mã (1 mã có thể nhiều HEX / lô)
-  const idCount = new Set(rows.map(r => String(r.ma_id_sap ?? ''))).size;
-  const countNote = rows.length ? ` · ${idCount.toLocaleString('vi-VN')} mã / ${rows.length.toLocaleString('vi-VN')} dòng` : '';
+  const idCount = new Set(dong.map(r => String(r.ma_id_sap ?? ''))).size;
+  const countNote = dong.length ? ` · ${fmtInt(idCount)} mã` : '';
   return (
     <DetailDataModal
       open={open}
       onClose={onClose}
-      title={`Tồn kho ngày ${dateLabel}${projectName ? ` — ${projectName}` : ''}${countNote} · Đơn vị: Tỷ đồng`}
+      title={`Tồn kho ngày ${dateLabel}${projectName ? ` — ${projectName}` : ''}${countNote}`}
       accentColor="#16a34a"
-      rows={rows}
+      rows={dong}
       columns={COLUMNS}
       loading={loading}
       truncated={truncated}

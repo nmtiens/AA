@@ -6,12 +6,13 @@ import {
   materialLineState, isMaterialPending, materialDueDate, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
   type DeadlineSource, type MaterialLineState, type MaterialLineFields, type MaterialBase, stageRank,
 } from '../../utils/productionMetrics';
-import { formatTrieuAsTy } from '../../utils/money';
-import { fmtInt, fmtDate, fmtQty, DAY_MS as DAY } from '../../utils/format';
+import * as bang from '../shared/bangBaoCao';
+import { fmtInt, fmtTy, fmtDate, fmtPt, fmtQty, DAY_MS as DAY } from '../../utils/format';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
+import { tongHangMuc } from './core/tongChiTiet';
 import {
-  BOP_GROUP, KHO_COT, laKho as laKhoBop, tinhCayBop, mucCongDoan, fmtGiaTriBop, stageOfBop, tenCotCongDoan,
+  BOP_GROUP, KHO_COT, khoCua, laKho as laKhoBop, tinhCayBop, mucCongDoan, fmtGiaTriBop, stageOfBop, tenCotCongDoan,
   type BopMetric, type Kho, type KhoCot,
 } from './core/bopPivot';
 
@@ -81,15 +82,13 @@ export interface MaterialLine extends MaterialLineFields {
 }
 
 // Tỷ đồng: luôn 2 chữ số thập phân — thống nhất với Báo cáo tiến độ
-const fmtTy = (trieu: number) => formatTrieuAsTy(trieu);
+const { tdB, thB } = bang;
 
 const th = 'px-3 py-2 font-medium';
 // Bảng pivot BOT / BOP: kẻ ô, tiêu đề xanh, dòng TỔNG vàng chữ đỏ — đồng bộ với 2 bảng BOP-M2 của tab BOM
 const thX = 'border border-slate-300 px-3 py-2 font-bold';
 const tdX = 'border border-slate-300 px-3 py-2';
 // Bảng BOP: nhiều cột số, ô hẹp để đủ cột Kho trên màn 1366
-const thB = 'border-b border-r border-slate-300 px-2 py-1.5 font-bold';
-const tdB = 'border-b border-r border-slate-300 px-2 py-1.5';
 const td = 'px-3 py-2';
 
 export const Chip = ({ active, onClick, children, tone = 'slate' }: {
@@ -355,7 +354,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
       {/* KH nhập kho (hạn chính thức của các trang khác) + ngày cần giao + tuổi đơn: 1 dòng gọn */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs">
         <span className="font-semibold text-slate-700" title="KH nhập kho tuần → tháng — hạn chính thức ở các trang khác">KH nhập kho:</span>
-        <span className="text-slate-600">{fmtInt(coKh)}/{fmtInt(open.length)} hạng mục có KH ({open.length ? ((coKh / open.length) * 100).toFixed(1) : '0'}%)</span>
+        <span className="text-slate-600">{fmtInt(coKh)}/{fmtInt(open.length)} hạng mục có KH ({fmtPt(open.length ? (coKh / open.length) * 100 : 0)})</span>
         {BOT_GROUPS.filter(g => g.key !== 'none' && counts[g.key].n > 0).map(g => (
           <span key={g.key} title={g.hint}>
             <Chip active={group === g.key} tone={g.tone === 'red' ? 'red' : g.tone === 'amber' ? 'amber' : 'slate'} onClick={() => setGroup(group === g.key ? 'all' : g.key)}>
@@ -762,9 +761,9 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
   });
   const coSoDong = (n: { duong: string[] }, b: ChieuBop[]) => Object.fromEntries(n.duong.map((v, idx) => [b[idx], v])) as Pick<NonNullable<BopSel>, ChieuBop>;
   // Bấm ô kho => lọc danh sách đúng các hạng mục làm nên số đó
-  const khoCells = (k: Kho, base: NonNullable<BopSel>) => (['nk', 'xk', 'ton', 'chenh'] as const).map((f, idx) => (
+  const khoCells = (k: Kho, base: NonNullable<BopSel>) => KHO_COT.map((f, idx) => (
     <React.Fragment key={f}>
-      {cell(k[f], { ...base, kho: f }, `${idx === 0 ? 'border-l-2 border-l-slate-300' : ''} ${f === 'ton' ? 'font-bold' : f === 'chenh' ? 'font-semibold text-orange-700' : ''}`)}
+      {cell(k[f], { ...base, kho: f }, `${idx === 0 ? 'border-l-2 border-l-slate-300' : ''} ${f === 'ton' ? 'font-bold' : f === 'chenh' || f === 'xv' ? 'font-semibold text-orange-700' : ''}`)}
     </React.Fragment>
   ));
 
@@ -807,9 +806,9 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
 
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    // Cùng tập hạng mục với bảng Công đoạn × Khu vực (bấm ô nào thì danh sách khớp đúng số của ô đó); lọc theo thẻ
-    // QC / gia công ngoài / bước SX thì dùng tập hạng mục còn theo dõi như số đếm trên thẻ
-    return (sel?.kho || sel?.donHang ? khoItems : extraSel ? open : pivotItems)
+    // Cùng tập hạng mục với số vừa bấm: ô bảng BOP theo bảng đó; biểu đồ thời gian và thẻ QC / gia công ngoài / bước SX
+    // đếm trên hạng mục còn theo dõi
+    return (dwellSel || extraSel ? open : sel?.kho || sel?.donHang ? khoItems : pivotItems)
       .filter(matchSel)
       .filter(i => !dwellSel || (stageOf(i) === dwellSel.stage && dwellOf(i.dwell) === dwellSel.dwell))
       .filter(matchExtra)
@@ -841,7 +840,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
       : extraSel.kind === 'qc' ? `QC: ${QC_STATE_META[extraSel.st].label}`
         : extraSel.st === 'pending' ? 'GCN còn chờ NCC' : `GCN: ${extraSel.st}`;
   const selText = [
-    ...(sel ? [sel.ct, sel.nsp, sel.xuong, sel.stages && dayP(sel.stages), sel.donHang && 'Tổng đơn hàng', sel.kho && ({ nk: 'Đã nhập kho', xk: 'Đã xuất kho', ton: 'Tồn kho', chenh: 'Chênh kho' })[sel.kho]] : []),
+    ...(sel ? [sel.ct, sel.nsp, sel.xuong, sel.stages && dayP(sel.stages), sel.donHang && 'Tổng đơn hàng', sel.kho && ({ nk: 'Đã nhập kho', xk: 'Đã xuất kho', ton: 'Tồn theo đơn đang xem', chenh: 'Chênh kho', xv: 'Xuất vượt nhập' })[sel.kho]] : []),
     ...(dwellSel ? [...(sel?.stages ? [] : [dwellSel.stage]), DWELL.find(d => d.key === dwellSel.dwell)?.label] : []),
     extraText,
   ].filter(Boolean).join(' · ');
@@ -889,7 +888,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
         </tr>
         {mo && coChon && (
           <tr className="bg-slate-50">
-            <td colSpan={cot.length + 7} className={tdB}>
+            <td colSpan={cot.length + 8} className={tdB}>
               <span className="sticky left-2 inline-flex gap-1 pl-5">
                 {[bac[1], bac[2]].map(c => (
                   <Chip key={c} active={chon === c} onClick={() => doiChon(n.ten, c)}>Theo {TEN_CHIEU[c].toLowerCase()}</Chip>
@@ -937,7 +936,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
                   {metric === 'count' ? <>Tổng<br />hạng mục</> : <>Tổng giá trị<br />đơn hàng</>}
                 </th>
                 <th colSpan={cot.length + 1} className={`${thB} text-center uppercase tracking-wide`}>{tieuDeCot}</th>
-                <th colSpan={4} rowSpan={2} className={`${thB} border-l-2 border-l-slate-300 bg-emerald-50/60 text-center text-sm uppercase tracking-wide text-emerald-900`}
+                <th colSpan={KHO_COT.length} rowSpan={2} className={`${thB} border-l-2 border-l-slate-300 bg-emerald-50/60 text-center text-sm uppercase tracking-wide text-emerald-900`}
                   title={tatCa ? 'Lũy kế các hạng mục đang xem, kể cả đã nhập kho đủ' : 'Lũy kế mọi hạng mục không hủy của công trình, mọi Tình trạng IPO'}>
                   Kho (lũy kế)
                 </th>
@@ -967,7 +966,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
                     {{
                       nk: <>Đã nhập<br /><span className="font-semibold text-slate-800">P022</span></>,
                       xk: <>Đã xuất<br /><span className="font-semibold text-slate-800">P025</span></>,
-                      ton: 'Tồn kho', chenh: 'Chênh',
+                      ton: <>Tồn theo đơn<br />đang xem</>, chenh: 'Chênh', xv: <>Xuất vượt<br />nhập</>,
                     }[f]}
                   </th>
                 ))}
@@ -976,7 +975,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
             <tbody>
               {dongBang}
               {pivot.goc.length === 0 && (
-                <tr><td colSpan={cot.length + 7} className="px-3 py-6 text-center text-slate-400">Không có hạng mục.</td></tr>
+                <tr><td colSpan={cot.length + 8} className="px-3 py-6 text-center text-slate-400">Không có hạng mục.</td></tr>
               )}
             </tbody>
             {pivot.goc.length > 0 && (
@@ -1031,7 +1030,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
                         key={d.key}
                         type="button"
                         onClick={() => pickDwell(next)}
-                        title={`${r.stage} · ${d.label}: ${v} hạng mục`}
+                        title={`${r.stage} · ${d.label}: ${fmtInt(v)} hạng mục`}
                         className={`${d.bar} ${d.chu} flex items-center justify-center text-xs font-semibold tabular-nums hover:brightness-110 ${isDwellSel(next) ? 'ring-2 ring-inset ring-slate-900' : ''}`}
                         style={{ width: `${(v / r.n) * 100}%` }}
                       >
@@ -1092,10 +1091,6 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
               </button>
             );
           })()}
-          <p className="mt-2 text-[0.625rem] text-slate-400">
-            Số ngày ở công đoạn lấy từ nguồn dữ liệu sản xuất; với các công đoạn trên chuyền (từ P013) nguồn hầu như chỉ ghi
-            &lt; 3 ngày / 4–7 ngày nên chưa phản ánh hết thời gian tồn thực tế.
-          </p>
         </div>
       </div>
 
@@ -1106,7 +1101,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
           <p className="mb-2 text-xs font-semibold text-slate-700">
             Sản lượng theo công đoạn sản xuất{' '}
             <span className="font-normal text-slate-500">
-              · {steps ? `${fmtInt(steps.onLine)} hạng mục trên chuyền (P012 → P021)` : '…'} · SL đã giao / SL tính phiếu · bấm 1 bước để lọc hạng mục chưa xong bước đó
+              · {steps ? `${fmtInt(steps.onLine)} hạng mục trên chuyền (P012→P021)` : '…'}
             </span>
           </p>
           {!steps ? (
@@ -1129,21 +1124,18 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div className={`h-2 rounded-full ${r.pct >= 100 ? 'bg-emerald-500' : r.pct >= 50 ? 'bg-amber-400' : 'bg-orange-400'}`} style={{ width: `${r.pct}%` }} />
                     </div>
-                    <span className="w-12 shrink-0 text-right tabular-nums text-slate-700">{r.pct.toFixed(0)}%</span>
+                    <span className={`w-12 shrink-0 text-right tabular-nums ${r.pct === 0 ? 'font-bold text-red-600' : 'text-slate-700'}`}>{fmtPt(r.pct)}</span>
                     <span className="w-24 shrink-0 text-right tabular-nums text-slate-500" title="Hạng mục đã giao đủ bước / hạng mục áp dụng">{fmtInt(r.done)}/{fmtInt(r.items)} HM</span>
                   </button>
                 );
               })}
-              <p className="pt-1 text-[0.625rem] text-slate-400">
-                Bước Kim loại / Vecni / Sofa / Đá / Kính chỉ tính hạng mục có cờ tương ứng. Số giao theo công đoạn do xưởng cập nhật ở bảng sản xuất.
-              </p>
             </div>
           )}
         </div>
 
         <div className="rounded-lg border border-slate-200 p-3">
           <p className="mb-2 text-xs font-semibold text-slate-700">
-            QC <span className="font-normal text-slate-500">· theo lần kiểm gần nhất của hạng mục chưa nhập kho đủ</span>
+            QC <span className="font-normal text-slate-500">· lần kiểm gần nhất</span>
           </p>
           {!qc ? <p className="py-3 text-center text-xs text-slate-400">Đang tải…</p> : (
             <>
@@ -1165,7 +1157,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
                 })}
               </div>
               <p className="mt-2 text-[0.625rem] text-slate-400">
-                {fmtInt(qc.checks)} lần kiểm · {fmtInt(qc.fail)} sản phẩm lỗi ghi nhận. Chỉ hạng mục có QC ghi vào bảng sản xuất mới có số.
+                {fmtInt(qc.checks)} lần kiểm · {fmtInt(qc.fail)} sản phẩm lỗi
               </p>
             </>
           )}
@@ -1173,7 +1165,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
 
         <div className="rounded-lg border border-slate-200 p-3">
           <p className="mb-2 text-xs font-semibold text-slate-700">
-            Gia công ngoài <span className="font-normal text-slate-500">· hạng mục chưa nhập kho đủ có cờ GCN</span>
+            Gia công ngoài
           </p>
           {!gcn ? <p className="py-3 text-center text-xs text-slate-400">Đang tải…</p>
             : gcn.total === 0 ? <p className="py-3 text-center text-xs text-slate-400">Không có hạng mục gia công ngoài.</p> : (
@@ -1234,15 +1226,17 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
           planDates={false}
           onHexClick={onHexClick}
           hexClickTitle="Xem chi tiết hạng mục (BOP × BOT)"
+          cotKho={!!sel?.kho}
+          soCotThem={tatCa ? 4 : 7}
           extraHead={<>
-            <th className={`${th} text-left`} title="Hạn đang dùng: KH nhập kho tuần → tháng (chi tiết ở tab BOT)">Hạn</th>
-            <th className={`${th} text-left`}>Khu vực SX</th>
-            <th className={`${th} text-left`}>Tình trạng</th>
-            <th className={`${th} text-left`}>Ở công đoạn</th>
+            <th className={bang.thC} title="Hạn đang dùng: KH nhập kho tuần → tháng (chi tiết ở tab BOT)">Hạn</th>
+            <th className={bang.thC}>Khu vực SX</th>
+            <th className={bang.thC}>Tình trạng</th>
+            <th className={bang.thC}>Ở công đoạn</th>
             {!tatCa && <>
-            <th className={`${th} text-left`} title="Số lượng đã giao theo công đoạn SX / SL tính phiếu (chỉ hạng mục trên chuyền)">Công đoạn SX</th>
-            <th className={`${th} text-left`} title="Lần kiểm QC gần nhất: trạng thái · công đoạn · ngày">QC</th>
-            <th className={`${th} text-left`} title="Tình trạng gia công ngoài">GCN</th>
+            <th className={bang.thC} title="Số lượng đã giao theo công đoạn SX / SL tính phiếu (chỉ hạng mục trên chuyền)">Công đoạn SX</th>
+            <th className={bang.thC} title="Lần kiểm QC gần nhất: trạng thái · công đoạn · ngày">QC</th>
+            <th className={bang.thC} title="Tình trạng gia công ngoài">GCN</th>
             </>}
           </>}
           extraCells={i => {
@@ -1250,7 +1244,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
             const e = ex(i);
             const stepText = e && i.bucket === 'onLine' && e.qtyTicket > 0
               ? STEPS.filter(s => !s.flag || e.flags[s.flag] || e.steps[s.key] > 0)
-                .map(s => `${s.label} ${Number(e.steps[s.key].toFixed(1))}/${Number(e.qtyTicket.toFixed(1))}`)
+                .map(s => `${s.label} ${fmtQty(e.steps[s.key])}/${fmtQty(e.qtyTicket)}`)
               : [];
             const stepDone = e && e.qtyTicket > 0 ? STEPS.filter(s => (!s.flag || e.flags[s.flag] || e.steps[s.key] > 0) && e.steps[s.key] >= e.qtyTicket).length : 0;
             const stepAll = e && e.qtyTicket > 0 ? STEPS.filter(s => !s.flag || e.flags[s.flag] || e.steps[s.key] > 0).length : 0;
@@ -1258,42 +1252,42 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
             const qm = QC_STATE_META[qs];
             return (
               <>
-                <td className={`${td} whitespace-nowrap tabular-nums ${!i.deadline ? 'text-slate-300' : i.overdue ? 'font-semibold text-red-600' : i.dueSoon ? 'font-semibold text-amber-600' : 'text-slate-600'}`}
+                <td className={`${bang.tdSo} ${!i.deadline ? 'text-slate-300' : i.overdue ? 'font-semibold text-red-600' : i.dueSoon ? 'font-semibold text-amber-600' : ''}`}
                     title={i.deadlineSource ? `KH nhập kho ${i.deadlineSource}` : 'Chưa có KH nhập kho tuần / tháng'}>
                   {fmtDate(i.deadline)}
                 </td>
-                <td className={`${td} whitespace-nowrap text-slate-600`}>{i.area || '—'}</td>
-                <td className={`${td} whitespace-nowrap text-slate-600`}>{i.status || '—'}</td>
-                <td className={`${td} whitespace-nowrap`}>
+                <td className={`${tdB} whitespace-nowrap`}>{i.area || '—'}</td>
+                <td className={`${tdB} whitespace-nowrap`}>{i.status || '—'}</td>
+                <td className={`${tdB} whitespace-nowrap`}>
                   {d ? (
-                    <span className="inline-flex items-center gap-1 text-slate-600">
+                    <span className="inline-flex items-center gap-1">
                       <span className={`h-2 w-2 rounded-sm ${d.bar}`} />{d.label}
                     </span>
                   ) : <span className="text-slate-300">—</span>}
                 </td>
                 {!tatCa && <>
-                <td className={`${td} whitespace-nowrap`} title={stepText.join(' · ') || undefined}>
+                <td className={`${tdB} whitespace-nowrap`} title={stepText.join(' · ') || undefined}>
                   {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
                     : stepText.length === 0 ? <span className="text-slate-300">—</span> : (
                       <span className="inline-flex items-center gap-1.5">
                         <span className="flex h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
                           <span className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${stepAll ? (stepDone / stepAll) * 100 : 0}%` }} />
                         </span>
-                        <span className="tabular-nums text-slate-600">{stepDone}/{stepAll} bước</span>
+                        <span className="tabular-nums">{fmtInt(stepDone)}/{fmtInt(stepAll)} bước</span>
                       </span>
                     )}
                 </td>
-                <td className={`${td} whitespace-nowrap`}>
+                <td className={`${tdB} whitespace-nowrap`}>
                   {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
                     : !e?.qc?.last ? <span className="text-slate-300">—</span> : (
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${qm.badge}`}
-                            title={`${e.qc.n} lần kiểm · ${e.qc.fail} lỗi · gần nhất ${e.qc.last.date} ${e.qc.last.stage}`}>
-                        {QC_STATUS_VI[e.qc.last.status] ?? e.qc.last.status}{e.qc.last.fail > 0 ? ` · lỗi ${e.qc.last.fail}` : ''}
+                            title={`${fmtInt(e.qc.n)} lần kiểm · ${fmtInt(e.qc.fail)} lỗi · gần nhất ${e.qc.last.date} ${e.qc.last.stage}`}>
+                        {QC_STATUS_VI[e.qc.last.status] ?? e.qc.last.status}{e.qc.last.fail > 0 ? ` · lỗi ${fmtInt(e.qc.last.fail)}` : ''}
                         <span className="font-normal text-slate-500">{e.qc.last.stage.split(' ')[0]}</span>
                       </span>
                     )}
                 </td>
-                <td className={`${td} min-w-[140px] max-w-[220px] break-words`} title={e?.gcn ? [e.gcn.st, e.gcn.note, e.gcn.due ? `dự kiến về ${e.gcn.due}` : ''].filter(Boolean).join(' · ') : undefined}>
+                <td className={`${tdB} min-w-[140px] max-w-[220px] break-words`} title={e?.gcn ? [e.gcn.st, e.gcn.note, e.gcn.due ? `dự kiến về ${e.gcn.due}` : ''].filter(Boolean).join(' · ') : undefined}>
                   {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
                     : !e?.gcn ? <span className="text-slate-300">—</span>
                       : <span className={GCN_DONE(e.gcn.st) ? 'text-slate-500' : 'font-medium text-orange-700'}>{e.gcn.st ?? 'Chưa ghi tình trạng'}</span>}
@@ -1916,7 +1910,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
   const [issueHex, setIssueHex] = useState<string | null>(null);
   const [q, setQ] = useState('');
   // Bảng Nhóm sản phẩm × Tình trạng vật tư: số đo, dòng đang mở xưởng, nhóm / xưởng đang lọc (cộng với filter tình trạng)
-  const [bomMetric, setBomMetric] = useState<'count' | 'remain'>('count');
+  const [bomMetric, setBomMetric] = useState<'count' | 'remain'>('remain');
   const [moNspBom, setMoNspBom] = useState<Set<string>>(new Set());
   const [bomSel, setBomSel] = useState<{ nsp?: string; xuong?: string } | null>(null);
   const nspOfB = (i: HexInfo) => i.nhomSp || NO_NSP;
@@ -2270,7 +2264,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
                   if (!needs.length && !status.length) return <td className={`${td} text-slate-300`}>—</td>;
                   // Không có định mức (ô định mức trống ở bảng SX — ~1.500 hạng mục, hoặc chỉ có dòng BTP) nhưng có tình
                   // trạng mua: hiện tên vật tư SAP của các dòng tình trạng (ưu tiên dòng còn chờ) thay cho "—"
-                  const fmtQ = (v: number | null) => (v === null ? '?' : Number(v.toFixed(3)).toLocaleString('vi-VN'));
+                  const fmtQ = (v: number | null) => (v === null ? '?' : Number(v.toFixed(3)).toLocaleString('en-US'));
                   const statusFull = status.map(l => `${nvlLinePending(l) ? '• còn chờ' : '• xong'}: ${l.name}${l.left !== null ? ` — còn ${fmtQ(l.left)}/${fmtQ(l.req)}` : ''}${l.due ? ` — giao ${l.due}` : ''}`).join('\n');
                   const needsFull = needs.map(n => `${NVL_GROUP_LABEL[n.group]}: ${n.name}${n.qty !== null ? ` ${Number(n.qty.toFixed(3))} ${n.dvt}` : ''}`).join('\n');
                   const full = needs.length
@@ -2284,7 +2278,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
                         <ul className="space-y-0.5 text-[0.6875rem] leading-snug text-slate-600">
                           {needs.map((n, k) => (
                             <li key={k} className="break-words">
-                              {n.name}{n.qty !== null && <span className="whitespace-nowrap font-semibold tabular-nums text-slate-800"> {Number(n.qty.toFixed(3)).toLocaleString('vi-VN')} {n.dvt}</span>}
+                              {n.name}{n.qty !== null && <span className="whitespace-nowrap font-semibold tabular-nums text-slate-800"> {Number(n.qty.toFixed(3)).toLocaleString('en-US')} {n.dvt}</span>}
                             </li>
                           ))}
                         </ul>
@@ -2336,11 +2330,11 @@ export const PlanDateCell = ({ i, which }: { i: HexInfo; which: DeadlineSource |
   const used = which !== 'cần giao' && i.deadlineSource === which;
   const met = (which === 'tuần' && i.khnkTuanMet) || (which === 'tháng' && i.khnkThangMet);
   const cls = !d ? 'text-slate-300'
-    : !used ? 'text-slate-400'
-      : i.overdue ? 'font-semibold text-red-600' : i.dueSoon ? 'font-semibold text-amber-600' : 'font-semibold text-slate-700';
+    : !used ? 'text-slate-500'
+      : i.overdue ? 'font-semibold text-red-600' : i.dueSoon ? 'font-semibold text-amber-600' : 'font-semibold';
   return (
     <td
-      className={`${td} whitespace-nowrap tabular-nums ${cls}`}
+      className={`${bang.tdSo} ${cls}`}
       title={!d ? undefined
         : met ? 'Đã nhập đủ SL kế hoạch trong kỳ — không tính trễ theo KH này'
           : used ? 'Ngày đang dùng để tính BOT'
@@ -2357,41 +2351,50 @@ export const PlanDateCell = ({ i, which }: { i: HexInfo; which: DeadlineSource |
 // Bảng hạng mục dùng chung cho 3 tab
 // ============================================================================
 // planDates = false: ẩn 3 cột KH tuần / KH tháng / Cần giao (vd. tab BOM dùng ngày của vật tư)
-const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, hexClickTitle }: {
+const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, hexClickTitle, cotKho = false, soCotThem }: {
   rows: HexInfo[];
   extraHead: React.ReactNode;
   extraCells: (i: HexInfo) => React.ReactNode;
   planDates?: boolean;
   onHexClick?: (hex: string) => void;   // bấm mã HEX (vd. tab BOM mở cửa sổ vật tư)
   hexClickTitle?: string;
+  /** Hiện 5 cột Kho (bấm từ cột Kho của bảng BOP: tổng cột bằng số vừa bấm) */
+  cotKho?: boolean;
+  /** Số cột extraHead; có => hiện dòng TỔNG */
+  soCotThem?: number;
 }) => {
   const coCt = rows.some(i => i.congTrinh);
+  const tong = useMemo(() => tongHangMuc(rows), [rows]);
+  const COT_KHO: [string, KhoCot][] = [['Đã nhập', 'nk'], ['Đã xuất', 'xk'], ['Tồn theo đơn', 'ton'], ['Chênh', 'chenh'], ['Xuất vượt nhập', 'xv']];
   return (
-  <div className="max-h-[78vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
-    <table className="w-full text-xs">
-      <thead className="sticky top-0 bg-slate-50 text-slate-500">
+  <div className={`${bang.khung} max-h-[78vh]`}>
+    <table className={bang.table}>
+      <thead className={bang.thead}>
         <tr>
-          <th className={`${th} w-10 text-right`}>STT</th>
-          <th className={`${th} text-left`}>Mã Hex</th>
-          {coCt && <th className={`${th} text-left`}>Công trình</th>}
-          <th className={`${th} text-left`}>Hạng mục</th>
-          <th className={`${th} text-left`}>Công đoạn</th>
-          <th className={`${th} text-left`}>Xưởng</th>
+          <th className={`${bang.thC} w-14`}>STT</th>
+          <th className={bang.thC}>Mã Hex</th>
+          {coCt && <th className={bang.thC}>Công trình</th>}
+          <th className={bang.thC}>Hạng mục</th>
+          <th className={bang.thC}>Công đoạn</th>
+          <th className={bang.thC}>Xưởng</th>
           {planDates && <>
-            <th className={`${th} text-left`}>KH tuần</th>
-            <th className={`${th} text-left`}>KH tháng</th>
-            <th className={`${th} text-left`}>Cần giao</th>
+            <th className={bang.thC}>KH tuần</th>
+            <th className={bang.thC}>KH tháng</th>
+            <th className={bang.thC}>Cần giao</th>
           </>}
-          <th className={`${th} text-right`}>Trị giá (tỷ)</th>
-          <th className={`${th} text-right`}>Còn lại (tỷ)</th>
+          <th className={`${bang.thC} whitespace-nowrap`}>Trị giá (tỷ)</th>
+          <th className={`${bang.thC} whitespace-nowrap`}>Còn lại (tỷ)</th>
+          {cotKho && COT_KHO.map(([t]) => <th key={t} className={`${bang.thC} whitespace-nowrap`}>{t} (tỷ)</th>)}
           {extraHead}
         </tr>
       </thead>
-      <tbody className="divide-y divide-slate-100">
-        {rows.map((i, idx) => (
+      <tbody>
+        {rows.map((i, idx) => {
+          const kho = cotKho ? khoCua(i) : null;
+          return (
           <tr key={i.hex} className="hover:bg-slate-50">
-            <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
-            <td className={`${td} font-medium text-slate-800`}>
+            <td className={bang.tdSo}>{fmtInt(idx + 1)}</td>
+            <td className={`${tdB} whitespace-nowrap font-medium`}>
               {onHexClick && i.hex ? (
                 <button
                   type="button"
@@ -2403,26 +2406,39 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
                 </button>
               ) : i.hex}
             </td>
-            {coCt && <td className={`${td} min-w-[180px] max-w-[260px] break-words font-medium text-slate-800`} title={i.congTrinh}>{i.congTrinh || '—'}</td>}
-            <td className={`${td} min-w-[200px] max-w-[320px] break-words text-slate-600`} title={i.hangMuc}>{i.hangMuc}</td>
-            <td className={`${td} text-slate-600`}>{i.stage ?? '—'}</td>
-            <td className={`${td} whitespace-nowrap text-slate-600`}>{i.area || '—'}</td>
+            {coCt && <td className={`${tdB} min-w-[180px] max-w-[260px] break-words`} title={i.congTrinh}>{i.congTrinh || '—'}</td>}
+            <td className={`${tdB} min-w-[200px] max-w-[320px] break-words`} title={i.hangMuc}>{i.hangMuc}</td>
+            <td className={bang.tdSo}>{i.stage ?? '—'}</td>
+            <td className={`${tdB} whitespace-nowrap`}>{i.area || '—'}</td>
             {planDates && <>
               <PlanDateCell i={i} which="tuần" />
               <PlanDateCell i={i} which="tháng" />
               <PlanDateCell i={i} which="cần giao" />
             </>}
-            <td className={`${td} text-right tabular-nums text-slate-600`}>{fmtTy(i.total)}</td>
-            <td className={`${td} text-right tabular-nums ${i.remain > 0 ? 'text-amber-700' : 'text-emerald-600'}`}>
-              {i.remain > 0 ? fmtTy(i.remain) : fmtTy(0)}
-            </td>
+            <td className={bang.tdSo}>{bang.trong0(i.total, fmtTy)}</td>
+            <td className={bang.tdSo}>{bang.trong0(i.remain, fmtTy)}</td>
+            {kho && COT_KHO.map(([t, f]) => <td key={t} className={bang.tdSo}>{bang.trong0(kho[f], fmtTy)}</td>)}
             {extraCells(i)}
           </tr>
-        ))}
+          );
+        })}
         {rows.length === 0 && (
           <tr><td colSpan={22} className="px-3 py-8 text-center text-slate-400">Không có hạng mục phù hợp.</td></tr>
         )}
       </tbody>
+      {soCotThem !== undefined && rows.length > 0 && (
+        <tfoot className={bang.tfoot}>
+          <tr>
+            <td className={`${tdB} text-center`}>TỔNG</td>
+            <td className={tdB}>{fmtInt(tong.n)}</td>
+            <td colSpan={(coCt ? 1 : 0) + 3 + (planDates ? 3 : 0)} className={tdB} />
+            <td className={bang.tdSo}>{bang.trong0(tong.total, fmtTy)}</td>
+            <td className={bang.tdSo}>{bang.trong0(tong.remain, fmtTy)}</td>
+            {cotKho && COT_KHO.map(([t, f]) => <td key={t} className={bang.tdSo}>{bang.trong0(tong[f], fmtTy)}</td>)}
+            {soCotThem > 0 && <td colSpan={soCotThem} className={tdB} />}
+          </tr>
+        </tfoot>
+      )}
     </table>
   </div>
 );

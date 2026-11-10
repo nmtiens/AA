@@ -290,18 +290,17 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
   });
 
   // ---- 1 biểu đồ doanh thu chung (cả công ty) ở ĐẦU sheet "Biểu đồ": cột = doanh số cần đạt (tháng dự báo viền đứt),
-  // đường = doanh thu thực tế. Số ở khối cuối sheet "Số liệu biểu đồ" (A Kỳ, C Cần đạt, D Thực tế). Trước: 1 biểu đồ
+  // số ở khối cuối sheet "Số liệu biểu đồ" (A Kỳ, C Cần đạt). Trước: 1 biểu đồ
   // doanh thu dưới MỖI nhóm — cùng 1 dãy số lặp 6 lần.
   if (coDT && dsKhoa.size) {
     const khoa = [...dsKhoa.keys()].sort();
     const nhan = khoa.map(k => dsKhoa.get(k)!);
-    const thucTe = (t: string) => (t <= thangHienTai! && doanhThu?.thucTe[t] !== undefined ? tron3(doanhThu.thucTe[t]) : null);
-    const kh = khoa.map(keHoach), tt = khoa.map(thucTe);
+    const kh = khoa.map(keHoach);
     hang();
-    hang('Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ)');
-    hang('Kỳ', null, 'Doanh số cần đạt (tỷ)', 'Thực tế (tỷ)');
+    hang('Doanh số cần đạt từng tháng (cả công ty, tỷ)');
+    hang('Kỳ', null, 'Doanh số cần đạt (tỷ)');
     const r1 = soLieu.length, rN = r1 + khoa.length - 1;
-    khoa.forEach((_, i) => hang(nhan[i], null, kh[i], tt[i]));
+    khoa.forEach((_, i) => hang(nhan[i], null, kh[i]));
     const refNhan = thamChieu(COT_KY, r1, rN);
     const vien = khoa.map((k, i) => (k > thangHienTai! ? `<c:dPt><c:idx val="${i}"/><c:invertIfNegative val="0"/><c:bubble3D val="0"/>`
       + `<c:spPr><a:noFill/><a:ln w="12700"><a:solidFill><a:srgbClr val="64748B"/></a:solidFill><a:prstDash val="dash"/></a:ln></c:spPr></c:dPt>` : '')).join('');
@@ -310,11 +309,7 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       + `<c:dLbls><c:numFmt formatCode="0" sourceLinked="0"/>${KHONG_NEN}${chuTxPr(800, '475569')}<c:dLblPos val="outEnd"/>${CO_HIEN(true)}</c:dLbls>`
       + `<c:cat><c:strRef><c:f>${xmlChu(refNhan)}</c:f>${cacheChu(nhan)}</c:strRef></c:cat>`
       + `<c:val><c:numRef><c:f>${xmlChu(thamChieu(COT_TONG, r1, rN))}</c:f>${cacheSo(kh)}</c:numRef></c:val></c:ser>`;
-    const serTt = day(1, {
-      ten: 'Thực tế (nhập kho thành phẩm)', refGiaTri: thamChieu(COT_CHAM, r1, rN), giaTri: tt,
-      mau: '1E293B', rong: 22225, diem: true, nhan: '',
-    }, refNhan, nhan);
-    const tieuDeDT = 'Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ) — cột viền = tháng tới';
+    const tieuDeDT = 'Doanh số cần đạt từng tháng (cả công ty, tỷ) — cột viền = tháng tới';
     const trucDT = `<c:catAx><c:axId val="7001"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/>`
       + `<c:numFmt formatCode="General" sourceLinked="1"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
       + `<c:spPr>${duong('CBD5E1', 9525)}</c:spPr>${chuTxPr(800, '64748B')}<c:crossAx val="7002"/><c:crosses val="autoZero"/>`
@@ -330,7 +325,6 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       + '<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>'
       + `<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${serKh}`
       + `<c:gapWidth val="60"/><c:axId val="7001"/><c:axId val="7002"/></c:barChart>`
-      + `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${serTt}<c:marker val="1"/><c:axId val="7001"/><c:axId val="7002"/></c:lineChart>`
       + `${trucDT}<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>`
       + `<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${chuTxPr(800, '475569')}</c:legend>`
       + '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>'

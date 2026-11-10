@@ -3,15 +3,16 @@ import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, XCircle, Ca
 import { LinkLightbox } from '../shared/LinkLightbox';
 import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
-import { parsePlanDate, deadlineOf, RAW_DEADLINE_KEYS, planAfterDue, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE, stageIndex } from '../../utils/productionMetrics';
+import { parsePlanDate, deadlineOf, RAW_DEADLINE_KEYS, planAfterDue, dwellBucket, doneValue, remainValue, laHuy, daNhapDu, isQtyComplete, tyLeHoanThanh, DWELL_STUCK, DWELL_NONE, stageIndex } from '../../utils/productionMetrics';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { workshopGroupOf } from '../../utils/workshopGroups';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL } from '../../utils/nvlParse';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import type { HexBom } from './ProjectHealthTabs';
-import { formatTrieuAsTy } from '../../utils/money';
-import { fmtDate, DAY_MS as DAY } from '../../utils/format';
+import { fmtDate, fmtInt, fmtPt, fmtQty, fmtTy, DAY_MS as DAY } from '../../utils/format';
+import * as bang from '../shared/bangBaoCao';
+import { docLichSuNhap, ghiChuKho, khoSoLuong, tongLichSuNhap, tongQc, QTY_EPS } from './core/tongChiTiet';
 import { parseQcEntries } from '../../utils/qcParse';
 import { QC_STATUS_VI } from '../../services/productionExtraService';
 
@@ -23,16 +24,7 @@ import { QC_STATUS_VI } from '../../services/productionExtraService';
 
 type Row = Record<string, any>;
 
-const fmtNum = (v: unknown, digits = 2) => {
-  const n = Number(v);
-  return v === null || v === undefined || v === '' || Number.isNaN(n) ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: digits });
-};
-const fmtTy = (trieu: unknown) => {
-  const n = Number(trieu);
-  return Number.isFinite(n) ? formatTrieuAsTy(n) : '—';
-};
-// Sai số số lượng (số thực từ DB) — dưới ngưỡng coi như 0
-const QTY_EPS = 1e-6;
+const tyCot = (v: unknown) => fmtTy(parseNumber(v as string | number | null | undefined));
 
 // Thứ tự công đoạn BOP để biết mốc nào đã qua / đang ở / chưa tới
 
@@ -50,14 +42,6 @@ const WORK_STEPS: { key: string; label: string; flag?: string }[] = [
   { key: 'so_luong_cong_doan_bao_bi_da_giao', label: 'Bao bì' },
 ];
 
-// "11/06/2026 # Đơn giá: … # SL NK: 20 # TT NK: 524.8 # ghi chú" -> các lần nhập kho
-// Số trong ghi chú nhập kho viết kiểu EN: dấu chấm là thập phân ("TT NK: 334.644" = 334,644 triệu),
-// không dùng parseNumber (hiểu "334.644" là 334 nghìn) — bỏ dấu phẩy ngăn nghìn nếu có.
-const noteNumber = (v: string) => {
-  const n = Number(String(v).replace(/,/g, '').replace(/[^\d.-]/g, ''));
-  return Number.isFinite(n) ? n : NaN;
-};
-
 // Xưởng theo setup gộp xưởng (giống mọi view); mã gốc khác tên gộp thì ghi kèm trong ngoặc
 const xuongText = (raw: unknown) => {
   const r = String(raw ?? '').trim();
@@ -65,14 +49,6 @@ const xuongText = (raw: unknown) => {
   const g = workshopGroupOf(r);
   return g.toUpperCase() === r.toUpperCase() ? r : `${g} (${r})`;
 };
-
-const parseStockIn = (text: unknown) =>
-  String(text ?? '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-    const parts = l.split('#').map(p => p.trim());
-    const pick = (label: string) => parts.find(p => p.toUpperCase().startsWith(label))?.split(':').slice(1).join(':').trim() ?? '';
-    const note = parts.filter((p, i) => i > 0 && !/^(ĐƠN GIÁ|SL NK|TT NK)\s*:/i.test(p)).join(' · ');
-    return { date: parts[0], qty: pick('SL NK'), value: pick('TT NK'), note };
-  });
 
 interface Props {
   hex: string | null;
@@ -115,18 +91,16 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     const qtyOrder = Number(row.so_luong_don_hang_tong) || 0;
     const qtyTicket = Number(row.so_luong_tinh_phieu) || 0;
     const qtyIn = Math.max(Number(row.so_luong_nhap_kho_luy_ke) || 0, 0);
-    const stockIn = parseStockIn(row.tong_hop_ghi_chu_nhap_kho);
+    const stockIn = docLichSuNhap(row.tong_hop_ghi_chu_nhap_kho);
     const firstIn = stockIn.length ? parsePlanDate(stockIn[0].date) : null;
     const lastIn = stockIn.length ? parsePlanDate(stockIn[stockIn.length - 1].date) : null;
     // Giá trị: cùng quy tắc với mọi view (đã nhập = min(nhập kho lũy kế, trị giá); còn lại = trị giá − đã nhập)
-    const cancelled = isCancelledIpo(row.tinh_trang_ipo);
+    const cancelled = laHuy(row.tinh_trang_ipo);
     const total = parseNumber(row.tri_gia_don_hang_tong);
     const valDone = doneValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
     const valRemain = remainValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
-    const pctValue = total > 0 ? (valDone / total) * 100 : 0;
-    // Đã nhập kho đủ: đủ trị giá HOẶC đủ số lượng (thành tiền NK có thể lệch đơn giá) — quy tắc chung.
-    // Đơn HỦY không bao giờ "đủ" (valRemain của đơn hủy = 0 nên trước bị coi là đã nhập đủ)
-    const full = !cancelled && ((total > 0 && valRemain <= 0) || (qtyOrder > 0 && qtyIn >= qtyOrder));
+    const pctValue = tyLeHoanThanh(total, valDone);
+    const full = daNhapDu(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled, isQtyComplete(row));
 
     // Mốc BOP: trạng thái theo công đoạn hiện tại
     // Đơn HỦY: mốc đã qua giữ 'done', mốc đang làm / chưa tới => 'cancelled' (không đánh xong)
@@ -136,12 +110,8 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     const pmDate = parsePlanDate(row.ngay_nhan_tu_pm);
     const bvDate = parsePlanDate(row.ngay_trien_khai_ban_ve);
     const phDate = parsePlanDate(row.ngay_tinh_phieu);
-    const qtyOut = Math.max(Number(row.so_luong_xuat_kho_luy_ke) || 0, 0);
-    // Quy tắc chung: Tồn kho chặn trong [0, đã nhập]; Đã xuất = Đã nhập − Tồn kho (cột xuất ghi nhận thiếu
-    // dữ liệu trước 01/2025 / lệch kho => chỉ hiện tham khảo khi khác số suy ra)
-    const qtyStockEff = Math.min(Math.max(Number(row.so_luong_ton_kho_hien_tai) || 0, 0), qtyIn);
-    const qtyOutEff = Math.max(qtyIn - qtyStockEff, 0);
-    const outDiff = Math.abs(qtyOut - qtyOutEff) > QTY_EPS;
+    // Cùng công thức cột Kho của bảng BOP: đã xuất giữ gốc, tách xuất vượt nhập, chênh không âm
+    const kho = khoSoLuong(qtyIn, row.so_luong_xuat_kho_luy_ke, row.so_luong_ton_kho_hien_tai);
     // Số ngày giữa 2 mốc (hiện cạnh mốc sau) — thời gian chờ ở từng khâu
     const gap = (a: Date | null, b: Date | null) => (a && b ? Math.round((b.getTime() - a.getTime()) / DAY) : null);
     const gapText = (a: Date | null, b: Date | null, label: string) => { const g = gap(a, b); return g === null ? '' : `${label} ${g} ngày`; };
@@ -151,7 +121,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       {
         key: 'phieu', title: 'Tính phiếu / duyệt phiếu', stage: 'P012',
         date: phDate, date2: parsePlanDate(row.ngay_duyet_phieu),
-        note: [row.tinh_trang_phieu, qtyTicket ? `SL tính phiếu ${fmtNum(qtyTicket, 3)} / ${fmtNum(qtyOrder, 3)}` : ''].filter(Boolean).join(' · '),
+        note: [row.tinh_trang_phieu, qtyTicket ? `SL tính phiếu ${fmtQty(qtyTicket)} / ${fmtQty(qtyOrder)}` : ''].filter(Boolean).join(' · '),
         gap: gapText(bvDate, phDate, 'sau triển khai BV'),
         st: state(2, 2),
       },
@@ -159,7 +129,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       {
         key: 'nk', title: 'Nhập kho', stage: 'P022', date: firstIn, date2: lastIn,
         // Số lượng + giá trị đã nhập / trị giá đơn hàng (tỷ); đơn HỦY không tính giá trị
-        note: `${fmtNum(qtyIn, 3)} / ${fmtNum(qtyOrder, 3)} ${row.dvt ?? ''}`
+        note: `${fmtQty(qtyIn)} / ${fmtQty(qtyOrder)} ${row.dvt ?? ''}`
           + (cancelled ? '' : ` · ${fmtTy(valDone)} / ${fmtTy(total)} tỷ`)
           + (full ? ' · đủ' : '') + (cancelled ? ' · đơn HỦY' : ''),
         gap: [gapText(phDate, firstIn, 'sau tính phiếu'), gapText(pmDate, lastIn, '· tổng từ PM')].filter(Boolean).join(' '),
@@ -167,19 +137,16 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       },
       {
         key: 'xk', title: 'Xuất kho / giao', stage: 'P025', date: null,
-        note: qtyOutEff > QTY_EPS || qtyStockEff > QTY_EPS
-          ? `đã xuất ${fmtNum(qtyOutEff, 3)} (nhập − tồn) · tồn kho ${fmtNum(qtyStockEff, 3)} ${row.dvt ?? ''}`
-            + (outDiff ? ` · bảng xuất kho ghi ${fmtNum(qtyOut, 3)} (tham khảo)` : '')
-          : (qtyIn > 0 ? 'chưa xuất kho' : ''),
+        note: ghiChuKho(kho, row.dvt ?? ''),
         gap: '',
         // Xong khi đã nhập đủ và không còn tồn; còn tồn hoặc chưa nhập đủ mà đã xuất 1 phần => đang xuất
-        st: (cancelled ? 'cancelled' : (qtyIn > 0 && full && qtyStockEff <= QTY_EPS) ? 'done' : qtyOutEff > QTY_EPS ? 'current' : 'todo') as St,
+        st: (cancelled ? 'cancelled' : (qtyIn > 0 && full && kho.ton <= QTY_EPS) ? 'done' : kho.xk > QTY_EPS ? 'current' : 'todo') as St,
       },
     ];
 
     // Mốc BOT (hạn): CHỈ KH tuần → KH tháng (KH đã đạt SL thì bỏ qua). Ngày cần giao / ngày cần (PM) / BOT dự án
     // chỉ hiện để tham khảo, không tính hạn
-    const slText = (v: unknown) => (v ? `SL ${fmtNum(v, 3)}` : '');
+    const slText = (v: unknown) => (v ? `SL ${fmtQty(v)}` : '');
     const deadlines = [
       { label: 'KH nhập kho tuần', date: dl.khnkTuan, used: dl.source === 'tuần',
         extra: [slText(row.sl_khnk_tuan), dl.tuanMet ? 'đã nhập đủ SL KH trong tuần' : ''].filter(Boolean).join(' · '), ref: false },
@@ -214,6 +181,8 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
   }, [row, d]);
   const openIssues = (issues ?? []).filter(v => !v.isResolved);
   const qcEntries = useMemo(() => parseQcEntries(row?.tong_hop_thong_tin_qc), [row]);
+  const tongKiem = useMemo(() => tongQc(qcEntries), [qcEntries]);
+  const tongNhap = useMemo(() => tongLichSuNhap(d?.stockIn ?? []), [d]);
 
   return (
     <ModalShell
@@ -274,11 +243,11 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                     label: 'Ở công đoạn hiện tại', value: dwell === DWELL_NONE || !dwell ? 'Chưa có số ngày' : dwell, sub: dwell === DWELL_NONE ? '' : row.so_ngay_cd_hien_tai ?? '',
                     tone: dwell === DWELL_STUCK ? 'text-red-600' : 'text-slate-900',
                   },
-                  { label: 'Đơn hàng', value: `${fmtNum(d.qtyOrder, 3)} ${row.dvt ?? ''}`, sub: `${fmtTy(row.tri_gia_don_hang_tong)} tỷ` },
-                  { label: 'SL tính phiếu', value: fmtNum(d.qtyTicket, 3), sub: `${fmtTy(row.thanh_tien_tinh_phieu)} tỷ` },
+                  { label: 'Đơn hàng', value: `${fmtQty(d.qtyOrder)} ${row.dvt ?? ''}`, sub: `${d.cancelled ? 'HỦY · ' : ''}${tyCot(row.tri_gia_don_hang_tong)} tỷ` },
+                  { label: 'SL tính phiếu', value: fmtQty(d.qtyTicket), sub: `${tyCot(row.thanh_tien_tinh_phieu)} tỷ` },
                   {
-                    label: 'Đã nhập kho', value: `${fmtNum(d.qtyIn, 3)} / ${fmtNum(d.qtyOrder, 3)}`,
-                    sub: d.cancelled ? 'Đơn HỦY — không tính giá trị' : `${d.pctValue.toFixed(0)}% giá trị · ${fmtTy(d.valDone)} tỷ · còn ${fmtTy(d.valRemain)} tỷ`,
+                    label: 'Đã nhập kho', value: `${fmtQty(d.qtyIn)} / ${fmtQty(d.qtyOrder)}`,
+                    sub: d.cancelled ? 'Đơn HỦY' : `${fmtPt(d.pctValue)} · ${fmtTy(d.valDone)} tỷ · còn ${fmtTy(d.valRemain)} tỷ`,
                     tone: d.full ? 'text-emerald-600' : 'text-slate-900',
                   },
                 ].map(k => (
@@ -305,7 +274,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
               <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
                 {/* BOP — tiến trình */}
                 <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="mb-3 text-xs font-semibold text-slate-700">Tiến trình (BOP) <span className="font-normal text-slate-400">· SL đã giao theo công đoạn / SL đơn hàng</span></p>
+                  <p className="mb-3 text-xs font-semibold text-slate-700">Tiến trình (BOP)</p>
                   <ol className="space-y-3">
                     {d.milestones.map(m => {
                       const Icon = m.st === 'done' ? CheckCircle2 : m.st === 'current' ? CircleDot : m.st === 'cancelled' ? XCircle : Circle;
@@ -338,7 +307,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                                       <div className="h-1.5 flex-1 rounded-full bg-slate-100">
                                         <div className={`h-1.5 rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-400' : ''}`} style={{ width: `${pct}%` }} />
                                       </div>
-                                      <span className="w-20 shrink-0 text-right tabular-nums text-slate-500">{fmtNum(done, 3)} / {fmtNum(base, 3)}</span>
+                                      <span className="w-20 shrink-0 text-right tabular-nums text-slate-500">{fmtQty(done)} / {fmtQty(base)}</span>
                                     </div>
                                   );
                                 })}
@@ -356,7 +325,6 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   <div className="rounded-lg border border-slate-200 p-4">
                     <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                       <CalendarClock size={14} /> Thời hạn (BOT)
-                      <span className="font-normal text-slate-400">· hạn dùng: KH nhập kho tuần → KH nhập kho tháng (các ngày khác chỉ tham khảo)</span>
                     </p>
                     <ul className="divide-y divide-slate-100 text-xs">
                       {d.deadlines.map(x => {
@@ -382,17 +350,17 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                     <p className="mb-2 font-semibold text-slate-700">Vật tư & vướng mắc</p>
                     {bom ? (
                       <dl className="grid grid-cols-[1fr_auto] gap-y-1">
-                        <dt className="text-slate-500">Số dòng PR</dt><dd className="text-right tabular-nums">{bom.lines || '—'}</dd>
+                        <dt className="text-slate-500">Số dòng PR</dt><dd className="text-right tabular-nums">{bom.lines ? fmtInt(bom.lines) : '—'}</dd>
                         <dt className="text-slate-500">Chưa mua / trễ hẹn / theo nhu cầu SX / chưa tới hẹn</dt>
                         <dd className="text-right tabular-nums">
-                          <span className="text-rose-600">{bom.byLine.notOrdered ?? 0}</span> / <span className="text-orange-600">{bom.byLine.late ?? 0}</span> / <span className="text-yellow-700">{bom.byLine.deferred ?? 0}</span> / {bom.byLine.onTrack ?? 0}
+                          <span className="text-rose-600">{fmtInt(bom.byLine.notOrdered ?? 0)}</span> / <span className="text-orange-600">{fmtInt(bom.byLine.late ?? 0)}</span> / <span className="text-yellow-700">{fmtInt(bom.byLine.deferred ?? 0)}</span> / {fmtInt(bom.byLine.onTrack ?? 0)}
                         </dd>
                         <dt className="text-slate-500">Ngày cần VT · dự kiến giao PMH</dt>
                         <dd className="text-right tabular-nums">{fmtDate(bom.needDate)} · {fmtDate(bom.dueDate)}</dd>
                       </dl>
-                    ) : <p className="text-slate-400">Đang tải vật tư…</p>}
+                    ) : bom === null ? <p className="text-slate-400">Đang tải vật tư…</p> : null}
                     {bom && bom.lines === 0 && (
-                      <p className="mt-1 text-amber-700">Chưa có dòng PR nào ghi mã nhà máy của hạng mục — vật tư có thể mua gộp theo công trình (khối "Vật tư chung" ở tab BOM) hoặc lấy từ tồn kho. Xem định mức NVL bên dưới.</p>
+                      <p className="mt-1 text-amber-700">Chưa có dòng PR ghi mã nhà máy.</p>
                     )}
                     <div className="mt-3 border-t border-slate-100 pt-2">
                       {openIssues.length === 0 ? (
@@ -404,7 +372,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                               <AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />
                               <span className="whitespace-pre-line">{v.content}</span>
                               <span className="block text-[0.6875rem] text-red-600/80">
-                                {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT ${new Date(v.bot).toLocaleDateString('vi-VN')}` : ''}
+                                {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT ${fmtDate(new Date(v.bot))}` : ''}
                               </span>
                             </li>
                           ))}
@@ -419,10 +387,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
               {(nvl.needs.length > 0 || nvl.status.length > 0 || row.co_gia_cong_ngoai) && (
                 <div className="rounded-lg border border-slate-200">
                   <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
-                    Định mức & tình trạng NVL{' '}
-                    <span className="font-normal text-slate-400">
-                      · theo bảng sản xuất (kế hoạch cập nhật) — có cả vật tư mua gộp theo công trình, không cần PR ghi mã
-                    </span>
+                    Định mức & tình trạng NVL
                   </p>
                   <div className="grid gap-0 lg:grid-cols-2 lg:divide-x divide-slate-100">
                     <div className="p-3">
@@ -437,7 +402,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                                 <td className="py-1 pr-2 text-[0.6875rem] text-slate-400 whitespace-nowrap">{NVL_GROUP_LABEL[n.group]}</td>
                                 <td className="py-1 pr-2 text-slate-800">{n.name}</td>
                                 <td className="py-1 text-right tabular-nums whitespace-nowrap text-slate-700">
-                                  {n.qty !== null ? Number(n.qty.toFixed(3)).toLocaleString('vi-VN') : '—'} <span className="text-slate-400">{n.dvt}</span>
+                                  {fmtQty(n.qty)} <span className="text-slate-400">{n.dvt}</span>
                                 </td>
                               </tr>
                             ))}
@@ -448,7 +413,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                     <div className="p-3">
                       <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
                         Tình trạng mua theo hạng mục
-                        {nvl.status.length > 0 && <span className="ml-1 font-normal normal-case text-slate-400">· {nvl.status.filter(nvlLinePending).length} dòng còn chờ / {nvl.status.length}</span>}
+                        {nvl.status.length > 0 && <span className="ml-1 font-normal normal-case text-slate-400">· {fmtInt(nvl.status.filter(nvlLinePending).length)} dòng còn chờ / {fmtInt(nvl.status.length)}</span>}
                       </p>
                       {nvl.status.length === 0 ? (
                         <p className="text-xs text-slate-400">Kế hoạch chưa ghi tình trạng mua cho hạng mục này.</p>
@@ -493,34 +458,40 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
 
               {/* Lịch sử nhập kho */}
               <div className="rounded-lg border border-slate-200">
-                <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
-                  Lịch sử nhập kho <span className="font-normal text-slate-400">· {d.stockIn.length} lần</span>
-                </p>
+                <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">Lịch sử nhập kho</p>
                 {d.stockIn.length === 0 ? (
                   <p className="px-4 py-4 text-center text-xs text-slate-400">Chưa nhập kho.</p>
                 ) : (
-                  <div className="max-h-56 overflow-auto custom-scrollbar">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-slate-50 text-slate-500">
+                  <div className={`${bang.khung} max-h-72`}>
+                    <table className={bang.table}>
+                      <thead className={bang.thead}>
                         <tr>
-                          <th className="w-10 px-3 py-1.5 text-right font-medium">STT</th>
-                          <th className="px-3 py-1.5 text-left font-medium">Ngày</th>
-                          <th className="px-3 py-1.5 text-right font-medium">SL nhập</th>
-                          <th className="px-3 py-1.5 text-right font-medium">Thành tiền (tỷ)</th>
-                          <th className="px-3 py-1.5 text-left font-medium">Ghi chú</th>
+                          <th className={`${bang.thC} w-14`}>STT</th>
+                          <th className={bang.thC}>Ngày</th>
+                          <th className={bang.thC}>SL nhập</th>
+                          <th className={bang.thC}>Thành tiền (tỷ)</th>
+                          <th className={bang.thC}>Ghi chú</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody>
                         {d.stockIn.map((s, i) => (
                           <tr key={i}>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{i + 1}</td>
-                            <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">{s.date}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums">{s.qty || '—'}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums">{s.value ? fmtTy(noteNumber(s.value)) : '—'}</td>
-                            <td className="px-3 py-1.5 text-slate-600">{s.note}</td>
+                            <td className={bang.tdSo}>{fmtInt(i + 1)}</td>
+                            <td className={bang.tdSo}>{s.date}</td>
+                            <td className={bang.tdSo}>{bang.trong0(s.sl, fmtQty)}</td>
+                            <td className={bang.tdSo}>{bang.trong0(s.tien, fmtTy)}</td>
+                            <td className={bang.tdB}>{s.note}</td>
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot className={bang.tfoot}>
+                        <tr>
+                          <td colSpan={2} className={`${bang.tdB} text-center`}>TỔNG</td>
+                          <td className={bang.tdSo}>{bang.trong0(tongNhap.sl, fmtQty)}</td>
+                          <td className={bang.tdSo}>{bang.trong0(tongNhap.tien, fmtTy)}</td>
+                          <td className={bang.tdB} />
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 )}
@@ -529,51 +500,49 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
               {/* QC: bảng từng lần kiểm (parse từ cột tổng hợp QC) */}
               {qcEntries.length > 0 && (
                 <div className="rounded-lg border border-slate-200">
-                  <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
-                    Kiểm tra QC <span className="font-normal text-slate-400">· {qcEntries.length} lần · {qcEntries.reduce((n, e) => n + e.fail, 0)} sản phẩm lỗi · mới nhất trước</span>
-                  </p>
-                  <div className="max-h-64 overflow-auto custom-scrollbar">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-slate-50 text-slate-500">
+                  <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">Kiểm tra QC</p>
+                  <div className={`${bang.khung} max-h-80`}>
+                    <table className={bang.table}>
+                      <thead className={bang.thead}>
                         <tr>
-                          <th className="px-3 py-1.5 text-left font-medium">Ngày</th>
-                          <th className="px-3 py-1.5 text-left font-medium">Công đoạn</th>
-                          <th className="px-3 py-1.5 text-left font-medium">Kết quả</th>
-                          <th className="px-3 py-1.5 text-right font-medium">Kiểm</th>
-                          <th className="px-3 py-1.5 text-right font-medium">Đạt</th>
-                          <th className="px-3 py-1.5 text-right font-medium">Lỗi</th>
-                          <th className="px-3 py-1.5 text-left font-medium">QC</th>
-                          <th className="px-3 py-1.5 text-left font-medium">Ghi chú</th>
-                          <th className="px-3 py-1.5 text-right font-medium">Ảnh</th>
+                          <th className={bang.thC}>Ngày</th>
+                          <th className={bang.thC}>Công đoạn</th>
+                          <th className={bang.thC}>Kết quả</th>
+                          <th className={bang.thC}>Kiểm</th>
+                          <th className={bang.thC}>Đạt</th>
+                          <th className={bang.thC}>Lỗi</th>
+                          <th className={bang.thC}>QC</th>
+                          <th className={bang.thC}>Ghi chú</th>
+                          <th className={bang.thC}>Ảnh</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody>
                         {qcEntries.map((e, i) => {
                           const bad = e.status === 'rejected' || e.status === 'flagged' || e.fail > 0;
                           const wait = e.status === 'pending' || e.status === 'submitted';
                           return (
                             <tr key={i} className={bad ? 'bg-red-50/40' : ''}>
-                              <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">{e.date}</td>
-                              <td className="max-w-[200px] truncate px-3 py-1.5 text-slate-600" title={e.stage}>{e.stage || '—'}</td>
-                              <td className="whitespace-nowrap px-3 py-1.5">
+                              <td className={bang.tdSo}>{e.date}</td>
+                              <td className={`${bang.tdB} max-w-[200px] truncate`} title={e.stage}>{e.stage || '—'}</td>
+                              <td className={`${bang.tdB} whitespace-nowrap text-center`}>
                                 <span className={`rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${bad ? 'bg-red-100 text-red-700' : wait ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
                                   {QC_STATUS_VI[e.status] ?? e.status}
                                 </span>
                               </td>
-                              <td className="px-3 py-1.5 text-right tabular-nums">{fmtNum(e.checked, 3)}</td>
-                              <td className="px-3 py-1.5 text-right tabular-nums text-emerald-700">{fmtNum(e.pass, 3)}</td>
-                              <td className={`px-3 py-1.5 text-right tabular-nums ${e.fail > 0 ? 'font-semibold text-red-600' : 'text-slate-400'}`}>{fmtNum(e.fail, 3)}</td>
-                              <td className="whitespace-nowrap px-3 py-1.5 text-slate-600">{e.qc || '—'}</td>
-                              <td className="max-w-[320px] px-3 py-1.5 text-slate-600"><span className="line-clamp-2 whitespace-pre-line" title={e.note}>{e.note || '—'}</span></td>
-                              <td className="whitespace-nowrap px-3 py-1.5 text-right">
-                                {e.photos.length === 0 ? <span className="text-slate-300">—</span> : (
+                              <td className={bang.tdSo}>{bang.trong0(e.checked, fmtQty)}</td>
+                              <td className={bang.tdSo}>{bang.trong0(e.pass, fmtQty)}</td>
+                              <td className={`${bang.tdSo} ${e.fail > 0 ? 'font-semibold text-red-600' : ''}`}>{bang.trong0(e.fail, fmtQty)}</td>
+                              <td className={`${bang.tdB} whitespace-nowrap`}>{e.qc || '—'}</td>
+                              <td className={`${bang.tdB} max-w-[320px]`}><span className="line-clamp-2 whitespace-pre-line" title={e.note}>{e.note || '—'}</span></td>
+                              <td className={`${bang.tdB} whitespace-nowrap text-center`}>
+                                {e.photos.length > 0 && (
                                   <button
                                     type="button"
                                     onClick={() => setPhotoView({ urls: e.photos, idx: 0, title: `QC ${e.date} · ${e.stage || ''}` })}
                                     title="Xem ảnh QC ngay trong app"
                                     className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[0.6875rem] font-semibold text-blue-700 hover:bg-blue-50"
                                   >
-                                    <ImageIcon size={12} /> {e.photos.length} ảnh
+                                    <ImageIcon size={12} /> {fmtInt(e.photos.length)} ảnh
                                   </button>
                                 )}
                               </td>
@@ -581,6 +550,15 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                           );
                         })}
                       </tbody>
+                      <tfoot className={bang.tfoot}>
+                        <tr>
+                          <td colSpan={3} className={`${bang.tdB} text-center`}>TỔNG</td>
+                          <td className={bang.tdSo}>{bang.trong0(tongKiem.checked, fmtQty)}</td>
+                          <td className={bang.tdSo}>{bang.trong0(tongKiem.pass, fmtQty)}</td>
+                          <td className={bang.tdSo}>{bang.trong0(tongKiem.fail, fmtQty)}</td>
+                          <td colSpan={3} className={bang.tdB} />
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>

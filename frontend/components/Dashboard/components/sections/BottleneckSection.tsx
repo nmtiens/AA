@@ -1,14 +1,15 @@
-import React from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  Legend, ResponsiveContainer, LabelList,
-} from 'recharts';
+import React, { useState } from 'react';
 import { AlertTriangle, Download, Clock, CheckCircle } from 'lucide-react';
 import type { BottleneckItem } from '../../types';
+import { DWELL_KEYS, DWELL_STUCK } from '../../../../utils/productionMetrics';
+import { laChoBanVe } from '../../core/chiTietHex';
+import { fmtInt, fmtTy } from '../../../../utils/format';
+import { khung, soO, table, tdB, tfoot, thB, thead, trong0 } from '../../../shared/bangBaoCao';
 
 export interface TopBottleneckItem {
   name: string;
   count: number;
+  gt?: number;
 }
 
 interface BottleneckSectionProps {
@@ -20,6 +21,9 @@ interface BottleneckSectionProps {
   handleExportBottlenecks: () => void;
 }
 
+// Nền cột "Từ 4 tuần trở lên": số càng lớn đỏ càng đậm
+const NEN_NGHEN = ['', 'bg-red-100', 'bg-red-200', 'bg-red-300', 'bg-red-500 text-white', 'bg-red-700 font-bold text-white'];
+
 export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
   sectionRef,
   bottleneckData,
@@ -30,11 +34,20 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
 }) => {
   // P001 / "15. CHƯA TRIỂN KHAI" = chờ triển khai bản vẽ: thường chiếm gần hết số tồn ≥ 4 tuần và che mất
   // nghẽn thật trong xưởng => tách ra ô riêng, top chỉ gồm công đoạn / tình trạng sản xuất
-  const isDesignWait = (name: string) => /^P001(?![0-9])/i.test(name.trim()) || name.toUpperCase().includes('15. CHƯA TRIỂN KHAI');
-  const designWait = topBottlenecks.find(b => isDesignWait(b.name)) ?? null;
-  const prodBottlenecks = topBottlenecks.filter(b => !isDesignWait(b.name)).slice(0, 5);
+  const [gtMode, setGtMode] = useState(true);
+  const nhanSo = gtMode ? fmtTy : fmtInt;
+  const soTop = (b: TopBottleneckItem) => (gtMode ? b.gt ?? 0 : b.count);
+  const designWait = topBottlenecks.find(b => laChoBanVe(b.name)) ?? null;
+  const prodBottlenecks = topBottlenecks.filter(b => !laChoBanVe(b.name)).slice(0, 5);
 
   if (bottleneckData.length === 0) return null;
+
+  const soCua = (row: BottleneckItem, k: string) => Number(row[gtMode ? `gt:${k}` : k]) || 0;
+  const tongDong = (row: BottleneckItem) => DWELL_KEYS.reduce((a, k) => a + soCua(row, k), 0);
+  const tongCot = (k: string) => bottleneckData.reduce((a, row) => a + soCua(row, k), 0);
+  // Mốc đậm nhất bỏ P001 (chờ bản vẽ), không thì dòng đó làm nhạt hết các dòng nghẽn trong xưởng
+  const dinhNghen = Math.max(0, ...bottleneckData.filter(r => !laChoBanVe(r.name)).map(r => soCua(r, DWELL_STUCK)));
+  const nenNghen = (v: number) => (v && dinhNghen ? NEN_NGHEN[Math.min(5, Math.ceil((v / dinhNghen) * 5))] : '');
 
   return (
     <div
@@ -47,9 +60,17 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
           <div className="bg-red-50 p-2 rounded-lg text-red-600">
             <AlertTriangle size={24} />
           </div>
-          <h3 className="text-lg font-bold text-slate-800">ĐIỂM NGHẼN (HEX)</h3>
+          <h3 className="text-lg font-bold text-slate-800">ĐIỂM NGHẼN{gtMode ? ' (tỷ)' : ''}</h3>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
+            {([[true, 'Giá trị'], [false, 'Hạng mục']] as const).map(([v, ten]) => (
+              <button key={ten} onClick={() => setGtMode(v)} aria-pressed={gtMode === v}
+                className={`px-3 py-1.5 text-sm font-bold rounded-md transition-all duration-200 ${gtMode === v ? 'bg-white text-indigo-700 shadow-sm border border-indigo-100/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                {ten}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
             <button
               onClick={() => setBottleneckViewMode('BOP')}
@@ -83,101 +104,37 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stacked bar chart */}
-        <div className="lg:col-span-2 h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={bottleneckData}
-              stackOffset="expand"
-              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                tick={{ fontSize: 12, fill: '#475569' }}
-                interval={0}
-              />
-              <YAxis
-                tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-                tick={{ fontSize: 12, fill: '#475569' }}
-              />
-              <RechartsTooltip
-                formatter={(value: number, name: string) => [value, name]}
-                labelStyle={{ fontWeight: 'bold', color: '#1e293b' }}
-                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
-              />
-              <Legend
-                verticalAlign="top"
-                height={36}
-                iconType="circle"
-                wrapperStyle={{ fontSize: '13px', fontWeight: 600 }}
-              />
-
-              <Bar dataKey="Từ 4 tuần trở lên" stackId="a" fill="#ef4444" barSize={30}>
-                <LabelList
-                  dataKey="Từ 4 tuần trở lên"
-                  position="center"
-                  fill="#ffffff"
-                  fontSize={12}
-                  fontWeight="bold"
-                  formatter={(v: any) => (v > 0 ? v : '')}
-                />
-              </Bar>
-              <Bar dataKey="3 tuần" stackId="a" fill="#f97316" barSize={30}>
-                <LabelList
-                  dataKey="3 tuần"
-                  position="center"
-                  fill="#ffffff"
-                  fontSize={12}
-                  fontWeight="bold"
-                  formatter={(v: any) => (v > 0 ? v : '')}
-                />
-              </Bar>
-              <Bar dataKey="2 tuần" stackId="a" fill="#eab308" barSize={30}>
-                <LabelList
-                  dataKey="2 tuần"
-                  position="center"
-                  fill="#ffffff"
-                  fontSize={12}
-                  fontWeight="bold"
-                  formatter={(v: any) => (v > 0 ? v : '')}
-                />
-              </Bar>
-              <Bar dataKey="4-7 NGÀY" stackId="a" fill="#3b82f6" barSize={30}>
-                <LabelList
-                  dataKey="4-7 NGÀY"
-                  position="center"
-                  fill="#ffffff"
-                  fontSize={12}
-                  fontWeight="bold"
-                  formatter={(v: any) => (v > 0 ? v : '')}
-                />
-              </Bar>
-              <Bar dataKey="<3 NGÀY" stackId="a" fill="#22c55e" barSize={30}>
-                <LabelList
-                  dataKey="<3 NGÀY"
-                  position="center"
-                  fill="#ffffff"
-                  fontSize={12}
-                  fontWeight="bold"
-                  formatter={(v: any) => (v > 0 ? v : '')}
-                />
-              </Bar>
-              <Bar dataKey="Chưa có số ngày" stackId="a" fill="#cbd5e1" barSize={30}>
-                <LabelList
-                  dataKey="Chưa có số ngày"
-                  position="center"
-                  fill="#475569"
-                  fontSize={12}
-                  fontWeight="bold"
-                  formatter={(v: any) => (v > 0 ? v : '')}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div className={`${khung} max-h-[560px] lg:col-span-2`}>
+          <table className={table}>
+            <thead className={thead}>
+              <tr>
+                <th className={`${thB} sticky left-0 z-[3] min-w-[11rem] bg-emerald-300 text-center`}>
+                  {bottleneckViewMode === 'BOP' ? 'BOP' : 'Tình trạng'}
+                </th>
+                {DWELL_KEYS.map(k => <th key={k} className={`${thB} text-center text-sm`}>{k}</th>)}
+                <th className={`${thB} text-center`}>Tổng</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bottleneckData.map(row => (
+                <tr key={row.name}>
+                  <td className={`${tdB} sticky left-0 z-[1] whitespace-nowrap bg-white font-bold`}>{row.name}</td>
+                  {DWELL_KEYS.map(k => {
+                    const v = soCua(row, k);
+                    return <td key={k} className={`${tdB} ${soO} ${k === DWELL_STUCK ? nenNghen(v) : ''}`}>{trong0(v, nhanSo)}</td>;
+                  })}
+                  <td className={`${tdB} ${soO} font-bold`}>{trong0(tongDong(row), nhanSo)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className={tfoot}>
+              <tr>
+                <td className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
+                {DWELL_KEYS.map(k => <td key={k} className={`${tdB} ${soO}`}>{trong0(tongCot(k), nhanSo)}</td>)}
+                <td className={`${tdB} ${soO}`}>{trong0(bottleneckData.reduce((a, r) => a + tongDong(r), 0), nhanSo)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
 
         {/* Top 5 bottleneck list */}
@@ -200,7 +157,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                     </span>
                     <p className="text-sm font-bold text-slate-700">{item.name}</p>
                   </div>
-                  <span className="text-2xl font-bold text-red-600 leading-none tabular-nums">{item.count}</span>
+                  <span className="text-2xl font-bold text-red-600 leading-none tabular-nums">{nhanSo(soTop(item))}</span>
                 </div>
               ))}
             </div>
@@ -215,7 +172,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
             <div className="flex justify-between items-center text-sm">
               <span className="font-semibold text-slate-700">Tổng</span>
               <span className="text-xl font-bold text-red-700 tabular-nums">
-                {prodBottlenecks.reduce((a, b) => a + b.count, 0)}
+                {nhanSo(prodBottlenecks.reduce((a, b) => a + soTop(b), 0))}
               </span>
             </div>
             {designWait && (
@@ -224,7 +181,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                 title="Hạng mục chưa triển khai bản vẽ tồn ≥ 4 tuần — chờ thiết kế, không phải nghẽn trong xưởng (tách khỏi top nghẽn sản xuất)"
               >
                 <span className="text-slate-700">{designWait.name} · chờ bản vẽ</span>
-                <span className="text-base font-bold text-slate-800 tabular-nums">{designWait.count}</span>
+                <span className="text-base font-bold text-slate-800 tabular-nums">{nhanSo(soTop(designWait))}</span>
               </div>
             )}
           </div>

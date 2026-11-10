@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, Download, ShoppingCart, FileText, ClipboardList, Package, PackageOpen, Boxes } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea, Cell, CartesianGrid, LabelList } from 'recharts';
-import { fetchOverviewSummary, fetchYearPlanActual, fetchKhsxNhapKhoSummary, type OverviewSummary, type YearPlanActualData } from '../../../../services/dataService';
+import { fetchOverviewSummary, fetchKhsxNhapKhoSummary, type OverviewSummary, type YearPlanActualData } from '../../../../services/dataService';
 import { formatTrieuAsTy, formatTy } from '../../../../utils/money';
 import { parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
+import { tuanTrongThang } from '../../../../utils/dateUtils';
 import { DashboardFilter } from '../shared/DashboardFilter';
+import { khThTheoLoc, mauTyLe, mocQuy, trangThaiSo } from '../../core/dauTrang';
 
 // ============================================================================
 // Đầu trang Tổng quan theo ảnh mẫu 2 (docs/designs/figma-thiet-ke-lai/2): chọn kỳ Hôm nay / 7 ngày / Tháng này;
@@ -20,15 +22,12 @@ export type KhoaChiTiet = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 
 interface Props {
   unifiedDateOptions: string[];
   setOverviewDateFilters: (v: string[]) => void;
-  /** Bộ lọc công trình / xưởng đang áp (giống dải Dòng chảy) */
+  /** Bộ lọc đang áp cho thẻ, tiến độ, biểu đồ: công trình đã gồm Khách hàng + Khu vực dự án */
   congTrinh: string[];
   xuong: string[];
+  /** Bộ lọc đang chọn mà thẻ không theo được */
+  khongTheoLoc: string[];
   vm: { open: number; overdue: number };
-  /** Doanh số năm (tỷ) */
-  namLabel: string;
-  thucHienNam: number;
-  keHoachNam: number;
-  phanTramNam: number;
   chuaTheSX: number; // triệu
   vuongSL: number;
   chuaTrienKhai: number;
@@ -37,15 +36,13 @@ interface Props {
   diemNghen?: { name: string; count: number };
   onMoChiTiet: (k: KhoaChiTiet) => void;
   onMoTab: (t: 'sx' | 'nghen' | 'kh') => void;
-  onThucHienNam?: () => void;
+  onThucHienNam?: (nam: number) => void;
   /** Bấm "Kế hoạch": biểu đồ nhập kho theo năm kèm cột kế hoạch năm */
-  onKeHoachNam?: () => void;
+  onKeHoachNam?: (nam: number) => void;
   /** Số lượng / Giá trị (dùng chung với cửa sổ chi tiết) */
   metric: 'COUNT' | 'SUM';
   setMetric: (m: 'COUNT' | 'SUM') => void;
   onXuatExcel: () => void;
-  /** Mốc lũy kế từng quý (tỷ) cho thanh tiến độ năm */
-  quy: { q1: number; q2: number; q3: number; q4: number };
   /** Tồn kho (ảnh chụp gần ngày xem nhất) theo metric đang chọn + cuối tháng trước */
   tonKho: number;
   tonNgay: Date | null;
@@ -57,20 +54,22 @@ const themNgay = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(),
 
 // Mẫu thẻ theo trang Tổng quan cũ: nền nhạt riêng từng bước, số trong kỳ to, lũy kế tháng này / tháng trước
 const MAU_THE = {
-  order: { Icon: ShoppingCart, nen: 'border-rose-100 bg-rose-50/70', o: 'bg-rose-100 text-rose-600', chu: 'text-rose-700', nhat: 'text-rose-500', dv: 'đơn hàng (HEX)' },
-  tkbv: { Icon: FileText, nen: 'border-sky-100 bg-sky-50/70', o: 'bg-sky-100 text-sky-600', chu: 'text-sky-700', nhat: 'text-sky-500', dv: 'bản vẽ (items)' },
-  pthsp: { Icon: ClipboardList, nen: 'border-violet-100 bg-violet-50/70', o: 'bg-violet-100 text-violet-600', chu: 'text-violet-700', nhat: 'text-violet-500', dv: 'phiếu (items)' },
-  inventory: { Icon: Package, nen: 'border-emerald-100 bg-emerald-50/70', o: 'bg-emerald-100 text-emerald-600', chu: 'text-emerald-700', nhat: 'text-emerald-600', dv: 'items' },
-  export: { Icon: PackageOpen, nen: 'border-amber-100 bg-amber-50/70', o: 'bg-amber-100 text-amber-600', chu: 'text-amber-700', nhat: 'text-amber-600', dv: 'items' },
-  stock: { Icon: Boxes, nen: 'border-slate-200 bg-white', o: 'bg-slate-100 text-slate-600', chu: 'text-slate-900', nhat: 'text-slate-500', dv: 'items' },
+  order: { Icon: ShoppingCart, nen: 'border-rose-100 bg-rose-50/70', o: 'bg-rose-100 text-rose-600', chu: 'text-rose-700', nhat: 'text-rose-500' },
+  tkbv: { Icon: FileText, nen: 'border-sky-100 bg-sky-50/70', o: 'bg-sky-100 text-sky-600', chu: 'text-sky-700', nhat: 'text-sky-500' },
+  pthsp: { Icon: ClipboardList, nen: 'border-violet-100 bg-violet-50/70', o: 'bg-violet-100 text-violet-600', chu: 'text-violet-700', nhat: 'text-violet-500' },
+  inventory: { Icon: Package, nen: 'border-emerald-100 bg-emerald-50/70', o: 'bg-emerald-100 text-emerald-600', chu: 'text-emerald-700', nhat: 'text-emerald-600' },
+  export: { Icon: PackageOpen, nen: 'border-amber-100 bg-amber-50/70', o: 'bg-amber-100 text-amber-600', chu: 'text-amber-700', nhat: 'text-amber-600' },
+  stock: { Icon: Boxes, nen: 'border-slate-200 bg-white', o: 'bg-slate-100 text-slate-600', chu: 'text-slate-900', nhat: 'text-slate-500' },
 } as const;
 
-const LUONG: Array<{ k: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export'; ten: string; ma: string; dv: string; hint: string }> = [
-  { k: 'order', ten: 'Đơn hàng mới', ma: 'P001', dv: 'đơn', hint: 'Đơn hàng có ngày nhận từ PM trong kỳ (không tính đơn HỦY)' },
-  { k: 'tkbv', ten: 'Triển khai BV', ma: 'P002', dv: 'bản vẽ', hint: 'Bản vẽ đã triển khai (TKBV) trong kỳ' },
-  { k: 'pthsp', ten: 'Tính phiếu', ma: 'P012', dv: 'phiếu', hint: 'Phiếu đã tính (PTHSP) trong kỳ' },
-  { k: 'inventory', ten: 'Nhập kho', ma: 'P022', dv: 'mục', hint: 'Hạng mục nhập kho trong kỳ' },
-  { k: 'export', ten: 'Xuất kho', ma: 'P025', dv: 'mục', hint: 'Hạng mục xuất kho trong kỳ' },
+const DON_VI = 'hạng mục';
+type KhoaLuong = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export';
+const LUONG: Array<{ k: KhoaLuong; ten: string; ma: string; hint: string }> = [
+  { k: 'order', ten: 'Đơn hàng mới', ma: 'P001', hint: 'Đơn hàng có ngày nhận từ PM trong kỳ (không tính đơn HỦY)' },
+  { k: 'tkbv', ten: 'Triển khai BV', ma: 'P002', hint: 'Bản vẽ đã triển khai (TKBV) trong kỳ' },
+  { k: 'pthsp', ten: 'Tính phiếu', ma: 'P012', hint: 'Phiếu đã tính (PTHSP) trong kỳ' },
+  { k: 'inventory', ten: 'Nhập kho', ma: 'P022', hint: 'Hạng mục nhập kho trong kỳ' },
+  { k: 'export', ten: 'Xuất kho', ma: 'P025', hint: 'Hạng mục xuất kho trong kỳ' },
 ];
 
 // Xưởng làm cả Chủ nhật (nhập kho có số mọi ngày, kể cả CN) => ngày làm việc = mọi ngày. Trước tính T2–T7 nên mức
@@ -88,31 +87,27 @@ const ngayLamThang = (d: Date) => {
   }
   return [qua, tong] as const;
 };
-/** Số tuần ISO của ngày (năm theo thứ Năm của tuần) */
-const tuanISO = (d: Date) => {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
-  const dauNam = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
-  return { nam: t.getUTCFullYear(), tuan: Math.ceil(((t.getTime() - dauNam.getTime()) / 86400000 + 1) / 7) };
-};
-/** Các tuần thuộc tháng của `d` (tuần có thứ Năm nằm trong tháng — cách đánh số tuần ISO) */
-const tuanTrongThang = (d: Date) => {
-  const ds: Array<{ nam: number; tuan: number; tu: Date; den: Date }> = [];
-  const dau = new Date(d.getFullYear(), d.getMonth(), 1);
-  let thu2 = themNgay(dau, -((dau.getDay() + 6) % 7));
-  for (; ; thu2 = themNgay(thu2, 7)) {
-    const thu5 = themNgay(thu2, 3);
-    if (thu5.getMonth() !== d.getMonth() && thu5 > dau) break;
-    if (thu5.getMonth() === d.getMonth()) ds.push({ ...tuanISO(thu5), tu: thu2, den: themNgay(thu2, 6) });
-  }
-  return ds;
-};
 /** Số ngày làm việc từ ngày sau `tu` tới hết năm */
 const ngayLamConLai = (tu: Date) => {
   let n = 0;
   for (let d = themNgay(tu, 1); d.getFullYear() === tu.getFullYear(); d = themNgay(d, 1)) if (laNgayLam(d)) n++;
   return n;
 };
+
+// Ngăn bằng "|": tên công trình có thể chứa dấu phẩy
+const thamSoCt = (ct: string[]) => `${ct.join('|')}|`;
+/** Nhập kho theo ngày (tỷ) của các xưởng / công trình; rỗng = không lọc */
+const layNkNgay = (tu: Date, den: Date, xuong: string[], ct: string[], signal?: AbortSignal) => {
+  const q = new URLSearchParams({ source: 'inventory', granularity: 'day', dateFrom: toISODateLocal(tu), dateTo: toISODateLocal(den) });
+  if (ct.length) q.set('ctWhitelist', thamSoCt(ct));
+  if (xuong.length) q.set('xuong', xuong.join(','));
+  return fetch(`/api/trend?${q.toString()}`, { signal }).then(r => (r.ok ? r.json() : []))
+    .then((rows: Array<{ period: string; total?: number | string; total_value?: number | string }>) =>
+      new Map((Array.isArray(rows) ? rows : []).map(r => [String(r.period).slice(0, 10), (Number(r.total ?? r.total_value) || 0) / 1000])));
+};
+
+// Ngày mới nhất từng nguồn (máy chủ trả kèm summary)
+type SoKy = OverviewSummary & { maxDates?: Partial<Record<KhoaLuong, string | null>> };
 
 interface KhoangKy { tu: Date; den: Date; truocTu: Date; truocDen: Date; ten: string; tenTruoc: string; dates?: string[] }
 
@@ -172,7 +167,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   }, [khoang, unifiedDateOptions, setOverviewDateFilters]);
 
   // Số của kỳ này + kỳ trước (cùng bộ lọc công trình / xưởng với dải Dòng chảy)
-  const [so, setSo] = useState<{ nay: OverviewSummary | null; truoc: OverviewSummary | null }>({ nay: null, truoc: null });
+  const [so, setSo] = useState<{ nay: SoKy | null; truoc: SoKy | null }>({ nay: null, truoc: null });
   const locKey = `${p.congTrinh.join('|')}#${p.xuong.join('|')}`;
   useEffect(() => {
     if (!khoang) return;
@@ -219,21 +214,16 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     const den = hienDen ? (hienDen > ngayMoi ? ngayMoi : hienDen) : ky === 'tuy' && khoang ? khoang.den : ngayMoi;
     const tu = hienTu ? hienTu : ky === 'tuy' && khoang ? (khoang.tu < den ? khoang.tu : themNgay(den, -6))
       : ky === 'thang' ? new Date(ngayMoi.getFullYear(), ngayMoi.getMonth(), 1) : themNgay(ngayMoi, -6);
-    const q = new URLSearchParams({ source: 'inventory', granularity: 'day', dateFrom: toISODateLocal(tu), dateTo: toISODateLocal(den) });
-    if (p.congTrinh.length) q.set('ctWhitelist', p.congTrinh.join(','));
-    if (p.xuong.length === 1) q.set('xuong', p.xuong[0]);
     setNkKhoang({ tu, den });
     let on = true;
-    fetch(`/api/trend?${q.toString()}`)
-      .then(r => (r.ok ? r.json() : []))
-      .then((rows: Array<{ period: string; total?: number | string; total_value?: number | string }>) => {
-        if (!on || !Array.isArray(rows)) return;
-        const theoNgay = new Map(rows.map(r => [String(r.period).slice(0, 10), Number(r.total ?? r.total_value) || 0]));
+    layNkNgay(tu, den, p.xuong, p.congTrinh)
+      .then(theoNgay => {
+        if (!on) return;
         const ds: Array<{ ngay: string; ten: string; v: number; cuoi: boolean }> = [];
         for (let d = tu; d <= den; d = themNgay(d, 1)) {
           if (d.getDay() === 0 && !theoNgay.get(toISODateLocal(d))) continue; // bỏ Chủ nhật không có số
           const k = toISODateLocal(d);
-          ds.push({ ngay: k, ten: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, v: (theoNgay.get(k) ?? 0) / 1000, cuoi: k === toISODateLocal(den) });
+          ds.push({ ngay: k, ten: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, v: theoNgay.get(k) ?? 0, cuoi: k === toISODateLocal(den) });
         }
         setNk(ds);
       })
@@ -251,9 +241,9 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     const lay = (url: string) => fetch(url, { signal: ac.signal }).then(r => (r.ok ? r.json() : [])).then(d => (Array.isArray(d) ? d : []));
     // Công trình: theo từng xưởng đã chọn (gộp, cộng giá trị); có chọn 'KHÁC' (không lọc được theo tên) => không thu hẹp
     const xuongLoc = locXuong.includes('KHÁC') ? [] : locXuong;
-    const ctPromise = Promise.all((xuongLoc.length ? xuongLoc : [p.xuong.length === 1 ? p.xuong[0] : null]).map(x => {
+    const ctPromise = Promise.all((xuongLoc.length ? xuongLoc : [p.xuong.join(',')]).map(x => {
       const q = goc();
-      if (p.congTrinh.length) q.set('ctWhitelist', p.congTrinh.join(','));
+      if (p.congTrinh.length) q.set('ctWhitelist', thamSoCt(p.congTrinh));
       if (x) q.set('xuong', x);
       return lay(`/api/trend-by-congtrinh?${q.toString()}`) as Promise<Array<{ congTrinhName: string; total: number }>>;
     })).then(ds => {
@@ -264,7 +254,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     // Xưởng: theo công trình đã chọn; xưởng trống => 'KHÁC'
     const qx = goc();
     const ctLoc = locCt.length ? locCt : p.congTrinh;
-    if (ctLoc.length) qx.set('ctWhitelist', ctLoc.join(','));
+    if (ctLoc.length) qx.set('ctWhitelist', thamSoCt(ctLoc));
     const xPromise = (lay(`/api/trend-by-xuong?${qx.toString()}`) as Promise<Array<{ xuongName: string; total: number }>>)
       .then(ds => [...new Set(ds.filter(x => (Number(x.total) || 0) > 0).map(x => (!x.xuongName || x.xuongName === 'Chưa xác định' ? 'KHÁC' : x.xuongName)))]);
     Promise.all([ctPromise, xPromise]).then(([ct, x]) => {
@@ -283,25 +273,16 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     if (!locDangBat || !nkKhoang) { setNkLoc(null); return; }
     setNkLoc(null);
     const ac = new AbortController();
-    const goi = (xuong: string | null) => {
-      const q = new URLSearchParams({ source: 'inventory', granularity: 'day', dateFrom: toISODateLocal(nkKhoang.tu), dateTo: toISODateLocal(nkKhoang.den) });
-      const ct = locCt.length ? locCt : p.congTrinh;
-      if (ct.length) q.set('ctWhitelist', ct.join(','));
-      const x = xuong ?? (p.xuong.length === 1 ? p.xuong[0] : null);
-      if (x) q.set('xuong', x);
-      return fetch(`/api/trend?${q.toString()}`, { signal: ac.signal }).then(r => (r.ok ? r.json() : []))
-        .then((rows: Array<{ period: string; total?: number | string; total_value?: number | string }>) =>
-          new Map((Array.isArray(rows) ? rows : []).map(r => [String(r.period).slice(0, 10), (Number(r.total ?? r.total_value) || 0) / 1000])));
-    };
+    const goi = (xuong: string[]) => layNkNgay(nkKhoang.tu, nkKhoang.den, xuong, locCt.length ? locCt : p.congTrinh, ac.signal);
     (async () => {
       const ten = locXuong.filter(x => x !== 'KHÁC');
       const coKhac = locXuong.includes('KHÁC');
       const tatCaXuong = (khTh?.workshops ?? []).filter(x => x !== 'KHÁC');
       // Không chọn xưởng => 1 lần gọi (theo công trình đã chọn); chọn 'KHÁC' => cần tổng và mọi xưởng có tên để lấy phần dư
       const [chon, tong, moiXuong] = await Promise.all([
-        locXuong.length === 0 ? Promise.all([goi(null)]) : Promise.all(ten.map(goi)),
-        coKhac ? goi(null) : Promise.resolve(null),
-        coKhac ? Promise.all(tatCaXuong.map(goi)) : Promise.resolve(null),
+        locXuong.length === 0 ? Promise.all([goi(p.xuong)]) : Promise.all(ten.map(x => goi([x]))),
+        coKhac ? goi([]) : Promise.resolve(null),
+        coKhac ? Promise.all(tatCaXuong.map(x => goi([x]))) : Promise.resolve(null),
       ]);
       const kq = new Map<string, number>();
       const cong = (m: Map<string, number>, he = 1) => m.forEach((v, k) => kq.set(k, (kq.get(k) ?? 0) + v * he));
@@ -312,14 +293,31 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locXuong.join('|'), locCt.join('|'), nkKhoang?.tu.getTime(), nkKhoang?.den.getTime(), locKey, khTh]);
-  useEffect(() => { let on = true; fetchYearPlanActual(ngayMoi.getFullYear()).then(d => { if (on) setKhTh(d); }); return () => { on = false; }; }, [ngayMoi]);
+  // Đầu trang luôn là năm của hôm qua, không theo LỌC NĂM ở tab Kế hoạch
+  const nam = ngayMoi.getFullYear();
+  const namLabel = String(nam);
+  useEffect(() => {
+    const ac = new AbortController();
+    const q = new URLSearchParams({ year: namLabel });
+    if (p.congTrinh.length) q.set('congTrinh', thamSoCt(p.congTrinh));
+    fetch(`/api/khsx-nam/plan-actual?${q.toString()}`, { signal: ac.signal })
+      .then(r => (r.ok ? r.json() : null))
+      .then((d: YearPlanActualData | null) => { if (!ac.signal.aborted) setKhTh(d); })
+      .catch(() => { /* bỏ qua: huỷ hoặc lỗi mạng */ });
+    return () => ac.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [namLabel, locKey]);
+  // KH năm không chia theo công trình
+  const coKhTrang = p.congTrinh.length === 0;
   const td = useMemo(() => {
     if (tienDo === 'nam') {
+      const tong = khThTheoLoc(khTh, p.xuong);
+      const quy = mocQuy(khTh, p.xuong);
       return {
-        ten: `năm ${p.namLabel}`, th: p.thucHienNam, kh: p.keHoachNam,
+        ten: `năm ${namLabel}`, th: tong.th, kh: coKhTrang ? tong.kh : 0,
         moc: ([['q1', 'Quý I'], ['q2', 'Quý II'], ['q3', 'Quý III'], ['q4', 'Quý IV']] as const).map(([k, ten], i) => {
           const tu = new Date(ngayMoi.getFullYear(), i * 3, 1), den = new Date(ngayMoi.getFullYear(), i * 3 + 3, 0);
-          return { ten, v: p.quy[k], chuaToi: ngayMoi < tu, dangChay: ngayMoi >= tu && ngayMoi <= den };
+          return { ten, v: quy[k], chuaToi: ngayMoi < tu, dangChay: ngayMoi >= tu && ngayMoi <= den };
         }).filter(m => m.v > 0),
         conNgay: ngayLamConLai(ngayMoi),
         // Ngày làm việc đã qua trong năm = cả năm (1/1 + các ngày sau 1/1) − còn lại
@@ -328,8 +326,8 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       };
     }
     const t = thangTD;
-    const cong = (ds?: Array<{ thang: number; value: number }>) => (ds ?? []).filter(r => r.thang === t).reduce((a, r) => a + r.value, 0);
-    const kh = cong(khTh?.plan), th = cong(khTh?.actual);
+    const { kh: khGoc, th } = khThTheoLoc(khTh, p.xuong, t);
+    const kh = coKhTrang ? khGoc : 0;
     const homNayTrongThang = t === ngayMoi.getMonth() + 1;
     const [qua, tong] = homNayTrongThang ? ngayLamThang(ngayMoi) : t < ngayMoi.getMonth() + 1 ? [1, 1] : [0, ngayLamThang(new Date(ngayMoi.getFullYear(), t - 1, 1))[1]];
     return {
@@ -340,30 +338,28 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       daQua: homNayTrongThang ? qua : t < ngayMoi.getMonth() + 1 ? tong : 0,
       cuoiKy: new Date(ngayMoi.getFullYear(), t, 0),
     };
-  }, [tienDo, khTh, ngayMoi, thangTD, p.namLabel, p.thucHienNam, p.keHoachNam, p.quy]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tienDo, khTh, ngayMoi, thangTD, namLabel, coKhTrang, locKey]);
   // KH tuần trong tháng: KH / nhập kho từng tuần (API KHSX theo tuần) — chỉ tải khi xem Tháng
-  const [tuanKh, setTuanKh] = useState<Array<{ tuan: number; tu: Date; den: Date; kh: number; th: number }>>([]);
+  const [tuanKh, setTuanKh] = useState<Array<{ tuan: number; tu: Date; den: Date; nhan: string; kh: number; th: number }>>([]);
   useEffect(() => {
     if (tienDo !== 'thang') return;
     const ac = new AbortController();
-    const ds = tuanTrongThang(new Date(ngayMoi.getFullYear(), thangTD - 1, 1));
-    Promise.all(ds.map(w => fetchKhsxNhapKhoSummary({ nam: String(w.nam), mode: 'week', tuan: String(w.tuan), signal: ac.signal })))
-      .then(kq => { if (!ac.signal.aborted) setTuanKh(ds.map((w, i) => ({ tuan: w.tuan, tu: w.tu, den: w.den, kh: kq[i]?.totalKh ?? 0, th: kq[i]?.totalTh ?? 0 }))); });
+    const ds = tuanTrongThang(ngayMoi.getFullYear(), thangTD);
+    Promise.all(ds.map(w => fetchKhsxNhapKhoSummary({ nam: String(w.nam), mode: 'week', tuan: String(w.tuan), congTrinh: p.congTrinh, xuong: p.xuong, signal: ac.signal })))
+      .then(kq => { if (!ac.signal.aborted) setTuanKh(ds.map((w, i) => ({ tuan: w.tuan, tu: w.tu, den: w.den, nhan: w.nhan, kh: kq[i]?.totalKh ?? 0, th: kq[i]?.totalTh ?? 0 }))); });
     const y = ngayMoi.getFullYear();
-    const q = new URLSearchParams({ source: 'inventory', granularity: 'day', dateFrom: toISODateLocal(new Date(y, thangTD - 1, 1)), dateTo: toISODateLocal(new Date(y, thangTD, 0)) });
-    fetch(`/api/trend?${q.toString()}`, { signal: ac.signal })
-      .then(r => (r.ok ? r.json() : []))
-      .then((rows: Array<{ period: string; total?: number | string; total_value?: number | string }>) => {
-        if (!ac.signal.aborted && Array.isArray(rows)) setNkThang(new Map(rows.map(r => [String(r.period).slice(0, 10), (Number(r.total ?? r.total_value) || 0) / 1000])));
-      })
+    layNkNgay(new Date(y, thangTD - 1, 1), new Date(y, thangTD, 0), p.xuong, p.congTrinh, ac.signal)
+      .then(m => { if (!ac.signal.aborted) setNkThang(m); })
       .catch(() => { /* bỏ qua: huỷ hoặc lỗi mạng */ });
     return () => ac.abort();
-  }, [tienDo, ngayMoi, thangTD]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tienDo, ngayMoi, thangTD, locKey]);
   const [nkThang, setNkThang] = useState<Map<string, number>>(new Map());
   // Mục tiêu từng tuần — CHỈ phần ngày nằm trong tháng, để cờ / ô tuần / thanh tháng khớp nhau:
   //  - tuần có KH tuần: KH tuần × (ngày làm việc trong tháng / ngày làm việc của tuần)
   //  - tuần chưa có KH tuần: phần KH tháng còn lại chia đều theo ngày làm việc
-  //  => cộng các tuần = đúng KH tháng. TH tuần = nhập kho các ngày của tuần trong tháng.
+  // TH tuần = nhập kho các ngày của tuần trong tháng; các tuần phủ đủ mọi ngày của tháng.
   const tuanMT = useMemo(() => {
     const ds = tuanKh.map(w => {
       let ngayTrong = 0, th = 0;
@@ -386,20 +382,19 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     let luyKe = 0;
     return tuanMT.map(w => {
       luyKe += w.muc;
-      return { ten: `Tuần ${w.tuan}`, v: luyKe, chuaToi: ngayMoi < w.tu, dangChay: ngayMoi >= w.tu && ngayMoi <= w.den };
+      return { ten: w.nhan, v: luyKe, chuaToi: ngayMoi < w.tu, dangChay: ngayMoi >= w.tu && ngayMoi <= w.den };
     });
   }, [tienDo, td.kh, tuanMT, ngayMoi]);
   useEffect(() => { setTuanChon(null); }, [tienDo, thangTD, ky, tuyChon]);
-  // Có lọc xưởng (không lọc công trình): KH / TH của kỳ chỉ tính các xưởng đã chọn (bảng KH năm theo tháng × xưởng)
+  // Có lọc xưởng (không lọc công trình): KH / TH của kỳ chỉ tính các xưởng đã chọn (bảng KH năm theo tháng × xưởng).
+  // Xưởng chọn ở biểu đồ thay cho xưởng của bộ lọc trang
+  const xuongTinh = locXuong.length ? locXuong : p.xuong;
   const khLoc = useMemo(() => {
-    if (!locDangBat) return null;
-    if (locCt.length > 0) return { kh: 0, th: 0, coKh: false };
-    const trong = (t: number) => (tienDo === 'thang' ? t === thangTD : true);
-    const thuoc = (x: string) => locXuong.includes(x);
-    const cong = (ds?: Array<{ thang: number; xuong: string; value: number }>) => (ds ?? []).filter(r => trong(r.thang) && thuoc(r.xuong)).reduce((a, r) => a + r.value, 0);
-    return { kh: cong(khTh?.plan), th: cong(khTh?.actual), coKh: true };
+    if (xuongTinh.length === 0 && coKhTrang && locCt.length === 0) return null;
+    if (!coKhTrang || locCt.length > 0) return { kh: 0, th: 0, coKh: false };
+    return { ...khThTheoLoc(khTh, xuongTinh, tienDo === 'thang' ? thangTD : undefined), coKh: true };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locDangBat, locXuong.join('|'), locCt.length, khTh, tienDo, thangTD]);
+  }, [xuongTinh.join('|'), coKhTrang, locCt.length, khTh, tienDo, thangTD]);
   const conLaiNam = khLoc ? Math.max(0, khLoc.kh - khLoc.th) : Math.max(0, td.kh - td.th);
   const soNgayCon = td.conNgay;
   const canMoiNgayKy = soNgayCon > 0 ? conLaiNam / soNgayCon : 0;
@@ -407,7 +402,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   // đạt KH tháng; khác "Cần" (mức phải đuổi để bù phần đang thiếu tới cuối kỳ)
   const thangKh = tienDo === 'thang' ? thangTD : ngayMoi.getMonth() + 1;
   const khThang = khLoc && !khLoc.coKh ? 0
-    : (khTh?.plan ?? []).filter(x => x.thang === thangKh && (!khLoc || locXuong.includes(x.xuong))).reduce((a, x) => a + x.value, 0);
+    : khThTheoLoc(khTh, xuongTinh, thangKh).kh;
   const mucKhThang = khThang > 0 ? khThang / ngayLamThang(new Date(ngayMoi.getFullYear(), thangKh - 1, 1))[1] : 0;
   // Đang xem 1 tuần: mức cần mỗi ngày = KH tuần chia đều ngày làm việc
   // Tuần đang chọn: mục tiêu = đúng số trên ô tuần (KH tuần nếu có, không thì phần chia từ KH tháng), chỉ phần ngày
@@ -419,7 +414,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const canMoiNgay = tuanChon ? (mucTuan > 0 ? mucTuan / ngayTuan : 0) : canMoiNgayKy;
   // Ngưỡng tô màu cột ngày: đạt KH tháng mỗi ngày => xanh (đang chọn tuần thì theo mức cần của tuần)
   const nguongDat = tuanChon ? canMoiNgay : mucKhThang > 0 ? mucKhThang : canMoiNgay;
-  const tenKh = tienDo === 'nam' ? 'KH năm' : `KH tháng ${thangTD}`;
+  const tenKh = tienDo === 'nam' ? 'KH năm' : `KH năm chia T${thangTD}`;
   // Kế hoạch nhập kho từng ngày (KH tuần của khsx theo ngày KHNK) — cột "Kế hoạch" cạnh cột nhập kho; theo bộ lọc
   // xưởng / công trình của biểu đồ (không lọc thì theo bộ lọc chung của trang)
   const [khNgay, setKhNgay] = useState<Map<string, number> | null>(null);
@@ -432,7 +427,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     const xs = locXuong.length ? locXuong : p.xuong;
     const ct = locCt.length ? locCt : p.congTrinh;
     if (xs.length) q.set('xuong', xs.join(','));
-    if (ct.length) q.set('congTrinh', ct.join(','));
+    if (ct.length) q.set('congTrinh', thamSoCt(ct));
     fetch(`/api/khsx/ke-hoach-ngay?${q.toString()}`, { signal: ac.signal }).then(r => (r.ok ? r.json() : []))
       .then((rows: Array<{ ngay: string; kh: number }>) => { if (!ac.signal.aborted) setKhNgay(new Map((Array.isArray(rows) ? rows : []).map(r => [r.ngay, Number(r.kh) || 0]))); })
       .catch(() => { if (!ac.signal.aborted) setKhNgay(new Map()); });
@@ -509,10 +504,16 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   };
 
   const n = so.nay, t = so.truoc;
+  // Nhập kho có số tới ngày nào (nguồn chậm hơn hôm qua thì ghi đúng ngày nguồn)
+  const maxNk = n?.maxDates?.inventory;
+  const toiNgay = maxNk && maxNk < toISODateLocal(ngayMoi) ? `${maxNk.slice(8, 10)}/${maxNk.slice(5, 7)}` : ngayNgan(ngayMoi);
   const nhanKy = !khoang ? '' : khoang.tu.getTime() === khoang.den.getTime() ? `Trong ngày ${ngayNgan(khoang.den)}` : `Từ ${ngayNgan(khoang.tu)} đến ${ngayNgan(khoang.den)}`;
   const dem = p.metric === 'COUNT';
   const thangXem = (khoang?.den ?? new Date()).getMonth() + 1;
   const thangTruoc = thangXem === 1 ? 12 : thangXem - 1;
+  // Kỳ đang chọn = đúng từ đầu tháng tới ngày xem: số to của thẻ đã là lũy kế tháng, không lặp dòng Lũy kế
+  const trungThang = !!khoang && khoang.tu.getDate() === 1 && khoang.tu.getMonth() === khoang.den.getMonth()
+    && khoang.tu.getFullYear() === khoang.den.getFullYear() && (!khoang.dates || khoang.dates.length === khoang.den.getDate());
 
   // Cần chú ý hôm nay: theo TOÀN BỘ (không theo bộ lọc xưởng / công trình của biểu đồ)
   const conLaiTong = Math.max(0, td.kh - td.th);
@@ -525,7 +526,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   if (nkCuoi && canTong > 0 && nkCuoi.v < canTong) {
     canChuY.push({ ten: `Nhập kho ${ngayNgan(parseVNDate(nkCuoi.ngay) ?? new Date())}: ${formatTy(nkCuoi.v)} tỷ`, phu: `Cần ${formatTy(canTong)} tỷ/ngày`, nhan: 'Chậm', mau: 'bg-amber-50 text-amber-800', bam: () => p.onMoTab('kh') });
   }
-  if (conLaiTong > 0 && soNgayCon > 0) canChuY.push({ ten: `Còn ${formatTy(conLaiTong)} tỷ tới ${tienDo === 'nam' ? `KH ${p.namLabel}` : tenKh}`, phu: `${formatTy(canTong)} tỷ/ngày · ${soNgayCon} ngày`, nhan: 'Kế hoạch', mau: 'bg-slate-100 text-slate-700', bam: p.onThucHienNam });
+  if (conLaiTong > 0 && soNgayCon > 0) canChuY.push({ ten: `Còn ${formatTy(conLaiTong)} tỷ tới ${tienDo === 'nam' ? `KH ${namLabel}` : tenKh}`, phu: `${formatTy(canTong)} tỷ/ngày · ${soNgayCon} ngày`, nhan: 'Kế hoạch', mau: 'bg-slate-100 text-slate-700', bam: () => p.onThucHienNam?.(nam) });
   if (p.chuaTheSX > 0) canChuY.push({ ten: `Chưa thể SX ${formatTrieuAsTy(p.chuaTheSX)} tỷ`, phu: `SL chưa REV ${formatTrieuAsTy(p.vuongSL)} · chưa triển khai ${formatTrieuAsTy(p.chuaTrienKhai)}`, nhan: 'Vướng', mau: 'bg-red-50 text-red-700', bam: () => p.onMoTab('sx') });
   if (p.diemNghen && p.diemNghen.count > 0) canChuY.push({ ten: `Điểm nghẽn: ${p.diemNghen.name}`, phu: `${p.diemNghen.count.toLocaleString('en-US')} hạng mục`, nhan: 'Nghẽn', mau: 'bg-amber-50 text-amber-800', bam: () => p.onMoTab('nghen') });
 
@@ -551,6 +552,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
             <span className="text-slate-500"> vs {khoang.tenTruoc}</span>
           </span>
         )}
+        {p.khongTheoLoc.length > 0 && <span className="text-sm text-slate-500">Thẻ, tiến độ không theo {p.khongTheoLoc.join(', ')}</span>}
         <div className="ml-auto flex items-center gap-2">
           <div className="flex rounded-lg bg-white p-1 ring-1 ring-slate-200" role="group" aria-label="Chế độ hiển thị">
             {([['COUNT', 'Số lượng'], ['SUM', 'Giá trị']] as const).map(([k, l]) => (
@@ -574,7 +576,8 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
           const a = n?.[x.k].daily, b = t?.[x.k].daily;
           const m = MAU_THE[x.k];
           const f = (c: number, v: number) => (dem ? c.toLocaleString('en-US') : formatTrieuAsTy(v));
-          const dv = dem ? m.dv : 'tỷ';
+          const dv = dem ? DON_VI : 'tỷ';
+          const soLieu = trangThaiSo(khoang?.tu, khoang?.den, n?.maxDates?.[x.k]);
           return (
             <button key={x.k} type="button" onClick={() => p.onMoChiTiet(x.k)} title={`${x.hint}\nBấm để xem chi tiết & xu hướng`}
               className={`group flex flex-col rounded-2xl border p-5 text-left transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${m.nen}`}>
@@ -585,25 +588,28 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </span>
               <span className={`mt-4 text-sm font-semibold uppercase tracking-wider ${m.nhat}`}>{nhanKy}</span>
               <span className={`whitespace-nowrap text-[3.25rem] font-bold leading-tight tabular-nums ${m.chu}`}>
-                {a ? f(a.count, a.value) : '…'}<span className={`ml-2 text-xl font-medium ${m.nhat}`}>{dv}</span>
+                {soLieu.chuaCo ? '—' : a ? f(a.count, a.value) : '…'}<span className={`ml-2 text-xl font-medium ${m.nhat}`}>{dv}</span>
               </span>
               <span className="text-base text-slate-600">
-                {a && <>{dem ? `${formatTrieuAsTy(a.value)} tỷ` : `${a.count.toLocaleString('en-US')} hạng mục`} · </>}
-                {dem ? chenh(a?.count, b?.count, 'so', khoang?.tenTruoc) : chenh(a?.value, b?.value, 'pt', khoang?.tenTruoc)}
+                {soLieu.chuaCo ? <b className="font-semibold text-amber-700">Chưa có số tới {soLieu.toi}</b> : <>
+                  {a && <>{dem ? `${formatTrieuAsTy(a.value)} tỷ` : `${a.count.toLocaleString('en-US')} hạng mục`} · </>}
+                  {soLieu.thieu ? <b className="font-semibold text-amber-700">Số tới {soLieu.toi}</b>
+                    : dem ? chenh(a?.count, b?.count, 'so', khoang?.tenTruoc) : chenh(a?.value, b?.value, 'pt', khoang?.tenTruoc)}
+                </>}
               </span>
               {n && (
                 <span className="mt-4 flex flex-col gap-1 border-t border-black/5 pt-3">
-                  <span className="flex items-baseline justify-between gap-2">
+                  {!trungThang && <span className="flex items-baseline justify-between gap-2">
                     <span className="min-w-0 text-sm font-bold uppercase leading-tight text-slate-800">{x.k === 'order' ? `Đơn hàng mới tháng ${thangXem}:` : x.k === 'tkbv' ? `Bản vẽ mới tháng ${thangXem}:` : x.k === 'pthsp' ? `Phiếu mới tháng ${thangXem}:` : `Lũy kế T${thangXem}:`}</span>
-                    <b className={`shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums ${m.chu}`}>{f(n[x.k].mtd.count, n[x.k].mtd.value)} <span className="text-xl font-semibold">{dem ? x.dv : 'tỷ'}</span></b>
-                  </span>
+                    <b className={`shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums ${m.chu}`}>{f(n[x.k].mtd.count, n[x.k].mtd.value)} <span className="text-xl font-semibold">{dv}</span></b>
+                  </span>}
                   <span className="flex items-baseline justify-between gap-2">
                     {/* Thẻ 1: dòng dưới = giá trị đơn hàng đang ở P001 (chưa triển khai) — cùng số thanh P001 của phễu */}
                     <span className="min-w-0 text-xs font-semibold uppercase leading-tight text-slate-500">{x.k === 'order' ? 'Giá trị P001 (chưa triển khai):' : `Tháng ${thangTruoc}:`}</span>
                     <span className={`shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums ${m.nhat}`}>
                       {x.k === 'order'
                         ? (p.giaTriP001 == null ? '—' : `${formatTrieuAsTy(p.giaTriP001)} tỷ`)
-                        : <>{f(n[x.k].lastMonth.count, n[x.k].lastMonth.value)} {dem ? x.dv : 'tỷ'}</>}
+                        : <>{f(n[x.k].lastMonth.count, n[x.k].lastMonth.value)} {dv}</>}
                     </span>
                   </span>
                 </span>
@@ -633,10 +639,6 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </span>
               <span className="mt-4 flex flex-col gap-1 border-t border-black/5 pt-3">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 text-sm font-bold uppercase leading-tight text-slate-800">Tồn mới nhất ({ngayDu(p.tonNgay)})</span>
-                  <b className="shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums text-slate-900">{giaTri(p.tonKho, p.tonKho)} <span className="text-xl font-semibold">{dem ? 'items' : 'tỷ'}</span></b>
-                </span>
-                <span className="flex items-baseline justify-between gap-2">
                   <span className="min-w-0 text-xs font-semibold uppercase leading-tight text-slate-500">Tồn tháng {thangTruoc} ({ngayDu(cuoi)})</span>
                   <span className="shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums text-slate-600">{giaTri(p.tonCuoiThangTruoc.count, p.tonCuoiThangTruoc.value)} {dem ? 'items' : 'tỷ'}</span>
                 </span>
@@ -654,7 +656,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
             const bq = td.daQua > 0 ? td.th / td.daQua : 0;
             const can = td.conNgay > 0 ? con / td.conNgay : 0;
             const laNam = tienDo === 'nam';
-            const tenKy = laNam ? `năm ${p.namLabel}` : `tháng ${thangTD}`;
+            const tenKy = laNam ? `năm ${namLabel}` : `tháng ${thangTD}`;
             const pt = (v: number) => (td.kh > 0 ? Math.min(100, Math.max(0, (v / td.kh) * 100)) : 0);
             const moc: Array<{ ten: string; v: number; chuaToi?: boolean; dangChay?: boolean }> = tienDo === 'thang' && mocTuan.length ? mocTuan : td.moc;
             const phanTram = td.kh > 0 ? (td.th / td.kh) * 100 : 0;
@@ -666,8 +668,8 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               <div className="flex flex-wrap items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-xl font-bold text-slate-900">
-                    Nhập kho {laNam ? p.namLabel : `T${thangTD}/${ngayMoi.getFullYear()}`} (tỷ)
-                    <span className="ml-2 text-base font-semibold text-slate-500">tới {ngayNgan(ngayMoi)}</span>
+                    Nhập kho {laNam ? namLabel : `T${thangTD}/${nam}`} (tỷ)
+                    <span className="ml-2 text-base font-semibold text-slate-500">tới {toiNgay}</span>
                   </h3>
                 </div>
                 <span className="flex items-center gap-1.5">
@@ -703,25 +705,25 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
 
               {/* 4 thẻ số */}
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem chi tiết nhập kho theo tháng / xưởng"
+                <button type="button" onClick={() => p.onThucHienNam?.(nam)} disabled={!p.onThucHienNam} title="Bấm để xem chi tiết nhập kho theo tháng / xưởng"
                   className={`${the} border-t-emerald-600 transition enabled:hover:shadow-md`}>
                   <span className={nhanThe}>Đã nhập kho {p.onThucHienNam && <span className="normal-case tracking-normal text-blue-600">Chi tiết ›</span>}</span>
                   <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-emerald-700">{formatTy(td.th)} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
-                  <span className="mt-0.5 text-base text-slate-700">{td.kh > 0 && <><b className="text-emerald-700">{Math.round(phanTram)}%</b> KH · </>}{td.daQua} ngày</span>
+                  <span className="mt-0.5 text-base text-slate-700">{td.kh > 0 && <><b className={mauTyLe(phanTram).chu}>{Math.round(phanTram)}%</b> NK / KH năm · </>}{td.daQua} ngày</span>
                 </button>
-                <button type="button" onClick={p.onKeHoachNam} disabled={!p.onKeHoachNam} title="Bấm để xem nhập kho so với kế hoạch theo tháng / xưởng"
+                <button type="button" onClick={() => p.onKeHoachNam?.(nam)} disabled={!p.onKeHoachNam} title="Bấm để xem nhập kho so với kế hoạch theo tháng / xưởng"
                   className={`${the} border-t-slate-700 transition enabled:hover:shadow-md`}>
-                  <span className={nhanThe}>Kế hoạch {laNam ? 'năm' : `tháng ${thangTD}`} {p.onKeHoachNam && <span className="normal-case tracking-normal text-blue-600">So KH ›</span>}</span>
+                  <span className={nhanThe}>{tenKh} {p.onKeHoachNam && <span className="normal-case tracking-normal text-blue-600">So KH ›</span>}</span>
                   <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-slate-900">{td.kh > 0 ? formatTy(td.kh) : '—'} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
                   <span className="mt-0.5 text-base text-slate-700" title={td.kh > 0 && con > 0 ? `${LAM_CHU_NHAT ? 'Tính cả CN' : 'T2–T7'}, tới ${ngayNgan(td.cuoiKy)}` : undefined}>
-                    {td.kh <= 0 ? 'Chưa có KH' : con > 0 ? <>Thiếu <b>{formatTy(con)}</b> · {td.conNgay} ngày</> : <b className="text-emerald-700">Đã đạt KH</b>}
+                    {!coKhTrang ? 'Không có KH theo công trình' : td.kh <= 0 ? 'Chưa có KH' : con > 0 ? <>Thiếu <b>{formatTy(con)}</b> · {td.conNgay} ngày</> : <b className="text-emerald-700">Đã đạt KH</b>}
                   </span>
                 </button>
                 <div className={`${the} border-t-red-600`}>
                   <span className={nhanThe}>Cần mỗi ngày</span>
                   <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-red-600">{can > 0 ? formatTy(can) : '—'} <span className="text-base font-semibold text-slate-500">tỷ/ngày</span></span>
                   <span className="mt-0.5 text-base text-slate-700">
-                    {can > 0 && bq > 0 ? <><b className="text-red-600">×{(can / bq).toFixed(1)}</b> BQ ({formatTy(bq)})</> : con <= 0 ? 'Đã đạt KH' : '—'}
+                    {can > 0 && bq > 0 ? <><b className="text-red-600">×{(can / bq).toFixed(1)}</b> BQ ({formatTy(bq)})</> : td.kh > 0 && con <= 0 ? 'Đã đạt KH' : '—'}
                   </span>
                 </div>
               </div>
@@ -730,10 +732,10 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               {td.kh > 0 && (
                 <div className="mt-4 rounded-xl border border-slate-200 px-4 pb-2 pt-3 sm:px-5">
                   <p className="text-base font-semibold text-slate-900">Tiến độ {tenKy}</p>
-                  <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem nhập kho theo tháng / xưởng"
+                  <button type="button" onClick={() => p.onThucHienNam?.(nam)} disabled={!p.onThucHienNam} title="Bấm để xem nhập kho theo tháng / xưởng"
                     className="relative mt-[4.5rem] block h-11 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
                     <span className="absolute inset-0 rounded-lg bg-slate-200 ring-1 ring-inset ring-slate-300" />
-                    <span className={`absolute inset-y-0 left-0 flex items-center justify-end bg-emerald-600 pr-3 text-xl font-extrabold tabular-nums text-white ${xTh >= 99.5 ? 'rounded-lg' : 'rounded-l-lg'}`}
+                    <span className={`absolute inset-y-0 left-0 flex items-center justify-end ${mauTyLe(phanTram).thanh} pr-3 text-xl font-extrabold tabular-nums text-white ${xTh >= 99.5 ? 'rounded-lg' : 'rounded-l-lg'}`}
                       style={{ width: `${xTh}%` }}>
                       {xTh > 8 ? `${Math.round(phanTram)}%` : ''}
                     </span>
@@ -750,7 +752,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                     })()}
                     {dangChayKy && (
                       <span className={`absolute -top-[4.25rem] whitespace-nowrap text-sm font-bold text-emerald-700 ${xTh > 15 ? '-translate-x-full' : ''}`} style={{ left: `${xTh}%` }}>
-                        ▼ Hôm nay {ngayNgan(ngayMoi)}
+                        ▼ Tới {toiNgay}
                       </span>
                     )}
                     {moc.map(m => {
@@ -784,11 +786,13 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                       const deXuat = canMoiNgayKy * w.ngayTrong;
                       const dangChay = ngayMoi >= w.tu && ngayMoi <= w.den;
                       const chuaToi = ngayMoi < w.tu;
-                      const catThang = w.ngayTrong < 6 && w.kh > 0; // tuần giáp tháng: KH tuần chỉ tính phần ngày trong tháng
+                      const catThang = w.ngayTrong < NGAY_TUAN && w.kh > 0; // tuần giáp tháng: KH tuần chỉ tính phần ngày trong tháng
                       const thangKia = w.tu.getMonth() !== thangTD - 1 ? w.tu.getMonth() + 1 : w.den.getMonth() + 1;
                       const pt = w.muc > 0 ? Math.round((w.thTrong / w.muc) * 100) : null;
-                      const mau = chuaToi ? 'text-slate-400' : pt === null ? 'text-slate-500' : pt >= 100 ? 'text-emerald-700' : dangChay ? 'text-amber-700' : 'text-red-600';
-                      const nen = chuaToi ? 'bg-slate-300' : pt !== null && pt >= 100 ? 'bg-emerald-600' : dangChay ? 'bg-amber-500' : 'bg-red-500';
+                      // Tuần đang chạy chưa đạt: cam, chưa thể kết luận trễ
+                      const mauPt = pt === null ? null : dangChay && pt < 100 ? mauTyLe(50) : mauTyLe(pt);
+                      const mau = chuaToi ? 'text-slate-400' : mauPt?.chu ?? 'text-slate-500';
+                      const nen = chuaToi ? 'bg-slate-300' : mauPt?.thanh ?? 'bg-red-500';
                       // Nguồn mục tiêu — ghi rõ phần KH tuần thuộc tháng nào (tuần giáp 2 tháng)
                       const nguon = !w.tuKh ? 'Chưa có KH tuần · chia từ KH tháng'
                         : catThang ? `KH tuần ${formatTy(w.kh)}: ${formatTy(w.muc)} thuộc T${thangTD} · ${formatTy(w.kh - w.muc)} thuộc T${thangKia}`
@@ -801,7 +805,7 @@ TH cả tuần (kể cả T${thangKia}): ${formatTy(w.th)}` : ''}
 ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập kho từng ngày của tuần này'}`}
                           className={`flex min-w-0 flex-col rounded-xl px-4 py-3 text-left transition ${chon ? 'bg-slate-900 text-white ring-1 ring-slate-900 [&_*]:!text-white' : `bg-white hover:ring-slate-400 ring-1 ${dangChay ? 'ring-slate-900' : 'ring-slate-200'}`}`}>
                           <span className="flex items-baseline justify-between gap-1 text-sm text-slate-600">
-                            <span className="text-base font-semibold text-slate-800">Tuần {w.tuan}</span>
+                            <span className="text-base font-semibold text-slate-800">{w.nhan}</span>
                             <span className="truncate">{ngayNgan(w.tu)}–{ngayNgan(w.den)}</span>
                           </span>
                           {/* TH / mục tiêu + % trên 1 hàng; thanh nhỏ = % đạt */}
@@ -832,7 +836,7 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-sm text-slate-600">
                     <b className="font-semibold text-slate-900">Tuần {tuanChon.tuan}</b> ({ngayNgan(tuanChon.tu)}–{ngayNgan(tuanChon.den)}) ·
                     Mục tiêu <b className="font-semibold text-slate-900">{formatTy(mucTuan)}</b> · TH <b className="font-semibold text-slate-900">{formatTy(thTuan)}</b>
-                    {mucTuan > 0 && <> · <b className={`font-semibold ${thTuan >= mucTuan ? 'text-emerald-700' : 'text-red-600'}`}>{Math.round((thTuan / mucTuan) * 100)}%</b></>}
+                    {mucTuan > 0 && <> · <b className={`font-semibold ${mauTyLe((thTuan / mucTuan) * 100).chu}`}>{Math.round((thTuan / mucTuan) * 100)}%</b></>}
                     <button type="button" onClick={() => setTuanChon(null)} className="ml-1 rounded-full border border-slate-300 px-2 text-sm text-slate-700 hover:bg-slate-50">✕ Bỏ chọn</button>
                   </p>
                 )}
@@ -928,9 +932,9 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                   </div>
                 )}
                 {!tuanChon && mucKhThang > 0 && (
-                  <div className="border-l-4 border-emerald-600 pl-3" title={`KH tháng ${thangKh} ${formatTy(khThang)} tỷ chia đều ${LAM_CHU_NHAT ? 'mọi ngày (cả Chủ nhật)' : 'ngày làm việc (T2–T7)'}`}>
+                  <div className="border-l-4 border-emerald-600 pl-3" title={`KH năm chia T${thangKh} ${formatTy(khThang)} tỷ, chia đều ${LAM_CHU_NHAT ? 'mọi ngày (cả Chủ nhật)' : 'ngày làm việc (T2–T7)'}`}>
                     <b className="text-2xl tabular-nums text-emerald-700">{formatTy(mucKhThang)}</b>
-                    <p className="text-sm font-medium text-slate-700">KH T{thangKh}/ngày</p>
+                    <p className="text-sm font-medium text-slate-700">KH năm chia T{thangKh}/ngày</p>
                   </div>
                 )}
               </div>

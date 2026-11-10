@@ -21,6 +21,7 @@ import { registerVuongMacPush } from '../src/vuongMacPush.js';
 
 import '../src/routes/data.js';       // /api/all-data, 12 bảng, production/*, check-versions, data-update-log
 import '../src/routes/overview.js';   // /api/overview/*
+import '../src/routes/tuyChonThoiGian.js'; // /api/overview/tuy-chon-thoi-gian (ngày, năm-tháng-tuần cho bộ lọc Tổng quan)
 import '../src/routes/stock.js';      // /api/stock/*, /api/warmup
 import '../src/routes/tonKhoVt.js';   // /api/ton-kho-vt/tong-hop, /api/ton-kho-vt/chi-tiet (tồn kho vật tư theo lần chốt tuần)
 import '../src/routes/bopM2.js';      // /api/bop-m2?ct= (tình trạng vật liệu BOP-M2, tab BOM)

@@ -9,7 +9,8 @@ let inFlight: Promise<Record<string, string>> | null = null;
 export async function loadWorkshopGroups(): Promise<Record<string, string>> {
   if (inFlight) return inFlight;
   inFlight = fetchWorkshopGroups(false)
-    .then(d => { setMapping(d.mapping); return d.mapping; })
+    // Rỗng có thể là lỗi mạng: giữ setup đang có
+    .then(d => { if (Object.keys(d.mapping).length) setMapping(d.mapping); return d.mapping; })
     .finally(() => { inFlight = null; });
   return inFlight;
 }

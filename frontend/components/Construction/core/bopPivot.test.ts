@@ -9,19 +9,28 @@ const muc = (p: Partial<M>): M => ({
 });
 
 describe('khoCua / laKho', () => {
-  it('xuất chặn ≤ nhập, tồn chặn ≤ nhập − xuất, chênh = phần còn lại', () => {
-    expect(khoCua(muc({ inv: 50, xuat: 80, tonKho: 10 }))).toEqual({ nk: 50, xk: 50, ton: 0, chenh: 0 });
-    expect(khoCua(muc({ inv: 50, xuat: 20, tonKho: 10 }))).toEqual({ nk: 50, xk: 20, ton: 10, chenh: 20 });
+  it('xuất giữ số gốc, phần vượt nhập tách riêng; tồn chặn ≤ nhập − xuất; chênh không âm', () => {
+    expect(khoCua(muc({ inv: 50, xuat: 80, tonKho: 10 }))).toEqual({ nk: 50, xk: 80, ton: 0, chenh: 0, xv: 30 });
+    expect(khoCua(muc({ inv: 50, xuat: 20, tonKho: 10 }))).toEqual({ nk: 50, xk: 20, ton: 10, chenh: 20, xv: 0 });
     // Không có cột tồn kho => tồn = nhập − xuất
-    expect(khoCua(muc({ inv: 50, xuat: 20, tonKho: undefined }))).toEqual({ nk: 50, xk: 20, ton: 30, chenh: 0 });
+    expect(khoCua(muc({ inv: 50, xuat: 20, tonKho: undefined }))).toEqual({ nk: 50, xk: 20, ton: 30, chenh: 0, xv: 0 });
+    // Chưa nhập mà có xuất
+    expect(khoCua(muc({ inv: 0, xuat: 7 }))).toEqual({ nk: 0, xk: 7, ton: 0, chenh: 0, xv: 7 });
+  });
+  it('luôn đúng: đã nhập + xuất vượt = đã xuất + tồn + chênh', () => {
+    for (const [inv, xuat, tonKho] of [[50, 80, 10], [50, 20, 10], [50, 20, 90], [0, 7, 0], [30, 30, 0]]) {
+      const k = khoCua(muc({ inv, xuat, tonKho }));
+      expect(k.chenh).toBeGreaterThanOrEqual(0);
+      expect(k.nk + k.xv).toBe(k.xk + k.ton + k.chenh);
+    }
   });
   it('đếm: mỗi hạng mục có nhập rơi vào đúng 1 cột Đã xuất / Tồn kho / Chênh', () => {
     const conTon = muc({ inv: 50, xuat: 20, tonKho: 10 });
     const xuatDu = muc({ inv: 50, xuat: 50, tonKho: 0 });
     const chenh = muc({ inv: 50, xuat: 20, tonKho: 0 });
-    expect(khoMuc(conTon, 'count')).toEqual({ nk: 1, xk: 0, ton: 1, chenh: 0 });
-    expect(khoMuc(xuatDu, 'count')).toEqual({ nk: 1, xk: 1, ton: 0, chenh: 0 });
-    expect(khoMuc(chenh, 'count')).toEqual({ nk: 1, xk: 0, ton: 0, chenh: 1 });
+    expect(khoMuc(conTon, 'count')).toEqual({ nk: 1, xk: 0, ton: 1, chenh: 0, xv: 0 });
+    expect(khoMuc(xuatDu, 'count')).toEqual({ nk: 1, xk: 1, ton: 0, chenh: 0, xv: 0 });
+    expect(khoMuc(chenh, 'count')).toEqual({ nk: 1, xk: 0, ton: 0, chenh: 1, xv: 0 });
     // Giá trị: có số > 0 là thuộc cột
     expect(laKho(conTon, 'xk', 'remain')).toBe(true);
     expect(laKho(muc({ inv: 0 }), 'nk', 'count')).toBe(false);
@@ -34,7 +43,7 @@ describe('mucCongDoan / fmtGiaTriBop', () => {
     expect(mucCongDoan([a, b, c], 'count')).toEqual([a]);
     expect(mucCongDoan([a, b, c], 'remain')).toEqual([a, b]);
   });
-  it('dưới 5 triệu ghi <0.01, 0 ghi -', () => {
+  it('dưới 0.01 tỷ ghi <0.01, 0 ghi -', () => {
     expect(fmtGiaTriBop(3, 'remain')).toBe('<0.01');
     expect(fmtGiaTriBop(0, 'remain')).toBe('-');
     expect(fmtGiaTriBop(1500, 'remain')).toBe('1.50');
@@ -58,14 +67,14 @@ describe('tinhPivotBop', () => {
     expect(p.grand).toBe(155);
     // Dòng chỉ có hàng đã xong vẫn hiện (cột công đoạn trống), có số kho
     expect(p.dong.get('BÀN')).toEqual({ cells: {}, total: 0, n: 0 });
-    expect(p.kho.get('BÀN')).toEqual({ nk: 100, xk: 100, ton: 0, chenh: 0 });
+    expect(p.kho.get('BÀN')).toEqual({ nk: 100, xk: 100, ton: 0, chenh: 0, xv: 0 });
     expect(p.khoTot.nk).toBe(255);
   });
   it('đếm: bỏ hạng mục không còn theo dõi', () => {
     const p = tinhPivotBop(items, items, 'count', i => [i.nsp]);
     expect(p.dong.get('TỦ')?.total).toBe(3);
     expect(p.colN.P022).toBeUndefined();
-    expect(p.khoTot).toEqual({ nk: 3, xk: 1, ton: 0, chenh: 2 });
+    expect(p.khoTot).toEqual({ nk: 3, xk: 1, ton: 0, chenh: 2, xv: 0 });
   });
   it('nhóm theo mã công đoạn: không lấy nhóm của hạng mục gặp đầu tiên', () => {
     const lech = [muc({ stage: 'P012', bucket: 'notDeployed' })];
@@ -90,7 +99,7 @@ describe('tinhBangCongTrinhBop', () => {
     ];
     const b = tinhBangCongTrinhBop(items, 'remain', 'Chưa xác định');
     expect(b.rows.map(r => r.name)).toEqual(['CT B', 'CT A', 'Chưa xác định']);
-    expect(b.rows[0]).toEqual({ name: 'CT B', cells: { P012: 50, P002: 20 }, total: 70, kho: { nk: 30, xk: 0, ton: 30, chenh: 0 }, donHang: b.rows[0].donHang });
+    expect(b.rows[0]).toEqual({ name: 'CT B', cells: { P012: 50, P002: 20 }, total: 70, kho: { nk: 30, xk: 0, ton: 30, chenh: 0, xv: 0 }, donHang: b.rows[0].donHang });
     // Tổng đơn hàng = trị giá mọi hạng mục của công trình; theo số = số hạng mục
     expect(b.donHangTot).toBe(b.rows.reduce((a, r) => a + r.donHang, 0));
     expect(tinhBangCongTrinhBop(items, 'count', 'Chưa xác định').rows.find(r => r.name === 'CT B')!.donHang).toBe(2);

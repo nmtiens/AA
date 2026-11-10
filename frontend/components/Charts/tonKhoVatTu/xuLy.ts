@@ -1,4 +1,5 @@
 import type { DongTonKhoVt, TongHopTonKhoVt } from '../../../services/tonKhoVtApi';
+import { fmtPt } from '../../../utils/format';
 
 // ============================================================================
 // XỬ LÝ SỐ LIỆU TRANG "7. TỒN KHO VẬT TƯ" — hàm thuần (không React), test ở xuLy.test.ts
@@ -290,6 +291,30 @@ export function tongCacNhom(chuoi: ChuoiNhom[]): TongCacNhom | null {
   };
 }
 
+export interface DongBangNhom {
+  nhom: string;
+  cuoi: DiemChuoi;
+  truoc: DiemChuoi | null;
+  /** cuoi.tong − tồn đầu khoảng; null khi khoảng chỉ có 1 điểm */
+  chenhDau: number | null;
+  ptDau: number | null;
+  ptCham: number | null;
+}
+
+/** Bảng nhóm đầu trang: mỗi nhóm 1 dòng tại điểm mới nhất; dòng TỔNG là đúng số của 4 ô tổng (tongCacNhom) */
+export function bangNhom(chuoi: ChuoiNhom[]): { dong: DongBangNhom[]; tong: TongCacNhom | null } {
+  const dong = chuoi.filter(c => c.diem.length > 0).map((c): DongBangNhom => {
+    const n = c.diem.length, cuoi = c.diem[n - 1], dau = n > 1 ? c.diem[0] : null;
+    return {
+      nhom: c.nhom, cuoi, truoc: n > 1 ? c.diem[n - 2] : null,
+      chenhDau: dau ? cuoi.tong - dau.tong : null,
+      ptDau: dau ? ptChenh(cuoi.tong, dau.tong) : null,
+      ptCham: cuoi.tong > 0 && !cuoi.thieuCham ? (cuoi.cham / cuoi.tong) * 100 : null,
+    };
+  });
+  return { dong, tong: tongCacNhom(chuoi) };
+}
+
 // ---------------------------------------------------------------------------
 // Trục biểu đồ
 // ---------------------------------------------------------------------------
@@ -498,12 +523,10 @@ export const dinhDangSo = (v: number, soLe = 0): string =>
 export const dinhDangSoLuong = (v: number | null): string =>
   v === null ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-/** Phần trăm gọn: < 10% thì 1 số lẻ, còn lại làm tròn */
+/** Phần trăm theo fmtPt (1 số lẻ), coDau = có dấu +/− */
 export const dinhDangPt = (v: number | null, coDau = false): string => {
   if (v === null || !Number.isFinite(v)) return '—';
-  const a = Math.abs(v);
-  const s = a < 10 ? a.toFixed(1).replace(/\.0$/, '') : String(Math.round(a));
-  return `${coDau ? (v > 0 ? '+' : v < 0 ? '−' : '') : v < 0 ? '−' : ''}${s}%`;
+  return `${coDau ? (v > 0 ? '+' : v < 0 ? '−' : '') : v < 0 ? '−' : ''}${fmtPt(Math.abs(v))}`;
 };
 
 /** Tiền 1 mã (triệu đồng) theo đơn vị dễ đọc: ≥ 1.000 triệu => tỷ (2 số lẻ), còn lại triệu (1 số lẻ) */
@@ -676,6 +699,17 @@ const hopLoc = (d: DongDaPhanLoai, loc: LocDong): boolean =>
 export const demTheoLoc = (ds: DongDaPhanLoai[]): Record<LocDong, number> => {
   const kq: Record<LocDong, number> = { tat_ca: 0, tang: 0, giam: 0, moi: 0, het: 0, cham: 0 };
   for (const d of ds) for (const [l] of NHAN_LOC) if (hopLoc(d, l)) kq[l]++;
+  return kq;
+};
+
+/** Cộng danh sách mã: mã còn tồn, giá trị, chênh giá trị so lần trước, mã chậm luân chuyển (mã đã hết không tính mã) */
+export const tongDong = (ds: DongDaPhanLoai[]): { soMa: number; giaTri: number; chenh: number; cham: number } => {
+  const kq = { soMa: 0, giaTri: 0, chenh: 0, cham: 0 };
+  for (const d of ds) {
+    if (d.soLuong !== null) { kq.soMa++; if (d.cham) kq.cham++; }
+    kq.giaTri += d.giaTri ?? 0;
+    kq.chenh += (d.giaTri ?? 0) - (d.giaTriTruoc ?? 0);
+  }
   return kq;
 };
 

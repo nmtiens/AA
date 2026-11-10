@@ -2,8 +2,10 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, Download, Loader2, Search, X } from 'lucide-react';
 import { fetchStockHealthDetail, type StockHealthDetail, type StockHealthDetailQuery } from '../../../../services/dataService';
-import { formatTrieuAsTy } from '../../../../utils/money';
+import { fmtInt, fmtPt, fmtTy } from '../../../../utils/format';
 import { downloadCsvFile, rowsToCsvString } from '../../utils/csvExport';
+import * as bang from '../../../shared/bangBaoCao';
+import { cotTong, dongTong, hienO, ngayVn, trong, type Cot } from './tonKhoChiTietBang';
 
 // Bấm 1 số của báo cáo Tồn kho v5 => cửa sổ liệt kê các dòng tạo nên số đó (/api/stock/health/chi-tiet).
 // Trạng thái cửa sổ nằm riêng trong CuaSoChiTiet: mở/đóng không vẽ lại báo cáo, biểu đồ không nháy.
@@ -72,24 +74,7 @@ export const chamBam = (mo: MoChiTiet, lay: (dong: any, i: number) => Bam | null
 
 // ---- Cửa sổ ----
 const SO_DONG_MOT_LUOT = 300;
-const ty = formatTrieuAsTy;
-const dem = (n: number) => n.toLocaleString('en-US');
 const thuong = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').replace(/[đĐ]/g, 'd').toLowerCase();
-const ngayVn = (s: unknown) => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s ?? ''));
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(s ?? '');
-};
-type Cot = StockHealthDetail['cot'][number];
-const trong = (v: unknown) => v === null || v === undefined || v === '';
-const hienO = (c: Cot, v: unknown): string => {
-  if (trong(v)) return '';
-  if (c.kieu === 'ty') return ty(Number(v));
-  if (c.kieu === 'ngay') return ngayVn(v);
-  if (c.kieu === 'so') return Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
-  return String(v);
-};
-/** Cột số tiền cộng lên tong; đơn đã nhập có thêm cột giá trị đơn và phần chưa nhập */
-const cotTong = (yc: YcChiTiet, cot: Cot[]) => (yc.loai === 'da_nhap' ? 'nhapCap' : [...cot].reverse().find(c => c.kieu === 'ty')?.k);
 const soSanh = (c: Cot, a: unknown, b: unknown) => {
   if (c.kieu === 'ty' || c.kieu === 'so') return Number(a) - Number(b);
   return String(a).localeCompare(String(b), 'vi');
@@ -155,6 +140,7 @@ const NoiDung: React.FC<{ yeuCau: YeuCau; onClose: () => void }> = ({ yeuCau, on
 
   const kChinh = kq ? cotTong(yc, kq.cot) : undefined;
   const tongLoc = kChinh ? loc.reduce((s, r) => s + (Number(r[kChinh]) || 0), 0) : 0;
+  const chan = useMemo(() => (kq ? dongTong(yc, kq, loc, !!tu) : {}), [yc, kq, loc, tu]);
   const boSap = (c: Cot) => setSap(s => {
     if (s?.k !== c.k) return { k: c.k, giam: c.kieu === 'ty' || c.kieu === 'so' };
     return { k: c.k, giam: !s.giam };
@@ -187,11 +173,11 @@ const NoiDung: React.FC<{ yeuCau: YeuCau; onClose: () => void }> = ({ yeuCau, on
             <h3 className="truncate text-lg font-bold text-slate-900" title={kq?.tieuDe ?? nhan}>{kq?.tieuDe ?? nhan}</h3>
             <p className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-sm font-semibold text-slate-600">
               {kq ? <>
-                <span><b className="text-2xl font-extrabold tabular-nums text-slate-900">{ty(kq.tong)}</b> tỷ</span>
-                <span className="tabular-nums">{dem(kq.soDong)} dòng</span>
-                {phu && <span className="tabular-nums">{phu.nhan} {ty(phu.gt)}{phu.gt ? ` · ${Math.round((kq.tong / phu.gt) * 100)}%` : ''}</span>}
+                <span><b className="text-2xl font-extrabold tabular-nums text-slate-900">{fmtTy(kq.tong)}</b> tỷ</span>
+                <span className="tabular-nums">{fmtInt(kq.soDong)} dòng</span>
+                {phu && <span className="tabular-nums">{phu.nhan} {fmtTy(phu.gt)}{phu.gt ? ` · ${fmtPt((kq.tong / phu.gt) * 100)}` : ''}</span>}
                 {ghi && <span className="tabular-nums">{ghi}</span>}
-                {tu && <span className="tabular-nums text-blue-700">Đang lọc {dem(loc.length)} dòng · {ty(tongLoc)} tỷ</span>}
+                {tu && <span className="tabular-nums text-blue-700">Đang lọc {fmtInt(loc.length)} dòng · {fmtTy(tongLoc)} tỷ</span>}
               </> : <span>&nbsp;</span>}
             </p>
           </div>
@@ -207,8 +193,8 @@ const NoiDung: React.FC<{ yeuCau: YeuCau; onClose: () => void }> = ({ yeuCau, on
             <button ref={nutDong} type="button" onClick={onClose} title="Đóng" aria-label="Đóng" className="rounded-full p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-800"><X size={22} /></button>
           </div>
         </div>
-        {kq?.truncated && <p className="border-b border-amber-200 bg-amber-50 px-5 py-1.5 text-sm font-semibold text-amber-800">Chỉ hiện {dem(kq.rows.length)} / {dem(kq.soDong)} dòng lớn nhất. Tổng vẫn đủ.</p>}
-        <div ref={khung} onScroll={cuonTiep} className="min-h-0 flex-1 overflow-auto">
+        {kq?.truncated && <p className="border-b border-amber-200 bg-amber-50 px-5 py-1.5 text-sm font-semibold text-amber-800">Chỉ hiện {fmtInt(kq.rows.length)} / {fmtInt(kq.soDong)} dòng lớn nhất. Tổng vẫn đủ.</p>}
+        <div ref={khung} onScroll={cuonTiep} className={`${bang.khung} min-h-0 flex-1`}>
           {loi ? (
             <div className="p-10 text-center">
               <p className="text-sm font-semibold text-red-600">Không tải được ({loi})</p>
@@ -219,32 +205,32 @@ const NoiDung: React.FC<{ yeuCau: YeuCau; onClose: () => void }> = ({ yeuCau, on
           ) : !dong.length ? (
             <p className="p-10 text-center text-sm font-semibold text-slate-500">Không có dòng nào.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-white shadow-[inset_0_-1px_0_#e2e8f0]">
+            <table className={bang.table}>
+              <thead className={bang.thead}>
                 <tr>
-                  {cot.map(c => {
-                    const so = c.kieu === 'ty' || c.kieu === 'so';
-                    return (
-                      <th key={c.k} aria-sort={sap?.k === c.k ? (sap.giam ? 'descending' : 'ascending') : undefined} className="whitespace-nowrap p-0">
-                        <button type="button" onClick={() => boSap(c)} className={`flex w-full items-center gap-1 px-3 py-2 font-bold text-slate-600 hover:bg-slate-100 ${so ? 'justify-end' : ''}`}>
-                          {c.nhan}{sap?.k === c.k && (sap.giam ? <ChevronDown size={14} /> : <ChevronUp size={14} />)}
-                        </button>
-                      </th>
-                    );
-                  })}
+                  {cot.map(c => (
+                    <th key={c.k} aria-sort={sap?.k === c.k ? (sap.giam ? 'descending' : 'ascending') : undefined} className={`${bang.thC} whitespace-nowrap`}>
+                      <button type="button" onClick={() => boSap(c)} className="inline-flex w-full items-center justify-center gap-1 font-bold">
+                        {c.nhan}{sap?.k === c.k && (sap.giam ? <ChevronDown size={14} /> : <ChevronUp size={14} />)}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {dong.slice(0, gioiHan).map((r, i) => (
-                  <tr key={i} className={i % 2 ? 'bg-slate-50' : ''}>
+                  <tr key={i}>
                     {cot.map(c => {
                       const v = hienO(c, r[c.k]);
-                      if (c.kieu === 'chu') return <td key={c.k} title={v} className="max-w-[190px] truncate px-3 py-1.5 text-slate-800">{v}</td>;
-                      return <td key={c.k} className={`whitespace-nowrap px-3 py-1.5 tabular-nums ${c.k === kChinh ? 'font-bold text-slate-900' : 'text-slate-700'} ${c.kieu === 'ngay' ? '' : 'text-right'}`}>{v}</td>;
+                      if (c.kieu === 'chu') return <td key={c.k} title={v} className={`${bang.tdB} max-w-[190px] truncate`}>{v}</td>;
+                      return <td key={c.k} className={`${bang.tdSo} ${c.k === kChinh ? 'font-bold' : ''}`}>{v}</td>;
                     })}
                   </tr>
                 ))}
               </tbody>
+              <tfoot className={bang.tfoot}>
+                <tr>{cot.map((c, i) => <td key={c.k} className={bang.tdSo}>{i === 0 ? 'TỔNG' : chan[c.k]}</td>)}</tr>
+              </tfoot>
             </table>
           )}
         </div>

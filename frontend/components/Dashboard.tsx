@@ -31,6 +31,7 @@ import { HexDetailModal, type HexDetailColumnKeys } from './Dashboard/components
 import { DanhSachHexProvider } from './Dashboard/components/Dashboards/DanhSachHex';
 import { TOTAL_STAGE, extractStage } from './Dashboard/components/modals/OnLineStageDetailModal';
 import { resolveFunnelHexTarget, FUNNEL_HEX_COLUMN_LABELS, type FunnelHexColumn } from './Dashboard/utils/funnelHexTarget';
+import { diemNghenDau } from './Dashboard/core/chiTietHex';
 import { useAuth } from '../context/AuthContext';
 import { StockItemsModal } from './Dashboard/components/modals/StockItemsModal';
 import { BottleneckSection } from './Dashboard/components/sections/BottleneckSection';
@@ -213,7 +214,7 @@ const {
   analysisXuongKey,
 });
 const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(null);
-const [stockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
+const [stockMetric] = useState<'COUNT' | 'SUM'>('SUM');
 
 // Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
 // Biểu đồ "Phân bổ Kế hoạch theo Xưởng" CHỈ phụ thuộc vào năm này — không phụ thuộc
@@ -329,6 +330,7 @@ const {
   viewMode,
  filters: effectiveFilters,
   filteredAnalysisData,
+  hexHuy: cancelledHexInfo.hexes,
   analysisXuongKey, analysisPlanKey, analysisActualKey, analysisWeekKey,
   analysisDungKhKey, analysisThucHienDungKh1PhanKey, analysisRotKhKey,
   analysisThucHienRotKh1PhanKey, analysisNhapKhoTruocKhKey, analysisVuotKhKey,
@@ -350,6 +352,7 @@ const {
   latestStockStats,
   latestStockStatsPrevMonth,
   stockOverviewCardValue,
+  stockOverviewMa0,
   stockTotalCount, // MỚI
 } = useStockData({
   stockData,
@@ -531,15 +534,22 @@ const {
     return m ? `${String(m.getDate()).padStart(2, '0')}/${String(m.getMonth() + 1).padStart(2, '0')}/${m.getFullYear()}` : '';
   }, [unifiedDateOptions]);
   const [moChiTiet, setMoChiTiet] = useState<{ nonce: number; k: KhoaChiTiet } | null>(null);
+  // Thẻ dòng chảy chỉ lọc theo công trình + xưởng: áp IPO mặc định 01 thì nhập kho tháng mất gần nửa (T10: 154.48 còn 86.03 tỷ)
+  const khongTheoLoc = [
+    appliedFilters.tinhTrangIpo.length > 0 && 'Tình trạng IPO',
+    appliedFilters.phanLoai.length > 0 && 'Nhóm SP',
+    appliedFilters.tinhTrang.length > 0 && 'Tình trạng',
+  ].filter((x): x is string => !!x);
+  const nkDen = (overviewSummary as { maxDates?: { inventory?: string | null } } | null)?.maxDates?.inventory;
 
   // Thẻ "Vướng mắc đang mở": cộng theo công trình (lọc theo công trình nếu đang chọn)
   const [vmRows, setVmRows] = useState<VmByProjectRow[]>([]);
   useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, []);
   const vm = useMemo(() => {
-    const chon = appliedFilters.congTrinh;
+    const chon = effectiveFilters.congTrinh;
     const ds = chon.length ? vmRows.filter(r => chon.includes(r.ten) || chon.includes(r.ma)) : vmRows;
     return ds.reduce((a, r) => ({ open: a.open + r.open, overdue: a.overdue + r.overdue }), { open: 0, overdue: 0 });
-  }, [vmRows, appliedFilters.congTrinh]);
+  }, [vmRows, effectiveFilters.congTrinh]);
 
 const handleContinueToOrderColumnStep = () => {
     setIsOrderExportScopeModalOpen(false);
@@ -677,7 +687,7 @@ const handleContinueToOrderColumnStep = () => {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex shrink-0 items-baseline gap-3">
             <h2 className="page-title">Tổng quan</h2>
-            {ngayDuLieu && <span className="text-sm font-medium text-slate-600">đến {ngayDuLieu}</span>}
+            {ngayDuLieu && <span className="text-sm font-medium text-slate-600">{nkDen ? `nhập kho đến ${nkDen.split('-').reverse().join('/')}` : `đến ${ngayDuLieu}`}</span>}
           </div>
           <nav className="ml-auto flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Đến khu">
             {([['Đơn hàng AATN', () => scrollToRef(factoryRevenueRef)]] as Array<[string, () => void]>)
@@ -730,34 +740,26 @@ const handleContinueToOrderColumnStep = () => {
         <TongQuanDauTrang
           unifiedDateOptions={unifiedDateOptions}
           setOverviewDateFilters={setOverviewDateFilters}
-          congTrinh={appliedFilters.congTrinh}
+          congTrinh={effectiveFilters.congTrinh}
           xuong={appliedFilters.xuong}
+          khongTheoLoc={khongTheoLoc}
           vm={vm}
-          namLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
-          thucHienNam={factoryRevenueStats.actual}
-          keHoachNam={targetRevenue2026}
-          phanTramNam={factoryRevenueStats.percent}
           chuaTheSX={cardMetrics.chuaTheSX}
           vuongSL={cardMetrics.vuongSL}
           chuaTrienKhai={cardMetrics.chuaTrienKhai}
           // Giá trị đơn hàng đang ở P001 (chưa triển khai) — đúng số thanh P001 của phễu; phễu đang đếm hạng mục thì không có
           giaTriP001={workshopMetric === 'COUNT_HEX' ? null : customFunnelData.find(i => i.id === 'P001')?.value ?? null}
-          diemNghen={topBottlenecks[0]}
+          diemNghen={diemNghenDau(topBottlenecks)}
           onMoChiTiet={k => setMoChiTiet(r => ({ nonce: (r?.nonce ?? 0) + 1, k }))}
           metric={overviewMetric}
           setMetric={setOverviewMetric}
           onXuatExcel={handleOpenOverviewExport}
-          quy={quarterlyTargets}
           tonKho={stockOverviewCardValue}
           tonNgay={closestStockDate}
           tonCuoiThangTruoc={latestStockStatsPrevMonth}
           onMoTab={moTab}
-          onKeHoachNam={() =>
-            setInventoryOpenRequest(r => ({ nonce: (r?.nonce ?? 0) + 1, year: Number(selectedRevenueYear) || new Date().getFullYear(), withPlan: true }))
-          }
-          onThucHienNam={() =>
-            setInventoryOpenRequest(r => ({ nonce: (r?.nonce ?? 0) + 1, year: Number(selectedRevenueYear) || new Date().getFullYear() }))
-          }
+          onKeHoachNam={year => setInventoryOpenRequest(r => ({ nonce: (r?.nonce ?? 0) + 1, year, withPlan: true }))}
+          onThucHienNam={year => setInventoryOpenRequest(r => ({ nonce: (r?.nonce ?? 0) + 1, year }))}
         />
 
                      <FactoryRevenueSection
@@ -809,8 +811,8 @@ const handleContinueToOrderColumnStep = () => {
     <OrderOverviewSection
   sectionRef={orderOverviewRef}
   isSidebarCollapsed={isSidebarCollapsed}
-  hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
-   filters={appliedFilters}   // bộ lọc đã áp (hoãn) — khớp với số liệu đang hiện
+  hasAnyData={!!overviewSummary || orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
+   filters={effectiveFilters}   // bộ lọc đã áp (hoãn, công trình gồm Khách hàng + Khu vực) — khớp với số liệu đang hiện
   openInventoryRequest={inventoryOpenRequest}
   moChiTietRequest={moChiTiet}
   anDai  // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
@@ -827,6 +829,7 @@ const handleContinueToOrderColumnStep = () => {
   latestUnifiedDate={latestUnifiedDate}
   closestStockDate={closestStockDate}
   stockOverviewCardValue={stockOverviewCardValue}
+  stockOverviewMa0={stockOverviewMa0}
   latestStockStats={latestStockStats}
   latestStockStatsPrevMonth={latestStockStatsPrevMonth}
   stockByProjectData={stockByProjectData}
@@ -878,6 +881,7 @@ const handleContinueToOrderColumnStep = () => {
             </>)}
             {tabDuoi === 'kh' && (<>
          <KhsxPlanActualSection
+  locCongTrinh={effectiveFilters.congTrinh.length > 0}
   sectionRef={null}
   inventorySectionRef={inventorySectionRef}
   khsxDataLength={khsxData.length}
@@ -1021,7 +1025,7 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
         isOpen={funnelHex.open}
         onClose={() => setFunnelHex(prev => ({ ...prev, open: false }))}
         title={funnelHex.column
-          ? FUNNEL_HEX_COLUMN_LABELS[funnelHex.column] + (funnelHex.stage && funnelHex.stage !== TOTAL_STAGE ? ` – ${funnelHex.stage}` : '')
+          ? (funnelHex.stage && funnelHex.stage !== TOTAL_STAGE ? `Còn lại · ${funnelHex.stage}` : FUNNEL_HEX_COLUMN_LABELS[funnelHex.column])
           : ''}
         projectName={funnelHex.projectName}
         rows={funnelHexRows}

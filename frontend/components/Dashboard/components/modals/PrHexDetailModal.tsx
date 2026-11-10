@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Download } from 'lucide-react';
-import { formatSmartDecimal } from '../../utils/numberParsers';
 import { downloadCsvFile, rowsToCsvString } from '../../utils/csvExport';
+import { fmtInt, fmtQty } from '../../../../utils/format';
+import * as bang from '../../../shared/bangBaoCao';
 
 // 1 PR mua cho những hex nào (trên toàn bộ dữ liệu vật tư) và các hex đó thuộc
 // hạng mục / công trình / PC nào. Mở từ ô "Tổng hex của PR" trong bảng Theo PR.
@@ -50,8 +51,7 @@ const REASON_FIELDS: { key: keyof PrHexRow; label: string }[] = [
 const REASON_OTHER = 'Bị loại bởi ô tìm kiếm / ô "Chỉ hex có vật tư" / lọc khác';
 const REASON_NO_PROD = 'Không có hex này bên sản xuất';
 
-const fmtNum = (v: number | null) =>
-  v === null || v === undefined ? '' : formatSmartDecimal(Number(v), 3);
+const fmtNum = (v: number | null) => (v ? fmtQty(v) : '');
 
 export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDetailModalProps) => {
   const [rows, setRows] = useState<PrHexRow[] | null>(null);
@@ -171,8 +171,8 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
 
   if (!isOpen) return null;
 
-  const th = 'border-b border-r border-emerald-200 bg-emerald-50 px-2 py-2.5 text-left';
-  const td = 'border-b border-r border-slate-100 px-2 py-2 align-top';
+  const th = `${bang.thB} text-left`;
+  const td = bang.tdB;
 
   return createPortal(
     <div
@@ -186,11 +186,6 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
           <div>
             <h3 className="text-base font-semibold text-slate-800">PR {pr} — mua cho những hex nào</h3>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Tính trên toàn bộ dữ liệu vật tư ·{' '}
-              <span className="font-semibold text-amber-700">Trong bộ lọc</span> = hex nằm trong danh sách HEX đang mở
-              (đã qua bộ lọc của trang) · hex ngoài bộ lọc có ghi lý do
-            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -213,7 +208,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-5 pb-4 custom-scrollbar">
+        <div className="min-h-0 flex-1 overflow-auto px-5 custom-scrollbar">
           {rows === null ? (
             <div className="p-8 text-center text-sm text-slate-400">Đang tải...</div>
           ) : error ? (
@@ -230,7 +225,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                 ].map(s => (
                   <div key={s.label} className="rounded-lg border border-slate-200 px-3 py-2">
                     <div className="text-[0.6875rem] text-slate-500">{s.label}</div>
-                    <div className={`text-lg font-bold ${s.cls}`}>{s.value}</div>
+                    <div className={`text-lg font-bold tabular-nums ${s.cls}`}>{fmtInt(s.value)}</div>
                   </div>
                 ))}
               </div>
@@ -260,15 +255,16 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
               )}
 
               <h4 className="mt-4 mb-2 text-xs font-bold uppercase tracking-tight text-slate-700">Theo công trình</h4>
-              <table className="w-full border-separate border-spacing-0 text-xs">
-                <thead className="font-bold uppercase tracking-tight text-slate-800">
+              <div className={`${bang.khung} max-h-[40vh]`}>
+              <table className={bang.table}>
+                <thead className={bang.thead}>
                   <tr>
-                    <th className={`${th} w-10 text-right`}>STT</th>
+                    <th className={`${bang.thC} w-12`}>STT</th>
                     <th className={th}>Công trình</th>
                     <th className={th}>PC</th>
-                    <th className={`${th} text-right`}>Số hex</th>
-                    <th className={`${th} text-right`}>Trong bộ lọc</th>
-                    <th className={`${th} text-right`}>Số dòng VT</th>
+                    <th className={bang.thC}>Số hex</th>
+                    <th className={bang.thC}>Trong bộ lọc</th>
+                    <th className={bang.thC}>Số dòng VT</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -281,19 +277,28 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                         title="Bấm để lọc danh sách hex bên dưới theo công trình này"
                         className={`cursor-pointer ${active ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
                       >
-                        <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
-                        <td className={`${td} font-medium text-slate-700`}>{g.name}</td>
-                        <td className={`${td} text-slate-600`}>{[...g.pcs].join(', ') || '—'}</td>
-                        <td className={`${td} text-right font-bold tabular-nums`}>{g.hexes.size}</td>
-                        <td className={`${td} text-right tabular-nums ${g.inside.size ? 'font-semibold text-amber-700' : 'text-slate-400'}`}>
-                          {g.inside.size}
+                        <td className={`${bang.tdSo} text-slate-500`}>{idx + 1}</td>
+                        <td className={td}>{g.name}</td>
+                        <td className={td}>{[...g.pcs].join(', ')}</td>
+                        <td className={`${bang.tdSo} font-bold`}>{bang.trong0(g.hexes.size, fmtInt)}</td>
+                        <td className={`${bang.tdSo} ${g.inside.size ? 'font-semibold text-amber-700' : ''}`}>
+                          {bang.trong0(g.inside.size, fmtInt)}
                         </td>
-                        <td className={`${td} text-right tabular-nums text-slate-600`}>{g.lines.size}</td>
+                        <td className={bang.tdSo}>{bang.trong0(g.lines.size, fmtInt)}</td>
                       </tr>
                     );
                   })}
                 </tbody>
+                <tfoot className={bang.tfoot}>
+                  <tr>
+                    <td colSpan={3} className={bang.tdSo}>TỔNG</td>
+                    <td className={bang.tdSo}>{bang.trong0(stats.hexes, fmtInt)}</td>
+                    <td className={bang.tdSo}>{bang.trong0(stats.inside, fmtInt)}</td>
+                    <td className={bang.tdSo}>{bang.trong0(stats.lines, fmtInt)}</td>
+                  </tr>
+                </tfoot>
               </table>
+              </div>
 
               <div className="mt-4 mb-2 flex flex-wrap items-center gap-3">
                 <h4 className="text-xs font-bold uppercase tracking-tight text-slate-700">Chi tiết hex</h4>
@@ -321,9 +326,10 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                     {f} ✕
                   </button>
                 ))}
-                <span className="ml-auto text-xs text-slate-500">{filtered.length} dòng</span>
+                <span className="ml-auto text-xs text-slate-500">{fmtInt(filtered.length)} dòng</span>
               </div>
-              <table className="w-full border-separate border-spacing-0 text-xs" style={{ tableLayout: 'fixed' }}>
+              <div className={bang.khung}>
+              <table className={bang.table} style={{ tableLayout: 'fixed' }}>
                 <colgroup>
                   <col style={{ width: 44 }} />
                   <col style={{ width: 55 }} />
@@ -336,9 +342,9 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                   <col style={{ width: '17%' }} />
                   <col style={{ width: 115 }} />
                 </colgroup>
-                <thead className="sticky top-0 z-10 font-bold uppercase tracking-tight text-slate-800">
+                <thead className={bang.thead}>
                   <tr>
-                    <th className={`${th} text-right`}>STT</th>
+                    <th className={bang.thC}>STT</th>
                     <th className={th}>PR line</th>
                     <th className={th}>Tên vật tư</th>
                     <th className={th}>Trạng thái</th>
@@ -347,7 +353,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                     <th className={th}>Công trình</th>
                     <th className={th}>PC</th>
                     <th className={th}>Bộ lọc / Lý do</th>
-                    <th className={`${th} text-right`}>SL YC / còn lại</th>
+                    <th className={bang.thC}>SL YC / còn lại</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -356,14 +362,14 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                     const reasons = reasonsByHex.get(r.hex) ?? [];
                     return (
                       <tr key={`${r.pr_line}-${r.hex}`} className={inside ? 'bg-amber-50/60' : 'hover:bg-slate-50'}>
-                        <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
-                        <td className={`${td} text-slate-500`}>{r.pr_line ?? ''}</td>
-                        <td className={`${td} break-words text-slate-700`}>{r.ten_vat_tu}</td>
-                        <td className={`${td} text-slate-600`}>{r.trang_thai}</td>
-                        <td className={`${td} font-medium text-slate-700`}>{r.hex}</td>
-                        <td className={`${td} break-words text-slate-600`}>{r.ten_hang_muc || <span className="text-slate-300">—</span>}</td>
-                        <td className={`${td} break-words text-slate-600`}>{r.ten_cong_trinh || <span className="italic text-slate-400">{NO_PROJECT}</span>}</td>
-                        <td className={`${td} text-slate-600`}>{r.ten_pc || '—'}</td>
+                        <td className={`${bang.tdSo} text-slate-500`}>{idx + 1}</td>
+                        <td className={td}>{r.pr_line ?? ''}</td>
+                        <td className={`${td} break-words`}>{r.ten_vat_tu}</td>
+                        <td className={td}>{r.trang_thai}</td>
+                        <td className={td}>{r.hex}</td>
+                        <td className={`${td} break-words`}>{r.ten_hang_muc}</td>
+                        <td className={`${td} break-words`}>{r.ten_cong_trinh || <span className="italic text-slate-400">{NO_PROJECT}</span>}</td>
+                        <td className={td}>{r.ten_pc}</td>
                         <td className={`${td} break-words`}>
                           {inside ? (
                             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-amber-700">Trong bộ lọc</span>
@@ -374,14 +380,21 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                             </div>
                           )}
                         </td>
-                        <td className={`${td} text-right tabular-nums text-slate-600`}>
+                        <td className={bang.tdSo}>
                           {fmtNum(r.so_luong_yeu_cau)} / {fmtNum(r.so_luong_con_lai)} {r.dvt}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
+                <tfoot className={bang.tfoot}>
+                  <tr>
+                    <td className={bang.tdSo}>TỔNG</td>
+                    <td className={bang.tdB} colSpan={9}>{fmtInt(filtered.length)} dòng</td>
+                  </tr>
+                </tfoot>
               </table>
+              </div>
             </>
           )}
         </div>

@@ -3,6 +3,8 @@ import { DataRow } from '../../../types';
 import { parseNumber } from '../utils/numberParsers';
 import { fetchKhsxNhapKhoSummary, type KhsxNhapKhoSummary } from '../../../services/dataService';
 import { inPlanWeek } from './useUnifiedTimeFilters';
+import { matchesFilter, toFilterSet } from '../utils/filterMatch';
+import { boDongHexHuy } from '../core/chiTietHex';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,6 +63,8 @@ interface UseKhsxSummaryParams {
 
   // --- Weekly Plan vs Actual (Analysis data source) ---
   filteredAnalysisData: DataRow[];
+  /** HEX đơn HỦY: không tính vào KH – NK tuần */
+  hexHuy: ReadonlySet<string>;
   analysisXuongKey: string;
   analysisPlanKey: string;
   analysisActualKey: string;
@@ -122,6 +126,7 @@ export function useKhsxSummary({
   filters,
 
   filteredAnalysisData,
+  hexHuy,
   analysisXuongKey,
   analysisPlanKey,
   analysisActualKey,
@@ -227,7 +232,7 @@ export function useKhsxSummary({
 
     // Chỉ năm đang chọn (cột nam) — số tuần lặp lại mỗi năm
     const namSel = unifiedTimeFilters.nam[0];
-    filteredAnalysisData.forEach(row => {
+    boDongHexHuy(filteredAnalysisData, 'hex', hexHuy).forEach(row => {
       if (namSel && row['nam'] !== undefined && row['nam'] !== null && String(row['nam']).trim() !== '' && String(row['nam']).trim() !== namSel) return;
       // Use Unified Time Filter (tuan)
       if (unifiedTimeFilters.tuan.length > 0 && analysisWeekKey) {
@@ -276,7 +281,7 @@ export function useKhsxSummary({
 
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [
-    filteredAnalysisData, analysisXuongKey, analysisPlanKey, analysisActualKey, analysisWeekKey, unifiedTimeFilters.tuan, unifiedTimeFilters.nam, viewMode,
+    filteredAnalysisData, hexHuy, analysisXuongKey, analysisPlanKey, analysisActualKey, analysisWeekKey, unifiedTimeFilters.tuan, unifiedTimeFilters.nam, viewMode,
     analysisDungKhKey, analysisThucHienDungKh1PhanKey, analysisRotKhKey, analysisThucHienRotKh1PhanKey,
     analysisNhapKhoTruocKhKey, analysisVuotKhKey, analysisNhapKhoNgoaiKhKey,
   ]);
@@ -298,8 +303,12 @@ export function useKhsxSummary({
       gioCongTc: number;
     }>();
 
+    // Cùng phạm vi xưởng với phần doanh số. Giờ công không chia theo công trình => lọc công trình thì bỏ các chỉ số chia giờ
+    const xuongLoc = toFilterSet(filters.xuong);
+    const coLocCt = filters.congTrinh.length > 0;
     if (attXuongKey) {
       attendanceData.forEach(row => {
+        if (!matchesFilter(xuongLoc, row, attXuongKey)) return;
         // Filter by Year (Unified Filter)
         if (unifiedTimeFilters.nam.length > 0 && attNamKey) {
           const rowNam = String(row[attNamKey] || '').trim();
@@ -381,8 +390,8 @@ export function useKhsxSummary({
       const totalHours = att.gioCongHc + att.gioCongTc;
 
       // Derived Metrics
-      const salesPerHour = totalHours > 0 ? sales / totalHours : 0;
-      const salesPerWorker = avgWorkers > 0 ? sales / avgWorkers : 0;
+      const salesPerHour = !coLocCt && totalHours > 0 ? sales / totalHours : 0;
+      const salesPerWorker = !coLocCt && avgWorkers > 0 ? sales / avgWorkers : 0;
       const overtimeRate = totalHours > 0 ? (att.gioCongTc / totalHours) * 100 : 0;
       const hoursPerWorker = avgWorkers > 0 ? totalHours / avgWorkers : 0;
 
@@ -405,7 +414,7 @@ export function useKhsxSummary({
 
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }, [
-    attendanceData, filteredInventoryData, viewMode, unifiedTimeFilters.tuan, unifiedTimeFilters.nam, unifiedTimeFilters.thang, unifiedTimeFilters.ngay,
+    attendanceData, filteredInventoryData, filters.xuong, filters.congTrinh.length, viewMode, unifiedTimeFilters.tuan, unifiedTimeFilters.nam, unifiedTimeFilters.thang, unifiedTimeFilters.ngay,
     attXuongKey, attTuanKey, attNamKey, attThangKey, attNgayKey, attSoLuongCnKey, attGioCongHcKey, attGioCongTcKey, attDinhBienKey,
     invXuongKey, invThanhTienKey,
   ]);

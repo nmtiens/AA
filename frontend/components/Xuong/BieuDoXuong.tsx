@@ -15,8 +15,9 @@ const chuChuThich = (v: string) => <span style={{ color: '#334155' }}>{v}</span>
 //                  nhập kho từng ngày trong tuần + luỹ kế so kế hoạch
 // ============================================================================
 
-const so = (n: number, le = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: le });
-const tien = (trieu: number) => (Math.abs(trieu) >= 1000 ? `${so(trieu / 1000, 2)} tỷ` : `${so(trieu, 0)} tr`);
+import { fmtPt } from '../../utils/format';
+import { so, tienXuong as tien, tyLe, tyLeCoViec } from './chiSoXuong';
+
 const ddmm = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
 const XANH = '#16a34a', VANG = '#f59e0b', DO = '#dc2626', XAM = '#cbd5e1', LAM = '#2563eb', LAM_NHAT = '#93c5fd', TIM = '#7c3aed';
 
@@ -30,19 +31,18 @@ function Khung({ ten, children, phu }: { ten: string; children: React.ReactNode;
   );
 }
 
-const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : null);
-
 /** Theo ngày: cả xưởng mỗi ngày */
 export function BieuDoNgay({ ds }: { ds: BaoCaoTo[] }) {
   const data = useMemo(() => {
-    const m = new Map<string, { gn: number; gc: number; ch: number }>();
+    const m = new Map<string, { gn: number; gc: number; gcTinh: number; ch: number }>();
     for (const t of ds) for (const n of t.theoNgay) {
-      const x = m.get(n.ngay) ?? { gn: 0, gc: 0, ch: 0 };
+      const x = m.get(n.ngay) ?? { gn: 0, gc: 0, gcTinh: 0, ch: 0 };
       x.gn += n.gioNguoi; x.gc += n.gioCong; x.ch += n.gioCho;
+      if (n.gioNguoi > 0) x.gcTinh += n.gioCong;
       m.set(n.ngay, x);
     }
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([ngay, x]) => ({ ngay: ddmm(ngay), sp: Math.round(x.gc * 10) / 10, cho: Math.round(x.ch * 10) / 10, pct: pct(x.gc, x.gn) }));
+      .map(([ngay, x]) => ({ ngay: ddmm(ngay), sp: Math.round(x.gc * 10) / 10, cho: Math.round(x.ch * 10) / 10, pct: tyLe(x.gcTinh, x.gn) }));
   }, [ds]);
   if (data.length < 1) return null;
   return (
@@ -54,7 +54,7 @@ export function BieuDoNgay({ ds }: { ds: BaoCaoTo[] }) {
             <XAxis dataKey="ngay" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="g" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="p" orientation="right" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number, ten: string) => (ten === 'Tỷ lệ có việc' ? [`${v}%`, ten] : [`${so(v)} giờ`, ten])} />
+            <Tooltip formatter={(v: number, ten: string) => (ten === 'Tỷ lệ có việc' ? [fmtPt(v), ten] : [`${so(v)} giờ`, ten])} />
             <Legend wrapperStyle={{ fontSize: 14 }} formatter={chuChuThich} />
             {/* maxBarSize: kỳ ít ngày thì cột không phình hết chiều ngang */}
             <Bar yAxisId="g" dataKey="sp" name="Giờ công SP" stackId="a" fill={XANH} maxBarSize={56} />
@@ -72,11 +72,10 @@ export function BieuDoNgay({ ds }: { ds: BaoCaoTo[] }) {
 /** Theo tổ: cả kỳ, xếp tổ có việc thấp lên trên */
 export function BieuDoTo({ ds }: { ds: BaoCaoTo[] }) {
   const data = useMemo(() => ds.map(t => {
-    const gn = t.theoNgay.reduce((a, n) => a + n.gioNguoi, 0);
     const gc = t.theoNgay.reduce((a, n) => a + n.gioCong, 0);
     const ch = t.theoNgay.reduce((a, n) => a + n.gioCho, 0);
-    const p = pct(gc, gn);
-    return { ten: t.ten, sp: Math.round(gc * 10) / 10, cho: Math.round(ch * 10) / 10, nhan: p === null ? '' : `${p}%`, p: p ?? -1 };
+    const p = tyLeCoViec(t.theoNgay);
+    return { ten: t.ten, sp: Math.round(gc * 10) / 10, cho: Math.round(ch * 10) / 10, nhan: p === null ? '' : fmtPt(p), p: p ?? -1 };
   }).filter(x => x.sp + x.cho > 0).sort((a, b) => a.p - b.p), [ds]);
   if (!data.length) return null;
   return (
@@ -225,7 +224,7 @@ export function BieuDoKeHoach({ tongKh, nkTheoKh, conThieu, nkNgoai, vuot = 0, n
                   <li key={x.ten} className="flex items-center gap-2">
                     <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: x.mau }} />
                     <span className="min-w-0 flex-1 text-slate-700">{x.ten}</span>
-                    <span className="tabular-nums font-medium text-slate-900">{so(x.gt)} giờ · {pct(x.gt, tong)}%</span>
+                    <span className="tabular-nums font-medium text-slate-900">{so(x.gt)} giờ · {fmtPt(tyLe(x.gt, tong))}</span>
                   </li>
                 );
               })}

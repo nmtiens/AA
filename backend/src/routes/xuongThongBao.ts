@@ -104,7 +104,7 @@ async function quanLyCuaXuong(xuongs: string[]): Promise<Map<string, string[]>> 
   return out;
 }
 
-const so = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+const so = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 /** Có hàng giao tới công đoạn (giao / khai báo công đoạn): báo tổ phụ trách công đoạn nhận */
 export async function baoHangChoNhan(ds: Array<{ hex: string; congDoanDenId: string; soLuong: number }>, actorId?: number | null) {

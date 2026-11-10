@@ -28,6 +28,8 @@ export interface InputTonKhoV5 {
   psaNhom: DongPsaNhom[];
   nhap: DongNhap[];
   xuat: DongXuat[];
+  /** Tên công trình chuẩn, cùng khoá gộp với /api/stock/by-project; không truyền thì chỉ chuẩn hoá khoảng trắng */
+  tenChuan?: (ten: string | null) => string;
 }
 
 // ---- Payload ----
@@ -43,10 +45,11 @@ export interface DongDuAn {
 export interface DongPhanChia { k: string; nhom: string; gt: number; cu: number; hex: number }
 export interface DongChuaXuat { duAn: string; t01: number; t23: number; t46: number; t6: number; khong: number; thieuBo: number; tong: number }
 export interface DongGoiCu { ct: string; ten: string; duAn: string; pm: string | null; cu: number; ra93: number; xuat60: number | null; xuatCuoi: string | null; huy?: boolean }
-export interface DongKy { den: string; ngay: number; nhap: number; xuatTinh: number; chuaDoiSoat: number; ton: number; thangTon: number | null }
+export interface DongKy { den: string; ngay: number; nhap: number; xuatTinh: number; chuaDoiSoat: number; ton: number; thangTon: number | null; kyDo: boolean }
 export interface TonKhoV5 {
   date: string;
-  tong: { v: number; cu: number; cu12: number; khongNgay: number; ma: number; congTrinh: number; chuaXuat: number; chuaXuat4: number; du: number; duPhanLoai: number };
+  /** ma = số mã SAP giá trị ≠ 0; ma0 = số mã chỉ có dòng giá trị 0 (không tính vào ma) */
+  tong: { v: number; cu: number; cu12: number; khongNgay: number; ma: number; ma0: number; congTrinh: number; chuaXuat: number; chuaXuat4: number; du: number; duPhanLoai: number };
   moc: { d: string; v: number; cu: number }[];
   cuoiThang: MocCuoiThang[];
   duAnMoc: { d: string; da: Record<string, { v: number; cu: number }> }[];
@@ -130,20 +133,20 @@ export const tinhTuoi = (d: string, nk: string | null | undefined): number | nul
   nk ? Math.floor((10 * soNgay(d, nk) + 152) / 304) : null;
 export const laCu = (d: string, nk: string | null | undefined) => (tinhTuoi(d, nk) ?? 0) > 6;
 
-/** Mốc cuối tháng: lần chốt cuối mỗi tháng, mốc cuối là ngày xem; bỏ mốc liền trước nếu cách ngày xem dưới 7 ngày */
+/** Mốc cuối tháng: lần chốt cuối mỗi tháng, mốc cuối là ngày xem */
 export const chonCuoiThang = (ngay: string[]): string[] => {
   const ds = [...new Set(ngay)].sort();
   const theoThang = new Map<string, string>();
   for (const d of ds) theoThang.set(d.slice(0, 7), d);
-  const kq = [...theoThang.values()];
-  if (kq.length >= 2 && soNgay(kq[kq.length - 1], kq[kq.length - 2]) < 7) kq.splice(-2, 1);
-  return kq;
+  return [...theoThang.values()];
 };
 
 const dauThangSau = (d: string, n: number) => {
   const t = new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1 + n, 1));
   return t.toISOString().slice(0, 10);
 };
+/** Kỳ dở: mốc cuối còn hơn 7 ngày mới hết tháng (cột "Đến nay") */
+export const laKyDo = (den: string) => soNgay(dauThangSau(den, 1), den) > 7;
 const kieuGhiChu = (gc: string | null) => {
   const g = gc ?? '';
   if (/NHÀ CUNG CẤP|\bNCC\b|GIA CÔNG|\bGC\b|C\s*TIỆN|CTIỆN|PHÔI|SƠN ĐEN|TRỤ CHÂN|QUY CÁCH/i.test(g)) return 'GC';
@@ -308,6 +311,8 @@ const tinhPhanTich = (input: InputTonKhoV5): PhanTichV5 => {
     e2.q += t.sl || 0; e2.v += t.v; m2.set(k2, e2); maCt.set(t.d, m2);
   }
   const raTheoCt = new Map<string, number>();
+  // Cửa sổ "3 tháng gần nhất": 3 cặp mốc; có kỳ dở thì thêm 1 cặp để vẫn đủ 3 tháng
+  const iRa = Math.max(1, S.length - (S.length && laKyDo(S[S.length - 1]) ? 4 : 3));
   const loVao: DongLo[] = [], loRa: DongLo[] = [];
   const vaoRa = S.map((d, i) => {
     if (!i) return { vao: null as number | null, ra: null as number | null };
@@ -320,7 +325,7 @@ const tinhPhanTich = (input: InputTonKhoV5): PhanTichV5 => {
       const dv = e.v - (sau.get(k)?.v ?? 0);
       if (dv > 0) {
         ra += dv;
-        if (i >= S.length - 3) cong(raTheoCt, e.ct, dv);
+        if (i >= iRa) cong(raTheoCt, e.ct, dv);
         loRa.push({ i, d, A, sap: e.sap, ct: e.ct, ten: e.ten, nk: e.nk, dau: e.v, cuoi: e.v - dv, gt: dv });
       }
     }
@@ -527,7 +532,6 @@ const tinhPhanTich = (input: InputTonKhoV5): PhanTichV5 => {
   }
   dongGoi.sort((a, b) => b.cu - a.cu);
   const goiDau = dongGoi.slice(0, SO_GOI_CU), goiSau = dongGoi.slice(SO_GOI_CU);
-  const iRa = Math.max(1, S.length - 3);
   const cuaSoNgay = S.length >= 2 ? soNgay(S[S.length - 1], S[iRa - 1]) : 0;
   const vao93 = tong(vaoRa.slice(iRa), x => x.vao ?? 0), ra93 = tong(vaoRa.slice(iRa), x => x.ra ?? 0);
 
@@ -571,6 +575,7 @@ const tinhPhanTich = (input: InputTonKhoV5): PhanTichV5 => {
     return {
       den: k.den, ngay: k.ngay, nhap: lam(k.nhap), xuatTinh: lam(k.xuat), chuaDoiSoat: lam(tonTai(k.tu) + k.nhap - tonTai(k.den) - k.xuat),
       ton: lam(tonTai(k.den)), thangTon: i >= 2 && xw > 0 ? Math.round((tonTai(k.den) / (xw / nw * 30)) * 100) / 100 : null,
+      kyDo: i === kyDong.length - 1 && laKyDo(k.den),
     };
   });
   const du = tong(kyDong, k => k.nhap - k.xuat) + (S.length >= 2 ? tonTai(S[0]) - tonTai(S[S.length - 1]) : 0);
@@ -660,12 +665,14 @@ const tinhPhanTich = (input: InputTonKhoV5): PhanTichV5 => {
     };
   });
 
+  const soMa = new Set(O.map(t => t.sap)).size;
+  const tenChuan = input.tenChuan ?? ((t: string | null) => (t ?? '').replace(/\s+/g, ' ').trim().toUpperCase());
   const kq: TonKhoV5 = {
     date,
     tong: {
       v: lam(tongV), cu: lam(tongCu), cu12: lam(tong(O.filter(t => (tinhTuoi(date, t.nk) ?? 0) > 12), t => t.v)),
-      khongNgay: lam(tong(O.filter(t => !t.nk), t => t.v)), ma: new Set(O.map(t => t.sap)).size,
-      congTrinh: new Set(O.map(t => (t.ten ?? '').replace(/\s+/g, ' ').trim().toUpperCase())).size, // theo tên: khớp số dòng tab Theo công trình
+      khongNgay: lam(tong(O.filter(t => !t.nk), t => t.v)), ma: soMa, ma0: new Set(ton.map(t => t.sap)).size - soMa,
+      congTrinh: new Set(O.map(t => tenChuan(t.ten))).size, // cùng khoá gộp: khớp số dòng tab Theo công trình
       chuaXuat: lam(chuaXuatTong), chuaXuat4: lam(chuaXuat4), du: lam(du), duPhanLoai: lam(duPhanLoai),
     },
     moc, cuoiThang, duAnMoc, goiDung, soSanhGoi, goiCungPm, duAn, phanChia, chuaXuatDuAn,

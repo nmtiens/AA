@@ -1,4 +1,5 @@
 import { formatTrieuAsTy } from '../../utils/money';
+import { fmtPt } from '../../utils/format';
 import type { TraLoi } from './traLoi';
 import { moTaTruyVan } from './hieuTruyVan';
 import { chayTruyVan, type BangDM, type CotKQ, type KetQua, type TruyVan } from './truyVanApi';
@@ -36,8 +37,8 @@ export function hienO(v: string | number | null, c: CotKQ): string {
 const phanTram = (a: number | null, z: number | null) => {
   if (a === null || z === null) return '—';
   if (!z) return a ? 'mới' : '0%';
-  const p = Math.round(((a - z) / Math.abs(z)) * 100);
-  return `${p > 0 ? '▲ +' : p < 0 ? '▼ ' : ''}${p}%`;
+  const p = ((a - z) / Math.abs(z)) * 100;
+  return `${p > 0 ? '▲ +' : p < 0 ? '▼ -' : ''}${fmtPt(Math.abs(p))}`;
 };
 const vnKy = (tu?: string, den?: string) => (tu && den ? (tu === den ? vn(tu) : `${vn(tu)} – ${vn(den)}`) : 'mọi thời gian');
 /** Kỳ gọn cho tiêu đề cột: "01/10–19/10" (cùng năm thì bỏ năm) */
@@ -127,6 +128,19 @@ function binhQuan(tv: TruyVan, kq: KetQua): string[] {
   ];
 }
 
+const BANG_SX = 'production_status_app';
+
+/** Câu "quá hạn / trễ" ở hạng mục đang tính theo ngày cần giao: ghi rõ và cho chọn theo hạn KH nhập kho như thẻ Quá hạn KH */
+export const chonQuaHan = (tv: TruyVan): NonNullable<TraLoi['chon']> | null => {
+  if (tv.bang !== BANG_SX || !tv.loc.some(l => l.cot === 'ngay_can_giao' && l.op === 'nho_hon')) return null;
+  const loc = tv.loc.filter(l => l.cot !== 'ngay_can_giao' && l.cot !== 'gia_tri_con_lai');
+  return [{ nhan: 'Xem theo hạn KH nhập kho', tv: { ...tv, loc: [...loc, { cot: 'nhom_bot', op: 'bang', gt: ['1. Quá hạn KH'] }] } }];
+};
+
+/** Số công nhân mặc định là trung bình theo dòng xưởng-ngày, không phải tổng xưởng */
+const laCongNhanTb = (tv: TruyVan) => tv.bang === 'diem_danh' && !tv.nhom.includes('xuong_chinh')
+  && tv.do.some(d => d.ham === 'tb' && d.cot === 'so_luong_cong_nhan');
+
 export async function traLoiTruyVan(tv: TruyVan, dm: BangDM[], boQua: string[] = [], aiHieu?: string, ghiThem: string[] = []): Promise<TraLoi> {
   const b = dm.find(x => x.id === tv.bang);
   // Câu do AI dịch: ghi rõ để người hỏi kiểm tra (bấm "Sửa điều kiện" nếu hiểu sai)
@@ -146,17 +160,21 @@ export async function traLoiTruyVan(tv: TruyVan, dm: BangDM[], boQua: string[] =
   }
   // Bảng kế hoạch có 2 loại dòng (KH THÁNG / KH TUẦN); máy chủ chọn 1 loại theo kỳ hỏi để không cộng đôi => nói rõ loại nào
   if (kq.loaiKh) ghi.push(`Lấy **kế hoạch ${kq.loaiKh.toLowerCase()}** (${kq.loaiKh === 'THÁNG' ? 'kỳ tháng / quý / năm' : 'kỳ ngắn hơn 4 tuần'}); muốn xem cả hai thì nói "theo loại kế hoạch".`);
+  const chonHan = chonQuaHan(tv);
+  if (chonHan) ghi.push('Tính là trễ so với ngày cần giao, khác thẻ Quá hạn KH.');
+  if (laCongNhanTb(tv)) ghi.push('Số công nhân là trung bình mỗi xưởng mỗi ngày.');
   if (boQua.length) ghi.push(`Bỏ qua: ${boQua.join('; ')}.`);
+  const them = chonHan ? { chon: chonHan } : {};
   const link = TRANG[tv.bang] ? { ten: `Mở trang ${b?.ten ?? 'dữ liệu'}`, to: TRANG[tv.bang] } : undefined;
 
   // Không chia nhóm: trả lời bằng chữ
   if (tv.kieu === 'tong' && !tv.nhom.length) {
     const dong = kq.dong[0] ?? [];
     const dongSo = kq.cot.map((c, i) => `${c.ten}${c.tien ? ' (tỷ)' : ''}: **${hienO(dong[i] ?? null, c)}**`);
-    return { chu: [...dongSo, ...ghi.map(g => `_${g}_`)].join('\n'), link, tv };
+    return { chu: [...dongSo, ...ghi.map(g => `_${g}_`)].join('\n'), link, tv, ...them };
   }
 
-  if (!kq.dong.length) return { chu: ['Không có dòng nào thoả điều kiện.', ...ghi.map(g => `_${g}_`)].join('\n'), link, tv };
+  if (!kq.dong.length) return { chu: ['Không có dòng nào thoả điều kiện.', ...ghi.map(g => `_${g}_`)].join('\n'), link, tv, ...them };
 
   const phai = kq.cot.map((c, i) => (c.kieu === 'so' ? i : -1)).filter(i => i >= 0);
   const cot = kq.cot.map(c => `${c.ten}${c.tien ? ' (tỷ)' : ''}`);
@@ -172,5 +190,6 @@ export async function traLoiTruyVan(tv: TruyVan, dm: BangDM[], boQua: string[] =
     bang: { cot, dong, phai, cuoi },
     link,
     tv,
+    ...them,
   };
 }

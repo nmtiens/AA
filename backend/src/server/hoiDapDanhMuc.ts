@@ -77,7 +77,7 @@ const HOM_NAY_VN = `(now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
 // "Còn lại" = trị giá − đã nhập kho (không âm) — cùng công thức trang Tổng quan công trình (Construction/core/chiSoCongTrinh.ts).
 // Cột SAP gia_tri_con_lai bằng 0 ở nhiều hạng mục trang vẫn theo dõi (SAP đóng ngắn) => không dùng, kẻo chatbot nói
 // "còn 14,4 tỷ" trong khi trang nói 17,9 tỷ cho cùng công trình.
-const CON_LAI = `GREATEST(COALESCE(t.tri_gia_don_hang_tong, 0) - COALESCE(t.thanh_tien_nhap_kho_luy_ke, 0), 0)`;
+const CON_LAI = `GREATEST(COALESCE(t.tri_gia_don_hang_tong, 0) - GREATEST(COALESCE(t.thanh_tien_nhap_kho_luy_ke, 0), 0), 0)`;
 export const NHOM_BOT = ['1. Quá hạn KH', '2. ≤ 14 ngày', '3. 15–30 ngày', '4. Sau 30 ngày', '5. Đạt KH kỳ, chờ KH tiếp', '6. Chưa có KH nhập kho'];
 const NHOM_BOT_SQL = `(CASE WHEN NOT ${MO} THEN NULL
   WHEN ${HAN_KH} IS NULL AND ((${KT} IS NOT NULL AND ${TUAN_DAT}) OR (t.ngay_khnk_thang IS NOT NULL AND ${THANG_DAT})) THEN '${NHOM_BOT[4]}'
@@ -163,7 +163,8 @@ export const DANH_MUC: Bang[] = [
       { id: 'tinh_trang_ke_hoach_giao_hang', ten: 'Kế hoạch giao hàng', tuDien: true, dn: ['tình trạng kế hoạch giao hàng', 'tình trạng giao hàng', 'giao hàng'], kieu: 'chu' },
       // "tồn kho NHẬP TỪ tháng 9", "ngày nhập": ngày hàng vào kho (khác ngày chốt tồn `date`)
       { id: 'ngay_nhap_kho', ten: 'Ngày nhập kho', dn: ['ngày nhập', 'nhập từ'], kieu: 'ngay' },
-      { id: 'so_thang_ton_kho', ten: 'Số tháng tồn', dn: ['tháng tồn', 'tuổi tồn'], kieu: 'so' },
+      // Cùng công thức tinhTuoi của Tồn kho (server/tonKhoV5.ts): ROUND(ngày / 30.4), thiếu ngày nhập thì không có tuổi
+      { id: 'so_thang_ton_kho', ten: 'Số tháng tồn', dn: ['tháng tồn', 'tuổi tồn'], kieu: 'so', sql: 'FLOOR((10 * (t.date - t.ngay_nhap_kho) + 152) / 304.0)' },
       { id: 'gia_tri', ten: 'Giá trị tồn', dn: ['giá trị', 'thành tiền'], kieu: 'so', sql: 't.gia_tri_num', tien: true },
       { id: 'so_luong', ten: 'Số lượng tồn', dn: ['số lượng', 'sl'], kieu: 'so' },
     ],
@@ -365,8 +366,8 @@ export const DANH_MUC: Bang[] = [
       {
         // 'Mới' (open) + 'Đang xử lý' (doing) = "đang mở" của trang Vướng mắc (routes/vuongMac.ts stats.open) — bộ đọc câu lọc
         // "vướng mắc đang mở / chưa xong" bằng 2 giá trị này
-        id: 'status', ten: 'Trạng thái', dn: ['tình trạng'], kieu: 'chu', gt: ['Mới', 'Đang xử lý', 'Đã xong', 'Đã đóng'],
-        sql: `(CASE t.status WHEN 'open' THEN 'Mới' WHEN 'doing' THEN 'Đang xử lý' WHEN 'done' THEN 'Đã xong' WHEN 'closed' THEN 'Đã đóng' ELSE COALESCE(t.status, CASE WHEN t.is_resolved THEN 'Đã xong' ELSE 'Mới' END) END)`,
+        id: 'status', ten: 'Trạng thái', dn: ['tình trạng'], kieu: 'chu', gt: ['Mới', 'Đang xử lý', 'Chờ xác nhận', 'Đã đóng'],
+        sql: `(CASE t.status WHEN 'open' THEN 'Mới' WHEN 'doing' THEN 'Đang xử lý' WHEN 'done' THEN 'Chờ xác nhận' WHEN 'closed' THEN 'Đã đóng' ELSE COALESCE(t.status, CASE WHEN t.is_resolved THEN 'Chờ xác nhận' ELSE 'Mới' END) END)`,
       },
       { id: 'is_resolved', ten: 'Đã xử lý', dn: ['xử lý xong', 'đã giải quyết'], kieu: 'chu', gt: ['Đã xử lý', 'Chưa xử lý'], sql: `(CASE WHEN t.is_resolved THEN 'Đã xử lý' ELSE 'Chưa xử lý' END)` },
       {

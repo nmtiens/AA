@@ -162,7 +162,7 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
                 {tong.chuaChot} tổ chưa {d.to.some(t => t.diemDanh !== undefined && t.diemDanh !== null) ? 'điểm danh' : 'chốt quân số'}
               </button>
             )}
-            <span>{tong.dangChay} hạng mục đang chạy</span>
+            <span>{tong.dangChay} lượt công đoạn đang chạy</span>
             {tong.choNhan > 0 && <span>{tong.choNhan} chờ nhận</span>}
           </p>
         )}

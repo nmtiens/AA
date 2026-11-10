@@ -6,6 +6,8 @@ import {
 import { Loader2 } from 'lucide-react';
 import { fetchStockHealth, type StockHealth } from '../../../../services/dataService';
 import { formatTrieuAsTy } from '../../../../utils/money';
+import { fmtInt } from '../../../../utils/format';
+import { khung, soBam as GACH, table, tdB as TD_B, tdSo as SO_B, tfoot as TFOOT_B, thC as TH_B, thead as THEAD_B } from '../../../shared/bangBaoCao';
 import { toISODateLocal } from '../../utils/dateHelpers';
 import { bamSvg, bangKhong, chamBam, ChiTietProvider, hinhCot, So, ThanhBam, useMoChiTiet, type Bam, type MoChiTiet, type PhamViChiTiet, type YcChiTiet } from './TonKhoChiTiet';
 
@@ -63,6 +65,9 @@ const MAU_DU_AN: Record<string, string> = {
 const MAU_DU_PHONG = ['#be185d', '#4d7c0f', '#0369a1', '#a16207', '#6d28d9', '#475569'];
 const MAU_PHAN_CHIA: Record<string, string> = { chuaXuat: MAU.cam, giaoDo: MAU.moi, ganXong: MAU.xanhNhat, theoNhip: '#a7f3d0', huy: MAU.tim, khongPsa: MAU.xam };
 const CHU_TRUC = { fontSize: 13, fill: '#475569' };
+// Bảng trong báo cáo: cùng mẫu bảng tab BOT (BangCayBot)
+const KHUNG_B = `max-h-[70vh] ${khung}`;
+const BANG_B = `min-w-[960px] ${table}`;
 
 type ThemBam = Pick<Bam, 'ghi' | 'sapDau'>;
 /** Bam của 1 số; bằng 0 thì không bấm. v theo tỷ */
@@ -114,6 +119,11 @@ const Card: React.FC<{ title: React.ReactNode; right?: React.ReactNode; children
   </section>
 );
 
+/** Số trong bảng: bấm được thì gạch chấm */
+const SoB: React.FC<{ bam?: Bam | null; className?: string; children: React.ReactNode }> = ({ bam, className = '', children }) => (
+  <So bam={bam} className={`${bam ? GACH : ''} ${className}`}>{children}</So>
+);
+
 /** Chú giải màu */
 type ChuMuc = [string, string, (Bam | null)?];
 const Chu: React.FC<{ items: ChuMuc[] }> = ({ items }) => (
@@ -124,19 +134,20 @@ const Chu: React.FC<{ items: ChuMuc[] }> = ({ items }) => (
   </div>
 );
 
-const Kpi: React.FC<{ nhan: string; so: string; mau: string; phu?: React.ReactNode; bam?: Bam | null }> = ({ nhan, so, mau, phu, bam }) => (
+const Kpi: React.FC<{ nhan: string; so: string; mau: string; phu?: React.ReactNode; duoi?: React.ReactNode; bam?: Bam | null }> = ({ nhan, so, mau, phu, duoi, bam }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-4">
     <p className="text-sm font-bold text-slate-600">{nhan}</p>
     <p className={`mt-1 whitespace-nowrap text-4xl font-extrabold tabular-nums ${mau}`}><So bam={bam}>{so}</So> {so !== '—' && <span className="text-lg font-semibold text-slate-500">tỷ</span>}</p>
     {phu && <p className="mt-1.5 text-sm font-bold">{phu}</p>}
+    {duoi && <p className="mt-0.5 text-sm font-semibold text-slate-600">{duoi}</p>}
   </div>
 );
 
 /** Hàng số đặt thẳng cột biểu đồ: cột đầu = bề rộng trục Y */
-const HangCot: React.FC<{ nhan: React.ReactNode; rong: number; cot: React.ReactNode[]; cls?: string }> = ({ nhan, rong, cot, cls = '' }) => (
-  <div className={`grid items-center py-0.5 text-sm tabular-nums ${cls}`} style={{ gridTemplateColumns: `${rong}px repeat(${cot.length}, minmax(0, 1fr))` }}>
-    <div className="font-bold">{nhan}</div>
-    {cot.map((c, i) => <div key={i} className="text-center">{c}</div>)}
+const HangCot: React.FC<{ nhan: React.ReactNode; rong: number; cot: React.ReactNode[]; cls?: string; o?: string }> = ({ nhan, rong, cot, cls = '', o }) => (
+  <div className={`grid tabular-nums ${o ? '' : 'items-center py-0.5 text-sm'} ${cls}`} style={{ gridTemplateColumns: `${rong}px repeat(${cot.length}, minmax(0, 1fr))` }}>
+    <div className={`font-bold ${o ?? ''}`}>{nhan}</div>
+    {cot.map((c, i) => <div key={i} className={`text-center ${o ?? ''}`}>{c}</div>)}
   </div>
 );
 
@@ -546,7 +557,7 @@ const LuyKeGoi: React.FC<{ d: StockHealth; onOpen?: MoCt }> = ({ d, onOpen }) =>
 };
 
 // ---- Bảng dự án ----
-const BangDuAn: React.FC<{ d: StockHealth; onOpen?: MoCt; onXemTheoCongTrinh?: () => void }> = ({ d, onOpen, onXemTheoCongTrinh }) => {
+const BangDuAn: React.FC<{ d: StockHealth; onXemTheoCongTrinh?: () => void }> = ({ d, onXemTheoCongTrinh }) => {
   const dong = [...d.duAn.filter(x => x.duAn !== DA_KHAC), ...d.duAn.filter(x => x.duAn === DA_KHAC)];
   const rieng = d.duAn.filter(x => x.duAn !== DA_KHAC);
   const max = Math.max(1, ...d.duAn.map(x => x.ton));
@@ -556,53 +567,55 @@ const BangDuAn: React.FC<{ d: StockHealth; onOpen?: MoCt; onXemTheoCongTrinh?: (
   const tieuDe = rieng.length > 3
     ? <><So bam={neuTr(cong(dauTon, 'ton'), { loai: 'ton', duAn: dauTon.map(x => x.duAn) }, `${soTon} dự án tồn lớn nhất`, ghiPt(cong(dauTon, 'ton'), d.tong.v, 'tổng tồn'))}>{soTon} dự án giữ {so1(pt(cong(dauTon, 'ton'), d.tong.v))}% tồn</So>; <So bam={neuTr(cong(dauCu, 'cu'), { loai: 'ton', tuoi: 'cu', duAn: dauCu.map(x => x.duAn) }, `${soCu} dự án giữ nhiều hàng cũ nhất`, ghiPt(cong(dauCu, 'cu'), d.tong.cu, 'hàng cũ'))}>{soCu} dự án giữ {so1(pt(cong(dauCu, 'cu'), d.tong.cu))}% hàng cũ</So></>
     : 'Theo dự án';
-  // Tên công trình của dự án: lấy từ gói đã có trong báo cáo
-  const tenCt = new Map<string, string>();
-  for (const x of d.goiCu.dong) if (!x.huy && x.ten && !tenCt.has(x.duAn)) tenCt.set(x.duAn, x.ten);
-  for (const x of d.soSach.theoMa) if (x.duAn && x.ten && !tenCt.has(x.duAn)) tenCt.set(x.duAn, x.ten);
   return (
     <Card title={tieuDe} right={<Chu items={[['≤ 6 tháng', MAU.moi], ['> 6 tháng', MAU.cu], ['Không rõ ngày', MAU.xam]]} />}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[960px] text-sm">
-          <thead><tr className="border-b border-slate-200 text-left text-sm text-slate-500">
-            <th className="py-2 font-bold">Dự án</th><th className="py-2 font-bold">PM</th><th className="w-[24%] py-2 font-bold">Tồn (tỷ)</th>
-            <th className="py-2 text-right font-bold">&gt; 6 tháng</th><th className="py-2 pl-3 text-right font-bold">Đã nhập</th>
-            <th className="py-2 pl-3 text-right font-bold">Đã xuất</th><th className="py-2 pl-3 text-right font-bold">Xuất cuối</th>
-            <th className="py-2 pl-3 text-right font-bold">Đơn chưa nhập</th>
+      <div className={KHUNG_B}>
+        <table className={BANG_B}>
+          <thead className={THEAD_B}><tr>
+            <th className={TH_B}>Dự án</th><th className={TH_B}>PM</th><th className={`${TH_B} w-[24%]`}>Tồn (tỷ)</th>
+            <th className={`${TH_B} whitespace-nowrap`}>&gt; 6 tháng</th><th className={`${TH_B} whitespace-nowrap`}>Đã nhập</th>
+            <th className={`${TH_B} whitespace-nowrap`}>Đã xuất</th><th className={`${TH_B} whitespace-nowrap`}>Xuất cuối</th>
+            <th className={`${TH_B} whitespace-nowrap`}>Đơn chưa nhập</th>
           </tr></thead>
           <tbody>
-            {dong.map((x, i) => {
+            {dong.map(x => {
               const tre = x.xuatCuoi ? soNgayGiua(d.date, x.xuatCuoi) : null;
               const duAn = [x.duAn], tenDa = tenDong(x.duAn);
               const phan: [number, string, 'cu' | 'moi' | 'khong', string][] = [[x.cu, MAU.cu, 'cu', '> 6 tháng'], [x.moi, MAU.moi, 'moi', '≤ 6 tháng'], [x.khongNgay, MAU.xam, 'khong', 'không rõ ngày']];
               return (
-                <tr key={x.duAn} className={i % 2 ? 'bg-slate-50' : ''}>
-                  <td className="py-1.5 pr-3">
-                    {tenCt.has(x.duAn) && onOpen
-                      ? <TenCt name={tenCt.get(x.duAn)} onOpen={onOpen} className="block text-base font-bold leading-tight text-slate-900">{tenDong(x.duAn)}</TenCt>
-                      : <So bam={neuTr(x.ton, { loai: 'ton', duAn }, `Tồn ${tenDa}`)} className="block text-left text-base font-bold leading-tight text-slate-900">{tenDong(x.duAn)}</So>}
-                    <span className="text-[13px] text-slate-500">{x.hang.length
+                <tr key={x.duAn}>
+                  <td className={TD_B}>
+                    <So bam={neuTr(x.ton, { loai: 'ton', duAn }, `Tồn ${tenDa}`)} className="block text-left text-base font-bold leading-tight text-slate-900">{tenDong(x.duAn)}</So>
+                    <span className="text-sm text-slate-600">{x.hang.length
                       ? x.hang.map((h, j) => <React.Fragment key={h.ten}>{j > 0 && ' · '}{j ? h.ten.toLowerCase() : hoaDauCau(h.ten.toLowerCase())} <So bam={neuTr(h.v, { loai: 'ton', duAn, nsp: h.ten }, `${tenDa} ${h.ten.toLowerCase()}`)}>{ty(h.v)}</So></React.Fragment>)
                       : <So bam={neuTr(x.ton, { loai: 'ton', duAn }, `Tồn ${tenDa}`)}>{x.soMa} mã</So>}</span>
                   </td>
-                  <td className="py-1.5 pr-3 text-slate-600">{tenPm(x.pm, x.duAn)}</td>
-                  <td className="py-1.5">
+                  <td className={TD_B}>{tenPm(x.pm, x.duAn)}</td>
+                  <td className={TD_B}>
                     <div className="flex items-center gap-2">
                       <div className="flex h-6 gap-px overflow-hidden" style={{ width: `${pt(x.ton, max) * 0.8}%` }}>
                         {phan.map(([v, mau, tuoi, ten]) => v > 0 && <ThanhBam key={mau} bam={neuTr(v, { loai: 'ton', duAn, tuoi }, `${tenDa} ${ten}`)} mau={mau} className="block h-full" style={{ width: `${pt(v, x.ton)}%` }} />)}
                       </div>
-                      <So bam={neuTr(x.ton, { loai: 'ton', duAn }, `Tồn ${tenDa}`)} className="text-base font-bold tabular-nums text-slate-900">{ty(x.ton)}</So>
+                      <SoB bam={neuTr(x.ton, { loai: 'ton', duAn }, `Tồn ${tenDa}`)} className="font-bold tabular-nums">{ty(x.ton)}</SoB>
                     </div>
                   </td>
-                  <td className={`py-1.5 text-right text-base font-bold tabular-nums ${x.cu >= d.tong.cu * 0.1 ? 'text-red-700' : 'text-slate-600'}`}>{x.cu ? <So bam={neuTr(x.cu, { loai: 'ton', duAn, tuoi: 'cu' }, `${tenDa} > 6 tháng`)}>{ty(x.cu)}</So> : '0'}</td>
-                  <td className="py-1.5 pl-3 text-right font-semibold tabular-nums text-slate-700">{x.pctNhap === null ? '—' : <So bam={x.pctNhap ? { yc: { loai: 'da_nhap', duAn }, nhan: `${tenDa} đã nhập` } : null}>{x.pctNhap}%</So>}</td>
-                  <td className={`py-1.5 pl-3 text-right font-semibold tabular-nums ${x.pctXuat !== null && x.pctXuat < 30 ? 'font-bold text-red-700' : 'text-slate-700'}`}>{x.pctXuat === null ? '—' : <So bam={x.pctXuat ? { yc: { loai: 'xuat_tinh', duAn }, nhan: `${tenDa} đã xuất` } : null}>{x.pctXuat}%</So>}</td>
-                  <td className={`py-1.5 pl-3 text-right tabular-nums ${tre === null ? 'text-slate-400' : tre > 60 ? 'font-bold text-red-700' : tre > 14 ? 'font-bold text-amber-600' : 'text-slate-600'}`}>{x.xuatCuoi ? <So bam={bamCuoi({ loai: 'xuat_tinh', duAn }, `${tenDa} đã xuất`)}>{ngay(x.xuatCuoi)}</So> : '—'}</td>
-                  <td className="py-1.5 pl-3 text-right text-base font-bold tabular-nums text-slate-900">{x.donChuaNhap ? <So bam={neuTr(x.donChuaNhap, { loai: 'don_chua_nhap', duAn }, `${tenDa} đơn chưa nhập`)}>{ty(x.donChuaNhap)}</So> : '—'}</td>
+                  <td className={`${SO_B} ${x.cu >= d.tong.cu * 0.1 ? 'font-bold text-red-700' : ''}`}>{x.cu ? <SoB bam={neuTr(x.cu, { loai: 'ton', duAn, tuoi: 'cu' }, `${tenDa} > 6 tháng`)}>{ty(x.cu)}</SoB> : ''}</td>
+                  <td className={`${SO_B} ${x.pctNhap === 0 ? 'font-bold text-red-700' : ''}`}>{x.pctNhap ? <SoB bam={{ yc: { loai: 'da_nhap', duAn }, nhan: `${tenDa} đã nhập` }}>{x.pctNhap}%</SoB> : x.pctNhap === 0 ? '0%' : ''}</td>
+                  <td className={`${SO_B} ${x.pctXuat !== null && x.pctXuat < 30 ? 'font-bold text-red-700' : ''}`}>{x.pctXuat ? <SoB bam={{ yc: { loai: 'xuat_tinh', duAn }, nhan: `${tenDa} đã xuất` }}>{x.pctXuat}%</SoB> : x.pctXuat === 0 ? '0%' : ''}</td>
+                  <td className={`${SO_B} ${tre === null ? '' : tre > 60 ? 'font-bold text-red-700' : tre > 14 ? 'font-bold text-amber-600' : ''}`}>{x.xuatCuoi ? <SoB bam={bamCuoi({ loai: 'xuat_tinh', duAn }, `${tenDa} đã xuất`)}>{ngay(x.xuatCuoi)}</SoB> : ''}</td>
+                  <td className={SO_B}>{x.donChuaNhap ? <SoB bam={neuTr(x.donChuaNhap, { loai: 'don_chua_nhap', duAn }, `${tenDa} đơn chưa nhập`)}>{ty(x.donChuaNhap)}</SoB> : ''}</td>
                 </tr>
               );
             })}
           </tbody>
+          <tfoot className={TFOOT_B}>
+            <tr>
+              <td colSpan={2} className={`${TD_B} text-center`}>TỔNG</td>
+              <td className={SO_B}><SoB bam={neuTr(d.tong.v, { loai: 'ton' }, 'Tổng tồn')}>{ty(d.tong.v)}</SoB></td>
+              <td className={SO_B}>{d.tong.cu ? <SoB bam={neuTr(d.tong.cu, { loai: 'ton', tuoi: 'cu' }, 'Trên 6 tháng')}>{ty(d.tong.cu)}</SoB> : ''}</td>
+              <td className={TD_B} /><td className={TD_B} /><td className={TD_B} /><td className={TD_B} />
+            </tr>
+          </tfoot>
         </table>
       </div>
       {onXemTheoCongTrinh && <button type="button" onClick={onXemTheoCongTrinh} className="mt-2 text-sm font-semibold text-blue-700 hover:underline">Xem {d.tong.congTrinh} công trình →</button>}
@@ -686,12 +699,13 @@ const GoiCu: React.FC<{ d: StockHealth; onOpen?: MoCt }> = ({ d, onOpen }) => {
     ? <>Hàng cũ vào <So bam={neuTr(g.vao, { loai: 'goi_vao' }, `Hàng cũ vào ${g.ngay} ngày`, { ghi: `${so1(tyS(g.vaoThang))} tỷ/tháng` })}>{so1(tyS(g.vaoThang))}</So> tỷ/tháng, ra <So bam={neuTr(g.ra, { loai: 'goi_ra' }, `Hàng cũ ra ${g.ngay} ngày`, { ghi: `${so1(tyS(g.raThang))} tỷ/tháng` })}>{so1(tyS(g.raThang))}</So> tỷ/tháng</>
     : 'Hàng cũ theo gói';
   const max = Math.max(1, ...g.dong.flatMap(x => [x.cu, x.ra93]), g.conLai.cu, g.conLai.ra93);
-  const doi = (cu: number, ra: number, bamCu: Bam | null, bamRa: Bam | null) => (
+  // chan = dòng TỔNG: không thanh, chữ theo tfoot
+  const doi = (cu: number, ra: number, bamCu: Bam | null, bamRa: Bam | null, chan = false) => (
     <div className="space-y-0.5">
       {([[cu, MAU.cu, 'text-red-700', bamCu], [Math.max(0, ra), MAU.xanh, 'text-emerald-700', bamRa]] as [number, string, string, Bam | null][]).map(([v, mau, chu, bam]) => (
-        <div key={mau} className="flex h-[17px] items-center gap-1.5">
-          {v > 0 && <ThanhBam bam={bam} tab={false} mau={mau} className="block h-3 rounded-sm" style={{ width: `${(v / max) * 82}%` }} />}
-          <So bam={bam} className={`text-sm font-bold tabular-nums ${chu}`}>{ty(v)}</So>
+        <div key={mau} className={`flex h-[17px] items-center gap-1.5 ${chan ? 'justify-center' : ''}`}>
+          {!chan && v > 0 && <ThanhBam bam={bam} tab={false} mau={mau} className="block h-3 rounded-sm" style={{ width: `${(v / max) * 82}%` }} />}
+          {!bangKhong(tyS(v)) && <SoB bam={bam} className={`text-sm font-bold tabular-nums ${chan ? '' : chu}`}>{ty(v)}</SoB>}
         </div>
       ))}
     </div>
@@ -703,39 +717,48 @@ const GoiCu: React.FC<{ d: StockHealth; onOpen?: MoCt }> = ({ d, onOpen }) => {
   };
   return (
     <Card title={tieuDe} right={<Chu items={[['Hàng cũ còn', MAU.cu], [`Đã ra ${g.ngay} ngày`, MAU.xanh]]} />}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[960px] text-sm">
-          <thead><tr className="border-b border-slate-200 text-left text-sm text-slate-500">
-            <th className="py-2 font-bold">Gói</th><th className="py-2 font-bold">PM</th><th className="w-[46%] py-2 font-bold">Tỷ</th>
-            <th className="py-2 text-right font-bold">Xuất 60 ngày</th><th className="py-2 pl-4 text-right font-bold">Xuất cuối</th>
+      <div className={KHUNG_B}>
+        <table className={BANG_B}>
+          <thead className={THEAD_B}><tr>
+            <th className={TH_B}>Gói</th><th className={TH_B}>PM</th><th className={`${TH_B} w-[46%]`}>Tỷ</th>
+            <th className={`${TH_B} whitespace-nowrap`}>Xuất 60 ngày</th><th className={`${TH_B} whitespace-nowrap`}>Xuất cuối</th>
           </tr></thead>
           <tbody>
-            {g.dong.map((x, i) => {
+            {g.dong.map(x => {
               const tre = x.xuatCuoi ? soNgayGiua(d.date, x.xuatCuoi) : null;
               return (
-                <tr key={`${x.ct}${x.huy ? 'h' : ''}${x.ten}`} className={i % 2 ? 'bg-slate-50' : ''}>
-                  <td className="py-1.5 pr-3 font-bold text-slate-900"><TenCt name={x.ten} onOpen={onOpen}>{tenDongGoi(x)}</TenCt></td>
-                  <td className="py-1.5 pr-3 text-slate-600">{x.pm ? hoaDau(x.pm) : '—'}</td>
-                  <td className="py-1.5">{doi(x.cu, x.ra93,
+                <tr key={`${x.ct}${x.huy ? 'h' : ''}${x.ten}`}>
+                  <td className={`${TD_B} font-bold`}><TenCt name={x.ten} onOpen={onOpen}>{tenDongGoi(x)}</TenCt></td>
+                  <td className={TD_B}>{x.pm ? hoaDau(x.pm) : ''}</td>
+                  <td className={TD_B}>{doi(x.cu, x.ra93,
                     x.ct ? neuTr(x.cu, { loai: 'goi_cu', ct: x.ct, huy: x.huy }, `Hàng cũ ${x.ct}`) : null,
                     x.ct && !x.huy ? neuTr(x.ra93, { loai: 'goi_ra', ct: x.ct }, `Đã ra ${g.ngay} ngày ${x.ct}`) : null)}</td>
-                  <td className="py-1.5 text-right text-base font-bold tabular-nums text-slate-900">{x.xuat60 === null ? '—' : <So bam={x.ct ? neuTr(x.xuat60, { loai: 'xuat_tinh', ct: x.ct, xuat60: true }, `Xuất 60 ngày ${x.ct}`) : null}>{ty(x.xuat60)}</So>}</td>
-                  <td className={`py-1.5 pl-4 text-right tabular-nums ${tre !== null && tre > 60 ? 'font-bold text-red-700' : 'text-slate-600'}`}><So bam={x.ct && x.xuatCuoi ? bamCuoi({ loai: 'xuat_tinh', ct: x.ct }, `Xuất TÍNH ${x.ct}`) : null}>{x.xuatCuoi ? ngay(x.xuatCuoi) : '—'}</So></td>
+                  <td className={SO_B}>{bangKhong(x.xuat60 === null ? null : tyS(x.xuat60)) ? '' : <SoB bam={x.ct ? neuTr(x.xuat60, { loai: 'xuat_tinh', ct: x.ct, xuat60: true }, `Xuất 60 ngày ${x.ct}`) : null}>{ty(x.xuat60!)}</SoB>}</td>
+                  <td className={`${SO_B} ${tre !== null && tre > 60 ? 'font-bold text-red-700' : ''}`}>{x.xuatCuoi ? <SoB bam={x.ct ? bamCuoi({ loai: 'xuat_tinh', ct: x.ct }, `Xuất TÍNH ${x.ct}`) : null}>{ngay(x.xuatCuoi)}</SoB> : ''}</td>
                 </tr>
               );
             })}
             {g.conLai.soGoi > 0 && (
-              <tr className={g.dong.length % 2 ? 'bg-slate-50' : ''}>
-                <td className="py-1.5 pr-3 font-bold text-slate-900"><So bam={neuTr(g.conLai.cu, { loai: 'goi_cu', conLai: true }, `Hàng cũ ${g.conLai.soGoi} gói còn lại`)} className="text-left">{g.conLai.soGoi} gói còn lại</So></td>
-                <td className="py-1.5 pr-3 text-slate-600">Nhiều PM</td>
-                <td className="py-1.5">{doi(g.conLai.cu, g.conLai.ra93,
+              <tr>
+                <td className={`${TD_B} font-bold`}><So bam={neuTr(g.conLai.cu, { loai: 'goi_cu', conLai: true }, `Hàng cũ ${g.conLai.soGoi} gói còn lại`)} className="text-left">{g.conLai.soGoi} gói còn lại</So></td>
+                <td className={TD_B}>Nhiều PM</td>
+                <td className={TD_B}>{doi(g.conLai.cu, g.conLai.ra93,
                   neuTr(g.conLai.cu, { loai: 'goi_cu', conLai: true }, `Hàng cũ ${g.conLai.soGoi} gói còn lại`),
                   neuTr(g.conLai.ra93, { loai: 'goi_ra', conLai: true }, `Đã ra ${g.ngay} ngày, gói còn lại`))}</td>
-                <td className="py-1.5 text-right font-bold text-slate-900">—</td>
-                <td className="py-1.5 pl-4 text-right text-slate-600">—</td>
+                <td className={TD_B} />
+                <td className={TD_B} />
               </tr>
             )}
           </tbody>
+          <tfoot className={TFOOT_B}>
+            <tr>
+              <td colSpan={2} className={`${TD_B} text-center`}>TỔNG</td>
+              <td className={TD_B}>{doi(g.tong.cu, g.tong.ra93,
+                neuTr(g.tong.cu, { loai: 'ton', tuoi: 'cu' }, 'Trên 6 tháng'),
+                neuTr(g.tong.ra93, { loai: 'goi_ra' }, `Đã ra ${g.ngay} ngày`), true)}</td>
+              <td className={TD_B} /><td className={TD_B} />
+            </tr>
+          </tfoot>
         </table>
       </div>
     </Card>
@@ -827,12 +850,14 @@ const LoNhap: React.FC<{ d: StockHealth }> = ({ d }) => {
 };
 
 // ---- Nhập và xuất theo kỳ ----
+const O_KY = 'whitespace-nowrap border-b border-r border-slate-300 py-1.5 px-1';
+const TH_KY = `${O_KY} text-center`;
 const TheoKy: React.FC<{ d: StockHealth }> = ({ d }) => {
   const mo = useMoChiTiet();
-  const RONG = 92;
+  const RONG = 104;
   const k = d.ky.dong;
   // Kỳ i đi từ mốc cuối tháng i tới mốc i + 1
-  const dong = k.map((x, i) => ({ tu: d.cuoiThang[i]?.d, den: x.den, nhan: ngay(x.den), nhap: tyS(x.nhap), xuat: -tyS(x.xuatTinh), cds: -Math.max(0, tyS(x.chuaDoiSoat)) }));
+  const dong = k.map((x, i) => ({ tu: d.cuoiThang[i]?.d, den: x.den, nhan: ngay(x.den), cot: x.kyDo ? 'Đến nay' : ngay(x.den), nhap: tyS(x.nhap), xuat: -tyS(x.xuatTinh), cds: -Math.max(0, tyS(x.chuaDoiSoat)) }));
   const bamNhap = (r?: typeof dong[number]) => (r?.tu ? neu(r.nhap, { loai: 'nhap', tu: r.tu, den: r.den }, `Nhập kỳ tới ${r.nhan}`) : null);
   const tren = Math.max(1, ...dong.map(x => x.nhap)), duoi = Math.max(1, ...dong.map(x => -x.xuat - x.cds));
   const coThang = k.filter(x => x.thangTon !== null);
@@ -870,10 +895,10 @@ const TheoKy: React.FC<{ d: StockHealth }> = ({ d }) => {
                 </Bar>
               </ComposedChart>
             </ResponsiveContainer>
-            <div className="space-y-0.5">
-              <HangCot rong={RONG} nhan="" cls="font-semibold text-slate-600" cot={dong.map(x => x.nhan)} />
-              <HangCot rong={RONG} nhan={<span className="text-slate-700">Tồn cuối kỳ</span>} cls="font-bold text-slate-900" cot={k.map(x => <So bam={neuTr(x.ton, { loai: 'moc', d: x.den }, `Tồn ${ngay(x.den)}`)}>{tyS(x.ton).toFixed(0)}</So>)} />
-              <HangCot rong={RONG} nhan={<span className="text-slate-700">Tháng tồn</span>} cls="font-bold text-slate-900" cot={k.map((x, i) => (x.thangTon === null ? '–' : <So bam={{ yc: { loai: 'xuat_tinh', tu: d.cuoiThang[Math.max(0, i - 2)]?.d, den: x.den }, nhan: `Xuất TÍNH 3 kỳ tới ${ngay(x.den)}`, ghi: `Tháng tồn ${so1(x.thangTon)} = tồn ${tyS(x.ton).toFixed(0)} ÷ ${so1(tyS(x.ton) / x.thangTon)} tỷ/tháng` }}>{so1(x.thangTon)}</So>))} />
+            <div className="border-l border-t border-slate-300 text-[0.9375rem] font-medium text-slate-900">
+              <HangCot rong={RONG} o={TH_KY} nhan="Kỳ" cls="bg-emerald-300 font-bold" cot={dong.map(x => x.cot)} />
+              <HangCot rong={RONG} o={O_KY} nhan="Tồn cuối kỳ" cot={k.map(x => <SoB bam={neuTr(x.ton, { loai: 'moc', d: x.den }, `Tồn ${ngay(x.den)}`)}>{tyS(x.ton).toFixed(0)}</SoB>)} />
+              <HangCot rong={RONG} o={O_KY} nhan="Tháng tồn" cot={k.map((x, i) => (x.thangTon === null ? '' : <SoB bam={{ yc: { loai: 'xuat_tinh', tu: d.cuoiThang[Math.max(0, i - 2)]?.d, den: x.den }, nhan: `Xuất TÍNH 3 kỳ tới ${ngay(x.den)}`, ghi: `Tháng tồn ${so1(x.thangTon)} = tồn ${tyS(x.ton).toFixed(0)} ÷ ${so1(tyS(x.ton) / x.thangTon)} tỷ/tháng` }}>{so1(x.thangTon)}</SoB>))} />
             </div>
           </div>
         </div>
@@ -967,7 +992,6 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
   const cuoi = cuoiThang[cuoiThang.length - 1];
   const goi = data.goiDung;
   const boGoi = goi && goi.cu > 0 && cuoi && cuoi.v > cuoi.tonGoi ? pt(cuoi.cu - cuoi.cuGoi, cuoi.v - cuoi.tonGoi) : null;
-  const moc = data.ky.dong;
 
   return (
     <ChiTietProvider phamVi={phamVi}>
@@ -976,7 +1000,8 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi nhan="Tổng tồn" so={ty(tong.v)} mau="text-slate-900" bam={neuTr(tong.v, { loai: 'ton' }, 'Tổng tồn')}
-          phu={dinh && dinh.d !== data.date ? <span className={tong.v < dinh.v ? 'text-emerald-700' : 'text-red-600'}>{tong.v < dinh.v ? '▼' : '▲'} <So bam={neuTr(tong.v - dinh.v, { loai: 'so_moc', tu: dinh.d, den: data.date }, `Chênh so với đỉnh ${ngay(dinh.d)}`)}>{ty(Math.abs(tong.v - dinh.v))}</So> từ đỉnh <So bam={neuTr(dinh.v, { loai: 'moc', d: dinh.d }, `Tồn đỉnh ${ngay(dinh.d)}`)}>{ngay(dinh.d)}</So></span> : null} />
+          phu={dinh && dinh.d !== data.date ? <span className={tong.v < dinh.v ? 'text-emerald-700' : 'text-red-600'}>{tong.v < dinh.v ? '▼' : '▲'} <So bam={neuTr(tong.v - dinh.v, { loai: 'so_moc', tu: dinh.d, den: data.date }, `Chênh so với đỉnh ${ngay(dinh.d)}`)}>{ty(Math.abs(tong.v - dinh.v))}</So> từ đỉnh <So bam={neuTr(dinh.v, { loai: 'moc', d: dinh.d }, `Tồn đỉnh ${ngay(dinh.d)}`)}>{ngay(dinh.d)}</So></span> : null}
+          duoi={<>{fmtInt(tong.ma)} mã SAP{tong.ma0 ? ` · ${fmtInt(tong.ma0)} mã giá trị 0` : ''}</>} />
         <Kpi nhan="Trên 6 tháng" so={ty(tong.cu)} mau="text-red-700" bam={neuTr(tong.cu, { loai: 'ton', tuoi: 'cu' }, 'Trên 6 tháng')}
           phu={<span className="text-red-700"><So bam={neuTr(tong.cu, { loai: 'ton', tuoi: 'cu' }, 'Trên 6 tháng', ghiPt(tong.cu, tong.v, 'tổng tồn'))}>{so1(pt(tong.cu, tong.v))}%</So>{goi && boGoi !== null && <> · bỏ {goi.ct} vẫn <So bam={neuTr(cuoi.cu - cuoi.cuGoi, { loai: 'moc', d: cuoi.d, cu: true, phan: 'con' }, `Hàng cũ bỏ ${goi.ct}`, ghiPt(cuoi.cu - cuoi.cuGoi, cuoi.v - cuoi.tonGoi, 'tồn bỏ gói'))}>{so1(boGoi)}%</So></>}</span>} />
         <Kpi nhan="Chưa xuất TÍNH" so={ty(tong.chuaXuat)} mau="text-amber-600" bam={neuTr(tong.chuaXuat, { loai: 'chua_xuat' }, 'Chưa xuất TÍNH')}
@@ -990,7 +1015,7 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
       <DienBien d={data} />
       <SoHaiMoc d={data} />
       <LuyKeGoi d={data} onOpen={onOpenProject} />
-      <BangDuAn d={data} onOpen={onOpenProject} onXemTheoCongTrinh={onXemTheoCongTrinh} />
+      <BangDuAn d={data} onXemTheoCongTrinh={onXemTheoCongTrinh} />
       <ChuaXuat d={data} />
       <GoiCu d={data} onOpen={onOpenProject} />
       <LoNhap d={data} />
@@ -1001,12 +1026,6 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
         {!coLoc && <NhapChuaKhop d={data} onOpen={onOpenProject} />}
       </div>
 
-      <p className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600">
-        Trên 6 tháng = từ 198 ngày · xuất TÍNH = dòng xuất có ghi tiền · % nhập, % xuất theo tiền · mức trần = chưa trừ phần sẽ xuất
-        {moc.length > 0 && moc[moc.length - 1].thangTon !== null && data.ky.thangTheoLo !== null
-          ? ` · tháng tồn ${so1(moc[moc.length - 1].thangTon!)}: chia theo xuất TÍNH, ${so1(data.ky.thangTheoLo)}: theo mức giảm của lô tồn` : ''}
-        {' '}· chờ PM và kế hoạch xác nhận lý do
-      </p>
     </div>
     </ChiTietProvider>
   );

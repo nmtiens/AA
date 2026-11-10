@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import JSZip from 'jszip';
 import { DataRow, ColumnDefinition } from '../../../types';
 import { ExportFlowType, BottleneckItem } from '../types';
@@ -11,6 +11,8 @@ import {
   type OverviewSummary,
   type StockDateEntry,
 } from '../../../services/dataService';
+import { napBang } from '../../../services/napBang';
+import { useToast } from '../../../context/ToastContext';
 import { trieuToTy } from '../../../utils/money';
 import { expandProjectNames } from '../../../utils/productionMetrics';
 import type { CancelledHexInfo } from '../utils/cancelledHexes';
@@ -180,6 +182,22 @@ export function useExportFlows({
     return rows.filter(r => !cancelledHexes.has(String(r[hexKey] ?? '').trim()));
   };
 
+  // Bảng giao dịch không tải sẵn ở Tổng quan: tải xong mới mở hộp xuất file, không để xuất ra file rỗng
+  const { showToast } = useToast();
+  const dangNapRef = useRef(false);
+  const canBang = async (bang: string[], daCo: boolean): Promise<boolean> => {
+    if (dangNapRef.current) return false;
+    dangNapRef.current = true;
+    if (!daCo) showToast('Đang tải dữ liệu để xuất file…', 'info');
+    try {
+      const ok = await napBang(bang);
+      if (!ok) showToast('Chưa tải được dữ liệu để xuất file, thử lại sau ít phút', 'error');
+      return ok;
+    } finally {
+      dangNapRef.current = false;
+    }
+  };
+
   const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>([]);
   const [isProductionExportModalOpen, setIsProductionExportModalOpen] = useState(false);
   const [isOrderExportScopeModalOpen, setIsOrderExportScopeModalOpen] = useState(false);
@@ -282,7 +300,9 @@ export function useExportFlows({
     exportToCSV(summaryData, `Tong_Hop_Bao_Cao_${dateStr}.csv`);
   };
 
-  const handleOpenOverviewExport = () => {
+  const handleOpenOverviewExport = async () => {
+    const daCo = [orderData, tkbvData, pthspData, inventoryData, exportData, stockData].every(d => d.length > 0);
+    if (!(await canBang(['order', 'tkbv', 'pthsp', 'inventory', 'export', 'stock'], daCo))) return;
     setOverviewExportScope('FILTERED');
     // Reset về tháng hiện tại mỗi lần mở lại modal
     const d = latestUnifiedDate ?? new Date();
@@ -450,7 +470,8 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
   // -------------------------------------------------------------------------
   // Order export (P001)
   // -------------------------------------------------------------------------
-  const handleOpenOrderExport = () => {
+  const handleOpenOrderExport = async () => {
+    if (!(await canBang(['order'], orderData.length > 0))) return;
     setOrderExportScope('FILTERED');
     setIsOrderExportScopeModalOpen(true);
   };
@@ -486,7 +507,8 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
     }
   };
 
-  const handleOpenGenericExport = (type: ExportFlowType) => {
+  const handleOpenGenericExport = async (type: ExportFlowType) => {
+    if (!(await canBang([type], getExportFlowConfig(type).rawData.length > 0))) return;
     setGenericExportFlow(type);
     setGenericExportScope('FILTERED');
     if (type === 'stock') {

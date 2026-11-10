@@ -1,10 +1,12 @@
 import React from 'react';
 import { Eye } from 'lucide-react';
+import { extractStage, remainBucketOf } from '../../core/stages';
 
 // ============================================================================
 // Thẻ phễu "Tình trạng đơn hàng AATN" (trang Tổng quan) — phương án A (docs/designs/figma-thiet-ke-lai/9a):
 // giữ dáng phễu (thanh căn giữa, rộng theo giá trị), bỏ khung tam giác nét đứt; công đoạn gom 3 nhóm có tiêu đề + tổng
-// (Chưa sản xuất · Đang trên chuyền · Trong kho), màu theo nhóm.
+// (Chưa sản xuất · Đang trên chuyền · Nhập kho chưa đủ · Trong kho), màu theo nhóm. Nhóm theo remainBucketOf, chỉ
+// thanh P022 tồn kho thực tế (đơn vị mã SAP) đứng riêng, không cộng với hạng mục.
 // ============================================================================
 
 export interface FunnelCardItem {
@@ -15,20 +17,24 @@ export interface FunnelCardItem {
   percentage: number;
 }
 
-type Nhom = 'chua' | 'chuyen' | 'kho';
+type Nhom = 'chua' | 'chuyen' | 'thieu' | 'kho';
 const NHOM: Array<{ key: Nhom; label: string; chu: string }> = [
   { key: 'chua', label: 'Chưa sản xuất', chu: 'text-slate-600' },
   { key: 'chuyen', label: 'Đang trên chuyền', chu: 'text-amber-700' },
+  { key: 'thieu', label: 'Nhập kho chưa đủ', chu: 'text-violet-700' },
   { key: 'kho', label: 'Trong kho', chu: 'text-emerald-700' },
 ];
-const nhomCua = (id: string): Nhom =>
-  id === 'P001' || id === 'P002' || id === 'P012' ? 'chua' : id.startsWith('P022') || id === 'P025' ? 'kho' : 'chuyen';
+const nhomCua = (id: string): Nhom => {
+  if (id === 'P022') return 'kho';
+  const b = remainBucketOf('', extractStage(id));
+  return b === 'onLine' ? 'chuyen' : b === 'shortfall' ? 'thieu' : 'chua';
+};
 // Chưa sản xuất: xám đậm -> nhạt dần theo thứ tự; trên chuyền: cam; kho: xanh (nhập chưa đủ nhạt hơn)
 const mauThanh = (id: string, thuTu: number) => {
   const n = nhomCua(id);
   if (n === 'chua') return ['#3f4654', '#5b6170', '#7a8394'][thuTu] ?? '#7a8394';
   if (n === 'chuyen') return '#f7941d';
-  return id === 'P022' ? '#12805c' : '#7fb89e';
+  return n === 'kho' ? '#12805c' : '#a78bfa';
 };
 /** "P001. Chưa triển khai" → ["Chưa triển khai", "P001"]; "GCVT (sau P013)" → ["GCVT (sau P013)", ""] */
 const tachTen = (name: string): [string, string] => {

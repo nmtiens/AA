@@ -3,6 +3,7 @@ import { pool, poolMra } from '../db.js';
 import { app } from '../server/app.js';
 import { isoWeekRangeInYear } from '../server/common.js';
 import { numericCol, notCancelledHexCond } from '../server/data.js';
+import { daNhapDu, hexDuSoLuong } from '../server/xuong/nhapDu.js';
 import { ensureWorkshopGroups, workshopCondition } from '../server/workshopGroups.js';
 import { fail, phamViXem, COT_SU_KIEN, toSuKien, suKienTheoHex } from './xuong.js';
 import { mocChuanTheoCd, duBaoHangMuc, type DuBao } from '../server/xuong/duBao.js';
@@ -85,6 +86,7 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
       `SELECT hex::text AS hex, sum(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}) AS tien FROM nhap_kho
        WHERE hex::text = ANY($1::text[]) AND date_parsed <= $2::date GROUP BY hex::text`, [hexKh, khoang.end]) : { rows: [] };
     const lkMap = new Map(lk.rows.map(x => [String(x.hex), Number(x.tien) || 0]));
+    const duSlDon = await hexDuSoLuong(pool, hexKh);
     // Nhập kho từng ngày trong tuần, tách theo / ngoài kế hoạch (biểu đồ)
     const ngP: unknown[] = [khoang.start, khoang.end, hexKh, quaTo ? [...quaTo] : null];
     const theoNgay = await pool.query(
@@ -180,8 +182,9 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
       const moc = await mocChuanTheoCd([xuong, ...cdR.map(x => String(x.xuong))], toSuKien, COT_SU_KIEN);
       for (const x of kh.rows) {
         const hex = String(x.hex);
-        const daNhapDu = (Number(x.kh) || 0) > 0 && (nkMap.get(hex)?.tien ?? 0) >= (Number(x.kh) || 0) * 0.98;
-        if (daNhapDu) continue;
+        const nkTuan = nkMap.get(hex);
+        const slKh = Number(x.sl_kh) || 0;
+        if ((Number(x.kh) || 0) > 0 && daNhapDu(Number(x.kh), nkTuan?.tien ?? 0, slKh > 0 && (nkTuan?.sl ?? 0) >= slKh)) continue;
         const slTk = tkMap.get(hex)?.sl ?? 0;
         const st = new Map((cdTheoHex.get(hex) ?? []).map(c => [String(c.congDoanId), c]));
         const xong = (cd: string) => {
@@ -206,7 +209,7 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
           slKh: x.sl_kh === null ? null : Number(x.sl_kh), kh: Number(x.kh) || 0,
           ngayKhnk: (x.ngay_khnk as string | null) ?? null,
           nhapKho: n?.tien ?? 0, slNhapKho: n?.sl ?? 0,
-          nhapKhoLuyKe: lkMap.get(hex) ?? 0, giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don),
+          nhapKhoLuyKe: lkMap.get(hex) ?? 0, giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don), duSlDon: duSlDon.has(hex),
           // Không triển khai trên app nhưng có lịch sử MRA: coi như đã triển khai (làm theo MRA)
           trienKhai: tkMap.get(hex) ?? (mraTk.has(hex) ? { ...mraTk.get(hex)!, mra: true } : null),
           congDoan: cdTheoHex.get(hex) ?? [],

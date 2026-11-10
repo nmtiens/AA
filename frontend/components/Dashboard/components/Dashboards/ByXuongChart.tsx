@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { fmtPt } from '../../../../utils/format';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 import { fetchYearPlan } from '../../../../services/dataService';
 
@@ -24,8 +25,8 @@ interface ApiXuongPoint {
 }
 interface ChartPoint { xuong: string; periodKey: string; total: number; plan?: number; }
 
-const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+const formatDecimal = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const formatShort = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
   order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Giá trị (tỷ)' },
@@ -118,7 +119,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
 
   const theme = THEME[source];
   // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số lượng HEX') : theme.unitValue;
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số hạng mục') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -297,7 +298,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
-              margin={{ top: embedded ? 40 : 48, right: embedded ? 130 : 150, left: 0, bottom: 0 }}
+              margin={{ top: embedded ? 40 : 48, right: 16, left: 0, bottom: 0 }}
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -355,23 +356,6 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
                   stroke="#16a34a"
                   strokeWidth={2}
                   strokeDasharray="6 4"
-                  label={(props: any) => {
-                    const { viewBox } = props;
-                    const text = `TB: ${fmtShort(avgAll)}`;
-                    return (
-                      <text
-                        x={viewBox.x + viewBox.width + 8}
-                        y={viewBox.y}
-                        dy={4}
-                        textAnchor="start"
-                        fontSize={12}
-                        fontWeight={600}
-                        fill="#16a34a"
-                      >
-                        {text}
-                      </text>
-                    );
-                  }}
                 />
               )}
             </ComposedChart>
@@ -388,10 +372,10 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
               backgroundColor: `${theme.bar}1A`,
             }}
           >
-            Tổng: {fmt(totalAll)}
+            Tổng: {fmt(totalAll)} · TB: {fmtShort(avgAll)}
             {showPlan && (
               <span style={{ color: PLAN_DARK }}>
-                {' '}· KH: {fmt(planTotal)} · Đạt {planTotal > 0 ? ((totalAll / planTotal) * 100).toFixed(1) : '0'}%
+                {' '}· KH: {fmt(planTotal)} · Đạt <span className={totalAll > 0 ? '' : 'text-red-600'}>{fmtPt(planTotal > 0 ? (totalAll / planTotal) * 100 : 0)}</span>
               </span>
             )}
           </div>

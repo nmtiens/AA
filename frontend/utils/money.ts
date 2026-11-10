@@ -5,6 +5,7 @@
 // Đã xác nhận bằng dữ liệu: tri_gia_don_hang_tong = số lượng × đơn giá (đồng) / 1.000.000.
 // Backend dùng cùng quy ước (TRIEU_TO_TY = 1000 trong backend/api/index.ts).
 // ============================================================================
+import { fmtSoTy } from './format';
 
 /** Nhãn đơn vị của giá trị tiền gốc trong DB */
 export const MONEY_UNIT_LABEL = 'Triệu đồng';
@@ -18,11 +19,8 @@ export const trieuToTy = (value: number): number => value / TRIEU_PER_TY;
 /** Nhãn đơn vị hiển thị cho mọi giá trị tiền trên giao diện */
 export const TY_UNIT_LABEL = 'Tỷ đồng';
 
-/** Định dạng giá trị đã ở đơn vị tỷ đồng: luôn 2 chữ số thập phân (1,942.89) */
-export const formatTy = (ty: number): string => {
-  const v = Number.isFinite(ty) ? ty : 0;
-  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
+/** Định dạng giá trị đã ở đơn vị tỷ đồng (utils/format.fmtSoTy): 1,942.89; dưới 0.01 ghi <0.01 */
+export const formatTy = fmtSoTy;
 
 /** Định dạng giá trị gốc (triệu đồng) thành tỷ đồng, 2 chữ số thập phân */
 export const formatTrieuAsTy = (trieu: number): string => formatTy(trieuToTy(trieu));

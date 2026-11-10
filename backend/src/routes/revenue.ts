@@ -6,6 +6,7 @@ import { numericCol } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { workshopGroupSql, workshopCondition, workshopGroupsVersion } from '../server/workshopGroups.js';
+import { parseNameList, expandProjectNames, normNameSql } from '../server/projectAlias.js';
 
 // Cache theo phiên bản bảng (server/cache.ts): kế hoạch năm chỉ đổi khi khsx_nam / nhap_kho / sản xuất đổi
 const revenueCache = createCache<unknown>(20);
@@ -148,15 +149,20 @@ app.get('/api/khsx-nam/plan', async (req: Request, res: Response) => {
 // Kế hoạch năm (khsx_nam, TỶ) và thực hiện nhập kho (nhap_kho, triệu -> TỶ, không tính hạng mục HỦY)
 // theo THÁNG × XƯỞNG của 1 năm — cho bảng "Kế hoạch năm – Thực hiện" chia theo khu vực sản xuất.
 // Xưởng theo setup gộp xưởng (server/workshopGroups.ts); xưởng chính (TARGET_WORKSHOPS) xếp trước.
+// ?congTrinh= lọc thực hiện; khsx_nam không có cột công trình nên khi lọc thì plan rỗng.
 app.get('/api/khsx-nam/plan-actual', async (req: Request, res: Response) => {
   try {
     const year = Number(req.query.year) || currentVnYear();
-    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}`, REVENUE_VERSION_KEYS, async () => {
+    const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
+    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}|${congTrinhList.join('|')}`, REVENUE_VERSION_KEYS, async () => {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
     const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql('xuong_chinh')}, ''), 'KHÁC')`;
+    const actualParams: unknown[] = [yearStart, yearEnd];
+    let actualCt = '';
+    if (congTrinhList.length) { actualParams.push(congTrinhList); actualCt = ` AND ${normNameSql('ten_cong_trinh')} = ANY($3::text[])`; }
     const [plan, actual] = await Promise.all([
-      timedQuery(
+      congTrinhList.length ? Promise.resolve({ rows: [] as any[] }) : timedQuery(
         `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS value
          FROM khsx_nam WHERE nam = $1::bigint GROUP BY 1, 2`,
@@ -166,9 +172,9 @@ app.get('/api/khsx-nam/plan-actual', async (req: Request, res: Response) => {
         `SELECT EXTRACT(MONTH FROM date_parsed)::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) / ${TRIEU_TO_TY} AS value
          FROM nhap_kho
-         WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond('hex')}
+         WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond('hex')}${actualCt}
          GROUP BY 1, 2`,
-        [yearStart, yearEnd]
+        actualParams
       ),
     ]);
     const map = (rows: any[]) => rows.map(r => ({ thang: Number(r.thang), xuong: String(r.xuong), value: Number(r.value) }));

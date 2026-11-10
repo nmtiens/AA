@@ -15,4 +15,10 @@ describe('tinhCayDem', () => {
     expect(c.cols).toEqual(['', '2026-10-01', '2026-11-02']);
     expect(c.colTot['2026-10-01']).toBe(2);
   });
+  it('cộng theo giá trị khi truyền hàm giá trị', () => {
+    const g = tinhCayDem(ds, x => [x.a], x => x.c, (m, n) => m.ten.localeCompare(n.ten), x => (x.a === 'X' ? 10 : 5));
+    expect(g.tong).toBe(35);
+    expect(g.goc[0].total).toBe(30);
+    expect(g.colTot['2026-10-01']).toBe(20);
+  });
 });

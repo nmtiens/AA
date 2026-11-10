@@ -3,6 +3,7 @@ import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../../../type
 import { findColumnKey } from '../../utils/columnKeyResolver';
 import { HexDetailModal, type HexDetailColumnKeys } from '../modals/HexDetailModal';
 import { useToast } from '../../../../context/ToastContext';
+import { gomGiaTriTheoHex } from '../../core/chiTietHex';
 
 // ============================================================================
 // Danh sách HẠNG MỤC (HEX) khi bấm 1 con số / nút xem chi tiết của biểu đồ, bảng theo Xưởng / Công trình:
@@ -35,6 +36,8 @@ export interface HexChiTiet {
   ngoaiSanXuat: Record<string, unknown>[];
   /** Cột giá trị của bảng nguồn (tri_gia_don_hang_tong / thanh_tien_nhap_kho / thanh_tien_xuat_kho) */
   cotGiaTri: string;
+  /** Giá trị trong kỳ của số vừa bấm, theo HEX. null: máy chủ cắt dòng hoặc nơi gọi không cần */
+  giaTriKy?: Record<string, number> | null;
 }
 /** Tình trạng ghi cho HEX không còn trong bảng sản xuất */
 export const KHONG_CON_SX = 'Không còn trong bảng sản xuất';
@@ -47,13 +50,20 @@ export const useMoDanhSachHex = () => useContext(DanhSachHexContext);
 export async function layHexChiTiet(params: URLSearchParams, signal?: AbortSignal): Promise<HexChiTiet> {
   const p = new URLSearchParams(params);
   p.set('chiHex', '1');
+  // Dòng nguồn trong kỳ: tiền của bảng sản xuất là lũy kế, không cộng ra được số vừa bấm
+  const nguon = fetch(`/api/detail?${params.toString()}`, { signal })
+    .then(x => (x.ok ? x.json() : null))
+    .catch(() => null);
   const r = await fetch(`/api/detail?${p.toString()}`, { signal });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const d = await r.json();
+  const cotGiaTri = String(d.cotGiaTri ?? '');
+  const n = await nguon;
   return {
     hexes: Array.isArray(d.hexes) ? d.hexes : [],
     ngoaiSanXuat: Array.isArray(d.ngoaiSanXuat) ? d.ngoaiSanXuat : [],
-    cotGiaTri: String(d.cotGiaTri ?? ''),
+    cotGiaTri,
+    giaTriKy: cotGiaTri && Array.isArray(n?.rows) && !n.truncated ? gomGiaTriTheoHex(n.rows, cotGiaTri) : null,
   };
 }
 
@@ -65,12 +75,12 @@ export function DanhSachHexProvider({ rows, columnKeys, currentUser, children }:
   children: ReactNode;
 }) {
   const { showToast } = useToast();
-  const [ds, setDs] = useState<{ open: boolean; title: string; hexes: Set<string>; ngoai: Record<string, unknown>[]; cotGiaTri: string }>(
-    { open: false, title: '', hexes: new Set(), ngoai: [], cotGiaTri: '' });
+  const [ds, setDs] = useState<{ open: boolean; title: string; hexes: Set<string>; ngoai: Record<string, unknown>[]; cotGiaTri: string; giaTriKy: Record<string, number> | null }>(
+    { open: false, title: '', hexes: new Set(), ngoai: [], cotGiaTri: '', giaTriKy: null });
   const mo = useMemo<MoDanhSachHex>(() => (title, d) => {
     // Số do máy chủ tính sẵn — danh sách hạng mục cần bảng sản xuất (đang tải ngầm)
     if (rows.length === 0) { showToast('Đang tải chi tiết hạng mục, bấm lại sau ít giây', 'info'); return; }
-    setDs({ open: true, title, hexes: new Set(d.hexes), ngoai: d.ngoaiSanXuat, cotGiaTri: d.cotGiaTri });
+    setDs({ open: true, title, hexes: new Set(d.hexes), ngoai: d.ngoaiSanXuat, cotGiaTri: d.cotGiaTri, giaTriKy: d.giaTriKy ?? null });
   }, [rows.length, showToast]);
   const dsRows = useMemo(() => {
     const k = columnKeys;
@@ -104,6 +114,7 @@ export function DanhSachHexProvider({ rows, columnKeys, currentUser, children }:
         rows={dsRows}
         columnKeys={columnKeys}
         currentUser={currentUser}
+        giaTriKy={ds.giaTriKy}
       />
     </DanhSachHexContext.Provider>
   );

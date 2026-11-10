@@ -131,7 +131,7 @@ export interface DauVaoBaoCao {
   doanhThu?: DoanhThuKeHoach;
   /** Tháng hiện tại ('YYYY-MM', giờ VN): doanh thu tháng này chưa hết => đánh dấu * */
   thangHienTai?: string;
-  /** Ảnh biểu đồ doanh số cần đạt & thực tế (cả công ty) chụp từ đầu trang — in 1 lần ở trang tổng kết */
+  /** Ảnh biểu đồ doanh số cần đạt (cả công ty) chụp từ đầu trang — in 1 lần ở trang tổng kết */
   anhDoanhSo?: string;
   /** Dự báo tồn theo kế hoạch doanh thu từng nhóm và toàn kho (xem theo tháng, giá trị) */
   duBao?: Record<string, DuBaoTon | null>;
@@ -263,7 +263,7 @@ export function dungBaoCaoPdf(v: DauVaoBaoCao): TDocumentDefinitions {
       ? [`Dự báo tồn TOÀN KHO theo kế hoạch doanh thu: ${chuDuBao(v.duBaoToanKho)}. Cách tính: tồn đổi bằng ½ mức đổi của doanh thu bình quân 3 tháng (doanh thu = doanh số cần đạt từng tháng). Kiểm lại trên các tháng đã qua: sai trung bình ±${v.duBaoToanKho.saiSo[0] === null ? '—' : dinhDangSo(v.duBaoToanKho.saiSo[0] / 1000, 1)} tỷ trước 1 tháng (giữ nguyên tồn: ±${v.duBaoToanKho.saiSoGiuNguyen[0] === null ? '—' : dinhDangSo(v.duBaoToanKho.saiSoGiuNguyen[0] / 1000, 1)} tỷ).`]
       : []),
     ...(v.moc === 'thang' && v.doanhThu
-      ? ['Doanh thu tháng = doanh số cần đạt (cả công ty): năm 2025 853 tỷ, 2026 ~1.667 tỷ, 2027 3.000 tỷ.']
+      ? ['Doanh thu tháng = doanh số cần đạt (cả công ty): năm 2025 853 tỷ, 2026 1,656 tỷ, 2027 3,000 tỷ.']
       : []),
     ...(Object.keys(v.loc ?? {}).length
       ? ['4 số tổng phía trên tính cho toàn kho. Nhóm ghi "lọc: …" chỉ tính các tên vật tư thoả bộ lọc (như bộ lọc cột của Excel) của biểu đồ đó — danh sách tên in ở trang của nhóm.']
@@ -302,7 +302,7 @@ export function dungBaoCaoPdf(v: DauVaoBaoCao): TDocumentDefinitions {
       { text: 'Tổng kết theo nhóm', bold: true, fontSize: 11, margin: [0, 12, 0, 4] },
       bangTongKet(ds.map(x => x.k), v.chiSo, v.moc, v.loc),
       ...(v.moc === 'thang' && v.anhDoanhSo ? [
-        { text: 'Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ)', bold: true, fontSize: 11, margin: [0, 12, 0, 4] } as Content,
+        { text: 'Doanh số cần đạt từng tháng (cả công ty, tỷ)', bold: true, fontSize: 11, margin: [0, 12, 0, 4] } as Content,
         { image: v.anhDoanhSo, fit: [RONG_NOI_DUNG, 170] as [number, number], alignment: 'center' } as Content,
       ] : []),
       { ul: ghiChu, fontSize: 7.5, color: XAM, margin: [0, 8, 0, 0] },

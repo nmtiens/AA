@@ -32,6 +32,6 @@ describe('hỏi số liệu — danh mục', () => {
 
   it('vướng mắc: trạng thái có "Mới" — "đang mở" = Mới + Đang xử lý (cùng cách đếm open của trang Vướng mắc)', () => {
     const st = bangTheoId.get('vuong_mac')!.cot.find(c => c.id === 'status')!;
-    assert.deepEqual(st.gt, ['Mới', 'Đang xử lý', 'Đã xong', 'Đã đóng']);
+    assert.deepEqual(st.gt, ['Mới', 'Đang xử lý', 'Chờ xác nhận', 'Đã đóng']);
   });
 });

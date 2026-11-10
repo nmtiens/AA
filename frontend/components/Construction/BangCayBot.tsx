@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { tinhCayDem, type NutDem } from './core/cayDem';
 import { Chip, NutMoTatCa, type HexInfo } from './ProjectHealthTabs';
-import { fmtInt } from '../../utils/format';
+import { fmtInt, fmtTy } from '../../utils/format';
+import { khung as khungB, soBam, soO, table, tdB, tfoot, thB, thead } from '../shared/bangBaoCao';
 
 // ============================================================================
 // Bảng kế hoạch nhập kho của tab BOT, cùng kiểu bảng tab BOP: dòng theo công trình / sản phẩm / xưởng, mở dòng ra
@@ -15,8 +16,6 @@ const KHONG: Record<ChieuBot, string> = { ct: '(Chưa có công trình)', nsp: '
 const giaTriChieu: Record<ChieuBot, (h: HexInfo) => string> = {
   ct: h => h.congTrinh || KHONG.ct, nsp: h => h.nhomSp || KHONG.nsp, xuong: h => h.area || KHONG.xuong,
 };
-const thB = 'border-b border-r border-slate-300 px-2 py-1.5 font-bold';
-const tdB = 'border-b border-r border-slate-300 px-2 py-1.5';
 const NOI = '\u0000';
 const nhanNgay = (k: string) => `${k.slice(8)}/${k.slice(5, 7)}`;
 
@@ -27,7 +26,9 @@ const sapNut = (b: ChieuBot[]) => (x: NutDem, y: NutDem, bac: number) => {
 
 export type ChonBot = { khoa: string; ten: string; ds: HexInfo[] } | null;
 
-export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon }: {
+export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon, theoGiaTri }: {
+  /** true: cộng trị giá hạng mục, in tỷ; false: đếm hạng mục */
+  theoGiaTri: boolean;
   ds: HexInfo[];
   /** Khoá ngày 'YYYY-MM-DD'; rỗng = chưa có ngày */
   cotOf: (h: HexInfo) => string;
@@ -54,12 +55,12 @@ export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon }: {
 
   const bac = useMemo(() => BAC[cheDo].filter(c => tatCa || c !== 'ct'), [cheDo, tatCa]);
   const bacDao = useMemo<ChieuBot[]>(() => [bac[0], bac[2], bac[1]], [bac]);
-  const tinh = (b: ChieuBot[]) => tinhCayDem(ds, h => b.map(c => giaTriChieu[c](h)), cotOf, sapNut(b));
+  const tinh = (b: ChieuBot[]) => tinhCayDem(ds, h => b.map(c => giaTriChieu[c](h)), cotOf, sapNut(b), theoGiaTri ? h => Math.max(h.total, 0) : undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const cay = useMemo(() => tinh(bac), [ds, bac, cotOf]);
+  const cay = useMemo(() => tinh(bac), [ds, bac, cotOf, theoGiaTri]);
   const canDao = tatCa && Object.values(chonCon).includes(bacDao[1]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const cayDao = useMemo(() => (canDao ? new Map(tinh(bacDao).goc.map(n => [n.ten, n])) : null), [canDao, ds, bacDao, cotOf]);
+  const cayDao = useMemo(() => (canDao ? new Map(tinh(bacDao).goc.map(n => [n.ten, n])) : null), [canDao, ds, bacDao, cotOf, theoGiaTri]);
 
   // Cột gộp theo tháng; chưa có ngày để cuối
   const thang = useMemo(() => {
@@ -86,8 +87,8 @@ export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon }: {
   };
   const o = (v: number, duong: string[], b: ChieuBot[], ngay: string[] | null, nhan: string, cls = '') => (
     <td onClick={v ? () => bam(duong, b, ngay, nhan) : undefined}
-      className={`${tdB} whitespace-nowrap text-center tabular-nums ${v ? 'cursor-pointer hover:bg-amber-50' : ''} ${chon?.khoa === khoaO(duong, b, ngay) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
-      {v ? <span className="underline decoration-slate-300 decoration-dotted underline-offset-2">{fmtInt(v)}</span> : ''}
+      className={`${tdB} ${soO} ${v ? 'cursor-pointer hover:bg-amber-50' : ''} ${chon?.khoa === khoaO(duong, b, ngay) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
+      {v ? <span className={soBam}>{(theoGiaTri ? fmtTy : fmtInt)(v)}</span> : ''}
     </td>
   );
   const doi = (k: string) => setMoDong(m => { const n = new Set(m); if (n.has(k)) n.delete(k); else n.add(k); return n; });
@@ -132,9 +133,9 @@ export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon }: {
   const dongBang = cay.goc.map(n => dong(n, bac));
   const it = soDong <= 15 && coSoRong;
   return (
-    <div ref={khung} style={{ height: `min(70vh, ${soDong * 52 + 120}px)` }} className="overflow-auto border-l border-t border-slate-300 custom-scrollbar">
-      <table className={`h-full w-full border-separate border-spacing-0 font-medium ${it ? 'text-base' : 'text-[0.9375rem]'}`}>
-        <thead className="sticky top-0 z-20 bg-emerald-300 text-slate-900">
+    <div ref={khung} style={{ height: `min(70vh, ${soDong * 52 + 120}px)` }} className={khungB}>
+      <table className={`${table} h-full ${it ? '!text-base' : ''}`}>
+        <thead className={thead}>
           <tr>
             <th rowSpan={2} className={`${thB} sticky left-0 z-20 w-px min-w-[13rem] whitespace-nowrap bg-emerald-300 text-center`}>
               {TEN_CHIEU_BOT[cheDo]}
@@ -158,7 +159,7 @@ export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon }: {
           </tr>
         </thead>
         <tbody>{dongBang}</tbody>
-        <tfoot className="font-bold text-red-600 [&_td]:sticky [&_td]:bottom-0 [&_td]:z-[2] [&_td]:bg-yellow-300">
+        <tfoot className={tfoot}>
           <tr>
             <td className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
             {cot.map(c => <React.Fragment key={c.key}>{o(congCot(cay.colTot, c.ngay), [], bac, c.ngay, c.nhan)}</React.Fragment>)}

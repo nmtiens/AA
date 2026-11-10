@@ -98,7 +98,7 @@ export const PRIORITY_META: Record<VmPriority, { label: string; icon: string; pi
 /** Trạng thái hiển thị trên thẻ: kết hợp quy trình + hạn BOT */
 export type DisplayState = 'closed' | 'done' | 'overdue' | 'soon' | 'doing' | 'open';
 export const DISPLAY_META: Record<DisplayState, { label: string; icon: string; pill: string; bar: string; dot: string }> = {
-  overdue: { label: 'Quá hạn BOT', icon: '⏰', pill: 'bg-red-100 text-red-700', bar: 'bg-red-500', dot: 'bg-red-500' },
+  overdue: { label: 'Quá hạn xử lý', icon: '⏰', pill: 'bg-red-100 text-red-700', bar: 'bg-red-500', dot: 'bg-red-500' },
   soon:    { label: 'Sắp đến hạn', icon: '⌛', pill: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500', dot: 'bg-amber-500' },
   open:    STATUS_META.open,
   doing:   STATUS_META.doing,
@@ -206,4 +206,18 @@ export const pushRecentHex = (h: Omit<RecentHex, 'at'>) => {
     list.unshift({ ...h, at: Date.now() });
     localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 8)));
   } catch { /* bỏ qua */ }
+};
+
+// ---------------- Bảng theo nhóm ----------------
+export interface DongNhom { name: string; open: number; waiting: number; overdue: number; created: number; done: number }
+
+/** Bảng hiện n dòng, phần còn lại gộp vào Khác (cộng dòng Khác máy chủ đã gộp sẵn), kèm dòng tổng */
+export const gomBangNhom = <T extends DongNhom>(rows: T[], n: number) => {
+  const co = rows.filter(r => r.open || r.waiting || r.created || r.done);
+  const cong = (ds: DongNhom[]) => ds.reduce((a, r) => ({
+    ...a, open: a.open + r.open, waiting: a.waiting + r.waiting, overdue: a.overdue + r.overdue, created: a.created + r.created, done: a.done + r.done,
+  }), { name: '', open: 0, waiting: 0, overdue: 0, created: 0, done: 0 });
+  const chinh = co.filter(r => r.name !== 'Khác');
+  const conLai = [...chinh.slice(n), ...co.filter(r => r.name === 'Khác')];
+  return { hien: chinh.slice(0, n), khac: conLai.length ? { ...cong(conLai), name: 'Khác' } : null, tong: { ...cong(co), name: 'TỔNG' } };
 };

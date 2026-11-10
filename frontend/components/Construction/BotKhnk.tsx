@@ -3,8 +3,10 @@ import { pivotM2, giaTriLoc, TRONG_M2 } from './core/bopM2';
 import { Pivot, ChiTiet, Loc, khopO, tenO, TAT_CA, type ChonO } from './PivotExcel';
 import { Chip, type HexInfo } from './ProjectHealthTabs';
 import { BangCayBot, TEN_CHIEU_BOT, type ChieuBot, type ChonBot } from './BangCayBot';
-import { fmtInt } from '../../utils/format';
-import { formatTrieuAsTy } from '../../utils/money';
+import { fmtInt, fmtPt, fmtTy } from '../../utils/format';
+import * as bang from '../shared/bangBaoCao';
+import { IPO_MAC_DINH, laHuy, tyLeHoanThanh } from '../../utils/productionMetrics';
+import { thuHaiCua, thuNamCua } from '../../utils/dateUtils';
 import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, LabelList, Cell } from 'recharts';
 
 // ============================================================================
@@ -16,7 +18,7 @@ import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, 
 // ngay_khnk_tuan, không bỏ KH kỳ đã đạt (khác cách tính hạn của các trang khác). Bấm số => danh sách HEX.
 // ============================================================================
 
-const MAC_DINH_IPO = '01. ĐANG SẢN XUẤT';
+const MAC_DINH_IPO = IPO_MAC_DINH;
 /** Khoá cột ngày 'YYYY-MM-DD' (để xếp đúng thứ tự thời gian) */
 const khoaNgay = (d: Date | null | undefined) =>
   d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
@@ -29,7 +31,7 @@ const COT_HEX: [string, (h: HexInfo) => string][] = [
 
 export const BotKhnk = ({ items, dieuPhoiItems, onHexClick }: {
   items: HexInfo[];
-  /** Nguồn của báo cáo điều phối (mọi tình trạng IPO). Thiếu => dùng items (cửa sổ 1 công trình: items đã đủ IPO) */
+  /** Nguồn của báo cáo điều phối (mọi tình trạng IPO trừ HỦY). Thiếu => dùng items */
   dieuPhoiItems?: HexInfo[];
   onHexClick?: (hex: string) => void;
 }) => {
@@ -51,11 +53,12 @@ export const BotKhnk = ({ items, dieuPhoiItems, onHexClick }: {
   const [oThang, setOThang] = useState<ChonBot>(null);
   const [oTuan, setOTuan] = useState<ChonBot>(null);
   const [moDp, setMoDp] = useState(false);
+  const [theoGiaTri, setTheoGiaTri] = useState(true);
   const boChon = () => { setOThang(null); setOTuan(null); };
   const doiIpo = (v: string) => { setIpo(v); boChon(); };
   const doiCheDo = (c: ChieuBot) => { setCheDo(c); boChon(); };
   // Điều phối: tính MỌI tình trạng IPO trừ Hủy — hạng mục làm xong chuyển "02. HOÀN THÀNH", lọc IPO sẽ mất phần đạt
-  const nguonDp = useMemo(() => (dieuPhoiItems ?? items).filter(h => h.hex && !/HỦY/i.test(h.ipo ?? '')), [dieuPhoiItems, items]);
+  const nguonDp = useMemo(() => (dieuPhoiItems ?? items).filter(h => h.hex && !laHuy(h.ipo)), [dieuPhoiItems, items]);
 
   return (
     <div className="space-y-5">
@@ -65,17 +68,21 @@ export const BotKhnk = ({ items, dieuPhoiItems, onHexClick }: {
         <div className="flex gap-1">
           {nut.map(c => <Chip key={c} active={cheDoChon === c} onClick={() => doiCheDo(c)}>Theo {TEN_CHIEU_BOT[c].toLowerCase()}</Chip>)}
         </div>
+        <div className="ml-auto flex gap-1">
+          <Chip active={theoGiaTri} onClick={() => { setTheoGiaTri(true); boChon(); }}>Trị giá (tỷ)</Chip>
+          <Chip active={!theoGiaTri} onClick={() => { setTheoGiaTri(false); boChon(); }}>Số hạng mục</Chip>
+        </div>
       </div>
 
       <section className="space-y-2">
         <h4 className="text-base font-bold text-slate-900">1/ KẾ HOẠCH NHẬP KHO <span className="text-red-600">THÁNG</span></h4>
-        <BangCayBot ds={loc} cotOf={thangOf} cheDo={cheDoChon} tatCa={tatCa} ten="KH tháng" chon={oThang} onChon={setOThang} />
+        <BangCayBot ds={loc} cotOf={thangOf} cheDo={cheDoChon} tatCa={tatCa} theoGiaTri={theoGiaTri} ten="KH tháng" chon={oThang} onChon={setOThang} />
         {oThang && <ChiTiet tieuDe={oThang.ten} cot={cot} onDong={() => setOThang(null)} onHex={onHexClick} ds={oThang.ds} />}
       </section>
 
       <section className="space-y-2">
         <h4 className="text-base font-bold text-slate-900">2/ KẾ HOẠCH NHẬP KHO <span className="text-red-600">TUẦN</span></h4>
-        <BangCayBot ds={loc} cotOf={tuanOf} cheDo={cheDoChon} tatCa={tatCa} ten="KH tuần" chon={oTuan} onChon={setOTuan} />
+        <BangCayBot ds={loc} cotOf={tuanOf} cheDo={cheDoChon} tatCa={tatCa} theoGiaTri={theoGiaTri} ten="KH tuần" chon={oTuan} onChon={setOTuan} />
         {oTuan && <ChiTiet tieuDe={oTuan.ten} cot={cot} onDong={() => setOTuan(null)} onHex={onHexClick} ds={oTuan.ds} />}
       </section>
 
@@ -98,19 +105,14 @@ export const BotKhnk = ({ items, dieuPhoiItems, onHexClick }: {
 const DAY_MS = 86_400_000;
 const thangOfNgay = (d: Date | null | undefined) => (d ? khoaNgay(d).slice(0, 7) : '');
 const nhanThang = (m: string) => `Tháng ${m.slice(5)}/${m.slice(0, 4)}`;
-/** Thứ Hai của tuần chứa ngày d */
-const thuHai = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+const thuHai = thuHaiCua;
 /** Tháng của TUẦN KH (T2–CN) = tháng chứa Thứ Năm của tuần (như tuần ISO): tuần 26/10–01/11 thuộc tháng 10 */
-const thangTuanOf = (d: Date | null | undefined) => {
-  if (!d) return '';
-  const t2 = thuHai(d);
-  return thangOfNgay(new Date(t2.getFullYear(), t2.getMonth(), t2.getDate() + 3));
-};
+const thangTuanOf = (d: Date | null | undefined) => (d ? thangOfNgay(thuNamCua(d)) : '');
 const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 const xongThang = (h: HexInfo) => !!h.khnkThangMet || !h.open;
 const xongTuan = (h: HexInfo) => !!h.khnkTuanMet || !h.open;
 const giaTri = (ds: HexInfo[]) => ds.reduce((a, h) => a + (h.total || 0), 0);
-const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+const pct = (a: number, b: number) => tyLeHoanThanh(b, a);
 
 /** Lệch ngày KH tuần so với KH tháng (cột của bảng đối chiếu; số đầu để xếp thứ tự) */
 const LECH = ['1. Tuần sớm / đúng KH tháng', '2. Tuần trễ, vẫn trong tháng', '3. Tuần dời sang tháng sau', '4. Chưa có KH tuần'] as const;
@@ -132,9 +134,6 @@ const KhungBd = ({ tieuDe, phu, cao = 260, children }: { tieuDe: string; phu?: s
     <div style={{ height: cao }} className="mt-2"><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>
   </div>
 );
-
-const thD = 'border border-slate-300 px-3 py-2 font-bold';
-const tdD = 'border border-slate-300 px-3 py-2';
 
 const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
   loc: HexInfo[]; cot: [string, (h: HexInfo) => string][]; onHexClick?: (hex: string) => void;
@@ -200,18 +199,18 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
   const n = s.khThang.length;
   const tenThang = nhanThang(thangChon);
   const the: { ten: string; ds: HexInfo[]; phu: string; mau: string; goiY: string }[] = [
-    { ten: `KH tháng ${thangChon.slice(5)}`, ds: s.khThang, phu: `${formatTrieuAsTy(giaTri(s.khThang))} tỷ`, mau: 'text-slate-900', goiY: 'Hạng mục có ngày KHNK tháng trong tháng chọn' },
-    { ten: 'Đã chia xuống tuần', ds: s.coTuan, phu: `${pct(s.coTuan.length, n)}% KH tháng`, mau: 'text-sky-700', goiY: 'KH tháng đã có ngày KHNK tuần' },
-    { ten: 'Hoàn thành KH tháng', ds: s.xong, phu: `${pct(s.xong.length, n)}% · ${formatTrieuAsTy(giaTri(s.xong))} tỷ`, mau: 'text-emerald-700', goiY: 'Đạt SL KH tháng trong kỳ hoặc đã nhập kho đủ' },
-    { ten: 'Trễ KH tháng', ds: s.tre, phu: `${pct(s.tre.length, n)}% · ${formatTrieuAsTy(giaTri(s.tre))} tỷ`, mau: 'text-red-600', goiY: 'Đã qua ngày KHNK tháng mà chưa hoàn thành' },
-    { ten: 'Dời sang tháng sau', ds: s.truot, phu: `${pct(s.truot.length, n)}% KH tháng`, mau: 'text-orange-600', goiY: 'KH tuần nằm ở tháng sau KH tháng: kế hoạch tháng bị trượt' },
-    { ten: 'KH tuần ngoài KH tháng', ds: s.ngoai, phu: `${pct(s.ngoai.length, s.khTuan.length)}% KH tuần trong tháng`, mau: 'text-violet-700', goiY: 'Có KH tuần trong tháng nhưng KH tháng ở tháng khác hoặc trống (phát sinh / kéo từ tháng khác)' },
+    { ten: `KH tháng ${thangChon.slice(5)}`, ds: s.khThang, phu: `${fmtTy(giaTri(s.khThang))} tỷ`, mau: 'text-slate-900', goiY: 'Hạng mục có ngày KHNK tháng trong tháng chọn' },
+    { ten: 'Đã chia xuống tuần', ds: s.coTuan, phu: `${fmtPt(pct(s.coTuan.length, n))} KH tháng`, mau: 'text-sky-700', goiY: 'KH tháng đã có ngày KHNK tuần' },
+    { ten: 'Hoàn thành KH tháng', ds: s.xong, phu: `${fmtPt(pct(s.xong.length, n))} · ${fmtTy(giaTri(s.xong))} tỷ`, mau: 'text-emerald-700', goiY: 'Đạt SL KH tháng trong kỳ hoặc đã nhập kho đủ' },
+    { ten: 'Trễ KH tháng', ds: s.tre, phu: `${fmtPt(pct(s.tre.length, n))} · ${fmtTy(giaTri(s.tre))} tỷ`, mau: 'text-red-600', goiY: 'Đã qua ngày KHNK tháng mà chưa hoàn thành' },
+    { ten: 'Dời sang tháng sau', ds: s.truot, phu: `${fmtPt(pct(s.truot.length, n))} KH tháng`, mau: 'text-orange-600', goiY: 'KH tuần nằm ở tháng sau KH tháng: kế hoạch tháng bị trượt' },
+    { ten: 'KH tuần ngoài KH tháng', ds: s.ngoai, phu: `${fmtPt(pct(s.ngoai.length, s.khTuan.length))} KH tuần trong tháng`, mau: 'text-violet-700', goiY: 'Có KH tuần trong tháng nhưng KH tháng ở tháng khác hoặc trống (phát sinh / kéo từ tháng khác)' },
   ];
   const so = (v: HexInfo[], ten: string, cls = '') => (
-    <td className={`${tdD} text-right tabular-nums ${cls}`}>
+    <td className={`${bang.tdSo} ${cls}`}>
       {v.length ? (
         <button type="button" onClick={() => mo(ten, v)} title="Bấm để xem danh sách HEX"
-          className={`underline decoration-dotted underline-offset-2 hover:text-blue-700 ${xem?.ten === ten ? 'font-bold text-blue-700' : ''}`}>{fmtInt(v.length)}</button>
+          className={`${bang.soBam} hover:text-blue-700 ${xem?.ten === ten ? 'font-bold text-blue-700' : ''}`}>{fmtInt(v.length)}</button>
       ) : ''}
     </td>
   );
@@ -228,12 +227,12 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
       <div className="flex flex-wrap items-center gap-3">
         <h4 className="text-base font-bold text-slate-900">3/ THEO DÕI &amp; PHÂN TÍCH <span className="text-red-600">ĐIỀU PHỐI KẾ HOẠCH THÁNG – TUẦN</span></h4>
         <div className="flex items-center text-sm">
-          <span className="border border-slate-300 bg-emerald-400/80 px-4 py-2 font-bold text-slate-900">THÁNG</span>
+          <span className="border border-slate-300 bg-emerald-300 px-4 py-2 font-bold text-slate-900">THÁNG</span>
           <select value={thangChon} onChange={e => doiThang(e.target.value)} className="border border-l-0 border-slate-300 bg-sky-50 px-3 py-2 text-slate-800">
             {dsThang.map(m => <option key={m} value={m}>{nhanThang(m)}{coKhThang.includes(m) ? '' : ' (chưa có KH tháng)'}</option>)}
           </select>
         </div>
-        <span className="text-xs text-slate-500">Hôm nay {nhanNgay(khoaNgay(new Date(homNay)))} · tính mọi tình trạng IPO trừ Hủy (không theo ô lọc IPO) · tuần T2–CN tính vào tháng chứa Thứ Năm</span>
+        <span className="text-xs text-slate-500" title="Mọi tình trạng IPO trừ Hủy, không theo ô lọc IPO. Tuần T2–CN tính vào tháng chứa Thứ Năm">Hôm nay {nhanNgay(khoaNgay(new Date(homNay)))}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -255,14 +254,14 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
               angle={-30} textAnchor="end" height={56} tickFormatter={(v: string) => v.replace(/^\d+\.\s*/, '')} />
             <YAxis yAxisId="so" tick={truc} tickLine={false} axisLine={false} width={44} tickFormatter={v => fmtInt(v)} />
             <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={truc} tickLine={false} axisLine={false} width={36} tickFormatter={v => `${v}%`} />
-            <Tooltip isAnimationActive={false} cursor={{ fill: '#f1f5f9' }} formatter={(v, ten) => (ten === '% hoàn thành' ? [`${v}%`, String(ten)] : goiYSo(v, ten))} />
+            <Tooltip isAnimationActive={false} cursor={{ fill: '#f1f5f9' }} formatter={(v, ten) => (ten === '% hoàn thành' ? [fmtPt(Number(v)), String(ten)] : goiYSo(v, ten))} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             {([['dat', 'Hoàn thành', MAU.dat, 'datL', 'hoàn thành'], ['tre', 'Trễ', MAU.tre, 'treL', 'trễ'], ['chua', 'Chưa đến hạn', MAU.chua, 'chuaL', 'chưa đến hạn']] as const).map(([k, ten, mau, ds, nhan]) => (
               <Bar key={k} yAxisId="so" dataKey={k} name={ten} stackId="a" fill={mau} maxBarSize={56} isAnimationActive={false} cursor="pointer"
                 onClick={(_, i) => mo(`${tenThang} · ${s.theoNsp[i].nsp} · ${nhan}`, s.theoNsp[i][ds])} />
             ))}
             <Line yAxisId="pct" type="linear" dataKey="pct" name="% hoàn thành" stroke={MAU.duong} strokeWidth={2} dot={{ r: 3, fill: MAU.duong }} isAnimationActive={false}>
-              <LabelList dataKey="pct" position="top" formatter={(v: unknown) => `${v}%`} style={{ fontSize: 11, fontWeight: 600, fill: MAU.duong }} />
+              <LabelList dataKey="pct" position="top" formatter={(v: unknown) => fmtPt(Number(v))} style={{ fontSize: 11, fontWeight: 600, fill: MAU.duong }} />
             </Line>
           </ComposedChart>
         </KhungBd>
@@ -275,7 +274,7 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
             <XAxis dataKey="nhan" tick={truc} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
             <YAxis yAxisId="so" tick={truc} tickLine={false} axisLine={false} width={44} tickFormatter={v => fmtInt(v)} />
             <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={truc} tickLine={false} axisLine={false} width={36} tickFormatter={v => `${v}%`} />
-            <Tooltip isAnimationActive={false} cursor={{ fill: '#f1f5f9' }} formatter={(v, ten) => (ten === '% hoàn thành' ? [`${v}%`, String(ten)] : goiYSo(v, ten))} />
+            <Tooltip isAnimationActive={false} cursor={{ fill: '#f1f5f9' }} formatter={(v, ten) => (ten === '% hoàn thành' ? [fmtPt(Number(v)), String(ten)] : goiYSo(v, ten))} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             {([['dat', 'Hoàn thành', MAU.dat], ['tre', 'Trễ', MAU.tre], ['chua', 'Chưa đến hạn', MAU.chua]] as const).map(([k, ten, mau]) => (
               <Bar key={k} yAxisId="so" dataKey={k} name={ten} stackId="a" fill={mau} maxBarSize={56} isAnimationActive={false} cursor="pointer"
@@ -284,7 +283,7 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
               </Bar>
             ))}
             <Line yAxisId="pct" type="linear" dataKey="pct" name="% hoàn thành" stroke={MAU.duong} strokeWidth={2} dot={{ r: 3, fill: MAU.duong }} isAnimationActive={false}>
-              <LabelList dataKey="pct" position="top" formatter={(v: unknown) => `${v}%`} style={{ fontSize: 11, fontWeight: 600, fill: MAU.duong }} />
+              <LabelList dataKey="pct" position="top" formatter={(v: unknown) => fmtPt(Number(v))} style={{ fontSize: 11, fontWeight: 600, fill: MAU.duong }} />
             </Line>
           </ComposedChart>
         </KhungBd>
@@ -297,7 +296,7 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {LECH.map(l => {
               const v = s.lech.colTot[l] ?? 0;
-              return <span key={l} className={MAU_LECH[l]}>● {l.slice(3)}: <b className="tabular-nums">{fmtInt(v)}</b> ({pct(v, n)}%)</span>;
+              return <span key={l} className={MAU_LECH[l]}>● {l.slice(3)}: <b className="tabular-nums">{fmtInt(v)}</b> ({fmtPt(pct(v, n))})</span>;
             })}
           </div>
           <KhungBd tieuDe="Cơ cấu lệch KH tuần so với KH tháng theo nhóm sản phẩm" phu="Tỷ lệ % số HEX của KH tháng · bấm đoạn màu để xem danh sách" cao={Math.max(180, s.lech.keys.length * 30 + 50)}>
@@ -329,30 +328,30 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
               <XAxis dataKey="nhan" tick={truc} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
               <YAxis yAxisId="so" tick={truc} tickLine={false} axisLine={false} width={44} tickFormatter={v => fmtInt(v)} />
               <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={truc} tickLine={false} axisLine={false} width={36} tickFormatter={v => `${v}%`} />
-              <Tooltip isAnimationActive={false} cursor={{ fill: '#f1f5f9' }} formatter={(v, ten) => (ten === 'Tỷ lệ đạt' ? [`${v}%`, String(ten)] : goiYSo(v, ten))} />
+              <Tooltip isAnimationActive={false} cursor={{ fill: '#f1f5f9' }} formatter={(v, ten) => (ten === 'Tỷ lệ đạt' ? [fmtPt(Number(v)), String(ten)] : goiYSo(v, ten))} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               {([['dat', 'Đạt', MAU.dat, 'đạt'], ['tre', 'Trễ', MAU.tre, 'trễ'], ['chua', 'Chưa đến hạn', MAU.chua, 'chưa đến hạn']] as const).map(([k, ten, mau, nhan]) => (
                 <Bar key={k} yAxisId="so" dataKey={k} name={ten} stackId="a" fill={mau} maxBarSize={56} isAnimationActive={false} cursor="pointer"
                   onClick={(_, i) => { const d = duLieuTuan[i].d; mo(`${d.ten} · ${nhan}`, k === 'dat' ? d.dat : k === 'tre' ? d.tre : d.chuaDen); }} />
               ))}
               <Line yAxisId="pct" type="linear" dataKey="pct" name="Tỷ lệ đạt" stroke={MAU.duong} strokeWidth={2} dot={{ r: 3, fill: MAU.duong }} isAnimationActive={false}>
-                <LabelList dataKey="pct" position="top" formatter={(v: unknown) => `${v}%`} style={{ fontSize: 11, fontWeight: 600, fill: MAU.duong }} />
+                <LabelList dataKey="pct" position="top" formatter={(v: unknown) => fmtPt(Number(v))} style={{ fontSize: 11, fontWeight: 600, fill: MAU.duong }} />
               </Line>
             </ComposedChart>
           </KhungBd>
-          <div className="overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-emerald-400/80 text-slate-900">
+          <div className={`${bang.khung} max-h-[70vh]`}>
+            <table className={bang.table}>
+              <thead className={bang.thead}>
                 <tr>
-                  <th className={`${thD} text-left`}>TUẦN</th>
-                  <th className={`${thD} text-center`}>KH TUẦN</th>
-                  <th className={`${thD} text-center`} title="KH tuần của hạng mục có KH tháng thuộc tháng này">TỪ KH THÁNG</th>
-                  <th className={`${thD} text-center`} title="KH tuần của hạng mục có KH tháng ở tháng khác hoặc trống">NGOÀI KH THÁNG</th>
-                  <th className={`${thD} text-center`}>ĐẠT</th>
-                  <th className={`${thD} text-center`}>TRỄ</th>
-                  <th className={`${thD} text-center`}>CHƯA ĐẾN HẠN</th>
-                  <th className={`${thD} w-48 text-center`}>TỶ LỆ ĐẠT</th>
-                  <th className={`${thD} text-center`}>GIÁ TRỊ KH (TỶ)</th>
+                  <th className={bang.thC}>TUẦN</th>
+                  <th className={bang.thC}>KH TUẦN</th>
+                  <th className={bang.thC} title="KH tuần của hạng mục có KH tháng thuộc tháng này">TỪ KH THÁNG</th>
+                  <th className={bang.thC} title="KH tuần của hạng mục có KH tháng ở tháng khác hoặc trống">NGOÀI KH THÁNG</th>
+                  <th className={bang.thC}>ĐẠT</th>
+                  <th className={bang.thC}>TRỄ</th>
+                  <th className={bang.thC}>CHƯA ĐẾN HẠN</th>
+                  <th className={`${bang.thC} w-48`}>TỶ LỆ ĐẠT</th>
+                  <th className={bang.thC}>GIÁ TRỊ KH (TỶ)</th>
                 </tr>
               </thead>
               <tbody>
@@ -360,7 +359,7 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
                   const p = pct(d.dat.length, d.ds.length);
                   return (
                     <tr key={d.k} className={d.dangChay ? 'bg-sky-50' : ''}>
-                      <td className={`${tdD} whitespace-nowrap`}>
+                      <td className={`${bang.tdB} whitespace-nowrap`}>
                         {d.ten}{d.dangChay && <span className="ml-2 rounded bg-sky-600 px-1.5 py-0.5 text-[0.625rem] font-bold text-white">TUẦN NÀY</span>}
                       </td>
                       {so(d.ds, `${d.ten} · KH tuần`, 'font-semibold')}
@@ -369,35 +368,34 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
                       {so(d.dat, `${d.ten} · đạt`, 'text-emerald-700')}
                       {so(d.tre, `${d.ten} · trễ`, 'font-semibold text-red-600')}
                       {so(d.chuaDen, `${d.ten} · chưa đến hạn`, 'text-slate-500')}
-                      <td className={tdD}>
+                      <td className={bang.tdB}>
                         <div className="flex items-center gap-2">
                           <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
                             <div className={`h-full ${p >= 90 ? 'bg-emerald-500' : !d.daQua && !d.dangChay ? 'bg-sky-400' : p >= 60 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${p}%` }} />
                           </div>
-                          <span className="w-10 text-right text-xs font-semibold tabular-nums">{p}%</span>
+                          <span className={`w-12 text-center tabular-nums ${d.ds.length && !d.dat.length ? 'font-bold text-red-600' : ''}`}>{fmtPt(p)}</span>
                         </div>
                       </td>
-                      <td className={`${tdD} text-right tabular-nums`}>{formatTrieuAsTy(giaTri(d.ds))}</td>
+                      <td className={bang.tdSo}>{bang.trong0(giaTri(d.ds), fmtTy)}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot className="bg-yellow-300 font-bold text-red-600">
+              <tfoot className={bang.tfoot}>
                 <tr>
-                  <td className={`${tdD} text-center`}>TỔNG</td>
+                  <td className={`${bang.tdB} text-center`}>TỔNG</td>
                   {so(tongDs, `${tenThang} · KH tuần`)}
                   {so(gom(d => d.tuThang), `${tenThang} · từ KH tháng`)}
                   {so(gom(d => d.ngoai), `${tenThang} · ngoài KH tháng`)}
                   {so(tongDat, `${tenThang} · đạt`)}
                   {so(gom(d => d.tre), `${tenThang} · trễ`)}
                   {so(gom(d => d.chuaDen), `${tenThang} · chưa đến hạn`)}
-                  <td className={`${tdD} text-right tabular-nums`}>{pct(tongDat.length, tongDs.length)}%</td>
-                  <td className={`${tdD} text-right tabular-nums`}>{formatTrieuAsTy(giaTri(tongDs))}</td>
+                  <td className={bang.tdSo}>{fmtPt(pct(tongDat.length, tongDs.length))}</td>
+                  <td className={bang.tdSo}>{bang.trong0(giaTri(tongDs), fmtTy)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
-          <p className="text-[0.6875rem] text-slate-400">Đạt = đạt SL KH tuần trong tuần hoặc hạng mục đã nhập kho đủ · Trễ = đã qua ngày KH tuần mà chưa đạt · Bấm số để xem danh sách HEX.</p>
         </div>
       )}
 

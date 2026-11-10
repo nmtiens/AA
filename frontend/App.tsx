@@ -1,8 +1,9 @@
 // src/App.tsx
-import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Settings, Columns, Smartphone, Search, Factory, Hammer, Database } from 'lucide-react';
+import { dangKyNapBang } from './services/napBang';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinh } from './services/dataService';
 import { giaiNenBanGhi, type Rec as CongTrinhRec } from './components/Construction/core/banGhiCongTrinh';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
@@ -21,6 +22,7 @@ import './index.css';
 import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal';
 import { disablePush } from './services/vuongMacMobileApi';
 import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
+import { layDuLieuDen, type DuLieuDen } from './services/duLieuDen';
 import { ModalShell } from './components/shared/ModalShell';
 import { lazyPage } from './utils/chunkReload';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
@@ -120,9 +122,12 @@ const luuKhiRanh = (f: () => void) => {
 // Khoá trang để chọn bảng cần nạp: đường dẫn, riêng Setup dữ liệu kèm thẻ đang mở (?tab=)
 const trangKey = (pathname: string, search: string): string =>
   pathname === '/setup' ? `/setup?tab=${new URLSearchParams(search).get('tab') ?? ''}` : pathname;
-// Bảng trang cần nhưng không chặn màn đầu: tải ngầm sau khi bảng chính đã hiện (máy mới / người mới đỡ chờ ~60%)
+// Bảng trang cần nhưng không chặn màn đầu: tải ngầm sau khi bảng chính đã hiện (máy mới / người mới đỡ chờ ~60%).
+// Tổng quan: order, tkbv, pthsp, khsx, export, stock không tải sẵn — danh sách ngày, năm-tháng-tuần lấy từ
+// /api/overview/tuy-chon-thoi-gian, bảng tải khi mở hộp xuất file (services/napBang). tkbv cũng vậy: khối Báo cáo tổng
+// quan hiện theo số máy chủ (overviewSummary).
 const tablesNenForPath = (path: string): string[] =>
-  path === '/' ? ['production', 'material', 'inventory', 'khsx', 'order', 'tkbv', 'pthsp', 'analysis', 'attendance', 'export', 'stock']
+  path === '/' ? ['production', 'material', 'inventory', 'analysis', 'attendance']
     : path === CONSTRUCTION_PATH ? ['production', 'inventory'] : [];
 // File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
 const preloadPageChunk = (path: string) => {
@@ -419,25 +424,25 @@ const ExportDataWrapper = () => {
 const StockDataWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.stockColumns, 'stock');
-  return <DataGrid data={context.stockData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'MÃ CÔNG TRÌNH', label: 'Tìm kiếm (Mã CT)' }} filterHeaders={['MÃ CÔNG TRÌNH', 'TÌNH TRẠNG KẾ HOẠCH GIAO HÀNG', 'TÊN SẢN PHẨM']} exportFileNamePrefix="du_lieu_ton_kho" enableAggregation={true} />;
+  return <DataGrid data={context.stockData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.CONG_TRINH, label: 'Tìm kiếm (Công trình)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, 'ma_id_sap']} exportFileNamePrefix="du_lieu_ton_kho" enableAggregation={true} />;
 };
 
 const AttendanceDataWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.attendanceColumns, 'attendance');
-  return <DataGrid data={context.attendanceData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'DATE', label: 'Ngày (Tìm kiếm)' }} filterHeaders={['XƯỞNG CHÍNH']} exportFileNamePrefix="du_lieu_diem_danh" enableAggregation={true} />;
+  return <DataGrid data={context.attendanceData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'ngay', label: 'Ngày (Tìm kiếm)' }} filterHeaders={[TARGET_COLUMN_NAMES.XUONG, 'nam']} exportFileNamePrefix="du_lieu_diem_danh" enableAggregation={true} />;
 };
 
 const TkbvDataWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.tkbvColumns, 'tkbv');
-  return <DataGrid data={context.tkbvData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'MÃ', label: 'Tìm kiếm' }} exportFileNamePrefix="du_lieu_tkbv" enableAggregation={true} />;
+  return <DataGrid data={context.tkbvData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_tkbv" enableAggregation={true} />;
 };
 
 const PthspDataWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.pthspColumns, 'pthsp');
-  return <DataGrid data={context.pthspData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'MÃ', label: 'Tìm kiếm' }} exportFileNamePrefix="du_lieu_pthsp" enableAggregation={true} />;
+  return <DataGrid data={context.pthspData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_pthsp" enableAggregation={true} />;
 };
 
 const AnalysisDataWrapper = () => {
@@ -535,7 +540,11 @@ const MainLayout: React.FC = () => {
   // Số lượt nạp bảng đang chạy: chỉ tắt trạng thái "đang tải" khi không còn lượt nạp / đồng bộ nào
   const pendingLoadsRef = useRef(0);
   const [error] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [, setLastUpdated] = useState<Date | null>(null);
+  const [duLieuDen, setDuLieuDen] = useState<DuLieuDen | null>(null);
+  // Chỉ gọi lúc mở app và khi bấm Làm mới; lỗi thì giữ giá trị cũ
+  const taiDuLieuDen = useCallback(() => layDuLieuDen().then(d => { if (d) setDuLieuDen(d); }).catch(() => undefined), []);
+  useEffect(() => { void taiDuLieuDen(); }, [taiDuLieuDen]);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -842,6 +851,17 @@ const MainLayout: React.FC = () => {
     const nen = tablesNenForPath(path);
     if (nen.length && mountedRef.current && pathnameRef.current === path) void loadTables(nen);
   };
+  // Hook của trang xin thêm bảng lúc cần (mở hộp xuất file). true = đã có đủ bảng.
+  useEffect(() => {
+    dangKyNapBang(async bang => {
+      await loadTables(bang);
+      const du = () => bang.every(e => dataLoadedRef.current[e]);
+      if (!du()) await checkAndSync();
+      return du();
+    });
+    return () => dangKyNapBang(null);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Chuyển trang: nạp thêm bảng trang mới cần (bảng đã nạp giữ nguyên)
   useEffect(() => {
     if (!initStartedRef.current) return;
@@ -936,6 +956,7 @@ const MainLayout: React.FC = () => {
         fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }),
         // Nhận rỗng (instance mới / lỗi mạng) thì giữ bảng đang có, tự hỏi lại sau — không ghi đè bằng bảng rỗng
         loadProjectAliases(),
+        taiDuLieuDen(),
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới
@@ -1258,9 +1279,17 @@ const MainLayout: React.FC = () => {
             </button>
           )}
 
-          <div className={`text-[0.625rem] text-slate-400 text-center transition-all duration-300 pt-2 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
-            Đã kết nối ngầm ({lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'})
-          </div>
+          {duLieuDen && (
+            <button
+              type="button"
+              disabled={!hasPermission('data_log')}
+              onClick={() => { setIsLogOpen(true); closeMobileSidebar(); }}
+              title={duLieuDen.chiTiet}
+              className={`w-full text-[0.8125rem] font-medium text-center transition-all duration-300 pt-2 disabled:cursor-default ${duLieuDen.cu ? 'text-red-600' : 'text-slate-600'} ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}
+            >
+              Dữ liệu đến {duLieuDen.nhan}
+            </button>
+          )}
 
           <button
             onClick={manualRefresh}

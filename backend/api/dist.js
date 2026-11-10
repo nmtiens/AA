@@ -39,9 +39,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/ms/index.js
+// ../../project_v2/backend/node_modules/ms/index.js
 var require_ms = __commonJS({
-  "node_modules/ms/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -155,9 +155,9 @@ var require_ms = __commonJS({
   }
 });
 
-// node_modules/debug/src/common.js
+// ../../project_v2/backend/node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "node_modules/debug/src/common.js"(exports, module) {
+  "../../project_v2/backend/node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -332,9 +332,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/debug/src/browser.js
+// ../../project_v2/backend/node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "node_modules/debug/src/browser.js"(exports, module) {
+  "../../project_v2/backend/node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs;
     exports.save = save;
     exports.load = load3;
@@ -502,9 +502,9 @@ var require_browser = __commonJS({
   }
 });
 
-// node_modules/has-flag/index.js
+// ../../project_v2/backend/node_modules/has-flag/index.js
 var require_has_flag = __commonJS({
-  "node_modules/has-flag/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/has-flag/index.js"(exports, module) {
     "use strict";
     module.exports = (flag, argv = process.argv) => {
       const prefix = flag.startsWith("-") ? "" : flag.length === 1 ? "-" : "--";
@@ -515,9 +515,9 @@ var require_has_flag = __commonJS({
   }
 });
 
-// node_modules/supports-color/index.js
+// ../../project_v2/backend/node_modules/supports-color/index.js
 var require_supports_color = __commonJS({
-  "node_modules/supports-color/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/supports-color/index.js"(exports, module) {
     "use strict";
     var os = __require("os");
     var tty = __require("tty");
@@ -617,9 +617,9 @@ var require_supports_color = __commonJS({
   }
 });
 
-// node_modules/debug/src/node.js
+// ../../project_v2/backend/node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "node_modules/debug/src/node.js"(exports, module) {
+  "../../project_v2/backend/node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -791,9 +791,9 @@ var require_node = __commonJS({
   }
 });
 
-// node_modules/debug/src/index.js
+// ../../project_v2/backend/node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "node_modules/debug/src/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -802,9 +802,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/depd/index.js
+// ../../project_v2/backend/node_modules/depd/index.js
 var require_depd = __commonJS({
-  "node_modules/depd/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/depd/index.js"(exports, module) {
     var relative = __require("path").relative;
     module.exports = depd;
     var basePath = process.cwd();
@@ -1108,9 +1108,9 @@ var require_depd = __commonJS({
   }
 });
 
-// node_modules/setprototypeof/index.js
+// ../../project_v2/backend/node_modules/setprototypeof/index.js
 var require_setprototypeof = __commonJS({
-  "node_modules/setprototypeof/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/setprototypeof/index.js"(exports, module) {
     "use strict";
     module.exports = Object.setPrototypeOf || ({ __proto__: [] } instanceof Array ? setProtoOf : mixinProperties);
     function setProtoOf(obj, proto) {
@@ -1128,9 +1128,9 @@ var require_setprototypeof = __commonJS({
   }
 });
 
-// node_modules/statuses/codes.json
+// ../../project_v2/backend/node_modules/statuses/codes.json
 var require_codes = __commonJS({
-  "node_modules/statuses/codes.json"(exports, module) {
+  "../../project_v2/backend/node_modules/statuses/codes.json"(exports, module) {
     module.exports = {
       "100": "Continue",
       "101": "Switching Protocols",
@@ -1199,9 +1199,9 @@ var require_codes = __commonJS({
   }
 });
 
-// node_modules/statuses/index.js
+// ../../project_v2/backend/node_modules/statuses/index.js
 var require_statuses = __commonJS({
-  "node_modules/statuses/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/statuses/index.js"(exports, module) {
     "use strict";
     var codes = require_codes();
     module.exports = status;
@@ -1270,9 +1270,9 @@ var require_statuses = __commonJS({
   }
 });
 
-// node_modules/inherits/inherits_browser.js
+// ../../project_v2/backend/node_modules/inherits/inherits_browser.js
 var require_inherits_browser = __commonJS({
-  "node_modules/inherits/inherits_browser.js"(exports, module) {
+  "../../project_v2/backend/node_modules/inherits/inherits_browser.js"(exports, module) {
     if (typeof Object.create === "function") {
       module.exports = function inherits(ctor, superCtor) {
         if (superCtor) {
@@ -1302,9 +1302,9 @@ var require_inherits_browser = __commonJS({
   }
 });
 
-// node_modules/inherits/inherits.js
+// ../../project_v2/backend/node_modules/inherits/inherits.js
 var require_inherits = __commonJS({
-  "node_modules/inherits/inherits.js"(exports, module) {
+  "../../project_v2/backend/node_modules/inherits/inherits.js"(exports, module) {
     try {
       util = __require("util");
       if (typeof util.inherits !== "function") throw "";
@@ -1316,9 +1316,9 @@ var require_inherits = __commonJS({
   }
 });
 
-// node_modules/toidentifier/index.js
+// ../../project_v2/backend/node_modules/toidentifier/index.js
 var require_toidentifier = __commonJS({
-  "node_modules/toidentifier/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/toidentifier/index.js"(exports, module) {
     "use strict";
     module.exports = toIdentifier;
     function toIdentifier(str) {
@@ -1329,9 +1329,9 @@ var require_toidentifier = __commonJS({
   }
 });
 
-// node_modules/http-errors/index.js
+// ../../project_v2/backend/node_modules/http-errors/index.js
 var require_http_errors = __commonJS({
-  "node_modules/http-errors/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/http-errors/index.js"(exports, module) {
     "use strict";
     var deprecate = require_depd()("http-errors");
     var setPrototypeOf = require_setprototypeof();
@@ -1493,9 +1493,9 @@ var require_http_errors = __commonJS({
   }
 });
 
-// node_modules/bytes/index.js
+// ../../project_v2/backend/node_modules/bytes/index.js
 var require_bytes = __commonJS({
-  "node_modules/bytes/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/bytes/index.js"(exports, module) {
     "use strict";
     module.exports = bytes;
     module.exports.format = format;
@@ -1582,9 +1582,9 @@ var require_bytes = __commonJS({
   }
 });
 
-// node_modules/safer-buffer/safer.js
+// ../../project_v2/backend/node_modules/safer-buffer/safer.js
 var require_safer = __commonJS({
-  "node_modules/safer-buffer/safer.js"(exports, module) {
+  "../../project_v2/backend/node_modules/safer-buffer/safer.js"(exports, module) {
     "use strict";
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
@@ -1650,9 +1650,9 @@ var require_safer = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/bom-handling.js
+// ../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js
 var require_bom_handling = __commonJS({
-  "node_modules/iconv-lite/lib/bom-handling.js"(exports) {
+  "../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js"(exports) {
     "use strict";
     var BOMChar = "\uFEFF";
     exports.PrependBOM = PrependBOMWrapper;
@@ -1696,9 +1696,9 @@ var require_bom_handling = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/helpers/merge-exports.js
+// ../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js
 var require_merge_exports = __commonJS({
-  "node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
     "use strict";
     var hasOwn = typeof Object.hasOwn === "undefined" ? Function.call.bind(Object.prototype.hasOwnProperty) : Object.hasOwn;
     function mergeModules(target, module2) {
@@ -1712,9 +1712,9 @@ var require_merge_exports = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/internal.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js
 var require_internal = __commonJS({
-  "node_modules/iconv-lite/encodings/internal.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = {
@@ -1893,9 +1893,9 @@ var require_internal = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/utf32.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js
 var require_utf32 = __commonJS({
-  "node_modules/iconv-lite/encodings/utf32.js"(exports) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._utf32 = Utf32Codec;
@@ -2128,9 +2128,9 @@ var require_utf32 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/utf16.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js
 var require_utf16 = __commonJS({
-  "node_modules/iconv-lite/encodings/utf16.js"(exports) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf16be = Utf16BECodec;
@@ -2271,9 +2271,9 @@ var require_utf16 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/utf7.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js
 var require_utf7 = __commonJS({
-  "node_modules/iconv-lite/encodings/utf7.js"(exports) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf7 = Utf7Codec;
@@ -2489,9 +2489,9 @@ var require_utf7 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/sbcs-codec.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js
 var require_sbcs_codec = __commonJS({
-  "node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._sbcs = SBCSCodec;
@@ -2551,9 +2551,9 @@ var require_sbcs_codec = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/sbcs-data.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js
 var require_sbcs_data = __commonJS({
-  "node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // Not supported by iconv, not sure why.
@@ -2706,9 +2706,9 @@ var require_sbcs_data = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/sbcs-data-generated.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = __commonJS({
-  "node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
     "use strict";
     module.exports = {
       "437": "cp437",
@@ -3161,9 +3161,9 @@ var require_sbcs_data_generated = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/dbcs-codec.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js
 var require_dbcs_codec = __commonJS({
-  "node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._dbcs = DBCSCodec;
@@ -3621,9 +3621,9 @@ var require_dbcs_codec = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/shiftjis.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json
 var require_shiftjis = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
     module.exports = [
       ["0", "\0", 128],
       ["a1", "\uFF61", 62],
@@ -3752,9 +3752,9 @@ var require_shiftjis = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/eucjp.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json
 var require_eucjp = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8ea1", "\uFF61", 62],
@@ -3940,9 +3940,9 @@ var require_eucjp = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/cp936.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json
 var require_cp936 = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127, "\u20AC"],
       ["8140", "\u4E02\u4E04\u4E05\u4E06\u4E0F\u4E12\u4E17\u4E1F\u4E20\u4E21\u4E23\u4E26\u4E29\u4E2E\u4E2F\u4E31\u4E33\u4E35\u4E37\u4E3C\u4E40\u4E41\u4E42\u4E44\u4E46\u4E4A\u4E51\u4E55\u4E57\u4E5A\u4E5B\u4E62\u4E63\u4E64\u4E65\u4E67\u4E68\u4E6A", 5, "\u4E72\u4E74", 9, "\u4E7F", 6, "\u4E87\u4E8A"],
@@ -4210,9 +4210,9 @@ var require_cp936 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/gbk-added.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json
 var require_gbk_added = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
     module.exports = [
       ["a140", "\uE4C6", 62],
       ["a180", "\uE505", 32],
@@ -4272,16 +4272,16 @@ var require_gbk_added = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
 var require_gb18030_ranges = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
     module.exports = { uChars: [128, 165, 169, 178, 184, 216, 226, 235, 238, 244, 248, 251, 253, 258, 276, 284, 300, 325, 329, 334, 364, 463, 465, 467, 469, 471, 473, 475, 477, 506, 594, 610, 712, 716, 730, 930, 938, 962, 970, 1026, 1104, 1106, 8209, 8215, 8218, 8222, 8231, 8241, 8244, 8246, 8252, 8365, 8452, 8454, 8458, 8471, 8482, 8556, 8570, 8596, 8602, 8713, 8720, 8722, 8726, 8731, 8737, 8740, 8742, 8748, 8751, 8760, 8766, 8777, 8781, 8787, 8802, 8808, 8816, 8854, 8858, 8870, 8896, 8979, 9322, 9372, 9548, 9588, 9616, 9622, 9634, 9652, 9662, 9672, 9676, 9680, 9702, 9735, 9738, 9793, 9795, 11906, 11909, 11913, 11917, 11928, 11944, 11947, 11951, 11956, 11960, 11964, 11979, 12284, 12292, 12312, 12319, 12330, 12351, 12436, 12447, 12535, 12543, 12586, 12842, 12850, 12964, 13200, 13215, 13218, 13253, 13263, 13267, 13270, 13384, 13428, 13727, 13839, 13851, 14617, 14703, 14801, 14816, 14964, 15183, 15471, 15585, 16471, 16736, 17208, 17325, 17330, 17374, 17623, 17997, 18018, 18212, 18218, 18301, 18318, 18760, 18811, 18814, 18820, 18823, 18844, 18848, 18872, 19576, 19620, 19738, 19887, 40870, 59244, 59336, 59367, 59413, 59417, 59423, 59431, 59437, 59443, 59452, 59460, 59478, 59493, 63789, 63866, 63894, 63976, 63986, 64016, 64018, 64021, 64025, 64034, 64037, 64042, 65074, 65093, 65107, 65112, 65127, 65132, 65375, 65510, 65536], gbChars: [0, 36, 38, 45, 50, 81, 89, 95, 96, 100, 103, 104, 105, 109, 126, 133, 148, 172, 175, 179, 208, 306, 307, 308, 309, 310, 311, 312, 313, 341, 428, 443, 544, 545, 558, 741, 742, 749, 750, 805, 819, 820, 7922, 7924, 7925, 7927, 7934, 7943, 7944, 7945, 7950, 8062, 8148, 8149, 8152, 8164, 8174, 8236, 8240, 8262, 8264, 8374, 8380, 8381, 8384, 8388, 8390, 8392, 8393, 8394, 8396, 8401, 8406, 8416, 8419, 8424, 8437, 8439, 8445, 8482, 8485, 8496, 8521, 8603, 8936, 8946, 9046, 9050, 9063, 9066, 9076, 9092, 9100, 9108, 9111, 9113, 9131, 9162, 9164, 9218, 9219, 11329, 11331, 11334, 11336, 11346, 11361, 11363, 11366, 11370, 11372, 11375, 11389, 11682, 11686, 11687, 11692, 11694, 11714, 11716, 11723, 11725, 11730, 11736, 11982, 11989, 12102, 12336, 12348, 12350, 12384, 12393, 12395, 12397, 12510, 12553, 12851, 12962, 12973, 13738, 13823, 13919, 13933, 14080, 14298, 14585, 14698, 15583, 15847, 16318, 16434, 16438, 16481, 16729, 17102, 17122, 17315, 17320, 17402, 17418, 17859, 17909, 17911, 17915, 17916, 17936, 17939, 17961, 18664, 18703, 18814, 18962, 19043, 33469, 33470, 33471, 33484, 33485, 33490, 33497, 33501, 33505, 33513, 33520, 33536, 33550, 37845, 37921, 37948, 38029, 38038, 38064, 38065, 38066, 38069, 38075, 38076, 38078, 39108, 39109, 39113, 39114, 39115, 39116, 39265, 39394, 189e3] };
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/cp949.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json
 var require_cp949 = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8141", "\uAC02\uAC03\uAC05\uAC06\uAC0B", 4, "\uAC18\uAC1E\uAC1F\uAC21\uAC22\uAC23\uAC25", 6, "\uAC2E\uAC32\uAC33\uAC34"],
@@ -4558,9 +4558,9 @@ var require_cp949 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/cp950.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json
 var require_cp950 = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["a140", "\u3000\uFF0C\u3001\u3002\uFF0E\u2027\uFF1B\uFF1A\uFF1F\uFF01\uFE30\u2026\u2025\uFE50\uFE51\uFE52\xB7\uFE54\uFE55\uFE56\uFE57\uFF5C\u2013\uFE31\u2014\uFE33\u2574\uFE34\uFE4F\uFF08\uFF09\uFE35\uFE36\uFF5B\uFF5D\uFE37\uFE38\u3014\u3015\uFE39\uFE3A\u3010\u3011\uFE3B\uFE3C\u300A\u300B\uFE3D\uFE3E\u3008\u3009\uFE3F\uFE40\u300C\u300D\uFE41\uFE42\u300E\u300F\uFE43\uFE44\uFE59\uFE5A"],
@@ -4741,9 +4741,9 @@ var require_cp950 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/big5-added.json
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json
 var require_big5_added = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
     module.exports = [
       ["8740", "\u43F0\u4C32\u4603\u45A6\u4578\u{27267}\u4D77\u45B3\u{27CB1}\u4CE2\u{27CC5}\u3B95\u4736\u4744\u4C47\u4C40\u{242BF}\u{23617}\u{27352}\u{26E8B}\u{270D2}\u4C57\u{2A351}\u474F\u45DA\u4C85\u{27C6C}\u4D07\u4AA4\u46A1\u{26B23}\u7225\u{25A54}\u{21A63}\u{23E06}\u{23F61}\u664D\u56FB"],
       ["8767", "\u7D95\u591D\u{28BB9}\u3DF4\u9734\u{27BEF}\u5BDB\u{21D5E}\u5AA4\u3625\u{29EB0}\u5AD1\u5BB7\u5CFC\u676E\u8593\u{29945}\u7461\u749D\u3875\u{21D53}\u{2369E}\u{26021}\u3EEC"],
@@ -4869,9 +4869,9 @@ var require_big5_added = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/dbcs-data.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js
 var require_dbcs_data = __commonJS({
-  "node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // == Japanese/ShiftJIS ====================================================
@@ -5116,9 +5116,9 @@ var require_dbcs_data = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/index.js
+// ../../project_v2/backend/node_modules/iconv-lite/encodings/index.js
 var require_encodings = __commonJS({
-  "node_modules/iconv-lite/encodings/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/encodings/index.js"(exports, module) {
     "use strict";
     var mergeModules = require_merge_exports();
     var modules = [
@@ -5141,9 +5141,9 @@ var require_encodings = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/streams.js
+// ../../project_v2/backend/node_modules/iconv-lite/lib/streams.js
 var require_streams = __commonJS({
-  "node_modules/iconv-lite/lib/streams.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/lib/streams.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = function(streamModule) {
@@ -5238,9 +5238,9 @@ var require_streams = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/index.js
+// ../../project_v2/backend/node_modules/iconv-lite/lib/index.js
 var require_lib = __commonJS({
-  "node_modules/iconv-lite/lib/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/iconv-lite/lib/index.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     var bomHandling = require_bom_handling();
@@ -5370,9 +5370,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/unpipe/index.js
+// ../../project_v2/backend/node_modules/unpipe/index.js
 var require_unpipe = __commonJS({
-  "node_modules/unpipe/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/unpipe/index.js"(exports, module) {
     "use strict";
     module.exports = unpipe;
     function hasPipeDataListeners(stream) {
@@ -5408,9 +5408,9 @@ var require_unpipe = __commonJS({
   }
 });
 
-// node_modules/raw-body/index.js
+// ../../project_v2/backend/node_modules/raw-body/index.js
 var require_raw_body = __commonJS({
-  "node_modules/raw-body/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/raw-body/index.js"(exports, module) {
     "use strict";
     var asyncHooks = tryRequireAsyncHooks();
     var bytes = require_bytes();
@@ -5597,9 +5597,9 @@ var require_raw_body = __commonJS({
   }
 });
 
-// node_modules/ee-first/index.js
+// ../../project_v2/backend/node_modules/ee-first/index.js
 var require_ee_first = __commonJS({
-  "node_modules/ee-first/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/ee-first/index.js"(exports, module) {
     "use strict";
     module.exports = first;
     function first(stuff, done) {
@@ -5653,9 +5653,9 @@ var require_ee_first = __commonJS({
   }
 });
 
-// node_modules/on-finished/index.js
+// ../../project_v2/backend/node_modules/on-finished/index.js
 var require_on_finished = __commonJS({
-  "node_modules/on-finished/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/on-finished/index.js"(exports, module) {
     "use strict";
     module.exports = onFinished;
     module.exports.isFinished = isFinished;
@@ -5757,9 +5757,9 @@ var require_on_finished = __commonJS({
   }
 });
 
-// node_modules/type-is/node_modules/content-type/dist/index.js
+// ../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js
 var require_dist = __commonJS({
-  "node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
+  "../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -5896,9 +5896,9 @@ var require_dist = __commonJS({
   }
 });
 
-// node_modules/mime-db/db.json
+// ../../project_v2/backend/node_modules/mime-db/db.json
 var require_db = __commonJS({
-  "node_modules/mime-db/db.json"(exports, module) {
+  "../../project_v2/backend/node_modules/mime-db/db.json"(exports, module) {
     module.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -15244,16 +15244,16 @@ var require_db = __commonJS({
   }
 });
 
-// node_modules/mime-db/index.js
+// ../../project_v2/backend/node_modules/mime-db/index.js
 var require_mime_db = __commonJS({
-  "node_modules/mime-db/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/mime-db/index.js"(exports, module) {
     module.exports = require_db();
   }
 });
 
-// node_modules/mime-types/mimeScore.js
+// ../../project_v2/backend/node_modules/mime-types/mimeScore.js
 var require_mimeScore = __commonJS({
-  "node_modules/mime-types/mimeScore.js"(exports, module) {
+  "../../project_v2/backend/node_modules/mime-types/mimeScore.js"(exports, module) {
     var FACET_SCORES = {
       "prs.": 100,
       "x-": 200,
@@ -15295,9 +15295,9 @@ var require_mimeScore = __commonJS({
   }
 });
 
-// node_modules/mime-types/index.js
+// ../../project_v2/backend/node_modules/mime-types/index.js
 var require_mime_types = __commonJS({
-  "node_modules/mime-types/index.js"(exports) {
+  "../../project_v2/backend/node_modules/mime-types/index.js"(exports) {
     "use strict";
     var db = require_mime_db();
     var extname = __require("path").extname;
@@ -15401,9 +15401,9 @@ var require_mime_types = __commonJS({
   }
 });
 
-// node_modules/media-typer/index.js
+// ../../project_v2/backend/node_modules/media-typer/index.js
 var require_media_typer = __commonJS({
-  "node_modules/media-typer/index.js"(exports) {
+  "../../project_v2/backend/node_modules/media-typer/index.js"(exports) {
     "use strict";
     var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
     var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
@@ -15465,9 +15465,9 @@ var require_media_typer = __commonJS({
   }
 });
 
-// node_modules/type-is/index.js
+// ../../project_v2/backend/node_modules/type-is/index.js
 var require_type_is = __commonJS({
-  "node_modules/type-is/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/type-is/index.js"(exports, module) {
     "use strict";
     var contentType = require_dist();
     var mime = require_mime_types();
@@ -15556,9 +15556,9 @@ var require_type_is = __commonJS({
   }
 });
 
-// node_modules/body-parser/node_modules/content-type/dist/index.js
+// ../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js
 var require_dist2 = __commonJS({
-  "node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
+  "../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -15695,9 +15695,9 @@ var require_dist2 = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/utils.js
+// ../../project_v2/backend/node_modules/body-parser/lib/utils.js
 var require_utils = __commonJS({
-  "node_modules/body-parser/lib/utils.js"(exports, module) {
+  "../../project_v2/backend/node_modules/body-parser/lib/utils.js"(exports, module) {
     "use strict";
     var bytes = require_bytes();
     var contentType = require_dist2();
@@ -15747,9 +15747,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/read.js
+// ../../project_v2/backend/node_modules/body-parser/lib/read.js
 var require_read = __commonJS({
-  "node_modules/body-parser/lib/read.js"(exports, module) {
+  "../../project_v2/backend/node_modules/body-parser/lib/read.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var getBody = require_raw_body();
@@ -15905,9 +15905,9 @@ var require_read = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/json.js
+// ../../project_v2/backend/node_modules/body-parser/lib/types/json.js
 var require_json = __commonJS({
-  "node_modules/body-parser/lib/types/json.js"(exports, module) {
+  "../../project_v2/backend/node_modules/body-parser/lib/types/json.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:json");
     var read = require_read();
@@ -16004,9 +16004,9 @@ var require_json = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/raw.js
+// ../../project_v2/backend/node_modules/body-parser/lib/types/raw.js
 var require_raw = __commonJS({
-  "node_modules/body-parser/lib/types/raw.js"(exports, module) {
+  "../../project_v2/backend/node_modules/body-parser/lib/types/raw.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:raw");
     var read = require_read();
@@ -16026,9 +16026,9 @@ var require_raw = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/text.js
+// ../../project_v2/backend/node_modules/body-parser/lib/types/text.js
 var require_text = __commonJS({
-  "node_modules/body-parser/lib/types/text.js"(exports, module) {
+  "../../project_v2/backend/node_modules/body-parser/lib/types/text.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:text");
     var read = require_read();
@@ -16043,24 +16043,24 @@ var require_text = __commonJS({
   }
 });
 
-// node_modules/es-errors/type.js
+// ../../project_v2/backend/node_modules/es-errors/type.js
 var require_type = __commonJS({
-  "node_modules/es-errors/type.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-errors/type.js"(exports, module) {
     "use strict";
     module.exports = TypeError;
   }
 });
 
-// node_modules/object-inspect/util.inspect.js
+// ../../project_v2/backend/node_modules/object-inspect/util.inspect.js
 var require_util_inspect = __commonJS({
-  "node_modules/object-inspect/util.inspect.js"(exports, module) {
+  "../../project_v2/backend/node_modules/object-inspect/util.inspect.js"(exports, module) {
     module.exports = __require("util").inspect;
   }
 });
 
-// node_modules/object-inspect/index.js
+// ../../project_v2/backend/node_modules/object-inspect/index.js
 var require_object_inspect = __commonJS({
-  "node_modules/object-inspect/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/object-inspect/index.js"(exports, module) {
     var hasMap = typeof Map === "function" && Map.prototype;
     var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, "size") : null;
     var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === "function" ? mapSizeDescriptor.get : null;
@@ -16589,9 +16589,9 @@ var require_object_inspect = __commonJS({
   }
 });
 
-// node_modules/side-channel-list/index.js
+// ../../project_v2/backend/node_modules/side-channel-list/index.js
 var require_side_channel_list = __commonJS({
-  "node_modules/side-channel-list/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/side-channel-list/index.js"(exports, module) {
     "use strict";
     var inspect = require_object_inspect();
     var $TypeError = require_type();
@@ -16682,113 +16682,113 @@ var require_side_channel_list = __commonJS({
   }
 });
 
-// node_modules/es-object-atoms/index.js
+// ../../project_v2/backend/node_modules/es-object-atoms/index.js
 var require_es_object_atoms = __commonJS({
-  "node_modules/es-object-atoms/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-object-atoms/index.js"(exports, module) {
     "use strict";
     module.exports = Object;
   }
 });
 
-// node_modules/es-errors/index.js
+// ../../project_v2/backend/node_modules/es-errors/index.js
 var require_es_errors = __commonJS({
-  "node_modules/es-errors/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-errors/index.js"(exports, module) {
     "use strict";
     module.exports = Error;
   }
 });
 
-// node_modules/es-errors/eval.js
+// ../../project_v2/backend/node_modules/es-errors/eval.js
 var require_eval = __commonJS({
-  "node_modules/es-errors/eval.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-errors/eval.js"(exports, module) {
     "use strict";
     module.exports = EvalError;
   }
 });
 
-// node_modules/es-errors/range.js
+// ../../project_v2/backend/node_modules/es-errors/range.js
 var require_range = __commonJS({
-  "node_modules/es-errors/range.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-errors/range.js"(exports, module) {
     "use strict";
     module.exports = RangeError;
   }
 });
 
-// node_modules/es-errors/ref.js
+// ../../project_v2/backend/node_modules/es-errors/ref.js
 var require_ref = __commonJS({
-  "node_modules/es-errors/ref.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-errors/ref.js"(exports, module) {
     "use strict";
     module.exports = ReferenceError;
   }
 });
 
-// node_modules/es-errors/syntax.js
+// ../../project_v2/backend/node_modules/es-errors/syntax.js
 var require_syntax = __commonJS({
-  "node_modules/es-errors/syntax.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-errors/syntax.js"(exports, module) {
     "use strict";
     module.exports = SyntaxError;
   }
 });
 
-// node_modules/es-errors/uri.js
+// ../../project_v2/backend/node_modules/es-errors/uri.js
 var require_uri = __commonJS({
-  "node_modules/es-errors/uri.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-errors/uri.js"(exports, module) {
     "use strict";
     module.exports = URIError;
   }
 });
 
-// node_modules/math-intrinsics/abs.js
+// ../../project_v2/backend/node_modules/math-intrinsics/abs.js
 var require_abs = __commonJS({
-  "node_modules/math-intrinsics/abs.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/abs.js"(exports, module) {
     "use strict";
     module.exports = Math.abs;
   }
 });
 
-// node_modules/math-intrinsics/floor.js
+// ../../project_v2/backend/node_modules/math-intrinsics/floor.js
 var require_floor = __commonJS({
-  "node_modules/math-intrinsics/floor.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/floor.js"(exports, module) {
     "use strict";
     module.exports = Math.floor;
   }
 });
 
-// node_modules/math-intrinsics/max.js
+// ../../project_v2/backend/node_modules/math-intrinsics/max.js
 var require_max = __commonJS({
-  "node_modules/math-intrinsics/max.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/max.js"(exports, module) {
     "use strict";
     module.exports = Math.max;
   }
 });
 
-// node_modules/math-intrinsics/min.js
+// ../../project_v2/backend/node_modules/math-intrinsics/min.js
 var require_min = __commonJS({
-  "node_modules/math-intrinsics/min.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/min.js"(exports, module) {
     "use strict";
     module.exports = Math.min;
   }
 });
 
-// node_modules/math-intrinsics/pow.js
+// ../../project_v2/backend/node_modules/math-intrinsics/pow.js
 var require_pow = __commonJS({
-  "node_modules/math-intrinsics/pow.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/pow.js"(exports, module) {
     "use strict";
     module.exports = Math.pow;
   }
 });
 
-// node_modules/math-intrinsics/round.js
+// ../../project_v2/backend/node_modules/math-intrinsics/round.js
 var require_round = __commonJS({
-  "node_modules/math-intrinsics/round.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/round.js"(exports, module) {
     "use strict";
     module.exports = Math.round;
   }
 });
 
-// node_modules/math-intrinsics/isNaN.js
+// ../../project_v2/backend/node_modules/math-intrinsics/isNaN.js
 var require_isNaN = __commonJS({
-  "node_modules/math-intrinsics/isNaN.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/isNaN.js"(exports, module) {
     "use strict";
     module.exports = Number.isNaN || function isNaN2(a) {
       return a !== a;
@@ -16796,9 +16796,9 @@ var require_isNaN = __commonJS({
   }
 });
 
-// node_modules/math-intrinsics/sign.js
+// ../../project_v2/backend/node_modules/math-intrinsics/sign.js
 var require_sign = __commonJS({
-  "node_modules/math-intrinsics/sign.js"(exports, module) {
+  "../../project_v2/backend/node_modules/math-intrinsics/sign.js"(exports, module) {
     "use strict";
     var $isNaN = require_isNaN();
     module.exports = function sign(number4) {
@@ -16810,17 +16810,17 @@ var require_sign = __commonJS({
   }
 });
 
-// node_modules/gopd/gOPD.js
+// ../../project_v2/backend/node_modules/gopd/gOPD.js
 var require_gOPD = __commonJS({
-  "node_modules/gopd/gOPD.js"(exports, module) {
+  "../../project_v2/backend/node_modules/gopd/gOPD.js"(exports, module) {
     "use strict";
     module.exports = Object.getOwnPropertyDescriptor;
   }
 });
 
-// node_modules/gopd/index.js
+// ../../project_v2/backend/node_modules/gopd/index.js
 var require_gopd = __commonJS({
-  "node_modules/gopd/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/gopd/index.js"(exports, module) {
     "use strict";
     var $gOPD = require_gOPD();
     if ($gOPD) {
@@ -16834,9 +16834,9 @@ var require_gopd = __commonJS({
   }
 });
 
-// node_modules/es-define-property/index.js
+// ../../project_v2/backend/node_modules/es-define-property/index.js
 var require_es_define_property = __commonJS({
-  "node_modules/es-define-property/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/es-define-property/index.js"(exports, module) {
     "use strict";
     var $defineProperty = Object.defineProperty || false;
     if ($defineProperty) {
@@ -16850,9 +16850,9 @@ var require_es_define_property = __commonJS({
   }
 });
 
-// node_modules/has-symbols/shams.js
+// ../../project_v2/backend/node_modules/has-symbols/shams.js
 var require_shams = __commonJS({
-  "node_modules/has-symbols/shams.js"(exports, module) {
+  "../../project_v2/backend/node_modules/has-symbols/shams.js"(exports, module) {
     "use strict";
     module.exports = function hasSymbols() {
       if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
@@ -16905,9 +16905,9 @@ var require_shams = __commonJS({
   }
 });
 
-// node_modules/has-symbols/index.js
+// ../../project_v2/backend/node_modules/has-symbols/index.js
 var require_has_symbols = __commonJS({
-  "node_modules/has-symbols/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/has-symbols/index.js"(exports, module) {
     "use strict";
     var origSymbol = typeof Symbol !== "undefined" && Symbol;
     var hasSymbolSham = require_shams();
@@ -16929,26 +16929,26 @@ var require_has_symbols = __commonJS({
   }
 });
 
-// node_modules/get-proto/Reflect.getPrototypeOf.js
+// ../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js
 var require_Reflect_getPrototypeOf = __commonJS({
-  "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
+  "../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
   }
 });
 
-// node_modules/get-proto/Object.getPrototypeOf.js
+// ../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = __commonJS({
-  "node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
+  "../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
     "use strict";
     var $Object = require_es_object_atoms();
     module.exports = $Object.getPrototypeOf || null;
   }
 });
 
-// node_modules/function-bind/implementation.js
+// ../../project_v2/backend/node_modules/function-bind/implementation.js
 var require_implementation = __commonJS({
-  "node_modules/function-bind/implementation.js"(exports, module) {
+  "../../project_v2/backend/node_modules/function-bind/implementation.js"(exports, module) {
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
     var toStr = Object.prototype.toString;
@@ -17022,42 +17022,42 @@ var require_implementation = __commonJS({
   }
 });
 
-// node_modules/function-bind/index.js
+// ../../project_v2/backend/node_modules/function-bind/index.js
 var require_function_bind = __commonJS({
-  "node_modules/function-bind/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/function-bind/index.js"(exports, module) {
     "use strict";
     var implementation = require_implementation();
     module.exports = Function.prototype.bind || implementation;
   }
 });
 
-// node_modules/call-bind-apply-helpers/functionCall.js
+// ../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js
 var require_functionCall = __commonJS({
-  "node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
+  "../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.call;
   }
 });
 
-// node_modules/call-bind-apply-helpers/functionApply.js
+// ../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js
 var require_functionApply = __commonJS({
-  "node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
+  "../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.apply;
   }
 });
 
-// node_modules/call-bind-apply-helpers/reflectApply.js
+// ../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js
 var require_reflectApply = __commonJS({
-  "node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
+  "../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
   }
 });
 
-// node_modules/call-bind-apply-helpers/actualApply.js
+// ../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = __commonJS({
-  "node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
+  "../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $apply = require_functionApply();
@@ -17067,9 +17067,9 @@ var require_actualApply = __commonJS({
   }
 });
 
-// node_modules/call-bind-apply-helpers/index.js
+// ../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = __commonJS({
-  "node_modules/call-bind-apply-helpers/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $TypeError = require_type();
@@ -17084,9 +17084,9 @@ var require_call_bind_apply_helpers = __commonJS({
   }
 });
 
-// node_modules/dunder-proto/get.js
+// ../../project_v2/backend/node_modules/dunder-proto/get.js
 var require_get = __commonJS({
-  "node_modules/dunder-proto/get.js"(exports, module) {
+  "../../project_v2/backend/node_modules/dunder-proto/get.js"(exports, module) {
     "use strict";
     var callBind = require_call_bind_apply_helpers();
     var gOPD = require_gopd();
@@ -17115,9 +17115,9 @@ var require_get = __commonJS({
   }
 });
 
-// node_modules/get-proto/index.js
+// ../../project_v2/backend/node_modules/get-proto/index.js
 var require_get_proto = __commonJS({
-  "node_modules/get-proto/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/get-proto/index.js"(exports, module) {
     "use strict";
     var reflectGetProto = require_Reflect_getPrototypeOf();
     var originalGetProto = require_Object_getPrototypeOf();
@@ -17135,9 +17135,9 @@ var require_get_proto = __commonJS({
   }
 });
 
-// node_modules/hasown/index.js
+// ../../project_v2/backend/node_modules/hasown/index.js
 var require_hasown = __commonJS({
-  "node_modules/hasown/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/hasown/index.js"(exports, module) {
     "use strict";
     var call = Function.prototype.call;
     var $hasOwn = Object.prototype.hasOwnProperty;
@@ -17146,9 +17146,9 @@ var require_hasown = __commonJS({
   }
 });
 
-// node_modules/get-intrinsic/index.js
+// ../../project_v2/backend/node_modules/get-intrinsic/index.js
 var require_get_intrinsic = __commonJS({
-  "node_modules/get-intrinsic/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/get-intrinsic/index.js"(exports, module) {
     "use strict";
     var undefined2;
     var $Object = require_es_object_atoms();
@@ -17477,9 +17477,9 @@ var require_get_intrinsic = __commonJS({
   }
 });
 
-// node_modules/call-bound/index.js
+// ../../project_v2/backend/node_modules/call-bound/index.js
 var require_call_bound = __commonJS({
-  "node_modules/call-bound/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/call-bound/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBindBasic = require_call_bind_apply_helpers();
@@ -17500,9 +17500,9 @@ var require_call_bound = __commonJS({
   }
 });
 
-// node_modules/side-channel-map/index.js
+// ../../project_v2/backend/node_modules/side-channel-map/index.js
 var require_side_channel_map = __commonJS({
-  "node_modules/side-channel-map/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/side-channel-map/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17556,9 +17556,9 @@ var require_side_channel_map = __commonJS({
   }
 });
 
-// node_modules/side-channel-weakmap/index.js
+// ../../project_v2/backend/node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = __commonJS({
-  "node_modules/side-channel-weakmap/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/side-channel-weakmap/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17629,9 +17629,9 @@ var require_side_channel_weakmap = __commonJS({
   }
 });
 
-// node_modules/side-channel/index.js
+// ../../project_v2/backend/node_modules/side-channel/index.js
 var require_side_channel = __commonJS({
-  "node_modules/side-channel/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/side-channel/index.js"(exports, module) {
     "use strict";
     var $TypeError = require_type();
     var inspect = require_object_inspect();
@@ -17669,9 +17669,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// node_modules/qs/lib/formats.js
+// ../../project_v2/backend/node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "node_modules/qs/lib/formats.js"(exports, module) {
+  "../../project_v2/backend/node_modules/qs/lib/formats.js"(exports, module) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -17695,9 +17695,9 @@ var require_formats = __commonJS({
   }
 });
 
-// node_modules/qs/lib/utils.js
+// ../../project_v2/backend/node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "node_modules/qs/lib/utils.js"(exports, module) {
+  "../../project_v2/backend/node_modules/qs/lib/utils.js"(exports, module) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -18001,9 +18001,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// node_modules/qs/lib/stringify.js
+// ../../project_v2/backend/node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "node_modules/qs/lib/stringify.js"(exports, module) {
+  "../../project_v2/backend/node_modules/qs/lib/stringify.js"(exports, module) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -18298,9 +18298,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// node_modules/qs/lib/parse.js
+// ../../project_v2/backend/node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "node_modules/qs/lib/parse.js"(exports, module) {
+  "../../project_v2/backend/node_modules/qs/lib/parse.js"(exports, module) {
     "use strict";
     var utils = require_utils2();
     var has = Object.prototype.hasOwnProperty;
@@ -18626,9 +18626,9 @@ var require_parse = __commonJS({
   }
 });
 
-// node_modules/qs/lib/index.js
+// ../../project_v2/backend/node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "node_modules/qs/lib/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/qs/lib/index.js"(exports, module) {
     "use strict";
     var stringify = require_stringify();
     var parse3 = require_parse();
@@ -18641,9 +18641,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/urlencoded.js
+// ../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js
 var require_urlencoded = __commonJS({
-  "node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
+  "../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("body-parser:urlencoded");
@@ -18727,9 +18727,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// node_modules/body-parser/index.js
+// ../../project_v2/backend/node_modules/body-parser/index.js
 var require_body_parser = __commonJS({
-  "node_modules/body-parser/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/body-parser/index.js"(exports, module) {
     "use strict";
     exports = module.exports = bodyParser;
     exports.json = require_json();
@@ -18742,9 +18742,9 @@ var require_body_parser = __commonJS({
   }
 });
 
-// node_modules/merge-descriptors/index.js
+// ../../project_v2/backend/node_modules/merge-descriptors/index.js
 var require_merge_descriptors = __commonJS({
-  "node_modules/merge-descriptors/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/merge-descriptors/index.js"(exports, module) {
     "use strict";
     function mergeDescriptors(destination, source, overwrite = true) {
       if (!destination) {
@@ -18766,9 +18766,9 @@ var require_merge_descriptors = __commonJS({
   }
 });
 
-// node_modules/encodeurl/index.js
+// ../../project_v2/backend/node_modules/encodeurl/index.js
 var require_encodeurl = __commonJS({
-  "node_modules/encodeurl/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/encodeurl/index.js"(exports, module) {
     "use strict";
     module.exports = encodeUrl;
     var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
@@ -18780,9 +18780,9 @@ var require_encodeurl = __commonJS({
   }
 });
 
-// node_modules/escape-html/index.js
+// ../../project_v2/backend/node_modules/escape-html/index.js
 var require_escape_html = __commonJS({
-  "node_modules/escape-html/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/escape-html/index.js"(exports, module) {
     "use strict";
     var matchHtmlRegExp = /["'&<>]/;
     module.exports = escapeHtml;
@@ -18827,9 +18827,9 @@ var require_escape_html = __commonJS({
   }
 });
 
-// node_modules/parseurl/index.js
+// ../../project_v2/backend/node_modules/parseurl/index.js
 var require_parseurl = __commonJS({
-  "node_modules/parseurl/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/parseurl/index.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var parse3 = url2.parse;
@@ -18911,9 +18911,9 @@ var require_parseurl = __commonJS({
   }
 });
 
-// node_modules/finalhandler/index.js
+// ../../project_v2/backend/node_modules/finalhandler/index.js
 var require_finalhandler = __commonJS({
-  "node_modules/finalhandler/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/finalhandler/index.js"(exports, module) {
     "use strict";
     var debug = require_src()("finalhandler");
     var encodeUrl = require_encodeurl();
@@ -19038,9 +19038,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// node_modules/express/lib/view.js
+// ../../project_v2/backend/node_modules/express/lib/view.js
 var require_view = __commonJS({
-  "node_modules/express/lib/view.js"(exports, module) {
+  "../../project_v2/backend/node_modules/express/lib/view.js"(exports, module) {
     "use strict";
     var debug = require_src()("express:view");
     var path = __require("node:path");
@@ -19132,9 +19132,9 @@ var require_view = __commonJS({
   }
 });
 
-// node_modules/content-type/index.js
+// ../../project_v2/backend/node_modules/content-type/index.js
 var require_content_type = __commonJS({
-  "node_modules/content-type/index.js"(exports) {
+  "../../project_v2/backend/node_modules/content-type/index.js"(exports) {
     "use strict";
     var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
     var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
@@ -19236,9 +19236,9 @@ var require_content_type = __commonJS({
   }
 });
 
-// node_modules/etag/index.js
+// ../../project_v2/backend/node_modules/etag/index.js
 var require_etag = __commonJS({
-  "node_modules/etag/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
     var crypto4 = __require("crypto");
@@ -19278,9 +19278,9 @@ var require_etag = __commonJS({
   }
 });
 
-// node_modules/forwarded/index.js
+// ../../project_v2/backend/node_modules/forwarded/index.js
 var require_forwarded = __commonJS({
-  "node_modules/forwarded/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/forwarded/index.js"(exports, module) {
     "use strict";
     module.exports = forwarded;
     function forwarded(req) {
@@ -19325,9 +19325,9 @@ var require_forwarded = __commonJS({
   }
 });
 
-// node_modules/ipaddr.js/lib/ipaddr.js
+// ../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js
 var require_ipaddr = __commonJS({
-  "node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
+  "../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
     (function() {
       var expandIPv6, ipaddr, ipv4Part, ipv4Regexes, ipv6Part, ipv6Regexes, matchCIDR, root, zoneIndex;
       ipaddr = {};
@@ -19947,9 +19947,9 @@ var require_ipaddr = __commonJS({
   }
 });
 
-// node_modules/proxy-addr/index.js
+// ../../project_v2/backend/node_modules/proxy-addr/index.js
 var require_proxy_addr = __commonJS({
-  "node_modules/proxy-addr/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/proxy-addr/index.js"(exports, module) {
     "use strict";
     module.exports = proxyaddr;
     module.exports.all = alladdrs;
@@ -20106,9 +20106,9 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// node_modules/express/lib/utils.js
+// ../../project_v2/backend/node_modules/express/lib/utils.js
 var require_utils3 = __commonJS({
-  "node_modules/express/lib/utils.js"(exports) {
+  "../../project_v2/backend/node_modules/express/lib/utils.js"(exports) {
     "use strict";
     var { METHODS } = __require("node:http");
     var contentType = require_content_type();
@@ -20233,9 +20233,9 @@ var require_utils3 = __commonJS({
   }
 });
 
-// node_modules/wrappy/wrappy.js
+// ../../project_v2/backend/node_modules/wrappy/wrappy.js
 var require_wrappy = __commonJS({
-  "node_modules/wrappy/wrappy.js"(exports, module) {
+  "../../project_v2/backend/node_modules/wrappy/wrappy.js"(exports, module) {
     module.exports = wrappy;
     function wrappy(fn, cb) {
       if (fn && cb) return wrappy(fn)(cb);
@@ -20263,9 +20263,9 @@ var require_wrappy = __commonJS({
   }
 });
 
-// node_modules/once/once.js
+// ../../project_v2/backend/node_modules/once/once.js
 var require_once = __commonJS({
-  "node_modules/once/once.js"(exports, module) {
+  "../../project_v2/backend/node_modules/once/once.js"(exports, module) {
     var wrappy = require_wrappy();
     module.exports = wrappy(once);
     module.exports.strict = wrappy(onceStrict);
@@ -20307,9 +20307,9 @@ var require_once = __commonJS({
   }
 });
 
-// node_modules/is-promise/index.js
+// ../../project_v2/backend/node_modules/is-promise/index.js
 var require_is_promise = __commonJS({
-  "node_modules/is-promise/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/is-promise/index.js"(exports, module) {
     module.exports = isPromise;
     module.exports.default = isPromise;
     function isPromise(obj) {
@@ -20318,9 +20318,9 @@ var require_is_promise = __commonJS({
   }
 });
 
-// node_modules/path-to-regexp/dist/index.js
+// ../../project_v2/backend/node_modules/path-to-regexp/dist/index.js
 var require_dist3 = __commonJS({
-  "node_modules/path-to-regexp/dist/index.js"(exports) {
+  "../../project_v2/backend/node_modules/path-to-regexp/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.PathError = exports.TokenData = void 0;
@@ -20687,9 +20687,9 @@ var require_dist3 = __commonJS({
   }
 });
 
-// node_modules/router/lib/layer.js
+// ../../project_v2/backend/node_modules/router/lib/layer.js
 var require_layer = __commonJS({
-  "node_modules/router/lib/layer.js"(exports, module) {
+  "../../project_v2/backend/node_modules/router/lib/layer.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var pathRegexp = require_dist3();
@@ -20837,9 +20837,9 @@ var require_layer = __commonJS({
   }
 });
 
-// node_modules/router/lib/route.js
+// ../../project_v2/backend/node_modules/router/lib/route.js
 var require_route = __commonJS({
-  "node_modules/router/lib/route.js"(exports, module) {
+  "../../project_v2/backend/node_modules/router/lib/route.js"(exports, module) {
     "use strict";
     var debug = require_src()("router:route");
     var Layer = require_layer();
@@ -20957,9 +20957,9 @@ var require_route = __commonJS({
   }
 });
 
-// node_modules/router/index.js
+// ../../project_v2/backend/node_modules/router/index.js
 var require_router = __commonJS({
-  "node_modules/router/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/router/index.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var Layer = require_layer();
@@ -21355,9 +21355,9 @@ var require_router = __commonJS({
   }
 });
 
-// node_modules/express/lib/application.js
+// ../../project_v2/backend/node_modules/express/lib/application.js
 var require_application = __commonJS({
-  "node_modules/express/lib/application.js"(exports, module) {
+  "../../project_v2/backend/node_modules/express/lib/application.js"(exports, module) {
     "use strict";
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
@@ -21559,7 +21559,7 @@ var require_application = __commonJS({
       return this;
     };
     app2.render = function render(name, options, callback) {
-      var cache3 = this.cache;
+      var cache4 = this.cache;
       var done = callback;
       var engines = this.engines;
       var opts = options;
@@ -21573,7 +21573,7 @@ var require_application = __commonJS({
         renderOptions.cache = this.enabled("view cache");
       }
       if (renderOptions.cache) {
-        view = cache3[name];
+        view = cache4[name];
       }
       if (!view) {
         var View2 = this.get("view");
@@ -21589,7 +21589,7 @@ var require_application = __commonJS({
           return done(err);
         }
         if (renderOptions.cache) {
-          cache3[name] = view;
+          cache4[name] = view;
         }
       }
       tryRender(view, renderOptions, done);
@@ -21616,9 +21616,9 @@ var require_application = __commonJS({
   }
 });
 
-// node_modules/accepts/node_modules/content-type/dist/index.js
+// ../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js
 var require_dist4 = __commonJS({
-  "node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
+  "../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -21755,9 +21755,9 @@ var require_dist4 = __commonJS({
   }
 });
 
-// node_modules/accepts/node_modules/negotiator/lib/accept.js
+// ../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js
 var require_accept = __commonJS({
-  "node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
+  "../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     module.exports = parseAccept;
@@ -21783,9 +21783,9 @@ var require_accept = __commonJS({
   }
 });
 
-// node_modules/accepts/node_modules/negotiator/lib/charset.js
+// ../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js
 var require_charset = __commonJS({
-  "node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
+  "../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredCharsets;
@@ -21855,9 +21855,9 @@ var require_charset = __commonJS({
   }
 });
 
-// node_modules/accepts/node_modules/negotiator/lib/encoding.js
+// ../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js
 var require_encoding = __commonJS({
-  "node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredEncodings;
@@ -21955,9 +21955,9 @@ var require_encoding = __commonJS({
   }
 });
 
-// node_modules/accepts/node_modules/negotiator/lib/language.js
+// ../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js
 var require_language = __commonJS({
-  "node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
+  "../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAccept = require_accept();
@@ -22039,9 +22039,9 @@ var require_language = __commonJS({
   }
 });
 
-// node_modules/accepts/node_modules/negotiator/lib/mediaType.js
+// ../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js
 var require_mediaType = __commonJS({
-  "node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAcceptHeader = require_accept();
@@ -22136,9 +22136,9 @@ var require_mediaType = __commonJS({
   }
 });
 
-// node_modules/accepts/node_modules/negotiator/index.js
+// ../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js
 var require_negotiator = __commonJS({
-  "node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset();
     var preferredEncodings = require_encoding();
@@ -22192,9 +22192,9 @@ var require_negotiator = __commonJS({
   }
 });
 
-// node_modules/accepts/index.js
+// ../../project_v2/backend/node_modules/accepts/index.js
 var require_accepts = __commonJS({
-  "node_modules/accepts/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/accepts/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator();
     var mime = require_mime_types();
@@ -22273,9 +22273,9 @@ var require_accepts = __commonJS({
   }
 });
 
-// node_modules/fresh/index.js
+// ../../project_v2/backend/node_modules/fresh/index.js
 var require_fresh = __commonJS({
-  "node_modules/fresh/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/fresh/index.js"(exports, module) {
     "use strict";
     var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
     module.exports = fresh;
@@ -22345,9 +22345,9 @@ var require_fresh = __commonJS({
   }
 });
 
-// node_modules/range-parser/index.js
+// ../../project_v2/backend/node_modules/range-parser/index.js
 var require_range_parser = __commonJS({
-  "node_modules/range-parser/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/range-parser/index.js"(exports, module) {
     "use strict";
     module.exports = rangeParser;
     function rangeParser(size, str, options) {
@@ -22438,9 +22438,9 @@ var require_range_parser = __commonJS({
   }
 });
 
-// node_modules/express/lib/request.js
+// ../../project_v2/backend/node_modules/express/lib/request.js
 var require_request = __commonJS({
-  "node_modules/express/lib/request.js"(exports, module) {
+  "../../project_v2/backend/node_modules/express/lib/request.js"(exports, module) {
     "use strict";
     var accepts = require_accepts();
     var isIP2 = __require("node:net").isIP;
@@ -22586,9 +22586,9 @@ var require_request = __commonJS({
   }
 });
 
-// node_modules/content-disposition/index.js
+// ../../project_v2/backend/node_modules/content-disposition/index.js
 var require_content_disposition = __commonJS({
-  "node_modules/content-disposition/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/content-disposition/index.js"(exports, module) {
     "use strict";
     module.exports = contentDisposition;
     module.exports.parse = parse3;
@@ -22795,9 +22795,9 @@ var require_content_disposition = __commonJS({
   }
 });
 
-// node_modules/cookie-signature/index.js
+// ../../project_v2/backend/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
-  "node_modules/cookie-signature/index.js"(exports) {
+  "../../project_v2/backend/node_modules/cookie-signature/index.js"(exports) {
     var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
@@ -22813,9 +22813,9 @@ var require_cookie_signature = __commonJS({
   }
 });
 
-// node_modules/cookie/index.js
+// ../../project_v2/backend/node_modules/cookie/index.js
 var require_cookie = __commonJS({
-  "node_modules/cookie/index.js"(exports) {
+  "../../project_v2/backend/node_modules/cookie/index.js"(exports) {
     "use strict";
     exports.parse = parse3;
     exports.serialize = serialize;
@@ -22979,9 +22979,9 @@ var require_cookie = __commonJS({
   }
 });
 
-// node_modules/send/index.js
+// ../../project_v2/backend/node_modules/send/index.js
 var require_send = __commonJS({
-  "node_modules/send/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/send/index.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("send");
@@ -23462,9 +23462,9 @@ var require_send = __commonJS({
   }
 });
 
-// node_modules/vary/index.js
+// ../../project_v2/backend/node_modules/vary/index.js
 var require_vary = __commonJS({
-  "node_modules/vary/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/vary/index.js"(exports, module) {
     "use strict";
     module.exports = vary;
     module.exports.append = append;
@@ -23535,9 +23535,9 @@ var require_vary = __commonJS({
   }
 });
 
-// node_modules/express/lib/response.js
+// ../../project_v2/backend/node_modules/express/lib/response.js
 var require_response = __commonJS({
-  "node_modules/express/lib/response.js"(exports, module) {
+  "../../project_v2/backend/node_modules/express/lib/response.js"(exports, module) {
     "use strict";
     var contentDisposition = require_content_disposition();
     var createError = require_http_errors();
@@ -24005,9 +24005,9 @@ var require_response = __commonJS({
   }
 });
 
-// node_modules/serve-static/index.js
+// ../../project_v2/backend/node_modules/serve-static/index.js
 var require_serve_static = __commonJS({
-  "node_modules/serve-static/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/serve-static/index.js"(exports, module) {
     "use strict";
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
@@ -24109,9 +24109,9 @@ var require_serve_static = __commonJS({
   }
 });
 
-// node_modules/express/lib/express.js
+// ../../project_v2/backend/node_modules/express/lib/express.js
 var require_express = __commonJS({
-  "node_modules/express/lib/express.js"(exports, module) {
+  "../../project_v2/backend/node_modules/express/lib/express.js"(exports, module) {
     "use strict";
     var bodyParser = require_body_parser();
     var EventEmitter = __require("node:events").EventEmitter;
@@ -24149,17 +24149,17 @@ var require_express = __commonJS({
   }
 });
 
-// node_modules/express/index.js
+// ../../project_v2/backend/node_modules/express/index.js
 var require_express2 = __commonJS({
-  "node_modules/express/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/express/index.js"(exports, module) {
     "use strict";
     module.exports = require_express();
   }
 });
 
-// node_modules/object-assign/index.js
+// ../../project_v2/backend/node_modules/object-assign/index.js
 var require_object_assign = __commonJS({
-  "node_modules/object-assign/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/object-assign/index.js"(exports, module) {
     "use strict";
     var getOwnPropertySymbols = Object.getOwnPropertySymbols;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -24227,9 +24227,9 @@ var require_object_assign = __commonJS({
   }
 });
 
-// node_modules/cors/lib/index.js
+// ../../project_v2/backend/node_modules/cors/lib/index.js
 var require_lib3 = __commonJS({
-  "node_modules/cors/lib/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/cors/lib/index.js"(exports, module) {
     (function() {
       "use strict";
       var assign = require_object_assign();
@@ -24435,9 +24435,9 @@ var require_lib3 = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/charset.js
+// ../../project_v2/backend/node_modules/negotiator/lib/charset.js
 var require_charset2 = __commonJS({
-  "node_modules/negotiator/lib/charset.js"(exports, module) {
+  "../../project_v2/backend/node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     module.exports = preferredCharsets;
     module.exports.preferredCharsets = preferredCharsets;
@@ -24522,9 +24522,9 @@ var require_charset2 = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/encoding.js
+// ../../project_v2/backend/node_modules/negotiator/lib/encoding.js
 var require_encoding2 = __commonJS({
-  "node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "../../project_v2/backend/node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     module.exports = preferredEncodings;
     module.exports.preferredEncodings = preferredEncodings;
@@ -24635,9 +24635,9 @@ var require_encoding2 = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/language.js
+// ../../project_v2/backend/node_modules/negotiator/lib/language.js
 var require_language2 = __commonJS({
-  "node_modules/negotiator/lib/language.js"(exports, module) {
+  "../../project_v2/backend/node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     module.exports = preferredLanguages;
     module.exports.preferredLanguages = preferredLanguages;
@@ -24730,9 +24730,9 @@ var require_language2 = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/mediaType.js
+// ../../project_v2/backend/node_modules/negotiator/lib/mediaType.js
 var require_mediaType2 = __commonJS({
-  "node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "../../project_v2/backend/node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     module.exports = preferredMediaTypes;
     module.exports.preferredMediaTypes = preferredMediaTypes;
@@ -24892,9 +24892,9 @@ var require_mediaType2 = __commonJS({
   }
 });
 
-// node_modules/negotiator/index.js
+// ../../project_v2/backend/node_modules/negotiator/index.js
 var require_negotiator2 = __commonJS({
-  "node_modules/negotiator/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset2();
     var preferredEncodings = require_encoding2();
@@ -24947,9 +24947,9 @@ var require_negotiator2 = __commonJS({
   }
 });
 
-// node_modules/safe-buffer/index.js
+// ../../project_v2/backend/node_modules/safe-buffer/index.js
 var require_safe_buffer = __commonJS({
-  "node_modules/safe-buffer/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/safe-buffer/index.js"(exports, module) {
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
     function copyProps(src, dst) {
@@ -25005,9 +25005,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// node_modules/compressible/index.js
+// ../../project_v2/backend/node_modules/compressible/index.js
 var require_compressible = __commonJS({
-  "node_modules/compressible/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/compressible/index.js"(exports, module) {
     "use strict";
     var db = require_mime_db();
     var COMPRESSIBLE_TYPE_REGEXP = /^text\/|\+(?:json|text|xml)$/i;
@@ -25028,9 +25028,9 @@ var require_compressible = __commonJS({
   }
 });
 
-// node_modules/on-headers/index.js
+// ../../project_v2/backend/node_modules/on-headers/index.js
 var require_on_headers = __commonJS({
-  "node_modules/on-headers/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/on-headers/index.js"(exports, module) {
     "use strict";
     module.exports = onHeaders;
     var http = __require("http");
@@ -25126,9 +25126,9 @@ var require_on_headers = __commonJS({
   }
 });
 
-// node_modules/compression/index.js
+// ../../project_v2/backend/node_modules/compression/index.js
 var require_compression = __commonJS({
-  "node_modules/compression/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/compression/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator2();
     var Buffer3 = require_safe_buffer().Buffer;
@@ -25297,9 +25297,9 @@ var require_compression = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/address-error.js
+// ../../project_v2/backend/node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "node_modules/ip-address/dist/address-error.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -25314,9 +25314,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/common.js
+// ../../project_v2/backend/node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "node_modules/ip-address/dist/common.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -25414,9 +25414,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v4/constants.js
+// ../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js
 var require_constants = __commonJS({
-  "node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -25455,9 +25455,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv4.js
+// ../../project_v2/backend/node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "node_modules/ip-address/dist/ipv4.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26013,9 +26013,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/constants.js
+// ../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js
 var require_constants2 = __commonJS({
-  "node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -26103,9 +26103,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/helpers.js
+// ../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -26142,9 +26142,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/regular-expressions.js
+// ../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26234,9 +26234,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv6.js
+// ../../project_v2/backend/node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "node_modules/ip-address/dist/ipv6.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27563,9 +27563,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ip-address.js
+// ../../project_v2/backend/node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "node_modules/ip-address/dist/ip-address.js"(exports) {
+  "../../project_v2/backend/node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27613,9 +27613,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// node_modules/dotenv/lib/main.js
+// ../../project_v2/backend/node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
-  "node_modules/dotenv/lib/main.js"(exports, module) {
+  "../../project_v2/backend/node_modules/dotenv/lib/main.js"(exports, module) {
     var fs = __require("fs");
     var path = __require("path");
     var os = __require("os");
@@ -27932,9 +27932,9 @@ var require_main = __commonJS({
   }
 });
 
-// node_modules/jws/lib/data-stream.js
+// ../../project_v2/backend/node_modules/jws/lib/data-stream.js
 var require_data_stream = __commonJS({
-  "node_modules/jws/lib/data-stream.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jws/lib/data-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var Stream = __require("stream");
     var util = __require("util");
@@ -27980,9 +27980,9 @@ var require_data_stream = __commonJS({
   }
 });
 
-// node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
+// ../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
 var require_param_bytes_for_alg = __commonJS({
-  "node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
+  "../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
     "use strict";
     function getParamSize(keySize) {
       var result = (keySize / 8 | 0) + (keySize % 8 === 0 ? 0 : 1);
@@ -28004,9 +28004,9 @@ var require_param_bytes_for_alg = __commonJS({
   }
 });
 
-// node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
+// ../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
 var require_ecdsa_sig_formatter = __commonJS({
-  "node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
+  "../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safe_buffer().Buffer;
     var getParamBytesForAlg = require_param_bytes_for_alg();
@@ -28144,9 +28144,9 @@ var require_ecdsa_sig_formatter = __commonJS({
   }
 });
 
-// node_modules/buffer-equal-constant-time/index.js
+// ../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js
 var require_buffer_equal_constant_time = __commonJS({
-  "node_modules/buffer-equal-constant-time/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js"(exports, module) {
     "use strict";
     var Buffer3 = __require("buffer").Buffer;
     var SlowBuffer = __require("buffer").SlowBuffer;
@@ -28178,9 +28178,9 @@ var require_buffer_equal_constant_time = __commonJS({
   }
 });
 
-// node_modules/jwa/index.js
+// ../../project_v2/backend/node_modules/jwa/index.js
 var require_jwa = __commonJS({
-  "node_modules/jwa/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var crypto4 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
@@ -28402,9 +28402,9 @@ var require_jwa = __commonJS({
   }
 });
 
-// node_modules/jws/lib/tostring.js
+// ../../project_v2/backend/node_modules/jws/lib/tostring.js
 var require_tostring = __commonJS({
-  "node_modules/jws/lib/tostring.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jws/lib/tostring.js"(exports, module) {
     var Buffer3 = __require("buffer").Buffer;
     module.exports = function toString(obj) {
       if (typeof obj === "string")
@@ -28416,9 +28416,9 @@ var require_tostring = __commonJS({
   }
 });
 
-// node_modules/jws/lib/sign-stream.js
+// ../../project_v2/backend/node_modules/jws/lib/sign-stream.js
 var require_sign_stream = __commonJS({
-  "node_modules/jws/lib/sign-stream.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jws/lib/sign-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28491,9 +28491,9 @@ var require_sign_stream = __commonJS({
   }
 });
 
-// node_modules/jws/lib/verify-stream.js
+// ../../project_v2/backend/node_modules/jws/lib/verify-stream.js
 var require_verify_stream = __commonJS({
-  "node_modules/jws/lib/verify-stream.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jws/lib/verify-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28606,9 +28606,9 @@ var require_verify_stream = __commonJS({
   }
 });
 
-// node_modules/jws/index.js
+// ../../project_v2/backend/node_modules/jws/index.js
 var require_jws = __commonJS({
-  "node_modules/jws/index.js"(exports) {
+  "../../project_v2/backend/node_modules/jws/index.js"(exports) {
     var SignStream = require_sign_stream();
     var VerifyStream = require_verify_stream();
     var ALGORITHMS = [
@@ -28639,9 +28639,9 @@ var require_jws = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/decode.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/decode.js
 var require_decode = __commonJS({
-  "node_modules/jsonwebtoken/decode.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/decode.js"(exports, module) {
     var jws = require_jws();
     module.exports = function(jwt4, options) {
       options = options || {};
@@ -28671,9 +28671,9 @@ var require_decode = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/lib/JsonWebTokenError.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js
 var require_JsonWebTokenError = __commonJS({
-  "node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
     var JsonWebTokenError = function(message, error61) {
       Error.call(this, message);
       if (Error.captureStackTrace) {
@@ -28689,9 +28689,9 @@ var require_JsonWebTokenError = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/lib/NotBeforeError.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js
 var require_NotBeforeError = __commonJS({
-  "node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = function(message, date5) {
       JsonWebTokenError.call(this, message);
@@ -28704,9 +28704,9 @@ var require_NotBeforeError = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/lib/TokenExpiredError.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js
 var require_TokenExpiredError = __commonJS({
-  "node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var TokenExpiredError = function(message, expiredAt) {
       JsonWebTokenError.call(this, message);
@@ -28719,9 +28719,9 @@ var require_TokenExpiredError = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/lib/timespan.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js
 var require_timespan = __commonJS({
-  "node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
     var ms = require_ms();
     module.exports = function(time3, iat) {
       var timestamp = iat || Math.floor(Date.now() / 1e3);
@@ -28740,9 +28740,9 @@ var require_timespan = __commonJS({
   }
 });
 
-// node_modules/semver/internal/constants.js
+// ../../project_v2/backend/node_modules/semver/internal/constants.js
 var require_constants3 = __commonJS({
-  "node_modules/semver/internal/constants.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/internal/constants.js"(exports, module) {
     "use strict";
     var SEMVER_SPEC_VERSION = "2.0.0";
     var MAX_LENGTH = 256;
@@ -28772,9 +28772,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// node_modules/semver/internal/debug.js
+// ../../project_v2/backend/node_modules/semver/internal/debug.js
 var require_debug = __commonJS({
-  "node_modules/semver/internal/debug.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/internal/debug.js"(exports, module) {
     "use strict";
     var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
     };
@@ -28782,9 +28782,9 @@ var require_debug = __commonJS({
   }
 });
 
-// node_modules/semver/internal/re.js
+// ../../project_v2/backend/node_modules/semver/internal/re.js
 var require_re = __commonJS({
-  "node_modules/semver/internal/re.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/internal/re.js"(exports, module) {
     "use strict";
     var {
       MAX_SAFE_COMPONENT_LENGTH,
@@ -28870,9 +28870,9 @@ var require_re = __commonJS({
   }
 });
 
-// node_modules/semver/internal/parse-options.js
+// ../../project_v2/backend/node_modules/semver/internal/parse-options.js
 var require_parse_options = __commonJS({
-  "node_modules/semver/internal/parse-options.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/internal/parse-options.js"(exports, module) {
     "use strict";
     var looseOption = Object.freeze({ loose: true });
     var emptyOpts = Object.freeze({});
@@ -28889,9 +28889,9 @@ var require_parse_options = __commonJS({
   }
 });
 
-// node_modules/semver/internal/identifiers.js
+// ../../project_v2/backend/node_modules/semver/internal/identifiers.js
 var require_identifiers = __commonJS({
-  "node_modules/semver/internal/identifiers.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/internal/identifiers.js"(exports, module) {
     "use strict";
     var numeric = /^[0-9]+$/;
     var compareIdentifiers = (a, b) => {
@@ -28914,9 +28914,9 @@ var require_identifiers = __commonJS({
   }
 });
 
-// node_modules/semver/classes/semver.js
+// ../../project_v2/backend/node_modules/semver/classes/semver.js
 var require_semver = __commonJS({
-  "node_modules/semver/classes/semver.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/classes/semver.js"(exports, module) {
     "use strict";
     var debug = require_debug();
     var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants3();
@@ -29206,9 +29206,9 @@ var require_semver = __commonJS({
   }
 });
 
-// node_modules/semver/functions/parse.js
+// ../../project_v2/backend/node_modules/semver/functions/parse.js
 var require_parse2 = __commonJS({
-  "node_modules/semver/functions/parse.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/parse.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = (version3, options, throwErrors = false) => {
@@ -29228,9 +29228,9 @@ var require_parse2 = __commonJS({
   }
 });
 
-// node_modules/semver/functions/valid.js
+// ../../project_v2/backend/node_modules/semver/functions/valid.js
 var require_valid = __commonJS({
-  "node_modules/semver/functions/valid.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/valid.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var valid = (version3, options) => {
@@ -29241,9 +29241,9 @@ var require_valid = __commonJS({
   }
 });
 
-// node_modules/semver/functions/clean.js
+// ../../project_v2/backend/node_modules/semver/functions/clean.js
 var require_clean = __commonJS({
-  "node_modules/semver/functions/clean.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/clean.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var clean = (version3, options) => {
@@ -29254,9 +29254,9 @@ var require_clean = __commonJS({
   }
 });
 
-// node_modules/semver/functions/inc.js
+// ../../project_v2/backend/node_modules/semver/functions/inc.js
 var require_inc = __commonJS({
-  "node_modules/semver/functions/inc.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/inc.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var inc = (version3, release, options, identifier, identifierBase) => {
@@ -29278,9 +29278,9 @@ var require_inc = __commonJS({
   }
 });
 
-// node_modules/semver/functions/diff.js
+// ../../project_v2/backend/node_modules/semver/functions/diff.js
 var require_diff = __commonJS({
-  "node_modules/semver/functions/diff.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/diff.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var diff = (version1, version22) => {
@@ -29322,9 +29322,9 @@ var require_diff = __commonJS({
   }
 });
 
-// node_modules/semver/functions/major.js
+// ../../project_v2/backend/node_modules/semver/functions/major.js
 var require_major = __commonJS({
-  "node_modules/semver/functions/major.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/major.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var major = (a, loose) => new SemVer(a, loose).major;
@@ -29332,9 +29332,9 @@ var require_major = __commonJS({
   }
 });
 
-// node_modules/semver/functions/minor.js
+// ../../project_v2/backend/node_modules/semver/functions/minor.js
 var require_minor = __commonJS({
-  "node_modules/semver/functions/minor.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/minor.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var minor = (a, loose) => new SemVer(a, loose).minor;
@@ -29342,9 +29342,9 @@ var require_minor = __commonJS({
   }
 });
 
-// node_modules/semver/functions/patch.js
+// ../../project_v2/backend/node_modules/semver/functions/patch.js
 var require_patch = __commonJS({
-  "node_modules/semver/functions/patch.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/patch.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var patch = (a, loose) => new SemVer(a, loose).patch;
@@ -29352,9 +29352,9 @@ var require_patch = __commonJS({
   }
 });
 
-// node_modules/semver/functions/prerelease.js
+// ../../project_v2/backend/node_modules/semver/functions/prerelease.js
 var require_prerelease = __commonJS({
-  "node_modules/semver/functions/prerelease.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/prerelease.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var prerelease = (version3, options) => {
@@ -29365,9 +29365,9 @@ var require_prerelease = __commonJS({
   }
 });
 
-// node_modules/semver/functions/compare.js
+// ../../project_v2/backend/node_modules/semver/functions/compare.js
 var require_compare = __commonJS({
-  "node_modules/semver/functions/compare.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/compare.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
@@ -29375,9 +29375,9 @@ var require_compare = __commonJS({
   }
 });
 
-// node_modules/semver/functions/rcompare.js
+// ../../project_v2/backend/node_modules/semver/functions/rcompare.js
 var require_rcompare = __commonJS({
-  "node_modules/semver/functions/rcompare.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/rcompare.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var rcompare = (a, b, loose) => compare(b, a, loose);
@@ -29385,9 +29385,9 @@ var require_rcompare = __commonJS({
   }
 });
 
-// node_modules/semver/functions/compare-loose.js
+// ../../project_v2/backend/node_modules/semver/functions/compare-loose.js
 var require_compare_loose = __commonJS({
-  "node_modules/semver/functions/compare-loose.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/compare-loose.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var compareLoose = (a, b) => compare(a, b, true);
@@ -29395,9 +29395,9 @@ var require_compare_loose = __commonJS({
   }
 });
 
-// node_modules/semver/functions/compare-build.js
+// ../../project_v2/backend/node_modules/semver/functions/compare-build.js
 var require_compare_build = __commonJS({
-  "node_modules/semver/functions/compare-build.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/compare-build.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compareBuild = (a, b, loose) => {
@@ -29409,9 +29409,9 @@ var require_compare_build = __commonJS({
   }
 });
 
-// node_modules/semver/functions/sort.js
+// ../../project_v2/backend/node_modules/semver/functions/sort.js
 var require_sort = __commonJS({
-  "node_modules/semver/functions/sort.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/sort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
@@ -29419,9 +29419,9 @@ var require_sort = __commonJS({
   }
 });
 
-// node_modules/semver/functions/rsort.js
+// ../../project_v2/backend/node_modules/semver/functions/rsort.js
 var require_rsort = __commonJS({
-  "node_modules/semver/functions/rsort.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/rsort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
@@ -29429,9 +29429,9 @@ var require_rsort = __commonJS({
   }
 });
 
-// node_modules/semver/functions/gt.js
+// ../../project_v2/backend/node_modules/semver/functions/gt.js
 var require_gt = __commonJS({
-  "node_modules/semver/functions/gt.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/gt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gt = (a, b, loose) => compare(a, b, loose) > 0;
@@ -29439,9 +29439,9 @@ var require_gt = __commonJS({
   }
 });
 
-// node_modules/semver/functions/lt.js
+// ../../project_v2/backend/node_modules/semver/functions/lt.js
 var require_lt = __commonJS({
-  "node_modules/semver/functions/lt.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/lt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lt = (a, b, loose) => compare(a, b, loose) < 0;
@@ -29449,9 +29449,9 @@ var require_lt = __commonJS({
   }
 });
 
-// node_modules/semver/functions/eq.js
+// ../../project_v2/backend/node_modules/semver/functions/eq.js
 var require_eq = __commonJS({
-  "node_modules/semver/functions/eq.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/eq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var eq = (a, b, loose) => compare(a, b, loose) === 0;
@@ -29459,9 +29459,9 @@ var require_eq = __commonJS({
   }
 });
 
-// node_modules/semver/functions/neq.js
+// ../../project_v2/backend/node_modules/semver/functions/neq.js
 var require_neq = __commonJS({
-  "node_modules/semver/functions/neq.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/neq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var neq = (a, b, loose) => compare(a, b, loose) !== 0;
@@ -29469,9 +29469,9 @@ var require_neq = __commonJS({
   }
 });
 
-// node_modules/semver/functions/gte.js
+// ../../project_v2/backend/node_modules/semver/functions/gte.js
 var require_gte = __commonJS({
-  "node_modules/semver/functions/gte.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/gte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gte = (a, b, loose) => compare(a, b, loose) >= 0;
@@ -29479,9 +29479,9 @@ var require_gte = __commonJS({
   }
 });
 
-// node_modules/semver/functions/lte.js
+// ../../project_v2/backend/node_modules/semver/functions/lte.js
 var require_lte = __commonJS({
-  "node_modules/semver/functions/lte.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/lte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lte = (a, b, loose) => compare(a, b, loose) <= 0;
@@ -29489,9 +29489,9 @@ var require_lte = __commonJS({
   }
 });
 
-// node_modules/semver/functions/cmp.js
+// ../../project_v2/backend/node_modules/semver/functions/cmp.js
 var require_cmp = __commonJS({
-  "node_modules/semver/functions/cmp.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/cmp.js"(exports, module) {
     "use strict";
     var eq = require_eq();
     var neq = require_neq();
@@ -29539,9 +29539,9 @@ var require_cmp = __commonJS({
   }
 });
 
-// node_modules/semver/functions/coerce.js
+// ../../project_v2/backend/node_modules/semver/functions/coerce.js
 var require_coerce = __commonJS({
-  "node_modules/semver/functions/coerce.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/coerce.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = require_parse2();
@@ -29585,9 +29585,9 @@ var require_coerce = __commonJS({
   }
 });
 
-// node_modules/semver/functions/truncate.js
+// ../../project_v2/backend/node_modules/semver/functions/truncate.js
 var require_truncate = __commonJS({
-  "node_modules/semver/functions/truncate.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/truncate.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var constants = require_constants3();
@@ -29626,9 +29626,9 @@ var require_truncate = __commonJS({
   }
 });
 
-// node_modules/semver/internal/lrucache.js
+// ../../project_v2/backend/node_modules/semver/internal/lrucache.js
 var require_lrucache = __commonJS({
-  "node_modules/semver/internal/lrucache.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/internal/lrucache.js"(exports, module) {
     "use strict";
     var LRUCache = class {
       constructor() {
@@ -29664,9 +29664,9 @@ var require_lrucache = __commonJS({
   }
 });
 
-// node_modules/semver/classes/range.js
+// ../../project_v2/backend/node_modules/semver/classes/range.js
 var require_range2 = __commonJS({
-  "node_modules/semver/classes/range.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/classes/range.js"(exports, module) {
     "use strict";
     var SPACE_CHARACTERS = /\s+/g;
     var Range = class _Range {
@@ -29737,7 +29737,7 @@ var require_range2 = __commonJS({
         range = range.replace(BUILDSTRIPRE, "");
         const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
         const memoKey = memoOpts + ":" + range;
-        const cached2 = cache3.get(memoKey);
+        const cached2 = cache4.get(memoKey);
         if (cached2) {
           return cached2;
         }
@@ -29771,7 +29771,7 @@ var require_range2 = __commonJS({
           rangeMap.delete("");
         }
         const result = [...rangeMap.values()];
-        cache3.set(memoKey, result);
+        cache4.set(memoKey, result);
         return result;
       }
       intersects(range, options) {
@@ -29810,7 +29810,7 @@ var require_range2 = __commonJS({
     };
     module.exports = Range;
     var LRU = require_lrucache();
-    var cache3 = new LRU();
+    var cache4 = new LRU();
     var parseOptions2 = require_parse_options();
     var Comparator = require_comparator();
     var debug = require_debug();
@@ -30049,9 +30049,9 @@ var require_range2 = __commonJS({
   }
 });
 
-// node_modules/semver/classes/comparator.js
+// ../../project_v2/backend/node_modules/semver/classes/comparator.js
 var require_comparator = __commonJS({
-  "node_modules/semver/classes/comparator.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/classes/comparator.js"(exports, module) {
     "use strict";
     var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
     var Comparator = class _Comparator {
@@ -30162,9 +30162,9 @@ var require_comparator = __commonJS({
   }
 });
 
-// node_modules/semver/functions/satisfies.js
+// ../../project_v2/backend/node_modules/semver/functions/satisfies.js
 var require_satisfies = __commonJS({
-  "node_modules/semver/functions/satisfies.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/functions/satisfies.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var satisfies = (version3, range, options) => {
@@ -30179,9 +30179,9 @@ var require_satisfies = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/to-comparators.js
+// ../../project_v2/backend/node_modules/semver/ranges/to-comparators.js
 var require_to_comparators = __commonJS({
-  "node_modules/semver/ranges/to-comparators.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/to-comparators.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
@@ -30189,9 +30189,9 @@ var require_to_comparators = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/max-satisfying.js
+// ../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js
 var require_max_satisfying = __commonJS({
-  "node_modules/semver/ranges/max-satisfying.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30218,9 +30218,9 @@ var require_max_satisfying = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/min-satisfying.js
+// ../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js
 var require_min_satisfying = __commonJS({
-  "node_modules/semver/ranges/min-satisfying.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30247,9 +30247,9 @@ var require_min_satisfying = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/min-version.js
+// ../../project_v2/backend/node_modules/semver/ranges/min-version.js
 var require_min_version = __commonJS({
-  "node_modules/semver/ranges/min-version.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/min-version.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30306,9 +30306,9 @@ var require_min_version = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/valid.js
+// ../../project_v2/backend/node_modules/semver/ranges/valid.js
 var require_valid2 = __commonJS({
-  "node_modules/semver/ranges/valid.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/valid.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var validRange = (range, options) => {
@@ -30322,9 +30322,9 @@ var require_valid2 = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/outside.js
+// ../../project_v2/backend/node_modules/semver/ranges/outside.js
 var require_outside = __commonJS({
-  "node_modules/semver/ranges/outside.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/outside.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Comparator = require_comparator();
@@ -30391,9 +30391,9 @@ var require_outside = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/gtr.js
+// ../../project_v2/backend/node_modules/semver/ranges/gtr.js
 var require_gtr = __commonJS({
-  "node_modules/semver/ranges/gtr.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/gtr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var gtr = (version3, range, options) => outside(version3, range, ">", options);
@@ -30401,9 +30401,9 @@ var require_gtr = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/ltr.js
+// ../../project_v2/backend/node_modules/semver/ranges/ltr.js
 var require_ltr = __commonJS({
-  "node_modules/semver/ranges/ltr.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/ltr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var ltr = (version3, range, options) => outside(version3, range, "<", options);
@@ -30411,9 +30411,9 @@ var require_ltr = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/intersects.js
+// ../../project_v2/backend/node_modules/semver/ranges/intersects.js
 var require_intersects = __commonJS({
-  "node_modules/semver/ranges/intersects.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/intersects.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var intersects = (r1, r2, options) => {
@@ -30425,9 +30425,9 @@ var require_intersects = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/simplify.js
+// ../../project_v2/backend/node_modules/semver/ranges/simplify.js
 var require_simplify = __commonJS({
-  "node_modules/semver/ranges/simplify.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/simplify.js"(exports, module) {
     "use strict";
     var satisfies = require_satisfies();
     var compare = require_compare();
@@ -30475,9 +30475,9 @@ var require_simplify = __commonJS({
   }
 });
 
-// node_modules/semver/ranges/subset.js
+// ../../project_v2/backend/node_modules/semver/ranges/subset.js
 var require_subset = __commonJS({
-  "node_modules/semver/ranges/subset.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/ranges/subset.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var Comparator = require_comparator();
@@ -30637,9 +30637,9 @@ var require_subset = __commonJS({
   }
 });
 
-// node_modules/semver/index.js
+// ../../project_v2/backend/node_modules/semver/index.js
 var require_semver2 = __commonJS({
-  "node_modules/semver/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/semver/index.js"(exports, module) {
     "use strict";
     var internalRe = require_re();
     var constants = require_constants3();
@@ -30734,25 +30734,25 @@ var require_semver2 = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
 var require_asymmetricKeyDetailsSupported = __commonJS({
-  "node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=15.7.0");
   }
 });
 
-// node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
 var require_rsaPssKeyDetailsSupported = __commonJS({
-  "node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=16.9.0");
   }
 });
 
-// node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
 var require_validateAsymmetricKey = __commonJS({
-  "node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
     var ASYMMETRIC_KEY_DETAILS_SUPPORTED = require_asymmetricKeyDetailsSupported();
     var RSA_PSS_KEY_DETAILS_SUPPORTED = require_rsaPssKeyDetailsSupported();
     var allowedAlgorithmsForKeys = {
@@ -30803,17 +30803,17 @@ var require_validateAsymmetricKey = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/lib/psSupported.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js
 var require_psSupported = __commonJS({
-  "node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, "^6.12.0 || >=8.0.0");
   }
 });
 
-// node_modules/jsonwebtoken/verify.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/verify.js
 var require_verify = __commonJS({
-  "node_modules/jsonwebtoken/verify.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/verify.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = require_NotBeforeError();
     var TokenExpiredError = require_TokenExpiredError();
@@ -31026,9 +31026,9 @@ var require_verify = __commonJS({
   }
 });
 
-// node_modules/lodash.includes/index.js
+// ../../project_v2/backend/node_modules/lodash.includes/index.js
 var require_lodash = __commonJS({
-  "node_modules/lodash.includes/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/lodash.includes/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_SAFE_INTEGER = 9007199254740991;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31210,9 +31210,9 @@ var require_lodash = __commonJS({
   }
 });
 
-// node_modules/lodash.isboolean/index.js
+// ../../project_v2/backend/node_modules/lodash.isboolean/index.js
 var require_lodash2 = __commonJS({
-  "node_modules/lodash.isboolean/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/lodash.isboolean/index.js"(exports, module) {
     var boolTag = "[object Boolean]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31226,9 +31226,9 @@ var require_lodash2 = __commonJS({
   }
 });
 
-// node_modules/lodash.isinteger/index.js
+// ../../project_v2/backend/node_modules/lodash.isinteger/index.js
 var require_lodash3 = __commonJS({
-  "node_modules/lodash.isinteger/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/lodash.isinteger/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
     var NAN = 0 / 0;
@@ -31290,9 +31290,9 @@ var require_lodash3 = __commonJS({
   }
 });
 
-// node_modules/lodash.isnumber/index.js
+// ../../project_v2/backend/node_modules/lodash.isnumber/index.js
 var require_lodash4 = __commonJS({
-  "node_modules/lodash.isnumber/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/lodash.isnumber/index.js"(exports, module) {
     var numberTag = "[object Number]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31306,9 +31306,9 @@ var require_lodash4 = __commonJS({
   }
 });
 
-// node_modules/lodash.isplainobject/index.js
+// ../../project_v2/backend/node_modules/lodash.isplainobject/index.js
 var require_lodash5 = __commonJS({
-  "node_modules/lodash.isplainobject/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/lodash.isplainobject/index.js"(exports, module) {
     var objectTag = "[object Object]";
     function isHostObject(value) {
       var result = false;
@@ -31350,9 +31350,9 @@ var require_lodash5 = __commonJS({
   }
 });
 
-// node_modules/lodash.isstring/index.js
+// ../../project_v2/backend/node_modules/lodash.isstring/index.js
 var require_lodash6 = __commonJS({
-  "node_modules/lodash.isstring/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/lodash.isstring/index.js"(exports, module) {
     var stringTag = "[object String]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31367,9 +31367,9 @@ var require_lodash6 = __commonJS({
   }
 });
 
-// node_modules/lodash.once/index.js
+// ../../project_v2/backend/node_modules/lodash.once/index.js
 var require_lodash7 = __commonJS({
-  "node_modules/lodash.once/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/lodash.once/index.js"(exports, module) {
     var FUNC_ERROR_TEXT = "Expected a function";
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31448,9 +31448,9 @@ var require_lodash7 = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/sign.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/sign.js
 var require_sign2 = __commonJS({
-  "node_modules/jsonwebtoken/sign.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/sign.js"(exports, module) {
     var timespan = require_timespan();
     var PS_SUPPORTED = require_psSupported();
     var validateAsymmetricKey = require_validateAsymmetricKey();
@@ -31673,9 +31673,9 @@ var require_sign2 = __commonJS({
   }
 });
 
-// node_modules/jsonwebtoken/index.js
+// ../../project_v2/backend/node_modules/jsonwebtoken/index.js
 var require_jsonwebtoken = __commonJS({
-  "node_modules/jsonwebtoken/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/jsonwebtoken/index.js"(exports, module) {
     module.exports = {
       decode: require_decode(),
       verify: require_verify(),
@@ -31687,9 +31687,9 @@ var require_jsonwebtoken = __commonJS({
   }
 });
 
-// node_modules/postgres-array/index.js
+// ../../project_v2/backend/node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
-  "node_modules/postgres-array/index.js"(exports) {
+  "../../project_v2/backend/node_modules/postgres-array/index.js"(exports) {
     "use strict";
     exports.parse = function(source, transform2) {
       return new ArrayParser(source, transform2).parse();
@@ -31781,9 +31781,9 @@ var require_postgres_array = __commonJS({
   }
 });
 
-// node_modules/pg-types/lib/arrayParser.js
+// ../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js
 var require_arrayParser = __commonJS({
-  "node_modules/pg-types/lib/arrayParser.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js"(exports, module) {
     var array2 = require_postgres_array();
     module.exports = {
       create: function(source, transform2) {
@@ -31797,9 +31797,9 @@ var require_arrayParser = __commonJS({
   }
 });
 
-// node_modules/postgres-date/index.js
+// ../../project_v2/backend/node_modules/postgres-date/index.js
 var require_postgres_date = __commonJS({
-  "node_modules/postgres-date/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/postgres-date/index.js"(exports, module) {
     "use strict";
     var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
     var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
@@ -31884,9 +31884,9 @@ var require_postgres_date = __commonJS({
   }
 });
 
-// node_modules/xtend/mutable.js
+// ../../project_v2/backend/node_modules/xtend/mutable.js
 var require_mutable = __commonJS({
-  "node_modules/xtend/mutable.js"(exports, module) {
+  "../../project_v2/backend/node_modules/xtend/mutable.js"(exports, module) {
     module.exports = extend2;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
     function extend2(target) {
@@ -31903,9 +31903,9 @@ var require_mutable = __commonJS({
   }
 });
 
-// node_modules/postgres-interval/index.js
+// ../../project_v2/backend/node_modules/postgres-interval/index.js
 var require_postgres_interval = __commonJS({
-  "node_modules/postgres-interval/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/postgres-interval/index.js"(exports, module) {
     "use strict";
     var extend2 = require_mutable();
     module.exports = PostgresInterval;
@@ -31994,9 +31994,9 @@ var require_postgres_interval = __commonJS({
   }
 });
 
-// node_modules/postgres-bytea/index.js
+// ../../project_v2/backend/node_modules/postgres-bytea/index.js
 var require_postgres_bytea = __commonJS({
-  "node_modules/postgres-bytea/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/postgres-bytea/index.js"(exports, module) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
     module.exports = function parseBytea(input2) {
@@ -32030,9 +32030,9 @@ var require_postgres_bytea = __commonJS({
   }
 });
 
-// node_modules/pg-types/lib/textParsers.js
+// ../../project_v2/backend/node_modules/pg-types/lib/textParsers.js
 var require_textParsers = __commonJS({
-  "node_modules/pg-types/lib/textParsers.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg-types/lib/textParsers.js"(exports, module) {
     var array2 = require_postgres_array();
     var arrayParser = require_arrayParser();
     var parseDate = require_postgres_date();
@@ -32230,9 +32230,9 @@ var require_textParsers = __commonJS({
   }
 });
 
-// node_modules/pg-int8/index.js
+// ../../project_v2/backend/node_modules/pg-int8/index.js
 var require_pg_int8 = __commonJS({
-  "node_modules/pg-int8/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg-int8/index.js"(exports, module) {
     "use strict";
     var BASE = 1e6;
     function readInt8(buffer) {
@@ -32310,9 +32310,9 @@ var require_pg_int8 = __commonJS({
   }
 });
 
-// node_modules/pg-types/lib/binaryParsers.js
+// ../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js
 var require_binaryParsers = __commonJS({
-  "node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
     var parseInt64 = require_pg_int8();
     var parseBits = function(data, bits, offset, invert, callback) {
       offset = offset || 0;
@@ -32510,9 +32510,9 @@ var require_binaryParsers = __commonJS({
   }
 });
 
-// node_modules/pg-types/lib/builtins.js
+// ../../project_v2/backend/node_modules/pg-types/lib/builtins.js
 var require_builtins = __commonJS({
-  "node_modules/pg-types/lib/builtins.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg-types/lib/builtins.js"(exports, module) {
     module.exports = {
       BOOL: 16,
       BYTEA: 17,
@@ -32578,9 +32578,9 @@ var require_builtins = __commonJS({
   }
 });
 
-// node_modules/pg-types/index.js
+// ../../project_v2/backend/node_modules/pg-types/index.js
 var require_pg_types = __commonJS({
-  "node_modules/pg-types/index.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-types/index.js"(exports) {
     var textParsers = require_textParsers();
     var binaryParsers = require_binaryParsers();
     var arrayParser = require_arrayParser();
@@ -32619,9 +32619,9 @@ var require_pg_types = __commonJS({
   }
 });
 
-// node_modules/pg/lib/defaults.js
+// ../../project_v2/backend/node_modules/pg/lib/defaults.js
 var require_defaults = __commonJS({
-  "node_modules/pg/lib/defaults.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/defaults.js"(exports, module) {
     "use strict";
     var user;
     try {
@@ -32688,9 +32688,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// node_modules/pg/lib/utils.js
+// ../../project_v2/backend/node_modules/pg/lib/utils.js
 var require_utils4 = __commonJS({
-  "node_modules/pg/lib/utils.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/utils.js"(exports, module) {
     "use strict";
     var defaults2 = require_defaults();
     var { isDate } = __require("util/types");
@@ -32836,9 +32836,9 @@ var require_utils4 = __commonJS({
   }
 });
 
-// node_modules/pg/lib/crypto/utils.js
+// ../../project_v2/backend/node_modules/pg/lib/crypto/utils.js
 var require_utils5 = __commonJS({
-  "node_modules/pg/lib/crypto/utils.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/crypto/utils.js"(exports, module) {
     var nodeCrypto = __require("crypto");
     module.exports = {
       postgresMd5PasswordHash,
@@ -32887,9 +32887,9 @@ var require_utils5 = __commonJS({
   }
 });
 
-// node_modules/pg/lib/crypto/cert-signatures.js
+// ../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js
 var require_cert_signatures = __commonJS({
-  "node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
     function x509Error(msg, cert) {
       return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
     }
@@ -33000,9 +33000,9 @@ var require_cert_signatures = __commonJS({
   }
 });
 
-// node_modules/pg/lib/crypto/sasl.js
+// ../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js
 var require_sasl = __commonJS({
-  "node_modules/pg/lib/crypto/sasl.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
     var crypto4 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
@@ -33185,9 +33185,9 @@ var require_sasl = __commonJS({
   }
 });
 
-// node_modules/pg/lib/type-overrides.js
+// ../../project_v2/backend/node_modules/pg/lib/type-overrides.js
 var require_type_overrides = __commonJS({
-  "node_modules/pg/lib/type-overrides.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/type-overrides.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     function TypeOverrides2(userTypes) {
@@ -33220,9 +33220,9 @@ var require_type_overrides = __commonJS({
   }
 });
 
-// node_modules/pg-connection-string/index.js
+// ../../project_v2/backend/node_modules/pg-connection-string/index.js
 var require_pg_connection_string = __commonJS({
-  "node_modules/pg-connection-string/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg-connection-string/index.js"(exports, module) {
     "use strict";
     function parse3(str, options = {}) {
       if (str.charAt(0) === "/") {
@@ -33408,9 +33408,9 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
   }
 });
 
-// node_modules/pg/lib/connection-parameters.js
+// ../../project_v2/backend/node_modules/pg/lib/connection-parameters.js
 var require_connection_parameters = __commonJS({
-  "node_modules/pg/lib/connection-parameters.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/connection-parameters.js"(exports, module) {
     "use strict";
     var dns = __require("dns");
     var defaults2 = require_defaults();
@@ -33559,9 +33559,9 @@ var require_connection_parameters = __commonJS({
   }
 });
 
-// node_modules/pg/lib/result.js
+// ../../project_v2/backend/node_modules/pg/lib/result.js
 var require_result = __commonJS({
-  "node_modules/pg/lib/result.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/result.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
@@ -33650,9 +33650,9 @@ var require_result = __commonJS({
   }
 });
 
-// node_modules/pg/lib/query.js
+// ../../project_v2/backend/node_modules/pg/lib/query.js
 var require_query = __commonJS({
-  "node_modules/pg/lib/query.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/query.js"(exports, module) {
     "use strict";
     var { EventEmitter } = __require("events");
     var Result2 = require_result();
@@ -33852,9 +33852,9 @@ var require_query = __commonJS({
   }
 });
 
-// node_modules/pg-protocol/dist/messages.js
+// ../../project_v2/backend/node_modules/pg-protocol/dist/messages.js
 var require_messages = __commonJS({
-  "node_modules/pg-protocol/dist/messages.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-protocol/dist/messages.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NoticeMessage = exports.DataRowMessage = exports.CommandCompleteMessage = exports.ReadyForQueryMessage = exports.NotificationResponseMessage = exports.BackendKeyDataMessage = exports.AuthenticationMD5Password = exports.ParameterStatusMessage = exports.ParameterDescriptionMessage = exports.RowDescriptionMessage = exports.Field = exports.CopyResponse = exports.CopyDataMessage = exports.DatabaseError = exports.copyDone = exports.emptyQuery = exports.replicationStart = exports.portalSuspended = exports.noData = exports.closeComplete = exports.bindComplete = exports.parseComplete = void 0;
@@ -34017,9 +34017,9 @@ var require_messages = __commonJS({
   }
 });
 
-// node_modules/pg-protocol/dist/buffer-writer.js
+// ../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js
 var require_buffer_writer = __commonJS({
-  "node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Writer = void 0;
@@ -34121,9 +34121,9 @@ var require_buffer_writer = __commonJS({
   }
 });
 
-// node_modules/pg-protocol/dist/serializer.js
+// ../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js
 var require_serializer = __commonJS({
-  "node_modules/pg-protocol/dist/serializer.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.serialize = void 0;
@@ -34343,9 +34343,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// node_modules/pg-protocol/dist/buffer-reader.js
+// ../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js
 var require_buffer_reader = __commonJS({
-  "node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.BufferReader = void 0;
@@ -34402,9 +34402,9 @@ var require_buffer_reader = __commonJS({
   }
 });
 
-// node_modules/pg-protocol/dist/parser.js
+// ../../project_v2/backend/node_modules/pg-protocol/dist/parser.js
 var require_parser = __commonJS({
-  "node_modules/pg-protocol/dist/parser.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-protocol/dist/parser.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Parser = void 0;
@@ -34709,9 +34709,9 @@ var require_parser = __commonJS({
   }
 });
 
-// node_modules/pg-protocol/dist/index.js
+// ../../project_v2/backend/node_modules/pg-protocol/dist/index.js
 var require_dist5 = __commonJS({
-  "node_modules/pg-protocol/dist/index.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-protocol/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DatabaseError = exports.serialize = void 0;
@@ -34733,18 +34733,18 @@ var require_dist5 = __commonJS({
   }
 });
 
-// node_modules/pg-cloudflare/dist/empty.js
+// ../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js
 var require_empty = __commonJS({
-  "node_modules/pg-cloudflare/dist/empty.js"(exports) {
+  "../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = {};
   }
 });
 
-// node_modules/pg/lib/stream.js
+// ../../project_v2/backend/node_modules/pg/lib/stream.js
 var require_stream = __commonJS({
-  "node_modules/pg/lib/stream.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/stream.js"(exports, module) {
     var { getStream, getSecureStream } = getStreamFuncs();
     module.exports = {
       /**
@@ -34808,9 +34808,9 @@ var require_stream = __commonJS({
   }
 });
 
-// node_modules/pg/lib/connection.js
+// ../../project_v2/backend/node_modules/pg/lib/connection.js
 var require_connection = __commonJS({
-  "node_modules/pg/lib/connection.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/connection.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var { parse: parse3, serialize } = require_dist5();
@@ -35006,9 +35006,9 @@ var require_connection = __commonJS({
   }
 });
 
-// node_modules/split2/index.js
+// ../../project_v2/backend/node_modules/split2/index.js
 var require_split2 = __commonJS({
-  "node_modules/split2/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/split2/index.js"(exports, module) {
     "use strict";
     var { Transform } = __require("stream");
     var { StringDecoder } = __require("string_decoder");
@@ -35107,9 +35107,9 @@ var require_split2 = __commonJS({
   }
 });
 
-// node_modules/pgpass/lib/helper.js
+// ../../project_v2/backend/node_modules/pgpass/lib/helper.js
 var require_helper = __commonJS({
-  "node_modules/pgpass/lib/helper.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pgpass/lib/helper.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var Stream = __require("stream").Stream;
@@ -35278,9 +35278,9 @@ var require_helper = __commonJS({
   }
 });
 
-// node_modules/pgpass/lib/index.js
+// ../../project_v2/backend/node_modules/pgpass/lib/index.js
 var require_lib4 = __commonJS({
-  "node_modules/pgpass/lib/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pgpass/lib/index.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var fs = __require("fs");
@@ -35299,9 +35299,9 @@ var require_lib4 = __commonJS({
   }
 });
 
-// node_modules/pg/lib/client.js
+// ../../project_v2/backend/node_modules/pg/lib/client.js
 var require_client = __commonJS({
-  "node_modules/pg/lib/client.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/client.js"(exports, module) {
     var EventEmitter = __require("events").EventEmitter;
     var utils = require_utils4();
     var nodeUtils = __require("util");
@@ -35987,9 +35987,9 @@ var require_client = __commonJS({
   }
 });
 
-// node_modules/pg-pool/index.js
+// ../../project_v2/backend/node_modules/pg-pool/index.js
 var require_pg_pool = __commonJS({
-  "node_modules/pg-pool/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var NOOP = function() {
@@ -36413,9 +36413,9 @@ var require_pg_pool = __commonJS({
   }
 });
 
-// node_modules/pg/lib/native/query.js
+// ../../project_v2/backend/node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
-  "node_modules/pg/lib/native/query.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/native/query.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var util = __require("util");
@@ -36554,9 +36554,9 @@ var require_query2 = __commonJS({
   }
 });
 
-// node_modules/pg/lib/native/client.js
+// ../../project_v2/backend/node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
-  "node_modules/pg/lib/native/client.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/native/client.js"(exports, module) {
     var nodeUtils = __require("util");
     var Native;
     try {
@@ -36888,17 +36888,17 @@ var require_client2 = __commonJS({
   }
 });
 
-// node_modules/pg/lib/native/index.js
+// ../../project_v2/backend/node_modules/pg/lib/native/index.js
 var require_native = __commonJS({
-  "node_modules/pg/lib/native/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/native/index.js"(exports, module) {
     "use strict";
     module.exports = require_client2();
   }
 });
 
-// node_modules/pg/lib/index.js
+// ../../project_v2/backend/node_modules/pg/lib/index.js
 var require_lib5 = __commonJS({
-  "node_modules/pg/lib/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/pg/lib/index.js"(exports, module) {
     "use strict";
     var Client2 = require_client();
     var defaults2 = require_defaults();
@@ -36962,9 +36962,9 @@ var require_lib5 = __commonJS({
   }
 });
 
-// node_modules/bn.js/lib/bn.js
+// ../../project_v2/backend/node_modules/bn.js/lib/bn.js
 var require_bn = __commonJS({
-  "node_modules/bn.js/lib/bn.js"(exports, module) {
+  "../../project_v2/backend/node_modules/bn.js/lib/bn.js"(exports, module) {
     (function(module2, exports2) {
       "use strict";
       function assert2(val, msg) {
@@ -39782,9 +39782,9 @@ var require_bn = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/base/reporter.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js
 var require_reporter = __commonJS({
-  "node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     function Reporter(options) {
@@ -39883,9 +39883,9 @@ var require_reporter = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/base/buffer.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js
 var require_buffer = __commonJS({
-  "node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     var Reporter = require_reporter().Reporter;
@@ -40000,9 +40000,9 @@ var require_buffer = __commonJS({
   }
 });
 
-// node_modules/minimalistic-assert/index.js
+// ../../project_v2/backend/node_modules/minimalistic-assert/index.js
 var require_minimalistic_assert = __commonJS({
-  "node_modules/minimalistic-assert/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/minimalistic-assert/index.js"(exports, module) {
     module.exports = assert2;
     function assert2(val, msg) {
       if (!val)
@@ -40015,9 +40015,9 @@ var require_minimalistic_assert = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/base/node.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js
 var require_node2 = __commonJS({
-  "node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
     "use strict";
     var Reporter = require_reporter().Reporter;
     var EncoderBuffer = require_buffer().EncoderBuffer;
@@ -40550,9 +40550,9 @@ var require_node2 = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/constants/der.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js
 var require_der = __commonJS({
-  "node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
     "use strict";
     function reverse(map2) {
       const res = {};
@@ -40606,9 +40606,9 @@ var require_der = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/encoders/der.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js
 var require_der2 = __commonJS({
-  "node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -40837,9 +40837,9 @@ var require_der2 = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/encoders/pem.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js
 var require_pem = __commonJS({
-  "node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var DEREncoder = require_der2();
@@ -40861,9 +40861,9 @@ var require_pem = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/encoders/index.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js
 var require_encoders = __commonJS({
-  "node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
     "use strict";
     var encoders = exports;
     encoders.der = require_der2();
@@ -40871,9 +40871,9 @@ var require_encoders = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/decoders/der.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js
 var require_der3 = __commonJS({
-  "node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var bignum = require_bn();
@@ -41143,9 +41143,9 @@ var require_der3 = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/decoders/pem.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js
 var require_pem2 = __commonJS({
-  "node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -41189,9 +41189,9 @@ var require_pem2 = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/decoders/index.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js
 var require_decoders = __commonJS({
-  "node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
     "use strict";
     var decoders = exports;
     decoders.der = require_der3();
@@ -41199,9 +41199,9 @@ var require_decoders = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/api.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js
 var require_api = __commonJS({
-  "node_modules/asn1.js/lib/asn1/api.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js"(exports) {
     "use strict";
     var encoders = require_encoders();
     var decoders = require_decoders();
@@ -41248,9 +41248,9 @@ var require_api = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/base/index.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js
 var require_base = __commonJS({
-  "node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
     "use strict";
     var base = exports;
     base.Reporter = require_reporter().Reporter;
@@ -41260,9 +41260,9 @@ var require_base = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1/constants/index.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js
 var require_constants4 = __commonJS({
-  "node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
     "use strict";
     var constants = exports;
     constants._reverse = function reverse(map2) {
@@ -41279,9 +41279,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// node_modules/asn1.js/lib/asn1.js
+// ../../project_v2/backend/node_modules/asn1.js/lib/asn1.js
 var require_asn1 = __commonJS({
-  "node_modules/asn1.js/lib/asn1.js"(exports) {
+  "../../project_v2/backend/node_modules/asn1.js/lib/asn1.js"(exports) {
     "use strict";
     var asn1 = exports;
     asn1.bignum = require_bn();
@@ -41293,9 +41293,9 @@ var require_asn1 = __commonJS({
   }
 });
 
-// node_modules/web-push/src/web-push-constants.js
+// ../../project_v2/backend/node_modules/web-push/src/web-push-constants.js
 var require_web_push_constants = __commonJS({
-  "node_modules/web-push/src/web-push-constants.js"(exports, module) {
+  "../../project_v2/backend/node_modules/web-push/src/web-push-constants.js"(exports, module) {
     "use strict";
     var WebPushConstants = {};
     WebPushConstants.supportedContentEncodings = {
@@ -41312,9 +41312,9 @@ var require_web_push_constants = __commonJS({
   }
 });
 
-// node_modules/web-push/src/urlsafe-base64-helper.js
+// ../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js
 var require_urlsafe_base64_helper = __commonJS({
-  "node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
+  "../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
     "use strict";
     function validate2(base643) {
       return /^[A-Za-z0-9\-_]+$/.test(base643);
@@ -41325,9 +41325,9 @@ var require_urlsafe_base64_helper = __commonJS({
   }
 });
 
-// node_modules/web-push/src/vapid-helper.js
+// ../../project_v2/backend/node_modules/web-push/src/vapid-helper.js
 var require_vapid_helper = __commonJS({
-  "node_modules/web-push/src/vapid-helper.js"(exports, module) {
+  "../../project_v2/backend/node_modules/web-push/src/vapid-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var asn1 = require_asn1();
@@ -41502,9 +41502,9 @@ var require_vapid_helper = __commonJS({
   }
 });
 
-// node_modules/http_ece/ece.js
+// ../../project_v2/backend/node_modules/http_ece/ece.js
 var require_ece = __commonJS({
-  "node_modules/http_ece/ece.js"(exports, module) {
+  "../../project_v2/backend/node_modules/http_ece/ece.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var AES_GCM = "aes-128-gcm";
@@ -41953,9 +41953,9 @@ var require_ece = __commonJS({
   }
 });
 
-// node_modules/web-push/src/encryption-helper.js
+// ../../project_v2/backend/node_modules/web-push/src/encryption-helper.js
 var require_encryption_helper = __commonJS({
-  "node_modules/web-push/src/encryption-helper.js"(exports, module) {
+  "../../project_v2/backend/node_modules/web-push/src/encryption-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var ece = require_ece();
@@ -42006,9 +42006,9 @@ var require_encryption_helper = __commonJS({
   }
 });
 
-// node_modules/web-push/src/web-push-error.js
+// ../../project_v2/backend/node_modules/web-push/src/web-push-error.js
 var require_web_push_error = __commonJS({
-  "node_modules/web-push/src/web-push-error.js"(exports, module) {
+  "../../project_v2/backend/node_modules/web-push/src/web-push-error.js"(exports, module) {
     "use strict";
     function WebPushError(message, statusCode, headers, body, endpoint) {
       Error.captureStackTrace(this, this.constructor);
@@ -42024,9 +42024,9 @@ var require_web_push_error = __commonJS({
   }
 });
 
-// node_modules/agent-base/dist/helpers.js
+// ../../project_v2/backend/node_modules/agent-base/dist/helpers.js
 var require_helpers2 = __commonJS({
-  "node_modules/agent-base/dist/helpers.js"(exports) {
+  "../../project_v2/backend/node_modules/agent-base/dist/helpers.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42094,9 +42094,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// node_modules/agent-base/dist/index.js
+// ../../project_v2/backend/node_modules/agent-base/dist/index.js
 var require_dist6 = __commonJS({
-  "node_modules/agent-base/dist/index.js"(exports) {
+  "../../project_v2/backend/node_modules/agent-base/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42250,9 +42250,9 @@ var require_dist6 = __commonJS({
   }
 });
 
-// node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// ../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response = __commonJS({
-  "node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
+  "../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -42346,9 +42346,9 @@ var require_parse_proxy_response = __commonJS({
   }
 });
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js
 var require_dist7 = __commonJS({
-  "node_modules/https-proxy-agent/dist/index.js"(exports) {
+  "../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42496,9 +42496,9 @@ var require_dist7 = __commonJS({
   }
 });
 
-// node_modules/web-push/src/web-push-lib.js
+// ../../project_v2/backend/node_modules/web-push/src/web-push-lib.js
 var require_web_push_lib = __commonJS({
-  "node_modules/web-push/src/web-push-lib.js"(exports, module) {
+  "../../project_v2/backend/node_modules/web-push/src/web-push-lib.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var https = __require("https");
@@ -42783,9 +42783,9 @@ var require_web_push_lib = __commonJS({
   }
 });
 
-// node_modules/web-push/src/index.js
+// ../../project_v2/backend/node_modules/web-push/src/index.js
 var require_src2 = __commonJS({
-  "node_modules/web-push/src/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/web-push/src/index.js"(exports, module) {
     "use strict";
     var vapidHelper = require_vapid_helper();
     var encryptionHelper = require_encryption_helper();
@@ -42807,9 +42807,9 @@ var require_src2 = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/fetch/cookies.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js
 var require_cookies = __commonJS({
-  "node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var SESSION_TIMEOUT = 1800;
@@ -43019,9 +43019,9 @@ var require_cookies = __commonJS({
   }
 });
 
-// node_modules/nodemailer/package.json
+// ../../project_v2/backend/node_modules/nodemailer/package.json
 var require_package = __commonJS({
-  "node_modules/nodemailer/package.json"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/package.json"(exports, module) {
     module.exports = {
       name: "nodemailer",
       version: "6.9.16",
@@ -43068,9 +43068,9 @@ var require_package = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/fetch/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js
 var require_fetch = __commonJS({
-  "node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
     "use strict";
     var http = __require("http");
     var https = __require("https");
@@ -43307,9 +43307,9 @@ var require_fetch = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/shared/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js
 var require_shared = __commonJS({
-  "node_modules/nodemailer/lib/shared/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var util = __require("util");
@@ -43819,9 +43819,9 @@ var require_shared = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mime-funcs/mime-types.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js
 var require_mime_types2 = __commonJS({
-  "node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var defaultMimeType = "application/octet-stream";
@@ -45917,9 +45917,9 @@ var require_mime_types2 = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/punycode/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js
 var require_punycode = __commonJS({
-  "node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
     "use strict";
     var maxInt = 2147483647;
     var base = 36;
@@ -46159,9 +46159,9 @@ var require_punycode = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/base64/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js
 var require_base64 = __commonJS({
-  "node_modules/nodemailer/lib/base64/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46257,9 +46257,9 @@ var require_base64 = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/qp/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js
 var require_qp = __commonJS({
-  "node_modules/nodemailer/lib/qp/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46419,9 +46419,9 @@ var require_qp = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mime-funcs/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js
 var require_mime_funcs = __commonJS({
-  "node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
     "use strict";
     var base643 = require_base64();
     var qp = require_qp();
@@ -46915,9 +46915,9 @@ var require_mime_funcs = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/addressparser/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js
 var require_addressparser = __commonJS({
-  "node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
     "use strict";
     function _handleAddress(tokens) {
       let isGroup = false;
@@ -47164,9 +47164,9 @@ var require_addressparser = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mime-node/last-newline.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js
 var require_last_newline = __commonJS({
-  "node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var LastNewline = class extends Transform {
@@ -47197,9 +47197,9 @@ var require_last_newline = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mime-node/le-windows.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js
 var require_le_windows = __commonJS({
-  "node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47241,9 +47241,9 @@ var require_le_windows = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mime-node/le-unix.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js
 var require_le_unix = __commonJS({
-  "node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47278,9 +47278,9 @@ var require_le_unix = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mime-node/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js
 var require_mime_node = __commonJS({
-  "node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var fs = __require("fs");
@@ -48252,9 +48252,9 @@ var require_mime_node = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mail-composer/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js
 var require_mail_composer = __commonJS({
-  "node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
     "use strict";
     var MimeNode = require_mime_node();
     var mimeFuncs = require_mime_funcs();
@@ -48698,9 +48698,9 @@ var require_mail_composer = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/dkim/message-parser.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js
 var require_message_parser = __commonJS({
-  "node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var MessageParser = class extends Transform {
@@ -48829,9 +48829,9 @@ var require_message_parser = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/dkim/relaxed-body.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js
 var require_relaxed_body = __commonJS({
-  "node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var crypto4 = __require("crypto");
@@ -48938,9 +48938,9 @@ var require_relaxed_body = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/dkim/sign.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js
 var require_sign3 = __commonJS({
-  "node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
     "use strict";
     var punycode = require_punycode();
     var mimeFuncs = require_mime_funcs();
@@ -49011,9 +49011,9 @@ var require_sign3 = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/dkim/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js
 var require_dkim = __commonJS({
-  "node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
     "use strict";
     var MessageParser = require_message_parser();
     var RelaxedBody = require_relaxed_body();
@@ -49214,9 +49214,9 @@ var require_dkim = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
 var require_http_proxy_client = __commonJS({
-  "node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
     "use strict";
     var net = __require("net");
     var tls = __require("tls");
@@ -49310,9 +49310,9 @@ var require_http_proxy_client = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mailer/mail-message.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js
 var require_mail_message = __commonJS({
-  "node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
     "use strict";
     var shared = require_shared();
     var MimeNode = require_mime_node();
@@ -49574,9 +49574,9 @@ var require_mail_message = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/mailer/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js
 var require_mailer = __commonJS({
-  "node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var shared = require_shared();
@@ -49943,9 +49943,9 @@ var require_mailer = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/smtp-connection/data-stream.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js
 var require_data_stream2 = __commonJS({
-  "node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -50032,9 +50032,9 @@ var require_data_stream2 = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/smtp-connection/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js
 var require_smtp_connection = __commonJS({
-  "node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
     "use strict";
     var packageInfo = require_package();
     var EventEmitter = __require("events").EventEmitter;
@@ -51449,9 +51449,9 @@ var require_smtp_connection = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/xoauth2/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js
 var require_xoauth2 = __commonJS({
-  "node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
     "use strict";
     var Stream = __require("stream").Stream;
     var nmfetch = require_fetch();
@@ -51754,9 +51754,9 @@ var require_xoauth2 = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/smtp-pool/pool-resource.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js
 var require_pool_resource = __commonJS({
-  "node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
     "use strict";
     var SMTPConnection = require_smtp_connection();
     var assign = require_shared().assign;
@@ -51975,9 +51975,9 @@ var require_pool_resource = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/well-known/services.json
+// ../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json
 var require_services = __commonJS({
-  "node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
     module.exports = {
       "1und1": {
         host: "smtp.1und1.de",
@@ -52279,9 +52279,9 @@ var require_services = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/well-known/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js
 var require_well_known = __commonJS({
-  "node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
     "use strict";
     var services = require_services();
     var normalized = {};
@@ -52315,9 +52315,9 @@ var require_well_known = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/smtp-pool/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js
 var require_smtp_pool = __commonJS({
-  "node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var PoolResource = require_pool_resource();
@@ -52860,9 +52860,9 @@ var require_smtp_pool = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/smtp-transport/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js
 var require_smtp_transport = __commonJS({
-  "node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var SMTPConnection = require_smtp_connection();
@@ -53218,9 +53218,9 @@ var require_smtp_transport = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/sendmail-transport/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js
 var require_sendmail_transport = __commonJS({
-  "node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
     "use strict";
     var spawn = __require("child_process").spawn;
     var packageData = require_package();
@@ -53393,9 +53393,9 @@ var require_sendmail_transport = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/stream-transport/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js
 var require_stream_transport = __commonJS({
-  "node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53507,9 +53507,9 @@ var require_stream_transport = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/json-transport/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js
 var require_json_transport = __commonJS({
-  "node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53576,9 +53576,9 @@ var require_json_transport = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/ses-transport/index.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js
 var require_ses_transport = __commonJS({
-  "node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var packageData = require_package();
@@ -53857,9 +53857,9 @@ var require_ses_transport = __commonJS({
   }
 });
 
-// node_modules/nodemailer/lib/nodemailer.js
+// ../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js
 var require_nodemailer = __commonJS({
-  "node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
+  "../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
     "use strict";
     var Mailer = require_mailer();
     var shared = require_shared();
@@ -53990,7 +53990,7 @@ var require_nodemailer = __commonJS({
 var import_express = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 
-// node_modules/helmet/index.mjs
+// ../../project_v2/backend/node_modules/helmet/index.mjs
 var dashify = (str) => str.replace(/[A-Z]/g, (capitalLetter) => "-" + capitalLetter.toLowerCase());
 var errify = (err) => err instanceof Error ? err : new Error(String(err));
 var isString = (value) => typeof value === "string";
@@ -54560,7 +54560,7 @@ var helmet = Object.assign(
 // src/server/app.ts
 var import_compression = __toESM(require_compression(), 1);
 
-// node_modules/express-rate-limit/dist/index.mjs
+// ../../project_v2/backend/node_modules/express-rate-limit/dist/index.mjs
 var import_ip_address = __toESM(require_ip_address(), 1);
 var import_debug = __toESM(require_src(), 1);
 import { isIPv6 } from "node:net";
@@ -55581,7 +55581,7 @@ if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
 // src/server/auth.ts
 var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
 
-// node_modules/pg/esm/index.mjs
+// ../../project_v2/backend/node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
 var Client = import_lib.default.Client;
 var Pool = import_lib.default.Pool;
@@ -55644,18 +55644,32 @@ var pool = new Pool({
   application_name: "vercel-backend",
   // Không đặt statement_timeout ở đây: pg gửi nó trong StartupMessage và
   // PgBouncer của Layerbase từ chối startup parameter không chuẩn.
-  // Timeout được áp dụng bằng lệnh SET ở sự kiện 'connect' bên dưới.
+  // Timeout đặt bằng SET LOCAL trong từng giao dịch (lenhMoGiaoDich bên dưới).
   allowExitOnIdle: false
 });
 var STATEMENT_TIMEOUT_MS = 8e3;
 var IDLE_TX_TIMEOUT_SQL = `SET LOCAL idle_in_transaction_session_timeout = 30000`;
+var lenhMoGiaoDich = ({ timeoutMs, workMemMb } = {}) => {
+  const lenh = ["BEGIN", IDLE_TX_TIMEOUT_SQL, `SET LOCAL statement_timeout = ${Math.floor(timeoutMs || STATEMENT_TIMEOUT_MS)}`];
+  if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
+  return lenh.join("; ");
+};
+async function chayCoGioiHan(client, text, params, gioiHan) {
+  try {
+    await client.query(lenhMoGiaoDich(gioiHan));
+    const result = await client.query(text, params);
+    await client.query("COMMIT");
+    return result;
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => {
+    });
+    throw e;
+  }
+}
 var ngheLoiKetNoi = (client, ten) => client.on("error", (err) => console.error(`[db ${ten}] k\u1EBFt n\u1ED1i b\u1ECB \u0111\xF3ng:`, err.message));
 pool.on("connect", (client) => {
   console.log("Connected to PostgreSQL database");
   ngheLoiKetNoi(client, "pool");
-  client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
-    console.error("Kh\xF4ng set \u0111\u01B0\u1EE3c statement_timeout:", err.message);
-  });
 });
 pool.on("error", (err) => {
   console.error("Unexpected DB error on idle client:", err);
@@ -55685,7 +55699,18 @@ function boRetry(p) {
     return connectWithRetry();
   };
 }
+function boGioiHan(p) {
+  p.query = async (text, params) => {
+    const client = await p.connect();
+    try {
+      return await chayCoGioiHan(client, text, params);
+    } finally {
+      client.release();
+    }
+  };
+}
 boRetry(pool);
+boGioiHan(pool);
 var urlMra = boSslmode(process.env.DATABASE_URL_MRA);
 var poolMra = urlMra ? new Pool({
   connectionString: urlMra,
@@ -55702,14 +55727,12 @@ var poolMra = urlMra ? new Pool({
 if (poolMra !== pool) {
   poolMra.on("connect", (client) => {
     ngheLoiKetNoi(client, "mra");
-    client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
-      console.error("Kh\xF4ng set \u0111\u01B0\u1EE3c statement_timeout (MRA):", err.message);
-    });
   });
   poolMra.on("error", (err) => {
     console.error("Unexpected DB error on idle client (MRA):", err);
   });
   boRetry(poolMra);
+  boGioiHan(poolMra);
 }
 var Semaphore = class {
   constructor(max) {
@@ -55741,23 +55764,7 @@ async function timedQuery(text, params, opts = {}) {
     const client = await pool.connect();
     const t1 = Date.now();
     try {
-      let result;
-      if (opts.timeoutMs || opts.workMemMb) {
-        const setup = ["BEGIN", IDLE_TX_TIMEOUT_SQL];
-        if (opts.timeoutMs) setup.push(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
-        if (opts.workMemMb) setup.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
-        try {
-          await client.query(setup.join("; "));
-          result = await client.query(text, params);
-          await client.query("COMMIT");
-        } catch (e) {
-          await client.query("ROLLBACK").catch(() => {
-          });
-          throw e;
-        }
-      } else {
-        result = await client.query(text, params);
-      }
+      const result = await chayCoGioiHan(client, text, params, opts);
       if (debug) {
         console.log(
           `[db timing] wait: ${t1 - t0}ms | query: ${Date.now() - t1}ms | sql: ${text.slice(0, 80)}`
@@ -55785,7 +55792,7 @@ async function withTransactionMra(fn) {
 async function giaoDich(p, fn) {
   const client = await p.connect();
   try {
-    await client.query(`BEGIN; ${IDLE_TX_TIMEOUT_SQL}`);
+    await client.query(lenhMoGiaoDich());
     const result = await fn(client);
     await client.query("COMMIT");
     return result;
@@ -56005,13 +56012,15 @@ import { createHash as createHash2 } from "crypto";
 
 // src/server/sharedCache.ts
 var sharedCacheDisabled = false;
+var PHIEN_BAN_TINH = "r3";
+var khoaChung = (key) => `${PHIEN_BAN_TINH}:${key}`;
 var isMissingTable = (e) => e?.code === "42P01";
 async function readShared(key, versions) {
   if (sharedCacheDisabled) return void 0;
   try {
     const r = await timedQuery(
       "SELECT data FROM api_result_cache WHERE cache_key = $1 AND versions = $2",
-      [key, versions]
+      [khoaChung(key), versions]
     );
     return r.rows[0]?.data;
   } catch (e) {
@@ -56025,7 +56034,7 @@ async function writeShared(key, versions, data) {
     await timedQuery(
       `INSERT INTO api_result_cache (cache_key, versions, data, updated_at) VALUES ($1, $2, $3::jsonb, NOW())
        ON CONFLICT (cache_key) DO UPDATE SET versions = EXCLUDED.versions, data = EXCLUDED.data, updated_at = NOW()`,
-      [key, versions, JSON.stringify(data)]
+      [khoaChung(key), versions, JSON.stringify(data)]
     );
   } catch (e) {
     if (isMissingTable(e)) sharedCacheDisabled = true;
@@ -56202,7 +56211,11 @@ var load2 = async () => {
     rawToGroup = m;
     version = `${m.size}-${latest}`;
   } catch (err) {
-    if (err?.code !== "42P01") console.error("L\u1ED7i n\u1EA1p setup g\u1ED9p x\u01B0\u1EDFng:", err);
+    if (err?.code !== "42P01") {
+      console.error("L\u1ED7i n\u1EA1p setup g\u1ED9p x\u01B0\u1EDFng:", err);
+      loadedAt2 = Date.now() - Math.max(0, REFRESH_MS2 - 6e4);
+      return;
+    }
     rawToGroup = /* @__PURE__ */ new Map();
     version = "0";
   }
@@ -56343,7 +56356,7 @@ app.use(async (req, _res, next) => {
 // src/vuongMacPush.ts
 var import_web_push = __toESM(require_src2(), 1);
 
-// node_modules/zod/v4/classic/external.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
   $brand: () => $brand,
@@ -56600,7 +56613,7 @@ __export(external_exports, {
   xor: () => xor
 });
 
-// node_modules/zod/v4/core/index.js
+// ../../project_v2/backend/node_modules/zod/v4/core/index.js
 var core_exports2 = {};
 __export(core_exports2, {
   $ZodAny: () => $ZodAny,
@@ -56907,7 +56920,7 @@ __export(core_exports2, {
   version: () => version2
 });
 
-// node_modules/zod/v4/core/util.js
+// ../../project_v2/backend/node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
   BIGINT_FORMAT_RANGES: () => BIGINT_FORMAT_RANGES,
@@ -57744,7 +57757,7 @@ function constantCatch(value) {
   return fn;
 }
 
-// node_modules/zod/v4/core/core.js
+// ../../project_v2/backend/node_modules/zod/v4/core/core.js
 var _a;
 var NEVER = /* @__PURE__ */ Object.freeze({
   status: "aborted"
@@ -57867,7 +57880,7 @@ function config(newConfig) {
   return globalConfig;
 }
 
-// node_modules/zod/v4/core/errors.js
+// ../../project_v2/backend/node_modules/zod/v4/core/errors.js
 function _getMessage() {
   const internals = this._zod;
   internals.message ?? (internals.message = JSON.stringify(internals.def, jsonStringifyReplacer, 2));
@@ -58063,7 +58076,7 @@ function prettifyError(error61) {
   return lines.join("\n");
 }
 
-// node_modules/zod/v4/core/parse.js
+// ../../project_v2/backend/node_modules/zod/v4/core/parse.js
 function finalizeParams(callee, params) {
   return { callee: params?.callee ?? callee, Err: params?.Err };
 }
@@ -58206,7 +58219,7 @@ var _safeDecodeAsync = (_Err) => async (schema, value, _ctx) => {
 };
 var safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync($ZodRealError);
 
-// node_modules/zod/v4/core/regexes.js
+// ../../project_v2/backend/node_modules/zod/v4/core/regexes.js
 var regexes_exports = {};
 __export(regexes_exports, {
   base64: () => base64,
@@ -58372,7 +58385,7 @@ var sha512_hex = /^[0-9a-fA-F]{128}$/;
 var sha512_base64 = /* @__PURE__ */ fixedBase64(86, "==");
 var sha512_base64url = /* @__PURE__ */ fixedBase64url(86);
 
-// node_modules/zod/v4/core/checks.js
+// ../../project_v2/backend/node_modules/zod/v4/core/checks.js
 var $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
   var _a3;
   inst._zod ?? (inst._zod = {});
@@ -58916,7 +58929,7 @@ var $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (ins
   };
 });
 
-// node_modules/zod/v4/core/doc.js
+// ../../project_v2/backend/node_modules/zod/v4/core/doc.js
 var Doc = class {
   constructor(args = [], closed = {}) {
     this.content = [];
@@ -58953,14 +58966,14 @@ ${content.join("\n")}
   }
 };
 
-// node_modules/zod/v4/core/versions.js
+// ../../project_v2/backend/node_modules/zod/v4/core/versions.js
 var version2 = {
   major: 4,
   minor: 5,
   patch: 4
 };
 
-// node_modules/zod/v4/core/schemas.js
+// ../../project_v2/backend/node_modules/zod/v4/core/schemas.js
 var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
   var _a3;
   inst ?? (inst = {});
@@ -61224,7 +61237,7 @@ function handleRefineResult(result, payload, input2, inst) {
   }
 }
 
-// node_modules/zod/v4/core/memoizer.js
+// ../../project_v2/backend/node_modules/zod/v4/core/memoizer.js
 var $ZodCyclicError = class extends Error {
   constructor() {
     super(`Cannot parse a reference cycle that closes through a transform`);
@@ -61465,7 +61478,7 @@ function isBackEdge(ctx, value) {
   return backEdges !== void 0 && value !== null && typeof value === "object" && backEdges.has(value);
 }
 
-// node_modules/zod/v4/locales/index.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/index.js
 var locales_exports = {};
 __export(locales_exports, {
   ar: () => ar_default,
@@ -61532,7 +61545,7 @@ __export(locales_exports, {
   zhTW: () => zh_TW_default
 });
 
-// node_modules/zod/v4/locales/ar.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ar.js
 var error = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0641", verb: "\u0623\u0646 \u064A\u062D\u0648\u064A" },
@@ -61642,7 +61655,7 @@ function ar_default() {
   };
 }
 
-// node_modules/zod/v4/locales/az.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/az.js
 var error2 = () => {
   const Sizable = {
     string: { unit: "simvol", verb: "olmal\u0131d\u0131r" },
@@ -61751,7 +61764,7 @@ function az_default() {
   };
 }
 
-// node_modules/zod/v4/locales/be.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/be.js
 function getBelarusianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -61918,7 +61931,7 @@ function be_default() {
   };
 }
 
-// node_modules/zod/v4/locales/bg.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/bg.js
 var error4 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0430", verb: "\u0434\u0430 \u0441\u044A\u0434\u044A\u0440\u0436\u0430" },
@@ -62042,7 +62055,7 @@ function bg_default() {
   };
 }
 
-// node_modules/zod/v4/locales/bn.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/bn.js
 var error5 = () => {
   const Sizable = {
     string: { unit: "\u0985\u0995\u09CD\u09B7\u09B0", verb: "\u09A5\u09BE\u0995\u09A4\u09C7 \u09B9\u09AC\u09C7" },
@@ -62154,7 +62167,7 @@ function bn_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ca.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ca.js
 var error6 = () => {
   const Sizable = {
     string: { unit: "car\xE0cters", verb: "contenir" },
@@ -62266,7 +62279,7 @@ function ca_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ckb.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ckb.js
 var error7 = () => {
   const Sizable = {
     string: { unit: "\u067E\u06CC\u062A", verb: "\u0628\u06CE\u062A" },
@@ -62397,7 +62410,7 @@ function ckb_default() {
   };
 }
 
-// node_modules/zod/v4/locales/cs.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/cs.js
 var error8 = () => {
   const Sizable = {
     string: { unit: "znak\u016F", verb: "m\xEDt" },
@@ -62512,7 +62525,7 @@ function cs_default() {
   };
 }
 
-// node_modules/zod/v4/locales/da.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/da.js
 var error9 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "havde" },
@@ -62631,7 +62644,7 @@ function da_default() {
   };
 }
 
-// node_modules/zod/v4/locales/de.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/de.js
 var error10 = () => {
   const Sizable = {
     string: { unit: "Zeichen", verb: "zu haben" },
@@ -62743,7 +62756,7 @@ function de_default() {
   };
 }
 
-// node_modules/zod/v4/locales/el.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/el.js
 var error11 = () => {
   const Sizable = {
     string: { unit: "\u03C7\u03B1\u03C1\u03B1\u03BA\u03C4\u03AE\u03C1\u03B5\u03C2", verb: "\u03BD\u03B1 \u03AD\u03C7\u03B5\u03B9" },
@@ -62854,7 +62867,7 @@ function el_default() {
   };
 }
 
-// node_modules/zod/v4/locales/en.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/en.js
 var error12 = () => {
   const Sizable = {
     string: { unit: "characters", verb: "to have" },
@@ -62977,7 +62990,7 @@ function en_default() {
   };
 }
 
-// node_modules/zod/v4/locales/eo.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/eo.js
 var error13 = () => {
   const Sizable = {
     string: { unit: "karaktrojn", verb: "havi" },
@@ -63090,7 +63103,7 @@ function eo_default() {
   };
 }
 
-// node_modules/zod/v4/locales/es.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/es.js
 var error14 = () => {
   const Sizable = {
     string: { unit: "caracteres", verb: "tener" },
@@ -63225,7 +63238,7 @@ function es_default() {
   };
 }
 
-// node_modules/zod/v4/locales/fa.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/fa.js
 var error15 = () => {
   const Sizable = {
     string: { unit: "\u06A9\u0627\u0631\u0627\u06A9\u062A\u0631", verb: "\u062F\u0627\u0634\u062A\u0647 \u0628\u0627\u0634\u062F" },
@@ -63343,7 +63356,7 @@ function fa_default() {
   };
 }
 
-// node_modules/zod/v4/locales/fi.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/fi.js
 var error16 = () => {
   const Sizable = {
     string: { unit: "merkki\xE4", subject: "merkkijonon" },
@@ -63459,7 +63472,7 @@ function fi_default() {
   };
 }
 
-// node_modules/zod/v4/locales/fr.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/fr.js
 var error17 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63587,7 +63600,7 @@ function fr_default() {
   };
 }
 
-// node_modules/zod/v4/locales/fr-CA.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/fr-CA.js
 var error18 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63698,7 +63711,7 @@ function fr_CA_default() {
   };
 }
 
-// node_modules/zod/v4/locales/gu.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/gu.js
 var error19 = () => {
   const Sizable = {
     string: { unit: "\u0A85\u0A95\u0ACD\u0AB7\u0AB0", verb: "\u0AB9\u0ACB\u0AB5\u0ABE \u0A9C\u0ACB\u0A88\u0A8F" },
@@ -63810,7 +63823,7 @@ function gu_default() {
   };
 }
 
-// node_modules/zod/v4/locales/he.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/he.js
 var error20 = () => {
   const TypeNames = {
     string: { label: "\u05DE\u05D7\u05E8\u05D5\u05D6\u05EA", gender: "f" },
@@ -64010,7 +64023,7 @@ function he_default() {
   };
 }
 
-// node_modules/zod/v4/locales/hi.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/hi.js
 var error21 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0930\u0916\u0928\u0947 \u0915\u0947 \u0932\u093F\u090F" },
@@ -64120,7 +64133,7 @@ function hi_default() {
   };
 }
 
-// node_modules/zod/v4/locales/hr.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/hr.js
 var error22 = () => {
   const Sizable = {
     string: { unit: "znakova", verb: "imati" },
@@ -64245,7 +64258,7 @@ function hr_default() {
   };
 }
 
-// node_modules/zod/v4/locales/hu.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/hu.js
 var error23 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "legyen" },
@@ -64357,7 +64370,7 @@ function hu_default() {
   };
 }
 
-// node_modules/zod/v4/locales/hy.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/hy.js
 function getArmenianPlural(count, one, many) {
   return Math.abs(count) === 1 ? one : many;
 }
@@ -64514,7 +64527,7 @@ function hy_default() {
   };
 }
 
-// node_modules/zod/v4/locales/id.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/id.js
 var error25 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "memiliki" },
@@ -64624,7 +64637,7 @@ function id_default() {
   };
 }
 
-// node_modules/zod/v4/locales/is.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/is.js
 var error26 = () => {
   const Sizable = {
     string: { unit: "stafi", verb: "a\xF0 hafa" },
@@ -64737,7 +64750,7 @@ function is_default() {
   };
 }
 
-// node_modules/zod/v4/locales/it.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/it.js
 var error27 = () => {
   const Sizable = {
     string: { unit: "caratteri", verb: "avere" },
@@ -64849,7 +64862,7 @@ function it_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ja.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ja.js
 var error28 = () => {
   const Sizable = {
     string: { unit: "\u6587\u5B57", verb: "\u3067\u3042\u308B" },
@@ -64960,7 +64973,7 @@ function ja_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ka.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ka.js
 var error29 = () => {
   const Sizable = {
     string: { unit: "\u10E1\u10D8\u10DB\u10D1\u10DD\u10DA\u10DD", verb: "\u10E3\u10DC\u10D3\u10D0 \u10E8\u10D4\u10D8\u10EA\u10D0\u10D5\u10D3\u10D4\u10E1" },
@@ -65076,7 +65089,7 @@ function ka_default() {
   };
 }
 
-// node_modules/zod/v4/locales/km.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/km.js
 var error30 = () => {
   const Sizable = {
     string: { unit: "\u178F\u17BD\u17A2\u1780\u17D2\u179F\u179A", verb: "\u1782\u17BD\u179A\u1798\u17B6\u1793" },
@@ -65190,12 +65203,12 @@ function km_default() {
   };
 }
 
-// node_modules/zod/v4/locales/kh.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/kh.js
 function kh_default() {
   return km_default();
 }
 
-// node_modules/zod/v4/locales/kn.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/kn.js
 var error31 = () => {
   const Sizable = {
     string: { unit: "\u0C85\u0C95\u0CCD\u0CB7\u0CB0\u0C97\u0CB3\u0CC1", verb: "\u0CB9\u0CCA\u0C82\u0CA6\u0CB2\u0CC1" },
@@ -65309,7 +65322,7 @@ function kn_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ko.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ko.js
 var error32 = () => {
   const Sizable = {
     string: { unit: "\uBB38\uC790", verb: "to have" },
@@ -65424,7 +65437,7 @@ function ko_default() {
   };
 }
 
-// node_modules/zod/v4/locales/lt.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/lt.js
 var capitalizeFirstCharacter = (text) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
@@ -65630,7 +65643,7 @@ function lt_default() {
   };
 }
 
-// node_modules/zod/v4/locales/mk.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/mk.js
 var error34 = () => {
   const Sizable = {
     string: { unit: "\u0437\u043D\u0430\u0446\u0438", verb: "\u0434\u0430 \u0438\u043C\u0430\u0430\u0442" },
@@ -65743,7 +65756,7 @@ function mk_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ms.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ms.js
 var error35 = () => {
   const Sizable = {
     string: { unit: "aksara", verb: "mempunyai" },
@@ -65854,7 +65867,7 @@ function ms_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ne.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ne.js
 var error36 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0939\u0941\u0928\u0941\u092A\u0930\u094D\u091B" },
@@ -65964,7 +65977,7 @@ function ne_default() {
   };
 }
 
-// node_modules/zod/v4/locales/nl.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/nl.js
 var error37 = () => {
   const Sizable = {
     string: { unit: "tekens", verb: "heeft" },
@@ -66078,7 +66091,7 @@ function nl_default() {
   };
 }
 
-// node_modules/zod/v4/locales/nn.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/nn.js
 var error38 = () => {
   const Sizable = {
     string: { unit: "teikn", verb: "\xE5 ha" },
@@ -66190,7 +66203,7 @@ function nn_default() {
   };
 }
 
-// node_modules/zod/v4/locales/no.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/no.js
 var error39 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "\xE5 ha" },
@@ -66302,7 +66315,7 @@ function no_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ota.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ota.js
 var error40 = () => {
   const Sizable = {
     string: { unit: "harf", verb: "olmal\u0131d\u0131r" },
@@ -66415,7 +66428,7 @@ function ota_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ps.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ps.js
 var error41 = () => {
   const Sizable = {
     string: { unit: "\u062A\u0648\u06A9\u064A", verb: "\u0648\u0644\u0631\u064A" },
@@ -66533,7 +66546,7 @@ function ps_default() {
   };
 }
 
-// node_modules/zod/v4/locales/pl.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/pl.js
 var error42 = () => {
   const Sizable = {
     string: { unit: "znak\xF3w", verb: "mie\u0107" },
@@ -66646,7 +66659,7 @@ function pl_default() {
   };
 }
 
-// node_modules/zod/v4/locales/pt.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/pt.js
 var error43 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66788,7 +66801,7 @@ function pt_default() {
   };
 }
 
-// node_modules/zod/v4/locales/pt-BR.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/pt-BR.js
 var error44 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66931,7 +66944,7 @@ function pt_BR_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ro.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ro.js
 var error45 = () => {
   const Sizable = {
     string: { unit: "caractere", verb: "s\u0103 aib\u0103" },
@@ -67052,7 +67065,7 @@ function ro_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ru.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ru.js
 function getRussianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -67219,7 +67232,7 @@ function ru_default() {
   };
 }
 
-// node_modules/zod/v4/locales/sk.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/sk.js
 var error47 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "ma\u0165" },
@@ -67334,7 +67347,7 @@ function sk_default() {
   };
 }
 
-// node_modules/zod/v4/locales/sl.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/sl.js
 var error48 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "imeti" },
@@ -67447,7 +67460,7 @@ function sl_default() {
   };
 }
 
-// node_modules/zod/v4/locales/sv.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/sv.js
 var error49 = () => {
   const Sizable = {
     string: { unit: "tecken", verb: "att ha" },
@@ -67561,7 +67574,7 @@ function sv_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ta.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ta.js
 var error50 = () => {
   const Sizable = {
     string: { unit: "\u0B8E\u0BB4\u0BC1\u0BA4\u0BCD\u0BA4\u0BC1\u0B95\u0BCD\u0B95\u0BB3\u0BCD", verb: "\u0B95\u0BCA\u0BA3\u0BCD\u0B9F\u0BBF\u0BB0\u0BC1\u0B95\u0BCD\u0B95 \u0BB5\u0BC7\u0BA3\u0BCD\u0B9F\u0BC1\u0BAE\u0BCD" },
@@ -67675,7 +67688,7 @@ function ta_default() {
   };
 }
 
-// node_modules/zod/v4/locales/th.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/th.js
 var error51 = () => {
   const Sizable = {
     string: { unit: "\u0E15\u0E31\u0E27\u0E2D\u0E31\u0E01\u0E29\u0E23", verb: "\u0E04\u0E27\u0E23\u0E21\u0E35" },
@@ -67789,7 +67802,7 @@ function th_default() {
   };
 }
 
-// node_modules/zod/v4/locales/tk.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/tk.js
 var error52 = () => {
   const Sizable = {
     string: { unit: "simwol", verb: "bolmaly" },
@@ -67895,7 +67908,7 @@ function tk_default() {
   };
 }
 
-// node_modules/zod/v4/locales/tr.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/tr.js
 var error53 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "olmal\u0131" },
@@ -68004,7 +68017,7 @@ function tr_default() {
   };
 }
 
-// node_modules/zod/v4/locales/uk.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/uk.js
 var error54 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0456\u0432", verb: "\u043C\u0430\u0442\u0438\u043C\u0435" },
@@ -68116,12 +68129,12 @@ function uk_default() {
   };
 }
 
-// node_modules/zod/v4/locales/ua.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ua.js
 function ua_default() {
   return uk_default();
 }
 
-// node_modules/zod/v4/locales/ur.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/ur.js
 var error55 = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0648\u0641", verb: "\u06C1\u0648\u0646\u0627" },
@@ -68235,7 +68248,7 @@ function ur_default() {
   };
 }
 
-// node_modules/zod/v4/locales/uz.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/uz.js
 var error56 = () => {
   const Sizable = {
     string: { unit: "belgi", verb: "bo\u2018lishi kerak" },
@@ -68347,7 +68360,7 @@ function uz_default() {
   };
 }
 
-// node_modules/zod/v4/locales/vi.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/vi.js
 var error57 = () => {
   const Sizable = {
     string: { unit: "k\xFD t\u1EF1", verb: "c\xF3" },
@@ -68459,7 +68472,7 @@ function vi_default() {
   };
 }
 
-// node_modules/zod/v4/locales/zh-CN.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/zh-CN.js
 var error58 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u7B26", verb: "\u5305\u542B" },
@@ -68572,7 +68585,7 @@ function zh_CN_default() {
   };
 }
 
-// node_modules/zod/v4/locales/zh-TW.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/zh-TW.js
 var error59 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u5143", verb: "\u64C1\u6709" },
@@ -68683,7 +68696,7 @@ function zh_TW_default() {
   };
 }
 
-// node_modules/zod/v4/locales/yo.js
+// ../../project_v2/backend/node_modules/zod/v4/locales/yo.js
 var error60 = () => {
   const Sizable = {
     string: { unit: "\xE0mi", verb: "n\xED" },
@@ -68794,7 +68807,7 @@ function yo_default() {
   };
 }
 
-// node_modules/zod/v4/core/registries.js
+// ../../project_v2/backend/node_modules/zod/v4/core/registries.js
 var _a2;
 var $output = /* @__PURE__ */ Symbol("ZodOutput");
 var $input = /* @__PURE__ */ Symbol("ZodInput");
@@ -68844,7 +68857,7 @@ function registry() {
 (_a2 = globalThis).__zod_globalRegistry ?? (_a2.__zod_globalRegistry = registry());
 var globalRegistry = globalThis.__zod_globalRegistry;
 
-// node_modules/zod/v4/core/compile.js
+// ../../project_v2/backend/node_modules/zod/v4/core/compile.js
 var INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
 var FALLBACK_FLAG = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
 var ZodCompileAsyncError = class extends Error {
@@ -70387,7 +70400,7 @@ function generateTransformCheck(doc, ctx, schema, accessor) {
   return accessor;
 }
 
-// node_modules/zod/v4/core/api.js
+// ../../project_v2/backend/node_modules/zod/v4/core/api.js
 // @__NO_SIDE_EFFECTS__
 function _string(Class2, params) {
   return new Class2({
@@ -71443,7 +71456,7 @@ function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
   return inst;
 }
 
-// node_modules/zod/v4/core/to-json-schema.js
+// ../../project_v2/backend/node_modules/zod/v4/core/to-json-schema.js
 function assignProps(target, ...sources) {
   for (const source of sources) {
     for (const key of Reflect.ownKeys(source)) {
@@ -71974,7 +71987,7 @@ var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) =
   return finalize(ctx, schema);
 };
 
-// node_modules/zod/v4/core/json-schema-processors.js
+// ../../project_v2/backend/node_modules/zod/v4/core/json-schema-processors.js
 var formatMap = {
   guid: "uuid",
   url: "uri",
@@ -72632,7 +72645,7 @@ function toJSONSchema(input2, params) {
   return finalize(ctx, input2);
 }
 
-// node_modules/zod/v4/core/json-schema-generator.js
+// ../../project_v2/backend/node_modules/zod/v4/core/json-schema-generator.js
 var JSONSchemaGenerator = class {
   /** @deprecated Access via ctx instead */
   get metadataRegistry() {
@@ -72710,10 +72723,10 @@ var JSONSchemaGenerator = class {
   }
 };
 
-// node_modules/zod/v4/core/json-schema.js
+// ../../project_v2/backend/node_modules/zod/v4/core/json-schema.js
 var json_schema_exports = {};
 
-// node_modules/zod/v4/classic/schemas.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
 var schemas_exports2 = {};
 __export(schemas_exports2, {
   ZodAny: () => ZodAny,
@@ -72890,7 +72903,7 @@ __export(schemas_exports2, {
   xor: () => xor
 });
 
-// node_modules/zod/v4/classic/checks.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/checks.js
 var checks_exports2 = {};
 __export(checks_exports2, {
   endsWith: () => _endsWith,
@@ -72925,7 +72938,7 @@ __export(checks_exports2, {
   uppercase: () => _uppercase
 });
 
-// node_modules/zod/v4/classic/errors.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/errors.js
 var _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 function _lazyMethod(proto, key, make) {
   Object.defineProperty(proto, key, {
@@ -72971,7 +72984,7 @@ var ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer2, void 0
   Parent: Error
 });
 
-// node_modules/zod/v4/classic/parse.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/parse.js
 var parse2 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
@@ -72985,7 +72998,7 @@ var safeDecode2 = /* @__PURE__ */ _safeDecode(ZodRealError);
 var safeEncodeAsync2 = /* @__PURE__ */ _safeEncodeAsync(ZodRealError);
 var safeDecodeAsync2 = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
 
-// node_modules/zod/v4/classic/schemas.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
 function _ensureDefaultLocale() {
   if (!globalConfig.localeError)
     config(en_default());
@@ -74396,7 +74409,7 @@ function preprocess(fn, schema) {
   });
 }
 
-// node_modules/zod/v4/classic/compat.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/compat.js
 var ZodIssueCode = {
   invalid_type: "invalid_type",
   too_big: "too_big",
@@ -74422,7 +74435,7 @@ var ZodFirstPartyTypeKind;
 /* @__PURE__ */ (function(ZodFirstPartyTypeKind2) {
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
 
-// node_modules/zod/v4/classic/iso.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/iso.js
 var iso_exports = {};
 __export(iso_exports, {
   ZodISODate: () => ZodISODate,
@@ -74447,7 +74460,7 @@ function duration2(params) {
   return _isoDuration(ZodISODuration, params);
 }
 
-// node_modules/zod/v4/classic/from-json-schema.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/from-json-schema.js
 var z = {
   ...schemas_exports2,
   ...checks_exports2,
@@ -74987,28 +75000,28 @@ function fromJSONSchema(schema, params) {
   return convertSchema(normalized, ctx);
 }
 
-// node_modules/zod/v4/core/visit.js
+// ../../project_v2/backend/node_modules/zod/v4/core/visit.js
 var RESOLVING = /* @__PURE__ */ Symbol("z.visit/resolving");
 function visit(schema, fnOrHandlers) {
   const fn = typeof fnOrHandlers === "function" ? fnOrHandlers : (node2, rewritten) => {
     const h = fnOrHandlers[node2._zod.def.type];
     return h ? h(node2, rewritten) : node2;
   };
-  const cache3 = /* @__PURE__ */ new Map();
+  const cache4 = /* @__PURE__ */ new Map();
   function run(s) {
-    const cached2 = cache3.get(s);
+    const cached2 = cache4.get(s);
     if (cached2 === RESOLVING) {
       return new $ZodLazy({
         type: "lazy",
-        getter: () => cache3.get(s)
+        getter: () => cache4.get(s)
       });
     }
     if (cached2 !== void 0)
       return cached2;
-    cache3.set(s, RESOLVING);
+    cache4.set(s, RESOLVING);
     const inner = mapInner(s);
     const mapped = fn(inner, inner !== s);
-    cache3.set(s, mapped);
+    cache4.set(s, mapped);
     return mapped;
   }
   function mapInner(s) {
@@ -75142,7 +75155,7 @@ function visit(schema, fnOrHandlers) {
   return run(schema);
 }
 
-// node_modules/zod/v4/classic/deep-partial.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/deep-partial.js
 function deepPartial(schema) {
   return visit(schema, {
     object: (s) => s.partial(),
@@ -75154,7 +75167,7 @@ function deepPartial(schema) {
   });
 }
 
-// node_modules/zod/v4/classic/in-out.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/in-out.js
 function withChecks(side, checks) {
   if (!checks?.length)
     return side;
@@ -75184,7 +75197,7 @@ function output(schema) {
   });
 }
 
-// node_modules/zod/v4/classic/coerce.js
+// ../../project_v2/backend/node_modules/zod/v4/classic/coerce.js
 var coerce_exports = {};
 __export(coerce_exports, {
   bigint: () => bigint3,
@@ -76022,10 +76035,10 @@ var getRelevantVersions = async (keys) => {
   return out;
 };
 var CACHE_MAX_ENTRIES = 50;
-var trimCache = (cache3) => {
-  if (cache3.size <= CACHE_MAX_ENTRIES) return;
-  const oldestKey = cache3.keys().next().value;
-  if (oldestKey !== void 0) cache3.delete(oldestKey);
+var trimCache = (cache4) => {
+  if (cache4.size <= CACHE_MAX_ENTRIES) return;
+  const oldestKey = cache4.keys().next().value;
+  if (oldestKey !== void 0) cache4.delete(oldestKey);
 };
 var cachedData = null;
 var cachedVersions = null;
@@ -76191,13 +76204,13 @@ var numericColQualified = (table, alias, col) => {
 // src/server/cache.ts
 import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
-async function cachedByVersions(cache3, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
+async function cachedByVersions(cache4, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
   const versions = await getRelevantVersions(versionKeys);
   const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
-  const hit = cache3.map.get(key);
+  const hit = cache4.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
   const flightKey = `${key}|${vkey}`;
-  const pending = cache3.inflight.get(flightKey);
+  const pending = cache4.inflight.get(flightKey);
   if (pending) return pending;
   const p = (async () => {
     try {
@@ -76207,19 +76220,19 @@ async function cachedByVersions(cache3, key, versionKeys, compute2, extraVersion
         payload = await compute2();
         if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
       }
-      cache3.map.delete(key);
-      cache3.map.set(key, { vkey, payload });
-      while (cache3.map.size > cache3.max) {
-        const oldest = cache3.map.keys().next().value;
+      cache4.map.delete(key);
+      cache4.map.set(key, { vkey, payload });
+      while (cache4.map.size > cache4.max) {
+        const oldest = cache4.map.keys().next().value;
         if (oldest === void 0) break;
-        cache3.map.delete(oldest);
+        cache4.map.delete(oldest);
       }
       return payload;
     } finally {
-      cache3.inflight.delete(flightKey);
+      cache4.inflight.delete(flightKey);
     }
   })();
-  cache3.inflight.set(flightKey, p);
+  cache4.inflight.set(flightKey, p);
   return p;
 }
 var hashKey = (value) => createHash3("sha1").update(JSON.stringify(value)).digest("hex");
@@ -77523,6 +77536,12 @@ app.get("/api/overview/summary", async (req, res) => {
       const finalQuery = `WITH ${ctes.join(",\n")}
 ${subQueries.join("\nUNION ALL\n")}`;
       const r = await timedQuery(finalQuery, allParams, { workMemMb: 32 });
+      const maxQ = await timedQuery(
+        Object.values(ANALYSIS_TABLES).map((cfg) => `SELECT '${cfg.table}' AS k, to_char(MAX(date_parsed), 'YYYY-MM-DD') AS d FROM ${cfg.table} WHERE date_parsed <= $1`).join(" UNION ALL "),
+        [vnTodayUtc().toISOString().slice(0, 10)]
+      );
+      const maxTheoBang = new Map(maxQ.rows.map((row) => [row.k, row.d]));
+      const maxDates = Object.fromEntries(Object.entries(ANALYSIS_TABLES).map(([key, cfg]) => [key, maxTheoBang.get(cfg.table) ?? null]));
       const results = {};
       r.rows.forEach((row) => {
         results[row.source_key] = {
@@ -77531,7 +77550,7 @@ ${subQueries.join("\nUNION ALL\n")}`;
           lastMonth: { count: Number(row.last_month_count), value: Number(row.last_month_value) }
         };
       });
-      return { date: dateToStr, dateFrom: dateFromStr, ...results };
+      return { date: dateToStr, dateFrom: dateFromStr, maxDates, ...results };
     }, workshopGroupsVersion());
     res.json(overviewPayload);
   } catch (error61) {
@@ -77657,6 +77676,35 @@ app.get("/api/overview/by-group", async (req, res) => {
   }
 });
 
+// src/routes/tuyChonThoiGian.ts
+var cache = createCache(1);
+var VERSION_KEYS = ["order", "tkbv", "pthsp", "inventory", "khsx"];
+var SQL = `
+  SELECT 'ngay' AS loai, v::text FROM (
+    SELECT ngay_nhan_tu_pm AS v FROM dht
+    UNION SELECT ngay_nhan FROM tkbv_full
+    UNION SELECT ngay_hoan_thanh FROM pthsp_full
+    UNION SELECT "date" FROM nhap_kho
+  ) a WHERE v IS NOT NULL
+  UNION ALL SELECT DISTINCT 'nam', nam::text FROM khsx WHERE nam IS NOT NULL
+  UNION ALL SELECT DISTINCT 'thang', thang::text FROM khsx WHERE thang IS NOT NULL
+  UNION ALL SELECT DISTINCT 'ngayKhsx', ngay::text FROM khsx WHERE ngay IS NOT NULL
+  UNION ALL SELECT DISTINCT 'tuan', tuan::text FROM khsx WHERE tuan IS NOT NULL
+`;
+app.get("/api/overview/tuy-chon-thoi-gian", async (_req, res) => {
+  try {
+    const payload = await cachedByVersions(cache, "tat-ca", VERSION_KEYS, async () => {
+      const r = await timedQuery(SQL, [], { timeoutMs: 15e3, workMemMb: 32 });
+      const lay = (loai) => r.rows.filter((x) => x.loai === loai).map((x) => x.v);
+      return { ngay: lay("ngay"), khsx: { nam: lay("nam"), thang: lay("thang"), ngay: lay("ngayKhsx"), tuan: lay("tuan") } };
+    });
+    res.json(payload);
+  } catch (error61) {
+    console.error("L\u1ED7i overview/tuy-chon-thoi-gian:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // src/server/tonKhoV5.ts
 var DA_KHAC = "Kh\xE1c";
 var DANH_MUC_DU_AN = [
@@ -77698,14 +77746,13 @@ var chonCuoiThang = (ngay3) => {
   const ds2 = [...new Set(ngay3)].sort();
   const theoThang = /* @__PURE__ */ new Map();
   for (const d of ds2) theoThang.set(d.slice(0, 7), d);
-  const kq = [...theoThang.values()];
-  if (kq.length >= 2 && soNgay(kq[kq.length - 1], kq[kq.length - 2]) < 7) kq.splice(-2, 1);
-  return kq;
+  return [...theoThang.values()];
 };
 var dauThangSau = (d, n) => {
   const t = new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1 + n, 1));
   return t.toISOString().slice(0, 10);
 };
+var laKyDo = (den) => soNgay(dauThangSau(den, 1), den) > 7;
 var kieuGhiChu = (gc) => {
   const g = gc ?? "";
   if (/NHÀ CUNG CẤP|\bNCC\b|GIA CÔNG|\bGC\b|C\s*TIỆN|CTIỆN|PHÔI|SƠN ĐEN|TRỤ CHÂN|QUY CÁCH/i.test(g)) return "GC";
@@ -77840,6 +77887,7 @@ var tinhPhanTich = (input2) => {
     maCt.set(t.d, m2);
   }
   const raTheoCt = /* @__PURE__ */ new Map();
+  const iRa = Math.max(1, S.length - (S.length && laKyDo(S[S.length - 1]) ? 4 : 3));
   const loVao = [], loRa = [];
   const vaoRa = S.map((d, i) => {
     if (!i) return { vao: null, ra: null };
@@ -77852,7 +77900,7 @@ var tinhPhanTich = (input2) => {
       const dv = e.v - (sau.get(k)?.v ?? 0);
       if (dv > 0) {
         ra += dv;
-        if (i >= S.length - 3) cong(raTheoCt, e.ct, dv);
+        if (i >= iRa) cong(raTheoCt, e.ct, dv);
         loRa.push({ i, d, A, sap: e.sap, ct: e.ct, ten: e.ten, nk: e.nk, dau: e.v, cuoi: e.v - dv, gt: dv });
       }
     }
@@ -78122,7 +78170,6 @@ var tinhPhanTich = (input2) => {
   }
   dongGoi.sort((a, b) => b.cu - a.cu);
   const goiDau = dongGoi.slice(0, SO_GOI_CU), goiSau = dongGoi.slice(SO_GOI_CU);
-  const iRa = Math.max(1, S.length - 3);
   const cuaSoNgay = S.length >= 2 ? soNgay(S[S.length - 1], S[iRa - 1]) : 0;
   const vao93 = tong(vaoRa.slice(iRa), (x) => x.vao ?? 0), ra93 = tong(vaoRa.slice(iRa), (x) => x.ra ?? 0);
   const seri = duAn.map((d) => d.duAn).filter((k) => k !== DA_KHAC).slice(0, SO_SERI_LO);
@@ -78179,7 +78226,8 @@ var tinhPhanTich = (input2) => {
       xuatTinh: lam(k.xuat),
       chuaDoiSoat: lam(tonTai(k.tu) + k.nhap - tonTai(k.den) - k.xuat),
       ton: lam(tonTai(k.den)),
-      thangTon: i >= 2 && xw > 0 ? Math.round(tonTai(k.den) / (xw / nw * 30) * 100) / 100 : null
+      thangTon: i >= 2 && xw > 0 ? Math.round(tonTai(k.den) / (xw / nw * 30) * 100) / 100 : null,
+      kyDo: i === kyDong.length - 1 && laKyDo(k.den)
     };
   });
   const du = tong(kyDong, (k) => k.nhap - k.xuat) + (S.length >= 2 ? tonTai(S[0]) - tonTai(S[S.length - 1]) : 0);
@@ -78290,6 +78338,8 @@ var tinhPhanTich = (input2) => {
       ra: vaoRa[i].ra === null ? null : lam(vaoRa[i].ra)
     };
   });
+  const soMa = new Set(O.map((t) => t.sap)).size;
+  const tenChuan = input2.tenChuan ?? ((t) => (t ?? "").replace(/\s+/g, " ").trim().toUpperCase());
   const kq = {
     date: date5,
     tong: {
@@ -78297,9 +78347,10 @@ var tinhPhanTich = (input2) => {
       cu: lam(tongCu),
       cu12: lam(tong(O.filter((t) => (tinhTuoi(date5, t.nk) ?? 0) > 12), (t) => t.v)),
       khongNgay: lam(tong(O.filter((t) => !t.nk), (t) => t.v)),
-      ma: new Set(O.map((t) => t.sap)).size,
-      congTrinh: new Set(O.map((t) => (t.ten ?? "").replace(/\s+/g, " ").trim().toUpperCase())).size,
-      // theo tên: khớp số dòng tab Theo công trình
+      ma: soMa,
+      ma0: new Set(ton.map((t) => t.sap)).size - soMa,
+      congTrinh: new Set(O.map((t) => tenChuan(t.ten))).size,
+      // cùng khoá gộp: khớp số dòng tab Theo công trình
       chuaXuat: lam(chuaXuatTong),
       chuaXuat4: lam(chuaXuat4),
       du: lam(du),
@@ -79132,19 +79183,26 @@ var refreshStockDatesCache = async (filters) => {
     cteClause = `WITH matched_ids AS (${matchedIdsSql(productionConds(filters, params))})`;
     joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
+  const giaTri = numericColQualified("ton_kho", "s", "gia_tri");
   const q = `
-    ${cteClause}
-    SELECT s.date_parsed AS d,
-          COUNT(DISTINCT s.ma_id_sap) AS count,
-           COALESCE(SUM(${numericColQualified("ton_kho", "s", "gia_tri")}), 0) AS value
-    FROM ton_kho s
-    ${joinClause}
-    WHERE ${conds.join(" AND ")}
-    GROUP BY 1
+    ${cteClause ? `${cteClause},` : "WITH"}
+    moi_ngay AS (SELECT DISTINCT date_parsed AS d FROM ton_kho WHERE date_parsed IS NOT NULL),
+    loc AS (
+      SELECT s.date_parsed AS d,
+             COUNT(DISTINCT s.ma_id_sap) FILTER (WHERE ${giaTri} <> 0) AS count,
+             COUNT(DISTINCT s.ma_id_sap) AS tat_ca,
+             COALESCE(SUM(${giaTri}), 0) AS value
+      FROM ton_kho s
+      ${joinClause}
+      WHERE ${conds.join(" AND ")}
+      GROUP BY 1
+    )
+    SELECT n.d, COALESCE(l.count, 0) AS count, COALESCE(l.tat_ca - l.count, 0) AS count0, COALESCE(l.value, 0) AS value
+    FROM moi_ngay n LEFT JOIN loc l ON l.d = n.d
     ORDER BY 1 DESC
   `;
   const r = await timedQuery(q, params);
-  const payload = r.rows.map((row) => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
+  const payload = r.rows.map((row) => ({ date: row.d, count: Number(row.count), count0: Number(row.count0), value: Number(row.value) }));
   stockDatesCache.set(cacheKey, { versions, payload });
   trimCache(stockDatesCache);
   return { payload, fromCache: false };
@@ -79224,7 +79282,7 @@ app.get("/api/stock/by-project", async (req, res) => {
     const filters = parseStockFilters(req);
     const needsJoin = hasProductionFilter(filters);
     const rows = await cachedByVersions(stockQueryCache, `by-project|${date5}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
-      const conds = ["s.date_parsed = $1"];
+      const conds = ["s.date_parsed = $1", `${numericColQualified("ton_kho", "s", "gia_tri")} <> 0`];
       const params = [date5];
       if (filters.congTrinh.length) {
         params.push(filters.congTrinh);
@@ -79293,8 +79351,8 @@ var docDauVaoHealth = (date5, filters) => cachedByVersions(stockHealthInputCache
     timedQuery(c.psa.sql, c.psa.params, { workMemMb: 32 }),
     timedQuery(c.luong.sql, c.luong.params, { workMemMb: 32 })
   ]);
-  return ghepDauVaoV5(date5, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows });
-}), workshopGroupsVersion());
+  return { ...ghepDauVaoV5(date5, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows }), tenChuan: (t) => normName(canonicalProjectName(t)) };
+}), `${workshopGroupsVersion()}|${projectAliasesVersion()}`);
 app.get("/api/stock/health", async (req, res) => {
   try {
     const { date: date5 } = req.query;
@@ -79305,7 +79363,7 @@ app.get("/api/stock/health", async (req, res) => {
       `health5|${date5}|${JSON.stringify(filters)}`,
       stockHealthVersionKeys,
       async () => tinhTonKhoV5(await docDauVaoHealth(date5, filters)),
-      workshopGroupsVersion()
+      `${workshopGroupsVersion()}|${projectAliasesVersion()}`
     );
     res.json(payload);
   } catch (error61) {
@@ -79359,7 +79417,7 @@ app.get("/api/stock/items", async (req, res) => {
     const project = String(req.query.project || "").trim().toUpperCase();
     const filters = parseStockFilters(req);
     const payload = await cachedByVersions(stockItemsCache, `items|${date5}|${project}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
-      const conds = ["s.date_parsed = $1"];
+      const conds = ["s.date_parsed = $1", `${numericColQualified("ton_kho", "s", "gia_tri")} <> 0`];
       const params = [date5];
       if (project === "CH\u01AFA X\xC1C \u0110\u1ECANH") {
         conds.push(`TRIM(COALESCE(s.ten_cong_trinh, '')) = ''`);
@@ -80138,12 +80196,19 @@ app.get("/api/khsx-nam/plan", async (req, res) => {
 app.get("/api/khsx-nam/plan-actual", async (req, res) => {
   try {
     const year = Number(req.query.year) || currentVnYear();
-    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}`, REVENUE_VERSION_KEYS, async () => {
+    const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
+    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}|${congTrinhList.join("|")}`, REVENUE_VERSION_KEYS, async () => {
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
       const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C')`;
+      const actualParams = [yearStart, yearEnd];
+      let actualCt = "";
+      if (congTrinhList.length) {
+        actualParams.push(congTrinhList);
+        actualCt = ` AND ${normNameSql("ten_cong_trinh")} = ANY($3::text[])`;
+      }
       const [plan, actual] = await Promise.all([
-        timedQuery(
+        congTrinhList.length ? Promise.resolve({ rows: [] }) : timedQuery(
           `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS value
          FROM khsx_nam WHERE nam = $1::bigint GROUP BY 1, 2`,
@@ -80153,9 +80218,9 @@ app.get("/api/khsx-nam/plan-actual", async (req, res) => {
           `SELECT EXTRACT(MONTH FROM date_parsed)::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) / ${TRIEU_TO_TY} AS value
          FROM nhap_kho
-         WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}
+         WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}${actualCt}
          GROUP BY 1, 2`,
-          [yearStart, yearEnd]
+          actualParams
         )
       ]);
       const map2 = (rows) => rows.map((r) => ({ thang: Number(r.thang), xuong: String(r.xuong), value: Number(r.value) }));
@@ -80960,13 +81025,13 @@ app.get("/api/khsx/cong-trinh", async (req, res) => {
 });
 
 // src/routes/keHoachNgay.ts
-var cache = createCache(50);
+var cache2 = createCache(50);
 var NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 app.get("/api/khsx/ke-hoach-ngay", async (req, res) => {
   try {
     const { tu, den, xuong, congTrinh } = req.query;
     if (!NGAY_RE.test(tu ?? "") || !NGAY_RE.test(den ?? "")) return res.status(400).json({ error: "tu / den ph\u1EA3i d\u1EA1ng YYYY-MM-DD" });
-    const payload = await cachedByVersions(cache, JSON.stringify({ tu, den, xuong, congTrinh }), ["khsx", "production"], async () => {
+    const payload = await cachedByVersions(cache2, JSON.stringify({ tu, den, xuong, congTrinh }), ["khsx", "production"], async () => {
       const params = [tu, den];
       let where = `UPPER(TRIM(phan_loai_kh)) LIKE '%TU\u1EA6N%' AND ngay_khnk BETWEEN $1::date AND $2::date AND ${notCancelledHexCond("hex")}`;
       const ctList = expandProjectNames(parseNameList(congTrinh));
@@ -80995,16 +81060,17 @@ app.get("/api/khsx/ke-hoach-ngay", async (req, res) => {
 var trendCache = createCache(120);
 var detailCache = createCache(10);
 var filterCache = createCache(8);
-var TREND_PARAMS = ["source", "granularity", "dateFrom", "dateTo", "dates", "xuong", "congTrinh", "dvt", "phanLoai", "ctWhitelist", "dimension", "value", "chiHex"];
+var TREND_PARAMS = ["source", "granularity", "dateFrom", "dateTo", "dates", "xuong", "congTrinh", "dvt", "phanLoai", "ctWhitelist", "dimension", "value", "chiHex", "ky"];
 var sourceVersionKeys = (source) => [source === "stock" ? "stock" : source, "production"];
+var tachXuong = (s) => s.split(",").map((x) => x.trim()).filter(Boolean);
 var BadRequest = class extends Error {
   status = 400;
 };
-var cachedGet = (path, cache3, versionKeysOf, compute2, shared = false) => {
+var cachedGet = (path, cache4, versionKeysOf, compute2, shared = false) => {
   app.get(path, async (req, res) => {
     try {
       const key = `${path}|${queryKey(req.query, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache3, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
+      const data = await cachedByVersions(cache4, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
       res.json(data);
     } catch (error61) {
       if (error61 instanceof BadRequest) return res.status(400).json({ error: error61.message });
@@ -81053,9 +81119,9 @@ cachedGet("/api/trend", trendCache, (req) => sourceVersionKeys(String(req.query.
   }
   if (xuong) {
     if (cfg.xuongCol) {
-      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
     } else if (cfg.xuongViaProductionJoin) {
-      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
+      conditions.push(workshopCondition("p.xuong_chinh", tachXuong(xuong), params));
     }
   }
   if (congTrinh && cfg.congTrinhCol) {
@@ -81078,8 +81144,8 @@ cachedGet("/api/trend", trendCache, (req) => sourceVersionKeys(String(req.query.
   }
   const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
   const limit = granularity === "day" ? 15 : 12;
-  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
   const valueColExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
+  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})${isStock ? ` FILTER (WHERE ${valueColExpr} <> 0)` : ""}` : `COUNT(*)`;
   const valueExpr = `SUM(${valueColExpr})`;
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
@@ -81128,8 +81194,8 @@ cachedGet("/api/trend", trendCache, (req) => sourceVersionKeys(String(req.query.
         SELECT
           period,
           COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
-          COUNT(DISTINCT hx) AS total_count,
-          (SELECT COUNT(DISTINCT hx) FROM base) AS distinct_total_count
+          COUNT(DISTINCT hx)${isStock ? " FILTER (WHERE v <> 0)" : ""} AS total_count,
+          (SELECT COUNT(DISTINCT hx)${isStock ? " FILTER (WHERE v <> 0)" : ""} FROM base) AS distinct_total_count
         FROM base
         GROUP BY 1
         ORDER BY 1 ${useDefaultLimit ? "DESC" : "ASC"}
@@ -81254,9 +81320,9 @@ cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(r
   }
   if (xuong) {
     if (cfg.xuongCol) {
-      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
     } else if (cfg.xuongViaProductionJoin) {
-      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
+      conditions.push(workshopCondition("p.xuong_chinh", tachXuong(xuong), params));
     }
   }
   if (congTrinh && cfg.congTrinhCol) {
@@ -81278,12 +81344,30 @@ cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(r
     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
   }
   const valueRowExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
-  const countBase = cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)";
+  const countBase = cfg.hexCol ? `COUNT(DISTINCT hx)${isStock ? " FILTER (WHERE v <> 0)" : ""}` : "COUNT(*)";
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
   const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
   const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
   const noXuongLabel = isStock ? "T\u1ED2N KHO KH\xC1C" : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+  const ky = String(req.query.ky || "");
+  if (!isStock && ["day", "week", "month"].includes(ky)) {
+    const qKy = `
+        ${withClause ? `${withClause},` : "WITH"} base AS (
+          SELECT COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS g,
+                 to_char(date_trunc('${ky}', ${colBare(cfg.dateCol)}), 'YYYY-MM-DD') AS ky,
+                 ${cfg.hexCol ? colBare(cfg.hexCol) : "NULL"} AS hx, ${valueRowExpr} AS v
+          FROM ${cfg.table} ${mainAlias}
+          ${joinClause}
+          WHERE ${conditions.join(" AND ")}
+        )
+        SELECT g, ky, COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value, ${countBase} AS total_count
+        FROM base
+        GROUP BY GROUPING SETS ((g, ky), (g), (ky), ())
+      `;
+    const rKy = await timedQuery(qKy, params, { workMemMb: 32 });
+    return rKy.rows.map((row) => ({ xuong: row.g, ky: row.ky, total: Number(row.total_value), totalCount: Number(row.total_count) }));
+  }
   const q = `
       ${withClause ? `${withClause},` : "WITH"} base AS (
         SELECT COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS g,
@@ -81295,7 +81379,7 @@ cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(r
       SELECT g AS xuong,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
         ${countBase} AS total_count,
-        (SELECT ${cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)"} FROM base) AS distinct_total
+        (SELECT ${countBase} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -81333,9 +81417,9 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
   }
   if (xuong) {
     if (cfg.xuongCol) {
-      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
     } else if (cfg.xuongViaProductionJoin) {
-      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
+      conditions.push(workshopCondition("p.xuong_chinh", tachXuong(xuong), params));
     }
   }
   if (congTrinh && cfg.congTrinhCol) {
@@ -81357,7 +81441,7 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
   }
   const valueRowExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
-  const countBase = cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)";
+  const countBase = cfg.hexCol ? `COUNT(DISTINCT hx)${isStock ? " FILTER (WHERE v <> 0)" : ""}` : "COUNT(*)";
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
   const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
@@ -81376,7 +81460,7 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
         COALESCE(NULLIF(MIN(ten), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
         ${countBase} AS total_count,
-        (SELECT ${cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)"} FROM base) AS distinct_total
+        (SELECT ${countBase} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -81416,9 +81500,9 @@ cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req
   }
   if (xuong) {
     if (cfg.xuongCol) {
-      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
     } else if (cfg.xuongViaProductionJoin) {
-      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
+      conditions.push(workshopCondition("p.xuong_chinh", tachXuong(xuong), params));
     }
   }
   if (congTrinh && cfg.congTrinhCol) {
@@ -81440,7 +81524,7 @@ cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req
     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
   }
   const valueRowExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
-  const countBase = cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)";
+  const countBase = cfg.hexCol ? `COUNT(DISTINCT hx)${isStock ? " FILTER (WHERE v <> 0)" : ""}` : "COUNT(*)";
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
   const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
@@ -81456,7 +81540,7 @@ cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req
       SELECT g AS dvt,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
         ${countBase} AS total_count,
-        (SELECT ${cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)"} FROM base) AS distinct_total
+        (SELECT ${countBase} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -81490,9 +81574,9 @@ cachedGet("/api/trend-by-phanloai", trendCache, (req) => sourceVersionKeys(Strin
   }
   if (xuong) {
     if (cfg.xuongCol) {
-      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
     } else if (cfg.xuongViaProductionJoin) {
-      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
+      conditions.push(workshopCondition("p.xuong_chinh", tachXuong(xuong), params));
     }
   }
   if (congTrinh && cfg.congTrinhCol) {
@@ -81527,8 +81611,8 @@ cachedGet("/api/trend-by-phanloai", trendCache, (req) => sourceVersionKeys(Strin
       )
       SELECT g AS phan_loai,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
-        COUNT(DISTINCT hx) AS total_count,
-        (SELECT COUNT(DISTINCT hx) FROM base) AS distinct_total
+        COUNT(DISTINCT hx)${isStock ? " FILTER (WHERE v <> 0)" : ""} AS total_count,
+        (SELECT COUNT(DISTINCT hx)${isStock ? " FILTER (WHERE v <> 0)" : ""} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -81603,9 +81687,9 @@ cachedGet("/api/detail", detailCache, (req) => sourceVersionKeys(String(req.quer
     }
   } else if (xuong) {
     if (cfg.xuongCol) {
-      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
     } else if (cfg.xuongViaProductionJoin) {
-      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
+      conditions.push(workshopCondition("p.xuong_chinh", tachXuong(xuong), params));
     }
   }
   if (dimension === "congtrinh" && cfg.congTrinhCol) {
@@ -81708,6 +81792,25 @@ cachedGet("/api/detail", detailCache, (req) => sourceVersionKeys(String(req.quer
 
 // src/routes/vuongMac.ts
 var import_express3 = __toESM(require_express2(), 1);
+
+// src/server/vuongMacNhom.ts
+var gopKhac = (ds2, n) => {
+  if (ds2.length <= n) return ds2;
+  const khac = { name: "Kh\xE1c", open: 0, doing: 0, waiting: 0, overdue: 0, soon: 0, created: 0, done: 0, closed: 0, avgDoneHours: null };
+  for (const d of ds2.slice(n)) {
+    khac.open += d.open;
+    khac.doing += d.doing;
+    khac.waiting += d.waiting;
+    khac.overdue += d.overdue;
+    khac.soon += d.soon;
+    khac.created += d.created;
+    khac.done += d.done;
+    khac.closed += d.closed;
+  }
+  return [...ds2.slice(0, n), khac];
+};
+
+// src/routes/vuongMac.ts
 var FIVE_M_CATEGORIES = ["man", "machine", "material", "method", "measurement"];
 var VM_STATUSES = ["open", "doing", "done", "closed"];
 var PRIORITIES = ["normal", "high", "urgent"];
@@ -81866,8 +81969,9 @@ var canAddToVuongMacThread = async (actor, hex3, category) => {
   );
 };
 var DUE_SOON_MS = 24 * 60 * 60 * 1e3;
-var dueState = (bot, now = Date.now()) => {
-  const end = parseBotEnd(bot);
+var hanCua = (row) => row.bot_end ? new Date(row.bot_end) : parseBotEnd(row.bot ?? null);
+var dueState = (row, now = Date.now()) => {
+  const end = hanCua(row);
   if (!end) return "none";
   const left = end.getTime() - now;
   return left < 0 ? "overdue" : left <= DUE_SOON_MS ? "soon" : "ok";
@@ -82283,9 +82387,9 @@ app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, re
     let total = rows[0] ? Number(rows[0].total) : 0;
     if (byBot) {
       const now = Date.now();
-      if (due === "overdue" || due === "soon") rows = rows.filter((row) => dueState(row.bot, now) === due);
+      if (due === "overdue" || due === "soon") rows = rows.filter((row) => dueState(row, now) === due);
       if (sort === "bot") {
-        const endOf = (row) => parseBotEnd(row.bot)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const endOf = (row) => hanCua(row)?.getTime() ?? Number.POSITIVE_INFINITY;
         rows = [...rows].sort((a, b) => Number(a.is_resolved) - Number(b.is_resolved) || endOf(a) - endOf(b));
       }
       total = rows.length;
@@ -82353,7 +82457,7 @@ app.get("/api/vuong-mac/stats", authenticateJWT, requireActiveUser, async (req, 
     const xuongs = /* @__PURE__ */ new Map();
     for (const row of openR.rows) {
       const st = statusOf(row);
-      const d = dueState(row.bot, now);
+      const d = dueState(row, now);
       const active = st === "open" || st === "doing";
       s.byStatus[st] = (s.byStatus[st] ?? 0) + 1;
       if (st === "done") s.waiting++;
@@ -82506,7 +82610,7 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
         group(byProject, project)
       ];
       const active = st === "open" || st === "doing";
-      const d = active ? dueState(row.bot, now) : "none";
+      const d = active ? dueState(row, now) : "none";
       if (active) {
         for (const g of groups) {
           g.open++;
@@ -82567,7 +82671,7 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
       const wz = st === "closed" ? weekKeyOf(row.closed_at) : null;
       if (wz) weeks.get(wz).closed++;
     }
-    const out = (m, limit) => [...m.entries()].map(([name, g]) => ({
+    const out = (m, limit) => gopKhac([...m.entries()].map(([name, g]) => ({
       name,
       open: g.open,
       doing: g.doing,
@@ -82578,7 +82682,7 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
       done: g.done,
       closed: g.closed,
       avgDoneHours: avg(g.doneHours)
-    })).sort((a, b) => b.overdue - a.overdue || b.open - a.open || b.created - a.created).slice(0, limit ?? 999);
+    })).sort((a, b) => b.overdue - a.overdue || b.open - a.open || b.created - a.created), limit ?? 999);
     oldest.sort((a, b) => Number(b.due === "overdue") - Number(a.due === "overdue") || b.ageHours - a.ageHours);
     res.json({
       success: true,
@@ -82691,7 +82795,7 @@ app.post(
     }
   }
 );
-var STATUS_LABEL = { open: "M\u1EDBi", doing: "\u0110ang x\u1EED l\xFD", done: "\u0110\xE3 x\u1EED l\xFD", closed: "\u0110\xE3 \u0111\xF3ng" };
+var STATUS_LABEL = { open: "M\u1EDBi", doing: "\u0110ang x\u1EED l\xFD", done: "Ch\u1EDD x\xE1c nh\u1EADn", closed: "\u0110\xE3 \u0111\xF3ng" };
 app.put(
   "/api/vuong-mac/:id",
   authenticateJWT,
@@ -84598,7 +84702,7 @@ async function quanLyCuaXuong(xuongs) {
   }
   return out;
 }
-var so4 = (n) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+var so4 = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 async function baoHangChoNhan(ds2, actorId) {
   try {
     if (!ds2.length) return;
@@ -85774,8 +85878,8 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 });
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
-var PHIEN_BAN_TINH = "pb8";
-var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
+var PHIEN_BAN_TINH2 = "pb8";
+var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
 async function lichCaCuaXuong(xuong, db = poolMra) {
@@ -86332,6 +86436,38 @@ app.post("/api/xuong/thu-hoi/:userId", async (req, res) => {
 // src/routes/xuongSetup.ts
 import crypto3 from "node:crypto";
 
+// src/server/xuong/chiSoHienTai.ts
+var quanSoThucTe = (chot, coMat) => {
+  const q = { ...chot };
+  for (const [ca, ds2] of Object.entries(coMat)) if (ds2?.length) q[ca] = new Set(ds2.map((d) => d.mnv)).size;
+  if (q.chinh === void 0 && q.chu_nhat !== void 0) {
+    q.chinh = q.chu_nhat;
+    delete q.chu_nhat;
+  }
+  return q;
+};
+var gomChoNhan = (cap, gh) => {
+  const theoTo = /* @__PURE__ */ new Map();
+  const cacCap = /* @__PURE__ */ new Set();
+  for (const x of cap) {
+    const k = `${x.hex}|${x.cong_doan_id}`;
+    const g = gh.get(k);
+    if (g && g.moc !== null && g.moc - g.daNhan <= 5e-4) continue;
+    theoTo.set(Number(x.to_id), (theoTo.get(Number(x.to_id)) ?? 0) + 1);
+    cacCap.add(k);
+  }
+  return { theoTo, tong: cacCap.size };
+};
+async function demChoNhan(db, xuong, toIds, gioiHan) {
+  const cap = (await db.query(
+    `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
+       JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
+     WHERE t.xuong = $1 AND ($2::int[] IS NULL AND t.active OR t.id = ANY($2::int[]))`,
+    [xuong, toIds]
+  )).rows;
+  return gomChoNhan(cap, await gioiHan(db, cap.map((x) => [String(x.hex), String(x.cong_doan_id)])));
+}
+
 // src/server/xuong/soKhopTram.ts
 var NGUONG_CHENH_PHAN_TRAM = 10;
 var NGUONG_CHENH_GIO = 0.5;
@@ -86401,6 +86537,18 @@ function gomSoKhopTram(ds2, tenTo, tenNguoi2 = /* @__PURE__ */ new Map()) {
   return out.sort((a, b) => a.ten.localeCompare(b.ten));
 }
 
+// src/server/xuong/nhapDu.ts
+var daNhapDu = (triGia, nhapKho, duSoLuong = false) => duSoLuong || triGia > 0 && Math.max(nhapKho, 0) >= triGia;
+async function hexDuSoLuong(pool2, hex3) {
+  if (!hex3.length) return /* @__PURE__ */ new Set();
+  const r = await pool2.query(
+    `SELECT hex::text AS hex FROM production_status_app
+     WHERE hex::text = ANY($1::text[]) AND so_luong_don_hang_tong > 0 AND so_luong_nhap_kho_luy_ke >= so_luong_don_hang_tong`,
+    [hex3]
+  );
+  return new Set(r.rows.map((x) => String(x.hex)));
+}
+
 // src/routes/xuongBaoCao.ts
 var TINH_TOI_DA = 30;
 var NGAY_RE2 = /^\d{4}-\d{2}-\d{2}$/;
@@ -86423,6 +86571,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
     const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
     if (!pv) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    await ensureWorkshopGroups();
     const chiTo = pv.chiTo;
     await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     const homNay = vnDayKey(/* @__PURE__ */ new Date());
@@ -86460,10 +86609,12 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       // Hiện tại: hạng mục đang chạy, hàng chờ nhận theo tổ
       poolMra.query(
         `SELECT tc.to_id, count(*) FILTER (WHERE t.trang_thai = 'dang_lam')::int AS dang_chay,
-                count(*) FILTER (WHERE t.sl_giao_den > t.sl_nhan)::int AS cho_nhan,
-                count(*) FILTER (WHERE t.trang_thai = 'tam_ngung')::int AS tam_ngung
+                count(*) FILTER (WHERE t.trang_thai = 'tam_ngung')::int AS tam_ngung,
+                count(DISTINCT (t.hex, t.cong_doan_id)) FILTER (WHERE t.trang_thai = 'dang_lam')::int AS dang_chay_cap,
+                count(DISTINCT (t.hex, t.cong_doan_id)) FILTER (WHERE t.trang_thai = 'tam_ngung')::int AS tam_ngung_cap,
+                GROUPING(tc.to_id) AS la_tong
          FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
-         WHERE tc.to_id = ANY($1::int[]) GROUP BY tc.to_id`,
+         WHERE tc.to_id = ANY($1::int[]) GROUP BY ROLLUP (tc.to_id)`,
         [toIds]
       ),
       // Quân số chốt theo (tổ, ngày, loại ca) — lần chốt cuối còn hiệu lực
@@ -86537,12 +86688,32 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         );
       }
     }), 2);
-    const ht = new Map(hienTai.rows.map((x) => [Number(x.to_id), x]));
+    const ht = new Map(hienTai.rows.filter((x) => !x.la_tong).map((x) => [Number(x.to_id), x]));
+    const htTong = hienTai.rows.find((x) => x.la_tong);
+    const choNhan = await demChoNhan(poolMra, xuong, toIds, gioiHanNhan);
+    const hienTaiTong = { dangChay: Number(htTong?.dang_chay_cap ?? 0), tamNgung: Number(htTong?.tam_ngung_cap ?? 0), choNhan: choNhan.tong };
+    const evCa = await poolMra.query(
+      `SELECT ${COT_SU_KIEN}, to_char((device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay_vn
+       FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
+         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
+      [toIds, tu, den]
+    );
+    const cheDoCa = cheDoTheoNgay(await mocCheDo(poolMra, toIds));
+    const caTheoNgay = /* @__PURE__ */ new Map();
+    for (const x of evCa.rows) {
+      const k = `${x.to_id}|${x.ngay_vn}`;
+      if (!caTheoNgay.has(k)) caTheoNgay.set(k, []);
+      caTheoNgay.get(k).push(x);
+    }
     const tatCaHex = /* @__PURE__ */ new Set();
     const quanSoCua = /* @__PURE__ */ new Map();
     for (const x of qsNgay.rows) {
       const k = `${x.to_id}|${x.ngay}`;
       quanSoCua.set(k, { ...quanSoCua.get(k) ?? {}, [String(x.loai_ca)]: Number(x.so) });
+    }
+    for (const k of /* @__PURE__ */ new Set([...quanSoCua.keys(), ...caTheoNgay.keys()])) {
+      quanSoCua.set(k, quanSoThucTe(quanSoCua.get(k) ?? {}, doanCoMat(locTheoCheDo(suKienConHieuLuc((caTheoNgay.get(k) ?? []).map(toSuKien)), cheDoCa))));
     }
     const nhanCua = /* @__PURE__ */ new Map();
     for (const x of nhanNgay.rows) {
@@ -86579,7 +86750,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           poolMra.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1", [xuong]),
           pool.query(`SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn,
                              sum(coalesce(gio_cong_hanh_chinh,0) + coalesce(gio_cong_tang_ca,0))::float AS gio
-                      FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1 AND date BETWEEN $2::date AND $3::date GROUP BY date`, [xuong, tu, den]).catch(() => ({ rows: [] }))
+                      FROM diem_danh WHERE upper(trim(xuong_chinh)) = ANY($1::text[]) AND date BETWEEN $2::date AND $3::date GROUP BY date`, [expandWorkshops([xuong]), tu, den]).catch(() => ({ rows: [] }))
         ]);
         const toTheoCd = new Map(tcR.rows.map((x) => [String(x.cong_doan_id), Number(x.to_id)]));
         const tenCd = new Map(cdR2.rows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
@@ -86813,7 +86984,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lam3(v)])),
         dangChay: h ? Number(h.dang_chay) : 0,
         tamNgung: h ? Number(h.tam_ngung) : 0,
-        choNhan: h ? Number(h.cho_nhan) : 0,
+        choNhan: choNhan.theoTo.get(toId) ?? 0,
         theoNgay,
         theoHangMuc: [...hm.entries()].map(([k, v]) => ({
           hex: k.split("|")[0],
@@ -86867,10 +87038,10 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         pool.query(
           `SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn, sum(gio_cong_hanh_chinh)::float AS hc,
                   sum(gio_cong_tang_ca)::float AS tc
-           FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1 AND date BETWEEN $2::date AND $3::date GROUP BY date ORDER BY date`,
-          [xuong, tu, den]
+           FROM diem_danh WHERE upper(trim(xuong_chinh)) = ANY($1::text[]) AND date BETWEEN $2::date AND $3::date GROUP BY date ORDER BY date`,
+          [expandWorkshops([xuong]), tu, den]
         ),
-        pool.query(`SELECT to_char(max(date),'YYYY-MM-DD') AS d FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1`, [xuong]),
+        pool.query(`SELECT to_char(max(date),'YYYY-MM-DD') AS d FROM diem_danh WHERE upper(trim(xuong_chinh)) = ANY($1::text[])`, [expandWorkshops([xuong])]),
         poolMra.query(
           `SELECT ngay, sum(so)::float AS so FROM (
              SELECT DISTINCT ON (e.to_id, (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
@@ -87073,13 +87244,15 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
                 sum(thanh_tien_ke_hoach_num) OVER w AS kh, max(NULLIF(regexp_replace(tri_gia_don_hang_tong, '[^0-9.]', '', 'g'), '')::numeric) OVER w AS gia_tri_don
          FROM khsx
          WHERE upper(trim(phan_loai_kh)) LIKE '%TU\u1EA6N%' AND hex::text = ANY($1::text[])
+           AND ${notCancelledHexCond("hex")} AND upper(trim(xuong_chinh)) = ANY($3::text[])
          WINDOW w AS (PARTITION BY hex::text, nam, tuan)
          ORDER BY hex::text, (min(ngay_khnk) OVER w) <= $2::date DESC, nam DESC, tuan DESC`,
-        [hexHm, den]
+        [hexHm, den, expandWorkshops([xuong])]
       ).catch(() => ({ rows: [] })),
       pool.query(
-        `SELECT hex::text AS hex, sum(thanh_tien_nhap_kho_num) AS tien FROM nhap_kho WHERE hex::text = ANY($1::text[]) GROUP BY hex::text`,
-        [hexHm]
+        `SELECT hex::text AS hex, sum(thanh_tien_nhap_kho_num) AS tien FROM nhap_kho
+         WHERE hex::text = ANY($1::text[]) AND date_parsed <= $2::date AND ${notCancelledHexCond("hex")} GROUP BY hex::text`,
+        [hexHm, den]
       ).catch(() => ({ rows: [] }))
     ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
     const hexTk = tkRows.rows.map((x) => String(x.hex));
@@ -87091,13 +87264,15 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       return [String(x.hex), { sl: Number(x.sl) || 0, luc: x.luc, xuongChinh: x.xuong_chinh ?? null, thanhPhan, tuyen }];
     }));
     const nkHm = new Map(nkRows.rows.map((x) => [String(x.hex), Number(x.tien) || 0]));
+    const duSlDon = await hexDuSoLuong(pool, hexHm).catch(() => /* @__PURE__ */ new Set());
     const khHm = new Map(khRows.rows.map((x) => [String(x.hex), {
       nam: Number(x.nam),
       tuan: Number(x.tuan),
       kh: Number(x.kh) || 0,
       ngayKhnk: x.ngay_khnk ?? null,
       giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don),
-      nhapKhoLuyKe: nkHm.get(String(x.hex)) ?? 0
+      nhapKhoLuyKe: nkHm.get(String(x.hex)) ?? 0,
+      duSlDon: duSlDon.has(String(x.hex))
     }]));
     for (const h of hangMuc) {
       const mh = mraHex.get(h.hex);
@@ -87120,6 +87295,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       conThieu: Math.max(0, canTinh.length - lanNay.length),
       chamCong,
       hangMuc,
+      hienTaiTong,
       theoNguoi,
       // Khoảng > 2 tháng: bỏ chi tiết từng người
       soKhopTram: rutGon ? soKhopTram.map((t) => ({ ...t, theoNgay: t.theoNgay.map((n) => ({ ...n, theoNguoi: [] })) })) : soKhopTram,
@@ -87382,21 +87558,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
       const nd = await nguoiDungTheoId(r.rows.map((x) => x.to_truong_user_id));
       for (const x of r.rows) x.to_truong = nd.get(Number(x.to_truong_user_id))?.full_name ?? null;
     }
-    const choNhanTo = /* @__PURE__ */ new Map();
-    {
-      const cap = (await poolMra.query(
-        `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
-           JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
-         WHERE t.xuong = $1 AND t.active`,
-        [xuong]
-      )).rows;
-      const gh = await gioiHanNhan(poolMra, cap.map((x) => [String(x.hex), String(x.cong_doan_id)]));
-      for (const x of cap) {
-        const g = gh.get(`${x.hex}|${x.cong_doan_id}`);
-        if (g && g.moc !== null && g.moc - g.daNhan <= 5e-4) continue;
-        choNhanTo.set(Number(x.to_id), (choNhanTo.get(Number(x.to_id)) ?? 0) + 1);
-      }
-    }
+    const choNhanTo = (await demChoNhan(poolMra, xuong, null, gioiHanNhan)).theoTo;
     const diemDanh = /* @__PURE__ */ new Map();
     if (r.rows.length && await coBangCongNhan()) {
       const ids = r.rows.map((x) => Number(x.id));
@@ -88588,6 +88750,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
       [hexKh, khoang.end]
     ) : { rows: [] };
     const lkMap = new Map(lk.rows.map((x) => [String(x.hex), Number(x.tien) || 0]));
+    const duSlDon = await hexDuSoLuong(pool, hexKh);
     const ngP = [khoang.start, khoang.end, hexKh, quaTo ? [...quaTo] : null];
     const theoNgay = await pool.query(
       `SELECT to_char(date_parsed,'YYYY-MM-DD') AS ngay,
@@ -88700,8 +88863,9 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
       const moc2 = await mocChuanTheoCd([xuong, ...cdR.map((x) => String(x.xuong))], toSuKien, COT_SU_KIEN);
       for (const x of kh.rows) {
         const hex3 = String(x.hex);
-        const daNhapDu = (Number(x.kh) || 0) > 0 && (nkMap.get(hex3)?.tien ?? 0) >= (Number(x.kh) || 0) * 0.98;
-        if (daNhapDu) continue;
+        const nkTuan = nkMap.get(hex3);
+        const slKh = Number(x.sl_kh) || 0;
+        if ((Number(x.kh) || 0) > 0 && daNhapDu(Number(x.kh), nkTuan?.tien ?? 0, slKh > 0 && (nkTuan?.sl ?? 0) >= slKh)) continue;
         const slTk = tkMap.get(hex3)?.sl ?? 0;
         const st = new Map((cdTheoHex.get(hex3) ?? []).map((c) => [String(c.congDoanId), c]));
         const xong = (cd) => {
@@ -88739,6 +88903,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
           slNhapKho: n?.sl ?? 0,
           nhapKhoLuyKe: lkMap.get(hex3) ?? 0,
           giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don),
+          duSlDon: duSlDon.has(hex3),
           // Không triển khai trên app nhưng có lịch sử MRA: coi như đã triển khai (làm theo MRA)
           trienKhai: tkMap.get(hex3) ?? (mraTk.has(hex3) ? { ...mraTk.get(hex3), mra: true } : null),
           congDoan: cdTheoHex.get(hex3) ?? [],
@@ -89771,74 +89936,21 @@ var ALL_ACTION_IDS = Object.values(ITEM_ACTIONS).flatMap((a) => a.map((x) => x.i
 
 // ../frontend/components/Dashboard/constants.ts
 var STATUS_GROUPS = {
-  CO_THE_SX: [
-    "01. NH\u1EACP KHO K\u0110B",
-    "02. BAO B\xCC",
-    "02.1. \u0110\xD3NG KI\u1EC6N",
-    "03. FITTING",
-    "03.3. FITTING KL",
-    "04. VECNI",
-    "04.1. B\u1ECCC N\u1EC6M",
-    "04.2. PVD",
-    "05. M\u1ED8C",
-    "05.1. T\u1ED4 \u0110\xC1",
-    "05.2. NGU\u1ED8I",
-    "06. M\xC1Y",
-    "06.1. H\xC0N",
-    "07. CTS",
-    "07.1. CTS \u0110\xC1",
-    "07.2. PH\xD4I",
-    "07.\u0110\xC3 GIAO GCNB",
-    "11. CH\u01AFA SX",
-    "16. GIA C\xD4NG V\u1EC6 TINH-BTP",
-    "16.1. GIA C\xD4NG V\u1EC6 TINH-NGUY\xCAN CON",
-    "16.2. GIA C\xD4NG V\u1EC6 TINH-\u0110\xC1",
-    "16.3. GIA C\xD4NG V\u1EC6 TINH-KH\xC1C"
-  ],
-  VECNI_FITTING: [
-    "01. NH\u1EACP KHO K\u0110B",
-    "02. BAO B\xCC",
-    "02.1. \u0110\xD3NG KI\u1EC6N"
-  ],
-  CHUYEN_KHAC: [
-    "03. FITTING",
-    "03.3. FITTING KL",
-    "04. VECNI",
-    "04.1. B\u1ECCC N\u1EC6M",
-    "04.2. PVD",
-    "05. M\u1ED8C",
-    "05.1. T\u1ED4 \u0110\xC1",
-    "05.2. NGU\u1ED8I",
-    "06. M\xC1Y",
-    "06.1. H\xC0N",
-    "07. CTS",
-    "07.1. CTS \u0110\xC1",
-    "07.2. PH\xD4I",
-    "07.\u0110\xC3 GIAO GCNB",
-    "16. GIA C\xD4NG V\u1EC6 TINH-BTP",
-    "16.1. GIA C\xD4NG V\u1EC6 TINH-NGUY\xCAN CON",
-    "16.2. GIA C\xD4NG V\u1EC6 TINH-\u0110\xC1",
-    "16.3. GIA C\xD4NG V\u1EC6 TINH-KH\xC1C"
-  ],
-  CO_PHIEU_CHUA_SX: [
-    "11. CH\u01AFA SX"
-  ],
-  CHUA_THE_SX: [
-    "12. CH\u01AFA SX PH\u1EA6N C\xD2N L\u1EA0I",
-    "13. CH\u01AFA PHI\u1EBEU PH\u1EA6N C\xD2N L\u1EA0I",
-    "14. CH\u01AFA PHI\u1EBEU",
-    "14.1. CH\u01AFA PHI\u1EBEU KL",
-    "15. CH\u01AFA TRI\u1EC2N KHAI"
-  ],
-  VUONG_SL: [
-    "12. CH\u01AFA SX PH\u1EA6N C\xD2N L\u1EA0I",
-    "13. CH\u01AFA PHI\u1EBEU PH\u1EA6N C\xD2N L\u1EA0I"
-  ],
-  CHUA_TRIEN_KHAI: [
-    "14. CH\u01AFA PHI\u1EBEU",
-    "14.1. CH\u01AFA PHI\u1EBEU KL",
-    "15. CH\u01AFA TRI\u1EC2N KHAI"
-  ]
+  VECNI_FITTING: ["01", "02.*"],
+  // tên cũ; thực đo Đóng gói / KĐB
+  CHUYEN_KHAC: ["03.*", "04.*", "05.*", "06.*", "07.*", "16.*"],
+  CO_PHIEU_CHUA_SX: ["11"],
+  VUONG_SL: ["12", "13"],
+  CHUA_TRIEN_KHAI: ["14.*", "15"]
+};
+var NHOM_CO_THE_SX = ["VECNI_FITTING", "CHUYEN_KHAC", "CO_PHIEU_CHUA_SX"];
+var NHOM_CHUA_THE_SX = ["VUONG_SL", "CHUA_TRIEN_KHAI"];
+var maTinhTrang = (status) => /^\d{2}(?:\.\d+)?/.exec(String(status ?? "").trim())?.[0] ?? "";
+var khopMa = (ma, mau) => mau.endsWith(".*") ? ma === mau.slice(0, -2) || ma.startsWith(mau.slice(0, -1)) : ma === mau;
+var nhomCuaMa = (ma) => Object.keys(STATUS_GROUPS).find((n) => STATUS_GROUPS[n].some((m) => khopMa(ma, m))) ?? null;
+var laChuaTheSX = (status) => {
+  const n = nhomCuaMa(maTinhTrang(status));
+  return !!n && NHOM_CHUA_THE_SX.includes(n);
 };
 var MATERIAL_LIST_COLUMNS = [
   TARGET_COLUMN_NAMES.STATUS,
@@ -89969,7 +90081,8 @@ var parseVNDate = (dateStr) => {
 };
 
 // ../frontend/utils/productionMetrics.ts
-var isCancelledIpo = (ipo) => String(ipo ?? "").toUpperCase().includes("H\u1EE6Y");
+var IPO_MAC_DINH = "01. \u0110ANG S\u1EA2N XU\u1EA4T";
+var laHuy2 = (ipo) => /H(?:ỦY|UỶ)/.test(String(ipo ?? "").normalize("NFC").toUpperCase());
 var doneValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.min(Math.max(nhapKho, 0), Math.max(total, 0));
 var remainValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.max(total - Math.max(nhapKho, 0), 0);
 var QTY_ORDER_KEY = "so_luong_don_hang_tong";
@@ -89978,7 +90091,7 @@ var isQtyComplete = (row) => {
   const order = parseNumber(row[QTY_ORDER_KEY]);
   return order > 0 && parseNumber(row[QTY_IN_KEY]) >= order;
 };
-var isStocked = (total, nhapKho, cancelled = false, qtyDone = false) => !cancelled && (total > 0 && remainValue(total, nhapKho) <= 0 || qtyDone);
+var daNhapDu2 = (total, nhapKho, cancelled = false, qtyDone = false) => !cancelled && (total > 0 && remainValue(total, nhapKho) <= 0 || qtyDone);
 var ngayDaDoc = /* @__PURE__ */ new Map();
 var parsePlanDate = (v) => {
   const s = String(v ?? "").trim();
@@ -90339,6 +90452,13 @@ var ON_LINE_STAGES = [
   "P021"
 ];
 var P002_STAGE = "P002";
+var ON_LINE_STAGE_SET = new Set(ON_LINE_STAGES);
+function remainBucketOf(statusUpper, stage) {
+  if (statusUpper.includes("15. CH\u01AFA TRI\u1EC2N KHAI") || stage === "P001") return "notDeployed";
+  if (stage === P002_STAGE) return "p002";
+  if (stage && ON_LINE_STAGE_SET.has(stage)) return "onLine";
+  return "shortfall";
+}
 var extractStage = (value) => {
   const match = String(value ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/);
   return match ? match[1] : null;
@@ -90349,29 +90469,32 @@ var KHONG_RO_CONG_DOAN = "(Kh\xF4ng r\xF5)";
 var stageOfBop = (i) => i.stage ?? KHONG_RO_CONG_DOAN;
 var khoCua = (i) => {
   const nk = Math.max(i.inv, 0);
-  const xk = Math.min(i.xuat ?? 0, nk);
-  const ton = Math.min(i.tonKho ?? nk - xk, nk - xk);
-  return { nk, xk, ton, chenh: nk - xk - ton };
+  const xk = Math.max(i.xuat ?? 0, 0);
+  const conLai = Math.max(nk - xk, 0);
+  const ton = Math.min(i.tonKho ?? conLai, conLai);
+  return { nk, xk, ton, chenh: conLai - ton, xv: Math.max(xk - nk, 0) };
 };
 var laKho = (i, f, metric) => {
   const k = khoCua(i);
+  if (f === "xv") return k.xv >= 0.01;
+  if (metric !== "count") return k[f] > 0;
   if (k.nk <= 0) return false;
   if (f === "nk") return true;
-  if (metric !== "count") return k[f] > 0;
   const conTon = k.ton >= 0.01, coChenh = k.chenh >= 0.01;
   if (f === "ton") return conTon;
   if (f === "xk") return !conTon && !coChenh;
   return !conTon && coChenh;
 };
-var khoMuc = (i, metric) => metric === "count" ? { nk: laKho(i, "nk", metric) ? 1 : 0, xk: laKho(i, "xk", metric) ? 1 : 0, ton: laKho(i, "ton", metric) ? 1 : 0, chenh: laKho(i, "chenh", metric) ? 1 : 0 } : khoCua(i);
+var khoMuc = (i, metric) => metric === "count" ? { nk: laKho(i, "nk", metric) ? 1 : 0, xk: laKho(i, "xk", metric) ? 1 : 0, ton: laKho(i, "ton", metric) ? 1 : 0, chenh: laKho(i, "chenh", metric) ? 1 : 0, xv: laKho(i, "xv", metric) ? 1 : 0 } : khoCua(i);
 var mucCongDoan = (items, metric) => metric === "count" ? items.filter((i) => i.open) : items.filter((i) => i.open || i.remain > 0);
 var giaTriBop = (i, metric) => metric === "count" ? 1 : metric === "remain" ? i.remain : i.total;
-var khoRong = () => ({ nk: 0, xk: 0, ton: 0, chenh: 0 });
+var khoRong = () => ({ nk: 0, xk: 0, ton: 0, chenh: 0, xv: 0 });
 var congKho = (e, v) => {
   e.nk += v.nk;
   e.xk += v.xk;
   e.ton += v.ton;
   e.chenh += v.chenh;
+  e.xv += v.xv;
 };
 var nhomMacDinh = (st) => st === "P001" ? "notDeployed" : st === "P002" ? "p002" : "onLine";
 var BOP_SET = new Set(BOP_STAGE_ORDER);
@@ -90411,7 +90534,7 @@ function tinhPivotBop(items, khoItems, metric, khoaDong, nhomTheoCongDoan = fals
   const khoTot = khoRong();
   for (const i of khoItems) {
     const v = khoMuc(i, metric);
-    if (!v.nk) continue;
+    if (!v.nk && !v.xk && !v.xv) continue;
     for (const k of khoaDong(i)) {
       const e = kho.get(k) ?? khoRong();
       congKho(e, v);
@@ -90481,7 +90604,7 @@ var DEFAULT_FILTERS = {
   congTrinh: [],
   xuong: [],
   tinhTrang: [],
-  tinhTrangIpo: ["01. \u0110ANG S\u1EA2N XU\u1EA4T"],
+  tinhTrangIpo: [IPO_MAC_DINH],
   khachHang: [],
   khuVucDuAn: [],
   phanLoai: []
@@ -90563,38 +90686,22 @@ function luaChonSanXuat(productionData, k) {
     phanLoaiOptions: categoryOptions(productionData, k.phanLoaiNhomSanPhamKey)
   };
 }
-var ON_LINE_STAGE_SET = new Set(ON_LINE_STAGES);
-function remainBucketOf(statusUpper, stage) {
-  if (statusUpper.includes("15. CH\u01AFA TRI\u1EC2N KHAI") || stage === "P001") return "notDeployed";
-  if (stage === P002_STAGE) return "p002";
-  if (stage && ON_LINE_STAGE_SET.has(stage)) return "onLine";
-  return "shortfall";
-}
 var UNKNOWN_PROJECT = "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
 function projectNameOf(value) {
   return String(value ?? "").trim() || UNKNOWN_PROJECT;
 }
 var unknownProjectLast = (a, b) => Number(a.name === UNKNOWN_PROJECT) - Number(b.name === UNKNOWN_PROJECT);
 function hamGiaTri(k) {
-  const isCancelledRow = (row) => !!k.tinhTrangIpoKey && isCancelledIpo(row[k.tinhTrangIpoKey]);
+  const isCancelledRow = (row) => !!k.tinhTrangIpoKey && laHuy2(row[k.tinhTrangIpoKey]);
   const rowRemain = (row) => remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
-  const calculateMetricValue = (row, metric) => {
-    if (isCancelledRow(row)) return 0;
-    if (metric === "COUNT_HEX") return 1;
-    if (metric === "SUM_GT_CON_LAI" || metric === "SUM_GT_DON_HANG") return rowRemain(row);
-    return 0;
-  };
   const funnelValue = (row, metric) => {
-    if (metric !== "COUNT_HEX") {
-      if (isCancelledRow(row)) return 0;
-      return remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
-    }
     if (isCancelledRow(row)) return 0;
+    if (metric !== "COUNT_HEX") return rowRemain(row);
     const total = parseNumber(row[k.triGiaDonHangTongKey]);
     const nk = k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0;
-    return isStocked(total, nk, false, isQtyComplete(row)) ? 0 : 1;
+    return daNhapDu2(total, nk, false, isQtyComplete(row)) ? 0 : 1;
   };
-  return { isCancelledRow, rowRemain, calculateMetricValue, funnelValue };
+  return { isCancelledRow, rowRemain, calculateMetricValue: funnelValue, funnelValue };
 }
 var statusOf2 = (row, k, mode) => {
   let status = "";
@@ -90608,49 +90715,53 @@ var statusOf2 = (row, k, mode) => {
 };
 function tinhBottleneck(rows, k, mode) {
   if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const { funnelValue } = hamGiaTri(k);
   const agg = {};
   rows.forEach((row) => {
     const status = statusOf2(row, k, mode);
-    if (!status) return;
+    if (!status || !funnelValue(row, "COUNT_HEX")) return;
     if (!agg[status]) {
       agg[status] = { name: status };
       DWELL_KEYS.forEach((d2) => {
         agg[status][d2] = 0;
+        agg[status][`gt:${d2}`] = 0;
       });
     }
     const d = dwellBucket(row[k.daysAtCurrentStageKey]);
     agg[status][d] = (agg[status][d] || 0) + 1;
+    agg[status][`gt:${d}`] = (agg[status][`gt:${d}`] || 0) + funnelValue(row, "SUM_GT_CON_LAI");
   });
   return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
 }
 function tinhTopBottlenecks(rows, k, mode) {
   if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const { funnelValue } = hamGiaTri(k);
   const counts = {};
+  const gt = {};
   rows.forEach((row) => {
     const status = statusOf2(row, k, mode);
-    if (status && dwellBucket(row[k.daysAtCurrentStageKey]) === DWELL_STUCK) {
+    if (status && funnelValue(row, "COUNT_HEX") && dwellBucket(row[k.daysAtCurrentStageKey]) === DWELL_STUCK) {
       counts[status] = (counts[status] || 0) + 1;
+      gt[status] = (gt[status] || 0) + funnelValue(row, "SUM_GT_CON_LAI");
     }
   });
-  return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 6);
+  return Object.entries(counts).map(([name, count]) => ({ name, count, gt: gt[name] || 0 })).sort((a, b) => b.gt - a.gt || b.count - a.count).slice(0, 6);
 }
+var COT_NHOM = { VECNI_FITTING: "vecniFitting", CHUYEN_KHAC: "chuyenKhac", CO_PHIEU_CHUA_SX: "coPhieuChuaSX", VUONG_SL: "vuongSL", CHUA_TRIEN_KHAI: "chuaTrienKhai" };
 function tinhCardMetrics(rows, k) {
-  const metrics = { coTheSX: 0, vecniFitting: 0, chuyenKhac: 0, coPhieuChuaSX: 0, chuaTheSX: 0, vuongSL: 0, chuaTrienKhai: 0 };
-  if (!k.tinhTrangKey) return metrics;
-  const { isCancelledRow, rowRemain } = hamGiaTri(k);
+  const m = { coTheSX: 0, vecniFitting: 0, chuyenKhac: 0, coPhieuChuaSX: 0, chuaTheSX: 0, vuongSL: 0, chuaTrienKhai: 0, tongConLai: 0, chuaXepNhom: 0 };
+  if (!k.tinhTrangKey) return m;
+  const { funnelValue } = hamGiaTri(k);
   rows.forEach((row) => {
-    const status = String(row[k.tinhTrangKey] || "").trim().toUpperCase();
-    const val = isCancelledRow(row) ? 0 : rowRemain(row);
-    const isIn = (group) => group.some((s) => status.includes(s));
-    if (isIn(STATUS_GROUPS.CO_THE_SX)) metrics.coTheSX += val;
-    if (isIn(STATUS_GROUPS.VECNI_FITTING)) metrics.vecniFitting += val;
-    else if (isIn(STATUS_GROUPS.CHUYEN_KHAC)) metrics.chuyenKhac += val;
-    else if (isIn(STATUS_GROUPS.CO_PHIEU_CHUA_SX)) metrics.coPhieuChuaSX += val;
-    if (isIn(STATUS_GROUPS.CHUA_THE_SX)) metrics.chuaTheSX += val;
-    if (isIn(STATUS_GROUPS.VUONG_SL)) metrics.vuongSL += val;
-    else if (isIn(STATUS_GROUPS.CHUA_TRIEN_KHAI)) metrics.chuaTrienKhai += val;
+    const val = funnelValue(row, "SUM_GT_CON_LAI");
+    m.tongConLai += val;
+    const nhom = nhomCuaMa(maTinhTrang(row[k.tinhTrangKey]));
+    if (nhom) m[COT_NHOM[nhom]] += val;
+    else m.chuaXepNhom += val;
   });
-  return metrics;
+  m.coTheSX = NHOM_CO_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
+  m.chuaTheSX = NHOM_CHUA_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
+  return m;
 }
 function tinhBangCongTrinh(rows, k, metric) {
   if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return null;
@@ -90737,20 +90848,17 @@ function tinhPivotWorkshop(rows, k, metric) {
   });
   return { uniqueWorkshops, rows: pivotRows, uniqueBops, bopTotals, bopRowTotals, matrix, rowTotals, colTotals, grandTotal };
 }
+var bopCua = (row, k) => extractStage(row[k.bopKey]) ?? (String(row[k.bopKey] || "").trim() || "Ch\u01B0a x\xE1c \u0111\u1ECBnh");
 function tinhPivotFunnel(rows, k, metric) {
   if (!k.bopKey) return null;
   const { funnelValue } = hamGiaTri(k);
   const agg = {};
   let total = 0;
   rows.forEach((row) => {
-    const bop = String(row[k.bopKey] || "Ch\u01B0a x\xE1c \u0111\u1ECBnh").trim();
-    const s = String(row[k.tinhTrangKey] || "").trim();
-    const w = String(row[k.xuongKey] || "").trim();
-    if (s && w) {
-      const val = funnelValue(row, metric);
-      agg[bop] = (agg[bop] || 0) + val;
-      total += val;
-    }
+    const bop = bopCua(row, k);
+    const val = funnelValue(row, metric);
+    agg[bop] = (agg[bop] || 0) + val;
+    total += val;
   });
   const bopOrder = BOP_STAGE_ORDER;
   return {
@@ -90772,10 +90880,7 @@ function tinhFunnelBreakdownByBop(rows, k, metric) {
   const agg = {};
   const totals = {};
   rows.forEach((row) => {
-    const bop = String(row[k.bopKey] || "Ch\u01B0a x\xE1c \u0111\u1ECBnh").trim();
-    const s = String(row[k.tinhTrangKey] || "").trim();
-    const w = String(row[k.xuongKey] || "").trim();
-    if (!s || !w) return;
+    const bop = bopCua(row, k);
     const project = projectNameOf(row[k.congTrinhKey]);
     const val = funnelValue(row, metric);
     if (!agg[bop]) agg[bop] = {};
@@ -90901,7 +91006,7 @@ function mixRecords(data, columns) {
   const out = [];
   for (const row of data) {
     if (!String(row[ctK] ?? "").trim()) continue;
-    if (String(row[ipoK] ?? "").toUpperCase().includes("H\u1EE6Y")) continue;
+    if (laHuy2(row[ipoK])) continue;
     out.push({
       ct: projectMatchKey(row[ctK]),
       kv: categoryValue(row[kvK]),
@@ -91006,11 +91111,11 @@ function taoBanGhi(data, columns, today) {
     const totalRaw = parseNumber(row[totK]);
     const invRaw = parseNumber(row[invK]);
     let status;
-    if (ipo.includes("H\u1EE6Y")) status = "H\u1EE6Y";
+    if (laHuy2(ipo)) status = "H\u1EE6Y";
     else if (ipo.includes("HO\xC0N TH\xC0NH")) status = "HO\xC0N TH\xC0NH";
     else if (ipo.includes("T\u1EA0M NG\u01AFNG")) status = "T\u1EA0M NG\u01AFNG";
     else if (ipo.includes("C\u1EA6N X\u1EEC L\xDD")) status = "C\u1EA6N X\u1EEC L\xDD";
-    else if (STATUS_GROUPS.CHUA_THE_SX.some((s) => st.includes(s))) status = "CH\u01AFA TKSX";
+    else if (laChuaTheSX(st)) status = "CH\u01AFA TKSX";
     else status = "C\xD3 PHI\u1EBEU SX";
     const dl = deadlineOf(row, dlKeys);
     const d = dl.date;
@@ -91019,9 +91124,9 @@ function taoBanGhi(data, columns, today) {
     const stockRaw = Math.max(parseNumber(row[tkK]), 0);
     const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
     const exported = cancelled ? 0 : exportedRecorded;
+    const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
     const stockHuy = cancelled ? Math.min(stockRaw, Math.max(Math.max(invRaw, 0) - exportedRecorded, 0), Math.max(totalRaw, 0)) : 0;
-    const done = cancelled ? stockHuy : Math.min(Math.max(invRaw, 0), totalRaw);
-    const stock = cancelled ? stockHuy : Math.min(stockRaw, Math.max(done - exported, 0));
+    const kho = cancelled ? { ton: stockHuy, chenh: 0, xv: 0 } : khoCua({ inv: done, xuat: exported, tonKho: stockRaw });
     const qtyDone = isQtyComplete(row);
     const open2 = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
     out.push({
@@ -91043,15 +91148,15 @@ function taoBanGhi(data, columns, today) {
       ipo: String(row[ipoK] ?? "").trim(),
       month,
       status,
-      // Trang có bộ lọc Tình trạng IPO => trị giá gồm cả HỦY (khớp tổng cột trị giá ở file gốc);
-      // người xem lọc IPO để bỏ HỦY khi cần
-      total: totalRaw,
+      total: cancelled ? 0 : totalRaw,
+      totalHuy: cancelled ? totalRaw : 0,
       done,
       exported,
       exportedRecorded,
-      stock,
-      unmatched: done - exported - stock,
-      stockCut: stockRaw - stock,
+      xuatVuot: kho.xv,
+      stock: kho.ton,
+      unmatched: kho.chenh,
+      stockCut: stockRaw - kho.ton,
       qtyDone,
       row,
       mk: projectMatchKey(ct),
@@ -91082,7 +91187,7 @@ function taoBanGhi(data, columns, today) {
   return out;
 }
 var COT_CHU = ["ct", "pm", "pc", "kv", "kh", "pl", "nct", "tda", "ma", "ctKey", "month", "status", "ipo", "mk", "bucket"];
-var COT_SO = ["total", "done", "exported", "exportedRecorded", "stock", "stockCut", "unmatched"];
+var COT_SO = ["total", "totalHuy", "done", "exported", "exportedRecorded", "xuatVuot", "stock", "stockCut", "unmatched"];
 var ngayChuoi = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
 function nenBanGhi(recs) {
   const tu = [];
@@ -91235,7 +91340,9 @@ var nhoKetQua = (k, buf) => {
     ketQuaNho.delete(cu);
   }
 };
+var PHIEN_BAN_TINH3 = "r3";
 function layHoacDung(khoa, ver, luuDb, dung2) {
+  khoa = `${PHIEN_BAN_TINH3}:${khoa}`;
   const k = `${khoa}|${ver}`;
   const nho2 = ketQuaNho.get(k);
   if (nho2) return Promise.resolve({ buf: nho2, nguon: "mem", timing: "" });
@@ -91345,7 +91452,7 @@ var MO = `(UPPER(COALESCE(t.tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%'
   AND NOT (COALESCE(t.so_luong_don_hang_tong, 0) > 0 AND COALESCE(t.so_luong_nhap_kho_luy_ke, 0) >= t.so_luong_don_hang_tong)
   AND (COALESCE(t.tri_gia_don_hang_tong, 0) > COALESCE(t.thanh_tien_nhap_kho_luy_ke, 0) OR COALESCE(t.tri_gia_don_hang_tong, 0) <= 0))`;
 var HOM_NAY_VN = `(now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
-var CON_LAI = `GREATEST(COALESCE(t.tri_gia_don_hang_tong, 0) - COALESCE(t.thanh_tien_nhap_kho_luy_ke, 0), 0)`;
+var CON_LAI = `GREATEST(COALESCE(t.tri_gia_don_hang_tong, 0) - GREATEST(COALESCE(t.thanh_tien_nhap_kho_luy_ke, 0), 0), 0)`;
 var NHOM_BOT = ["1. Qu\xE1 h\u1EA1n KH", "2. \u2264 14 ng\xE0y", "3. 15\u201330 ng\xE0y", "4. Sau 30 ng\xE0y", "5. \u0110\u1EA1t KH k\u1EF3, ch\u1EDD KH ti\u1EBFp", "6. Ch\u01B0a c\xF3 KH nh\u1EADp kho"];
 var NHOM_BOT_SQL = `(CASE WHEN NOT ${MO} THEN NULL
   WHEN ${HAN_KH} IS NULL AND ((${KT} IS NOT NULL AND ${TUAN_DAT}) OR (t.ngay_khnk_thang IS NOT NULL AND ${THANG_DAT})) THEN '${NHOM_BOT[4]}'
@@ -91449,7 +91556,8 @@ var DANH_MUC = [
       { id: "tinh_trang_ke_hoach_giao_hang", ten: "K\u1EBF ho\u1EA1ch giao h\xE0ng", tuDien: true, dn: ["t\xECnh tr\u1EA1ng k\u1EBF ho\u1EA1ch giao h\xE0ng", "t\xECnh tr\u1EA1ng giao h\xE0ng", "giao h\xE0ng"], kieu: "chu" },
       // "tồn kho NHẬP TỪ tháng 9", "ngày nhập": ngày hàng vào kho (khác ngày chốt tồn `date`)
       { id: "ngay_nhap_kho", ten: "Ng\xE0y nh\u1EADp kho", dn: ["ng\xE0y nh\u1EADp", "nh\u1EADp t\u1EEB"], kieu: "ngay" },
-      { id: "so_thang_ton_kho", ten: "S\u1ED1 th\xE1ng t\u1ED3n", dn: ["th\xE1ng t\u1ED3n", "tu\u1ED5i t\u1ED3n"], kieu: "so" },
+      // Cùng công thức tinhTuoi của Tồn kho (server/tonKhoV5.ts): ROUND(ngày / 30.4), thiếu ngày nhập thì không có tuổi
+      { id: "so_thang_ton_kho", ten: "S\u1ED1 th\xE1ng t\u1ED3n", dn: ["th\xE1ng t\u1ED3n", "tu\u1ED5i t\u1ED3n"], kieu: "so", sql: "FLOOR((10 * (t.date - t.ngay_nhap_kho) + 152) / 304.0)" },
       { id: "gia_tri", ten: "Gi\xE1 tr\u1ECB t\u1ED3n", dn: ["gi\xE1 tr\u1ECB", "th\xE0nh ti\u1EC1n"], kieu: "so", sql: "t.gia_tri_num", tien: true },
       { id: "so_luong", ten: "S\u1ED1 l\u01B0\u1EE3ng t\u1ED3n", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" }
     ]
@@ -91744,8 +91852,8 @@ var DANH_MUC = [
         ten: "Tr\u1EA1ng th\xE1i",
         dn: ["t\xECnh tr\u1EA1ng"],
         kieu: "chu",
-        gt: ["M\u1EDBi", "\u0110ang x\u1EED l\xFD", "\u0110\xE3 xong", "\u0110\xE3 \u0111\xF3ng"],
-        sql: `(CASE t.status WHEN 'open' THEN 'M\u1EDBi' WHEN 'doing' THEN '\u0110ang x\u1EED l\xFD' WHEN 'done' THEN '\u0110\xE3 xong' WHEN 'closed' THEN '\u0110\xE3 \u0111\xF3ng' ELSE COALESCE(t.status, CASE WHEN t.is_resolved THEN '\u0110\xE3 xong' ELSE 'M\u1EDBi' END) END)`
+        gt: ["M\u1EDBi", "\u0110ang x\u1EED l\xFD", "Ch\u1EDD x\xE1c nh\u1EADn", "\u0110\xE3 \u0111\xF3ng"],
+        sql: `(CASE t.status WHEN 'open' THEN 'M\u1EDBi' WHEN 'doing' THEN '\u0110ang x\u1EED l\xFD' WHEN 'done' THEN 'Ch\u1EDD x\xE1c nh\u1EADn' WHEN 'closed' THEN '\u0110\xE3 \u0111\xF3ng' ELSE COALESCE(t.status, CASE WHEN t.is_resolved THEN 'Ch\u1EDD x\xE1c nh\u1EADn' ELSE 'M\u1EDBi' END) END)`
       },
       { id: "is_resolved", ten: "\u0110\xE3 x\u1EED l\xFD", dn: ["x\u1EED l\xFD xong", "\u0111\xE3 gi\u1EA3i quy\u1EBFt"], kieu: "chu", gt: ["\u0110\xE3 x\u1EED l\xFD", "Ch\u01B0a x\u1EED l\xFD"], sql: `(CASE WHEN t.is_resolved THEN '\u0110\xE3 x\u1EED l\xFD' ELSE 'Ch\u01B0a x\u1EED l\xFD' END)` },
       {
@@ -92256,13 +92364,13 @@ function docKetQuaAI(text) {
     return null;
   }
 }
-var cache2 = /* @__PURE__ */ new Map();
+var cache3 = /* @__PURE__ */ new Map();
 var ngay2 = "";
 var dem = 0;
 var LoiAI = class extends Error {
 };
 async function hoiAI(loiDan, cau, khoaCache) {
-  const hit = cache2.get(khoaCache);
+  const hit = cache3.get(khoaCache);
   if (hit && Date.now() - hit.at < 864e5) return hit.kq;
   const hn = iso(/* @__PURE__ */ new Date());
   if (hn !== ngay2) {
@@ -92297,10 +92405,10 @@ async function hoiAI(loiDan, cau, khoaCache) {
   const j = await r.json().catch(() => null);
   const kq = docKetQuaAI(j?.choices?.[0]?.message?.content ?? "");
   if (!kq) throw new LoiAI("AI tr\u1EA3 l\u1EDDi kh\xF4ng \u0111\xFAng d\u1EA1ng");
-  cache2.set(khoaCache, { at: Date.now(), kq });
-  if (cache2.size > 500) {
-    const k = cache2.keys().next().value;
-    if (k !== void 0) cache2.delete(k);
+  cache3.set(khoaCache, { at: Date.now(), kq });
+  if (cache3.size > 500) {
+    const k = cache3.keys().next().value;
+    if (k !== void 0) cache3.delete(k);
   }
   return kq;
 }

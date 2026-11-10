@@ -230,7 +230,7 @@ function hangMucSauCho(ds: HangMucTram[], cho: SuKienCho[]): HangMucTram[] {
     return x;
   }).filter(h => h.conLam > 0 || h.conNhan > 0);
 }
-const soSet = (n: number, dvt: string | null) => `${Number(n.toFixed(3)).toLocaleString('vi-VN')} ${dvt || 'SET'}`;
+const soSet = (n: number, dvt: string | null) => `${Number(n.toFixed(3)).toLocaleString('en-US')} ${dvt || 'SET'}`;
 
 export default function TramQuet() {
   const [daCoTram, setDaCoTram] = useState(coTram);

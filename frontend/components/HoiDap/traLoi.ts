@@ -11,8 +11,11 @@ import { tinhChiSo } from '../Construction/core/chiSoCongTrinh';
 import { fetchVuongMacDashboard, fetchVuongMacByProject, type HexHit } from '../../services/vuongMacService';
 import { searchHex } from '../../services/vuongMacMobileApi';
 import { xuongSetupApi } from '../../services/xuongSetupApi';
+import { tyLeCoViec } from '../Xuong/chiSoXuong';
+import { doneValue, laHuy, orderValue } from '../../utils/productionMetrics';
 import { DEFAULT_FILTERS, TUY_CHON_MAC_DINH } from '../Dashboard/core/tongQuanSanXuat';
 import { formatTrieuAsTy, formatTy } from '../../utils/money';
+import { fmtInt, fmtPt } from '../../utils/format';
 import { type CauHoi, type Ky, type Y, kyMacDinh, thu2TuanIso, tuanIso, boDau, docMaCongTrinh } from './hieuCauHoi';
 import { chayTruyVan, type DuongTraLoi, type TruyVan } from './truyVanApi';
 
@@ -42,7 +45,7 @@ export interface TraLoi {
 }
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const so = (n: number) => Math.round(n).toLocaleString('en-US');
+const so = fmtInt;
 const ty = (trieu: number) => `${formatTrieuAsTy(trieu)} tỷ`;
 /** Kỳ liền trước cùng độ dài (để so sánh) */
 const kyTruoc = (k: Ky): Ky => {
@@ -53,8 +56,8 @@ const kyTruoc = (k: Ky): Ky => {
 };
 const chenh = (a: number, b: number) => {
   if (!b) return a ? '(kỳ trước = 0)' : '';
-  const p = Math.round(((a - b) / b) * 100);
-  return p === 0 ? '(bằng kỳ trước)' : `(${p > 0 ? '▲ +' : '▼ '}${p}% so với kỳ trước)`;
+  const p = ((a - b) / b) * 100;
+  return Math.abs(p) < 0.05 ? '(bằng kỳ trước)' : `(${p > 0 ? '▲ +' : '▼ -'}${fmtPt(Math.abs(p))} so với kỳ trước)`;
 };
 
 // Nguồn "dòng chảy" của tổng quan đơn hàng / kho
@@ -97,7 +100,7 @@ async function dongChay(c: CauHoi): Promise<TraLoi> {
     return {
       chu: `**${n.ten}** ${k.ten}${pham} theo ${c.nhom === 'xuong' ? 'xưởng' : 'công trình'}: tổng **${so(tongC)} ${n.dv}** · **${ty(tongV)}**${rows.length > top.length ? ` (hiện ${top.length}/${rows.length} nhóm lớn nhất)` : ''}.`,
       bang: { cot: [c.nhom === 'xuong' ? 'Xưởng' : 'Công trình', 'Số lượng', 'Giá trị (tỷ)', '%'], phai: [1, 2, 3],
-        dong: top.map(r => [r.name || '—', so(r.dailyCount), formatTrieuAsTy(r.dailyValue), tongV ? `${Math.round((r.dailyValue / tongV) * 100)}%` : '—']) },
+        dong: top.map(r => [r.name || '—', so(r.dailyCount), formatTrieuAsTy(r.dailyValue), tongV ? fmtPt((r.dailyValue / tongV) * 100) : '—']) },
       link: { ten: 'Mở biểu đồ chi tiết', to: n.link },
       goiY: [`${n.ten.split(' (')[0].toLowerCase()} theo ${c.nhom === 'xuong' ? 'công trình' : 'xưởng'} ${k.macDinh ? 'tháng này' : ''}`.trim()],
     };
@@ -139,7 +142,7 @@ async function tienDoNam(): Promise<TraLoi> {
   if (!r) return { chu: 'Không lấy được kế hoạch năm.' };
   const q = r.quarterlyTargets;
   return {
-    chu: `**Tiến độ năm ${r.year}** (nhập kho mọi đơn): thực hiện **${formatTy(r.actual.value)} / ${formatTy(r.targetRevenue2026)} tỷ** · **${Math.round(r.actual.percent)}%**`
+    chu: `**Tiến độ năm ${r.year}** (nhập kho mọi đơn): thực hiện **${formatTy(r.actual.value)} / ${formatTy(r.targetRevenue2026)} tỷ** · **${fmtPt(r.actual.percent)}**`
       + `\nCòn thiếu ${formatTy(Math.max(0, r.targetRevenue2026 - r.actual.value))} tỷ.`,
     bang: { cot: ['Mốc', 'Kế hoạch lũy kế (tỷ)', 'Đạt?'], phai: [1],
       dong: ([['Quý I', q.q1], ['Quý II', q.q2], ['Quý III', q.q3], ['Quý IV', q.q4]] as const).filter(([, v]) => v > 0)
@@ -159,10 +162,10 @@ async function tienDoThang(c: CauHoi): Promise<TraLoi> {
   const theoXuong = d.workshops.map(x => {
     const k = d.plan.filter(r => r.thang === thang && r.xuong === x).reduce((a, r) => a + r.value, 0);
     const t = d.actual.filter(r => r.thang === thang && r.xuong === x).reduce((a, r) => a + r.value, 0);
-    return [x, formatTy(k), formatTy(t), k > 0 ? `${Math.round((t / k) * 100)}%` : '—'] as Array<string | number>;
+    return [x, formatTy(k), formatTy(t), k > 0 ? fmtPt((t / k) * 100) : '—'] as Array<string | number>;
   });
   return {
-    chu: `**Kế hoạch tháng ${thang}/${h.getFullYear()}**${c.xuong ? ` · xưởng ${c.xuong}` : ''}: thực hiện **${formatTy(th)} / ${formatTy(kh)} tỷ** · **${kh > 0 ? Math.round((th / kh) * 100) : 0}%**`,
+    chu: `**Kế hoạch tháng ${thang}/${h.getFullYear()}**${c.xuong ? ` · xưởng ${c.xuong}` : ''}: thực hiện **${formatTy(th)} / ${formatTy(kh)} tỷ** · **${fmtPt(kh > 0 ? (th / kh) * 100 : 0)}**`,
     bang: c.xuong ? undefined : { cot: ['Xưởng', 'KH (tỷ)', 'TH (tỷ)', '% đạt'], phai: [1, 2, 3], dong: theoXuong },
     goiY: [`kế hoạch tuần ${tuanIso(h)}`, 'tiến độ kế hoạch năm'],
   };
@@ -179,9 +182,9 @@ async function keHoachTuan(c: CauHoi): Promise<TraLoi> {
   if (!r.totalKh) return { chu: `**Tuần ${tuan}** (${f(t2)} – ${f(cn)}): chưa có kế hoạch tuần. Đã nhập kho **${formatTy(r.totalTh)} tỷ**.` };
   return {
     chu: `**Kế hoạch tuần ${tuan}** (${f(t2)} – ${f(cn)})${c.xuong ? ` · xưởng ${c.xuong}` : ''}: KH **${formatTy(r.totalKh)} tỷ** · nhập kho **${formatTy(r.totalTh)} tỷ**`
-      + ` (trong KH ${formatTy(r.totalThPlan)} tỷ) · hoàn thành **${Math.round(r.completionRate)}%**`,
+      + ` (trong KH ${formatTy(r.totalThPlan)} tỷ) · hoàn thành **${fmtPt(r.completionRate)}**`,
     bang: c.xuong ? undefined : { cot: ['Xưởng', 'KH (tỷ)', 'TH (tỷ)', '% đạt'], phai: [1, 2, 3],
-      dong: r.byXuong.filter(x => x.kh || x.th).map(x => [x.xuong, formatTy(x.kh), formatTy(x.th), x.kh ? `${Math.round((x.thPlan / x.kh) * 100)}%` : '—']) },
+      dong: r.byXuong.filter(x => x.kh || x.th).map(x => [x.xuong, formatTy(x.kh), formatTy(x.th), x.kh ? fmtPt((x.thPlan / x.kh) * 100) : '—']) },
     goiY: [`kế hoạch tuần ${tuan - 1}`, 'tiến độ kế hoạch tháng này'],
   };
 }
@@ -215,7 +218,7 @@ async function sanXuat(c: CauHoi): Promise<TraLoi> {
   const tong = ds.reduce((a, d) => a + d.value, 0);
   return {
     chu: `**Đơn hàng theo công đoạn** ${pham}: tổng **${ty(tong)}**`,
-    bang: { cot: ['Công đoạn', 'Giá trị (tỷ)', '%'], phai: [1, 2], dong: ds.map(d => [d.name, formatTrieuAsTy(d.value), tong ? `${Math.round((d.value / tong) * 100)}%` : '—']) },
+    bang: { cot: ['Công đoạn', 'Giá trị (tỷ)', '%'], phai: [1, 2], dong: ds.map(d => [d.name, formatTrieuAsTy(d.value), tong ? fmtPt((d.value / tong) * 100) : '—']) },
     link: { ten: 'Mở Tổng quan', to: '/' },
     goiY: ['điểm nghẽn', 'có thể sản xuất bao nhiêu'],
   };
@@ -272,9 +275,12 @@ async function traHex(c: CauHoi): Promise<TraLoi> {
       goiY: h.congTrinh ? [`công trình ${goiTen(h.congTrinh)}`] : undefined,
     };
   }
-  const tg = co.reduce((a, h) => a + soTien(h.triGia), 0), nk = co.reduce((a, h) => a + soTien(h.thanhTienKho), 0);
+  // Cùng công thức cửa sổ HEX: HỦY = 0, đã nhập không vượt trị giá
+  const soHuy = co.filter(h => laHuy(h.tinhTrangIpo)).length;
+  const tg = co.reduce((a, h) => a + orderValue(soTien(h.triGia), laHuy(h.tinhTrangIpo)), 0);
+  const nk = co.reduce((a, h) => a + doneValue(soTien(h.triGia), soTien(h.thanhTienKho), laHuy(h.tinhTrangIpo)), 0);
   return {
-    chu: `**${co.length} HEX** · trị giá **${ty(tg)}** · đã nhập kho **${ty(nk)}**${thieu.length ? `\nKhông tìm thấy: ${thieu.join(', ')}` : ''}`,
+    chu: `**${co.length} HEX** · trị giá **${ty(tg)}** · đã nhập kho **${ty(nk)}**${soHuy ? ` · ${soHuy} HEX HỦY không tính` : ''}${thieu.length ? `\nKhông tìm thấy: ${thieu.join(', ')}` : ''}`,
     bang: { cot: ['HEX', 'Hạng mục', 'Xưởng', 'BOP', 'Trị giá (tỷ)'], phai: [4],
       dong: co.map(h => [h.hex, h.hangMuc ?? '—', h.xuong ?? '—', h.bop ?? '—', formatTrieuAsTy(soTien(h.triGia))]) },
     link: { ten: 'Mở Tra cứu', to: '/tra-cuu-hex' },
@@ -329,7 +335,7 @@ async function tomTatCongTrinh(ct: { ten: string; ma: string; rows: Rec[] }): Pr
   const pc = [...new Set(ct.rows.map(r => r.pc).filter(x => x && x !== '(Chưa có)'))].slice(0, 2).join(', ');
   const ten = goiTen(ct.ten, ct.ma);
   return {
-    chu: `**${ct.ten}**\n**${so(cs.items)} hạng mục** · trị giá **${ty(cs.total)}** · đã nhập kho **${ty(cs.done)}** (${cs.total > 0 ? Math.round((cs.done / cs.total) * 100) : 0}%) · còn **${ty(cs.remain)}**`
+    chu: `**${ct.ten}**\n**${so(cs.items)} hạng mục** · trị giá **${ty(cs.total)}** · đã nhập kho **${ty(cs.done)}** (${fmtPt(cs.total > 0 ? (cs.done / cs.total) * 100 : 0)}) · còn **${ty(cs.remain)}**`
       + `\nQuá hạn KH nhập kho: **${so(cs.bot.quaHan.n)}** hạng mục (${ty(cs.bot.quaHan.remain)}) · vướng mắc đang mở: **${so(vmMo)}**${vmQh ? ` (${vmQh} quá hạn)` : ''}`
       + `\nĐã xuất / giao ${ty(cs.exported)} · tồn kho ${ty(cs.stock)}` + (pm || pc ? `\nPM: ${pm || '—'} · PC: ${pc || '—'}` : ''),
     bang: { cot: ['Phần chưa nhập kho', 'Giá trị (tỷ)'], phai: [1],
@@ -387,18 +393,21 @@ async function tenDayDu(q: string): Promise<string | null> {
 async function mra(c: CauHoi): Promise<TraLoi> {
   if (!c.xuong) return { chu: 'Bạn hỏi xưởng nào? Ví dụ: **giờ công xưởng 2A tuần này**.', goiY: ['giờ công xưởng 2A tuần này', 'giờ công xưởng 4A 7 ngày'] };
   const k = c.ky ?? kyMacDinh('mra', new Date());
-  const r = await xuongSetupApi.baoCao(c.xuong, iso(k.tu), iso(k.den));
+  // Máy chủ tính dần ngày còn thiếu: gọi lại như trang Báo cáo
+  let r = await xuongSetupApi.baoCao(c.xuong, iso(k.tu), iso(k.den));
+  for (let i = 0; i < 20 && r.ok && r.data.conThieu > 0; i++) r = await xuongSetupApi.baoCao(c.xuong, iso(k.tu), iso(k.den));
   if (!r.ok) return { chu: `Không lấy được báo cáo xưởng ${c.xuong}: ${r.message}` };
+  const conThieu = r.data.conThieu;
   const to = r.data.theoTo.filter(t => t.gioNguoi.thuong + t.gioNguoi.tangCa > 0);
   const sum = (f: (t: (typeof to)[number]) => number) => to.reduce((a, t) => a + f(t), 0);
   const gioNguoi = sum(t => t.gioNguoi.thuong + t.gioNguoi.tangCa), gioCong = sum(t => t.gioCong.thuong + t.gioCong.tangCa), gioCho = sum(t => t.gioCho.thuong + t.gioCho.tangCa);
-  const tl = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : '—');
+  const tl = (ds: Array<{ gioNguoi: number; gioCong: number }>) => { const p = tyLeCoViec(ds); return p === null ? '—' : fmtPt(p); };
   return {
-    chu: `**Xưởng ${c.xuong}** ${k.ten}: giờ công **${so(gioNguoi)}** · giờ công sản phẩm **${so(gioCong)}** · chờ việc ${so(gioCho)} · **tỷ lệ có việc ${tl(gioCong, gioNguoi)}**`,
+    chu: `**Xưởng ${c.xuong}** ${k.ten}: giờ công **${so(gioNguoi)}** · giờ công sản phẩm **${so(gioCong)}** · chờ việc ${so(gioCho)} · **tỷ lệ có việc ${tl(to.flatMap(t => t.theoNgay))}**${conThieu ? `\n_Số tạm: còn ${conThieu} ngày-tổ chưa tính xong._` : ''}`,
     bang: to.length ? { cot: ['Tổ', 'Giờ công', 'Giờ SP', 'Chờ việc', 'Có việc'], phai: [1, 2, 3, 4],
       dong: to.sort((a, b) => (b.gioNguoi.thuong + b.gioNguoi.tangCa) - (a.gioNguoi.thuong + a.gioNguoi.tangCa))
         .map(t => [t.ten, so(t.gioNguoi.thuong + t.gioNguoi.tangCa), so(t.gioCong.thuong + t.gioCong.tangCa), so(t.gioCho.thuong + t.gioCho.tangCa),
-          tl(t.gioCong.thuong + t.gioCong.tangCa, t.gioNguoi.thuong + t.gioNguoi.tangCa)]) } : undefined,
+          tl(t.theoNgay)]) } : undefined,
     link: { ten: 'Mở MRA', to: '/mra' },
   };
 }

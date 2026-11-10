@@ -1,3 +1,5 @@
+import { thB, tdB } from '../shared/bangBaoCao';
+
 // Kiểu dáng dùng chung cho các màn Xưởng trên máy tính — theo các thẻ Setup sẵn có (WorkshopGroupSetup).
 export const INPUT = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-slate-500 focus:outline-none disabled:bg-slate-50';
 export const BTN = 'inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
@@ -18,3 +20,8 @@ export const KHO_DIEN_THOAI = [
   '[&_label:has(input[type=checkbox])]:min-h-11', '[&_label:has(input[type=checkbox])]:inline-flex', '[&_label:has(input[type=checkbox])]:items-center',
   '[&_.text-xs]:text-sm', '[&_.text-sm]:text-base',
 ].join(' ');
+
+// Bảng báo cáo Xưởng theo mẫu BOP/BOT; màn Setup vẫn dùng TH, TD ở trên
+export const BANG = 'border-separate border-spacing-0 text-[0.9375rem] font-medium text-slate-900';
+export const TH_BC = `${thB} whitespace-nowrap text-center`;
+export const TD_BC = tdB;

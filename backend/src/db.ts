@@ -69,7 +69,7 @@ export const pool = new Pool({
 
   // Không đặt statement_timeout ở đây: pg gửi nó trong StartupMessage và
   // PgBouncer của Layerbase từ chối startup parameter không chuẩn.
-  // Timeout được áp dụng bằng lệnh SET ở sự kiện 'connect' bên dưới.
+  // Timeout đặt bằng SET LOCAL trong từng giao dịch (lenhMoGiaoDich bên dưới).
 
   allowExitOnIdle: false,
 });
@@ -82,6 +82,41 @@ const STATEMENT_TIMEOUT_MS = 8000;
 // SET LOCAL: chỉ trong giao dịch đó, an toàn với transaction-mode pooler.
 const IDLE_TX_TIMEOUT_SQL = `SET LOCAL idle_in_transaction_session_timeout = 30000`;
 
+// Không dùng SET phiên: pooler chạy theo giao dịch nên SET rò sang client khác (đo 07/11/2026: kết nối chưa từng SET
+// thấy 8s / 15s / 20s lẫn lộn, mặc định DB là không giới hạn). Mọi truy vấn chạy trong giao dịch riêng với SET LOCAL,
+// đổi lại thêm 2 lượt đi về (mở + COMMIT). BEGIN + các SET gửi chung 1 lệnh.
+export interface GioiHanTruyVan {
+  /** Timeout riêng cho query này (ms). Mặc định dùng STATEMENT_TIMEOUT_MS */
+  timeoutMs?: number;
+  /** work_mem riêng (MB) cho query gộp / sắp xếp lớn: work_mem mặc định của DB thấp (4MB) nên GROUP BY /
+   *  COUNT(DISTINCT) trên ~90k dòng phải sort ra đĩa. */
+  workMemMb?: number;
+}
+
+export const lenhMoGiaoDich = ({ timeoutMs, workMemMb }: GioiHanTruyVan = {}) => {
+  const lenh = ['BEGIN', IDLE_TX_TIMEOUT_SQL, `SET LOCAL statement_timeout = ${Math.floor(timeoutMs || STATEMENT_TIMEOUT_MS)}`];
+  if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
+  return lenh.join('; ');
+};
+
+/** 1 truy vấn trong 1 giao dịch có giới hạn; lỗi thì ROLLBACK, không trả kết nối đang kẹt giao dịch về pool */
+export async function chayCoGioiHan(
+  client: { query: (...args: any[]) => Promise<any> },
+  text: unknown,
+  params?: unknown,
+  gioiHan?: GioiHanTruyVan,
+) {
+  try {
+    await client.query(lenhMoGiaoDich(gioiHan));
+    const result = await client.query(text, params);
+    await client.query('COMMIT');
+    return result;
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  }
+}
+
 // Kết nối đang được MƯỢN không có ai nghe sự kiện 'error' (pg-pool chỉ nghe lúc kết nối rảnh). DB cắt kết nối giữa
 // chừng (vd giao dịch bỏ dở quá IDLE_TX_TIMEOUT, pooler khởi động lại) => lỗi không ai bắt làm sập cả tiến trình.
 // Ghi log; lệnh kế tiếp trên kết nối đó tự báo lỗi và kết nối bị bỏ khi trả về pool.
@@ -91,10 +126,6 @@ const ngheLoiKetNoi = (client: PoolClient, ten: string) =>
 pool.on('connect', (client) => {
   console.log('Connected to PostgreSQL database');
   ngheLoiKetNoi(client, 'pool');
-  // Timeout mặc định cho query thường. Query nặng dùng SET LOCAL riêng (xem timedQuery).
-  client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
-    console.error('Không set được statement_timeout:', err.message);
-  });
 });
 
 pool.on('error', (err) => {
@@ -131,7 +162,20 @@ function boRetry(p: Pool) {
     return connectWithRetry();
   };
 }
+// pool.query (~280 chỗ gọi, chủ yếu Xưởng / đăng nhập): cũng vào giao dịch có SET LOCAL, đi qua connect có thử lại.
+// Chỉ kiểu promise: dự án không gọi kiểu callback.
+function boGioiHan(p: Pool) {
+  (p as unknown as { query: unknown }).query = async (text: unknown, params?: unknown) => {
+    const client = await p.connect();
+    try {
+      return await chayCoGioiHan(client, text, params);
+    } finally {
+      client.release();
+    }
+  };
+}
 boRetry(pool);
+boGioiHan(pool);
 
 // ============================================================================
 // DỮ LIỆU MRA (mục Xưởng — bảng xuong_*) Ở SUPABASE (backend/sql/supabase/2026-10-16_mra_supabase.sql).
@@ -155,14 +199,12 @@ export const poolMra: Pool = urlMra ? new Pool({
 if (poolMra !== pool) {
   poolMra.on('connect', (client) => {
     ngheLoiKetNoi(client, 'mra');
-    client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
-      console.error('Không set được statement_timeout (MRA):', err.message);
-    });
   });
   poolMra.on('error', (err) => {
     console.error('Unexpected DB error on idle client (MRA):', err);
   });
   boRetry(poolMra);
+  boGioiHan(poolMra);
 }
 
 // ============================================================================
@@ -192,14 +234,9 @@ class Semaphore {
 // Chỉ 1 query nặng chạy cùng lúc trên mỗi instance
 const heavySemaphore = new Semaphore(1);
 
-export interface TimedQueryOptions {
+export interface TimedQueryOptions extends GioiHanTruyVan {
   /** Xếp hàng riêng, không cho chiếm hết pool */
   heavy?: boolean;
-  /** Timeout riêng cho query này (ms). Mặc định dùng STATEMENT_TIMEOUT_MS */
-  timeoutMs?: number;
-  /** work_mem riêng (MB) cho query gộp / sắp xếp lớn: work_mem mặc định của DB thấp (4MB) nên GROUP BY /
-   *  COUNT(DISTINCT) trên ~90k dòng phải sort ra đĩa. SET LOCAL chỉ có hiệu lực trong transaction này. */
-  workMemMb?: number;
 }
 
 export async function timedQuery<T extends QueryResultRow = any>(
@@ -215,25 +252,7 @@ export async function timedQuery<T extends QueryResultRow = any>(
     const client = await pool.connect();
     const t1 = Date.now();
     try {
-      let result;
-      if (opts.timeoutMs || opts.workMemMb) {
-        // SET LOCAL chỉ có hiệu lực trong transaction này -> an toàn với transaction-mode pooler.
-        // BEGIN + các SET gửi chung 1 lệnh (1 lượt đi về thay vì 3 — mỗi lượt tới DB là vài chục–vài trăm ms)
-        const setup = ['BEGIN', IDLE_TX_TIMEOUT_SQL];
-        if (opts.timeoutMs) setup.push(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
-        if (opts.workMemMb) setup.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
-        try {
-          // Trong try: SET lỗi thì vẫn ROLLBACK, không trả kết nối đang kẹt transaction về pool
-          await client.query(setup.join('; '));
-          result = await client.query(text, params);
-          await client.query('COMMIT');
-        } catch (e) {
-          await client.query('ROLLBACK').catch(() => {});
-          throw e;
-        }
-      } else {
-        result = await client.query(text, params);
-      }
+      const result = await chayCoGioiHan(client, text, params, opts);
 
       if (debug) {
         console.log(
@@ -272,7 +291,7 @@ export async function withTransactionMra<T>(fn: (client: PoolClient) => Promise<
 async function giaoDich<T>(p: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await p.connect();
   try {
-    await client.query(`BEGIN; ${IDLE_TX_TIMEOUT_SQL}`);
+    await client.query(lenhMoGiaoDich());
     const result = await fn(client);
     await client.query('COMMIT');
     return result;

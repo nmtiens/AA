@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnalysisItem } from '../../types';
 import { ArrowDown, ArrowUp, ArrowUpDown, Filter, Search, AlertCircle } from 'lucide-react';
+import { tdB, thB } from '../../../shared/bangBaoCao';
 
 const defaultFormatValue = (value: number) => value.toLocaleString('en-US');
 // Ô coi như 0 (dư số thực vd. -1e-12 không được hiện "-0,00" đỏ)
 const isZeroCell = (v: number) => !Number.isFinite(v) || Math.abs(v) < 0.005;
+// Cùng mẫu bảng tab BOT (BangCayBot)
 
 export const DetailModalTable = ({
   data,
@@ -14,8 +16,6 @@ export const DetailModalTable = ({
   mtdLabel,
   unitLabel,
   formatValue = defaultFormatValue,
-  primaryColorClass,
-  secondaryColorClass,
   defaultExcludedKeys = [],
   onValueClick,
 }: {
@@ -23,24 +23,27 @@ export const DetailModalTable = ({
   title: string;
   icon: React.ElementType;
   dateLabel: string;
-  mtdLabel: string;
+  /** Bỏ trống => bảng chỉ có 1 cột số (daily) */
+  mtdLabel?: string;
   unitLabel: string;
   /** Định dạng ô số (mặc định: số đếm). Tiền truyền formatTrieuAsTy */
   formatValue?: (value: number) => string;
-  primaryColorClass: string;
-  secondaryColorClass: string;
+  /** Không còn dùng: số theo mẫu một màu */
+  primaryColorClass?: string;
+  secondaryColorClass?: string;
   defaultExcludedKeys?: string[];
   /** Bấm 1 ô số => danh sách hạng mục tạo nên số đó (tên nhóm, cột trong ngày / lũy kế) — như OnLineStageDetailModal */
   onValueClick?: (name: string, kind: 'daily' | 'mtd') => void;
 }) => {
-  // Ô có số + có onValueClick: hiện thành nút (gạch chân khi rê chuột)
-  const oSo = (name: string, kind: 'daily' | 'mtd', v: number) => (isZeroCell(v) ? '-' : !onValueClick ? formatValue(v) : (
+  const coMtd = mtdLabel !== undefined;
+  // Ô có số + có onValueClick: hiện thành nút gạch chấm; ô 0 để trống
+  const oSo = (name: string, kind: 'daily' | 'mtd', v: number) => (isZeroCell(v) ? '' : !onValueClick ? formatValue(v) : (
     <button type="button" onClick={() => onValueClick(name, kind)} title="Bấm để xem danh sách"
-            className="cursor-pointer underline-offset-2 hover:underline focus:outline-none focus-visible:underline">
+            className="cursor-pointer underline decoration-slate-300 decoration-dotted underline-offset-2 focus:outline-none focus-visible:decoration-solid">
       {formatValue(v)}
     </button>
   ));
-  const [sortConfig, setSortConfig] = useState<{ key: 'name' | 'daily' | 'mtd'; direction: 'asc' | 'desc' }>({ key: 'mtd', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: 'name' | 'daily' | 'mtd'; direction: 'asc' | 'desc' }>({ key: coMtd ? 'mtd' : 'daily', direction: 'desc' });
   
   // ✅ Đã sửa: Khởi tạo giá trị ban đầu trực tiếp trong useState để tránh lặp vô tận
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => {
@@ -151,10 +154,10 @@ useEffect(() => {
   };
 
   const SortIcon = ({ columnKey }: { columnKey: string }) => {
-    if (sortConfig.key !== columnKey) return <ArrowUpDown size={12} className="text-slate-300 ml-1 inline opacity-50" />;
+    if (sortConfig.key !== columnKey) return <ArrowUpDown size={12} className="text-emerald-800 ml-1 inline opacity-60" />;
     return sortConfig.direction === 'asc'
-      ? <ArrowUp size={12} className="text-slate-600 ml-1 inline" />
-      : <ArrowDown size={12} className="text-slate-600 ml-1 inline" />;
+      ? <ArrowUp size={12} className="text-slate-900 ml-1 inline" />
+      : <ArrowDown size={12} className="text-slate-900 ml-1 inline" />;
   };
 
   if (data.length === 0) {
@@ -179,16 +182,16 @@ useEffect(() => {
       <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
         <Icon size={16} className="text-wood-600" /> {title}
       </h4>
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col max-h-[500px]">
-        <div className="overflow-y-auto custom-scrollbar flex-1 relative">
-          <table className="w-full text-sm text-right relative border-collapse">
-            <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-sm sticky top-0 z-20 shadow-sm">
+      <div className="bg-white border-l border-t border-slate-300 overflow-hidden flex flex-col max-h-[500px]">
+        <div className="overflow-auto custom-scrollbar flex-1 relative">
+          <table className="w-full relative border-separate border-spacing-0 text-[0.9375rem] font-medium text-slate-900">
+            <thead className="sticky top-0 z-20 bg-emerald-300">
               <tr>
-                <th className="w-12 pl-4 pr-2 py-3 text-right border-b border-slate-200 bg-slate-100">STT</th>
-                <th className="px-4 py-3 text-left border-b border-slate-200 bg-slate-100 min-w-[200px] z-30">
+                <th className={`${thB} w-12 text-center`}>STT</th>
+                <th className={`${thB} min-w-[200px] z-30 text-left`}>
                   <div className="flex items-center justify-between">
                     <span
-                      className="cursor-pointer hover:text-slate-900 flex items-center"
+                      className="cursor-pointer flex items-center"
                       onClick={() => requestSort('name')}
                     >
                       Tên <SortIcon columnKey="name" />
@@ -196,7 +199,7 @@ useEffect(() => {
                     <div className="relative" ref={filterRef}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setIsFilterOpen(!isFilterOpen); }}
-                        className={`p-1 rounded hover:bg-slate-200 transition-colors ${selectedKeys.size !== data.length ? 'text-wood-600 bg-wood-50' : 'text-slate-400'}`}
+                        className={`p-1 rounded hover:bg-emerald-400 transition-colors ${selectedKeys.size !== data.length ? 'text-wood-600 bg-wood-50' : 'text-slate-700'}`}
                         title="Lọc dữ liệu"
                       >
                         <Filter size={14} fill={selectedKeys.size !== data.length ? "currentColor" : "none"} />
@@ -248,51 +251,57 @@ useEffect(() => {
                   </div>
                 </th>
                 <th
-                  className={`px-4 py-3 border-b border-slate-200 bg-slate-100 cursor-pointer hover:bg-slate-200 transition-colors ${primaryColorClass.replace('text-', 'text-opacity-70 text-')}`}
+                  className={`${thB} cursor-pointer text-center transition-colors hover:bg-emerald-400`}
                   onClick={() => requestSort('daily')}
                 >
                   {dateLabel} <br /> {unitLabel} <SortIcon columnKey="daily" />
                 </th>
-                <th
-                  className={`px-4 py-3 border-b border-slate-200 bg-slate-100 cursor-pointer hover:bg-slate-200 transition-colors ${secondaryColorClass.replace('text-', 'text-opacity-70 text-')}`}
-                  onClick={() => requestSort('mtd')}
-                >
-                  {mtdLabel} <br /> {unitLabel} <SortIcon columnKey="mtd" />
-                </th>
+                {coMtd && (
+                  <th
+                    className={`${thB} cursor-pointer text-center transition-colors hover:bg-emerald-400`}
+                    onClick={() => requestSort('mtd')}
+                  >
+                    {mtdLabel} <br /> {unitLabel} <SortIcon columnKey="mtd" />
+                  </th>
+                )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {sortedData.length > 0 ? sortedData.map((item, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="pl-4 pr-2 py-3 text-right tabular-nums text-slate-500">{idx + 1}</td>
-                  <td className="px-4 py-3 text-left font-medium text-slate-700">{item.name}</td>
-                  {/* Chỉ ô ≈ 0 (dưới 0,005 — dư số thực) hiện "-"; ô âm (vd. nhập kho điều chỉnh) vẫn hiện số vì đã cộng vào tổng */}
-                  <td className={`px-4 py-3 ${isZeroCell(item.daily) ? 'text-slate-300' : item.daily > 0 ? `${primaryColorClass} font-bold` : 'text-red-600 font-bold'}`}>
+                <tr key={idx} className="transition-colors hover:bg-amber-50">
+                  <td className={`${tdB} text-center tabular-nums`}>{idx + 1}</td>
+                  <td className={`${tdB} text-left font-bold`}>{item.name}</td>
+                  {/* Chỉ ô ≈ 0 (dưới 0,005 — dư số thực) để trống; ô âm (vd. nhập kho điều chỉnh) vẫn hiện số vì đã cộng vào tổng */}
+                  <td className={`${tdB} whitespace-nowrap text-center tabular-nums ${!isZeroCell(item.daily) && item.daily < 0 ? 'font-bold text-red-600' : ''}`}>
                     {oSo(item.name, 'daily', item.daily)}
                   </td>
-                  <td className={`px-4 py-3 ${isZeroCell(item.mtd) ? 'text-slate-300' : item.mtd > 0 ? `${secondaryColorClass} font-bold` : 'text-red-600 font-bold'}`}>
-                    {oSo(item.name, 'mtd', item.mtd)}
-                  </td>
+                  {coMtd && (
+                    <td className={`${tdB} whitespace-nowrap text-center tabular-nums ${!isZeroCell(item.mtd) && item.mtd < 0 ? 'font-bold text-red-600' : ''}`}>
+                      {oSo(item.name, 'mtd', item.mtd)}
+                    </td>
+                  )}
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-400">Không có dòng nào</td></tr>
+                <tr><td colSpan={coMtd ? 4 : 3} className="p-8 text-center text-slate-400">Không có dòng nào</td></tr>
               )}
             </tbody>
-            <tfoot className="bg-slate-100 font-bold text-slate-800 border-t border-slate-300 sticky bottom-0 z-20 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
+            <tfoot className="font-bold text-red-600 [&_td]:sticky [&_td]:bottom-0 [&_td]:z-[2] [&_td]:bg-yellow-300">
               <tr>
-                <td className="bg-slate-100" />
                 <td
-                  className="px-4 py-3 text-left bg-slate-100"
+                  colSpan={2}
+                  className={`${tdB} text-center`}
                   title="Cộng các dòng nhóm. Khi đếm hạng mục, 1 HEX ở nhiều nhóm (nhiều xưởng / nhiều cách ghi tên công trình) được đếm ở mỗi nhóm nên tổng có thể lớn hơn số trên thẻ; tổng giá trị luôn khớp."
                 >
-                  TỔNG CỘNG
+                  TỔNG
                 </td>
-                <td className={`px-4 py-3 bg-slate-100 ${primaryColorClass}`}>
-                  {formatValue(totalDaily)}
+                <td className={`${tdB} whitespace-nowrap text-center tabular-nums`}>
+                  {isZeroCell(totalDaily) ? '' : formatValue(totalDaily)}
                 </td>
-                <td className={`px-4 py-3 bg-slate-100 ${secondaryColorClass}`}>
-                  {formatValue(totalMtd)}
-                </td>
+                {coMtd && (
+                  <td className={`${tdB} whitespace-nowrap text-center tabular-nums`}>
+                    {isZeroCell(totalMtd) ? '' : formatValue(totalMtd)}
+                  </td>
+                )}
               </tr>
             </tfoot>
           </table>

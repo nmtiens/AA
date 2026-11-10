@@ -4,16 +4,13 @@
 //   - bảng "Tình trạng đơn hàng theo Công trình" trang Tổng quan (dòng = công trình; máy chủ tính sẵn qua
 //     Dashboard/core/tongQuanSanXuat.ts nên file này chỉ được kéo theo file thuần).
 // Cột: công đoạn theo thứ tự BOP, gom dưới nhóm (Chưa triển khai / Chưa tính phiếu / Đang trên chuyền / Nhập kho
-// chưa đủ) + TỔNG + Kho lũy kế (Đã nhập P022 · Đã xuất P025 · Tồn kho · Chênh).
+// chưa đủ) + TỔNG + Kho lũy kế (Đã nhập P022 · Đã xuất P025 · Tồn kho · Chênh · Xuất vượt nhập).
 // ============================================================================
 import type { DataRow } from '../../../types';
-import type { RemainBucket } from '../../Dashboard/core/tongQuanSanXuat';
-import { remainBucketOf } from '../../Dashboard/core/tongQuanSanXuat';
-import { extractStage } from '../../Dashboard/core/stages';
+import { extractStage, remainBucketOf, type RemainBucket } from '../../Dashboard/core/stages';
 import { parseNumber } from '../../Dashboard/utils/numberParsers';
 import { BOP_STAGE_ORDER, stageRank, isQtyComplete, remainValue, doneValue } from '../../../utils/productionMetrics';
-import { formatTrieuAsTy } from '../../../utils/money';
-import { fmtInt } from '../../../utils/format';
+import { fmtInt, fmtTy } from '../../../utils/format';
 
 /** Phần của 1 hạng mục mà bảng BOP cần (HexInfo của cửa sổ công trình có đủ các trường này) */
 export interface MucBop {
@@ -28,10 +25,13 @@ export interface MucBop {
 }
 
 export type BopMetric = 'count' | 'remain' | 'total';
-/** Kho lũy kế: đã nhập (P022), đã xuất (P025), tồn kho hiện tại, chênh = nhập − xuất − tồn (không rõ đi đâu) */
-export type Kho = { nk: number; xk: number; ton: number; chenh: number };
+/**
+ * Kho lũy kế: đã nhập (P022), đã xuất gốc (P025, không chặn), tồn kho, chênh ≥ 0 (nhập không thấy xuất lẫn tồn),
+ * xv = xuất vượt nhập. Luôn đúng: nk + xv = xk + ton + chenh.
+ */
+export type Kho = { nk: number; xk: number; ton: number; chenh: number; xv: number };
 export type KhoCot = keyof Kho;
-export const KHO_COT: KhoCot[] = ['nk', 'xk', 'ton', 'chenh'];
+export const KHO_COT: KhoCot[] = ['nk', 'xk', 'ton', 'chenh', 'xv'];
 
 // Nhóm công đoạn — cùng tên / màu với thẻ BOP ở trang tổng quan công trình
 export const BOP_GROUP: Record<RemainBucket, { label: string; dot: string }> = {
@@ -46,22 +46,27 @@ export const stageOfBop = (i: Pick<MucBop, 'stage'>) => i.stage ?? KHONG_RO_CONG
 /** Tên cột công đoạn: P022 / P025 là cột công đoạn chỉ khi còn hạng mục nhập kho chưa đủ ở đó */
 export const tenCotCongDoan = (st: string) => (st === 'P022' || st === 'P025' ? `${st} chưa đủ` : st);
 
-/** Số kho của 1 hạng mục: xuất chặn ≤ nhập; tồn = cột tồn kho hiện tại chặn ≤ nhập − xuất (không có cột => nhập − xuất) */
-export const khoCua = (i: MucBop): Kho => {
+/**
+ * Số kho của 1 hạng mục, 1 công thức cho tab Tổng quan công trình và BOP: xuất giữ số gốc, phần xuất quá đã nhập tách
+ * thành xv; tồn = cột tồn kho hiện tại chặn ≤ nhập − xuất (không có cột => nhập − xuất); chênh không âm.
+ */
+export const khoCua = (i: Pick<MucBop, 'inv' | 'xuat' | 'tonKho'>): Kho => {
   const nk = Math.max(i.inv, 0);
-  const xk = Math.min(i.xuat ?? 0, nk);
-  const ton = Math.min(i.tonKho ?? nk - xk, nk - xk);
-  return { nk, xk, ton, chenh: nk - xk - ton };
+  const xk = Math.max(i.xuat ?? 0, 0);
+  const conLai = Math.max(nk - xk, 0);
+  const ton = Math.min(i.tonKho ?? conLai, conLai);
+  return { nk, xk, ton, chenh: conLai - ton, xv: Math.max(xk - nk, 0) };
 };
 
 // Theo giá trị: hạng mục có số > 0 ở cột đó. Theo số hạng mục: mỗi hạng mục có nhập rơi vào ĐÚNG 1 cột để
 // Đã nhập = Đã xuất + Tồn kho + Chênh: còn hàng => Tồn kho; hết hàng mà xuất đủ => Đã xuất; còn lại => Chênh
 export const laKho = (i: MucBop, f: KhoCot, metric: BopMetric) => {
   const k = khoCua(i);
+  // Dưới 10.000đ (0,01 triệu) coi như 0 — sai số làm tròn của nguồn
+  if (f === 'xv') return k.xv >= 0.01;
+  if (metric !== 'count') return k[f] > 0;
   if (k.nk <= 0) return false;
   if (f === 'nk') return true;
-  if (metric !== 'count') return k[f] > 0;
-  // Dưới 10.000đ (0,01 triệu) coi như 0 — sai số làm tròn của nguồn
   const conTon = k.ton >= 0.01, coChenh = k.chenh >= 0.01;
   if (f === 'ton') return conTon;
   if (f === 'xk') return !conTon && !coChenh;
@@ -70,7 +75,7 @@ export const laKho = (i: MucBop, f: KhoCot, metric: BopMetric) => {
 
 /** Số kho 1 hạng mục góp vào bảng: đếm (0/1 mỗi cột) hoặc số tiền */
 export const khoMuc = (i: MucBop, metric: BopMetric): Kho => (metric === 'count'
-  ? { nk: laKho(i, 'nk', metric) ? 1 : 0, xk: laKho(i, 'xk', metric) ? 1 : 0, ton: laKho(i, 'ton', metric) ? 1 : 0, chenh: laKho(i, 'chenh', metric) ? 1 : 0 }
+  ? { nk: laKho(i, 'nk', metric) ? 1 : 0, xk: laKho(i, 'xk', metric) ? 1 : 0, ton: laKho(i, 'ton', metric) ? 1 : 0, chenh: laKho(i, 'chenh', metric) ? 1 : 0, xv: laKho(i, 'xv', metric) ? 1 : 0 }
   : khoCua(i));
 
 /** Hạng mục vào phần công đoạn: đếm = còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (khớp thẻ BOP) */
@@ -78,14 +83,13 @@ export const mucCongDoan = <T extends MucBop>(items: T[], metric: BopMetric): T[
   (metric === 'count' ? items.filter(i => i.open) : items.filter(i => i.open || i.remain > 0));
 export const giaTriBop = (i: MucBop, metric: BopMetric) => (metric === 'count' ? 1 : metric === 'remain' ? i.remain : i.total);
 
-/** Số trong ô: đếm = số nguyên; giá trị = tỷ đồng, dưới 5 triệu ghi "<0.01" (làm tròn "0.00" dễ hiểu nhầm là 0) */
-export const fmtGiaTriBop = (v: number, metric: BopMetric) =>
-  (metric === 'count' ? fmtInt(v) : !v ? '-' : Math.abs(v) < 5 ? '<0.01' : formatTrieuAsTy(v));
+/** Số trong ô: đếm = số nguyên; giá trị = tỷ đồng (utils/format.fmtTy); 0 ghi - */
+export const fmtGiaTriBop = (v: number, metric: BopMetric) => (metric === 'count' ? fmtInt(v) : !v ? '-' : fmtTy(v));
 
 export type DongGop = { cells: Record<string, number>; total: number; n: number };
 export type NhomCot = { bucket: RemainBucket | null; stages: string[] };
-const khoRong = (): Kho => ({ nk: 0, xk: 0, ton: 0, chenh: 0 });
-const congKho = (e: Kho, v: Kho) => { e.nk += v.nk; e.xk += v.xk; e.ton += v.ton; e.chenh += v.chenh; };
+const khoRong = (): Kho => ({ nk: 0, xk: 0, ton: 0, chenh: 0, xv: 0 });
+const congKho = (e: Kho, v: Kho) => { e.nk += v.nk; e.xk += v.xk; e.ton += v.ton; e.chenh += v.chenh; e.xv += v.xv; };
 const nhomMacDinh = (st: string): RemainBucket => (st === 'P001' ? 'notDeployed' : st === 'P002' ? 'p002' : 'onLine');
 const BOP_SET = new Set<string>(BOP_STAGE_ORDER);
 
@@ -139,12 +143,12 @@ export function tinhPivotBop<T extends MucBop>(
     const last = groups[groups.length - 1];
     if (last && last.bucket === bk) last.stages.push(st); else groups.push({ bucket: bk, stages: [st] });
   }
-  // Kho (lũy kế): P022 đã nhập − P025 đã xuất = tồn kho. Xuất chặn ≤ nhập từng hạng mục để tồn không âm.
+  // Kho (lũy kế): theo khoCua; hạng mục chưa nhập mà có xuất vẫn vào cột Đã xuất + Xuất vượt nhập
   const kho = new Map<string, Kho>();
   const khoTot = khoRong();
   for (const i of khoItems) {
     const v = khoMuc(i, metric);
-    if (!v.nk) continue;
+    if (!v.nk && !v.xk && !v.xv) continue;
     for (const k of khoaDong(i)) {
       const e = kho.get(k) ?? khoRong();
       congKho(e, v); kho.set(k, e);

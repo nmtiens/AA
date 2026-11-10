@@ -1,5 +1,5 @@
 import { DataRow, ColumnDefinition } from '../../../types';
-import { isCancelledIpo } from '../../../utils/productionMetrics';
+import { laHuy } from '../../../utils/productionMetrics';
 import { findColumnKey } from './columnKeyResolver';
 
 /**
@@ -20,7 +20,7 @@ export function collectCancelledHexes(productionData: DataRow[] | undefined, pro
   const hexKey = (productionColumns && findColumnKey(productionColumns, 'hex')) || 'hex';
   const ipoKey = (productionColumns && findColumnKey(productionColumns, 'tinh_trang_ipo')) || 'tinh_trang_ipo';
   for (const r of productionData) {
-    if (!isCancelledIpo(r[ipoKey])) continue;
+    if (!laHuy(r[ipoKey])) continue;
     const h = String(r[hexKey] ?? '').trim();
     if (h) hexes.add(h);
     else hasBlankHex = true;

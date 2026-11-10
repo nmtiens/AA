@@ -3,6 +3,8 @@ import { ChevronDown, ChevronRight, Target } from 'lucide-react';
 import { useTrendFilter } from './TrendFilterContext';
 import { fetchYearPlan, fetchYearPlanActual, type YearPlanActualData } from '../../../../services/dataService';
 import { formatTy, trieuToTy } from '../../../../utils/money';
+import { fmtPt } from '../../../../utils/format';
+import { khung, soO, table, tdB, thB, thead, trong0 } from '../../../shared/bangBaoCao';
 
 // ============================================================================
 // Bảng Kế hoạch năm (khsx_nam) – Thực hiện (nhập kho) phân cấp:
@@ -31,12 +33,12 @@ const buildTree = (year: number): Node => ({
 const ALL_KEYS = ['y', 'h1', 'h2', 'q1', 'q2', 'q3', 'q4'];
 
 const LEVEL_STYLE = [
-  'bg-emerald-50 font-bold text-slate-900',
+  'bg-yellow-300 font-bold text-red-600',
   'bg-slate-50 font-semibold text-slate-800',
   'font-semibold text-slate-700',
   'text-slate-600',
 ];
-const LEVEL_BG = ['bg-emerald-50', 'bg-slate-50', 'bg-white', 'bg-white'];
+const LEVEL_BG = ['bg-yellow-300', 'bg-slate-50', 'bg-white', 'bg-white'];
 const pctTone = (pct: number) => (pct >= 100 ? 'text-emerald-600' : pct >= 80 ? 'text-amber-600' : 'text-red-600');
 const barTone = (pct: number) => (pct >= 100 ? 'bg-emerald-500' : pct >= 80 ? 'bg-amber-400' : 'bg-red-400');
 
@@ -124,7 +126,7 @@ export default function YearPlanTable() {
 
   const labelCell = (n: Node, sticky: boolean) => (
     <td
-      className={`px-4 py-2 whitespace-nowrap ${sticky ? `sticky left-0 z-10 ${LEVEL_BG[n.level]} shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]` : ''}`}
+      className={`${tdB} whitespace-nowrap ${sticky ? `sticky left-0 z-10 ${LEVEL_BG[n.level]} shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]` : ''}`}
       style={{ paddingLeft: 16 + n.level * 20 }}
     >
       {n.children ? (
@@ -168,17 +170,18 @@ export default function YearPlanTable() {
       {loading ? (
         <p className="p-6 text-center text-sm text-slate-500">Đang tải…</p>
       ) : mode === 'total' ? (
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-sm text-slate-600">
+        <div className={`${khung} m-3`}>
+        <table className={table}>
+          <thead className={thead}>
             <tr>
-              <th className="px-4 py-2 text-left font-medium">Kỳ</th>
-              <th className="px-4 py-2 text-right font-medium text-amber-700">Kế hoạch</th>
-              <th className="px-4 py-2 text-right font-medium text-teal-700">Thực hiện</th>
-              <th className="w-56 px-4 py-2 text-left font-medium">% đạt</th>
-              <th className="px-4 py-2 text-right font-medium">Chênh lệch</th>
+              <th className={`${thB} text-center`}>Kỳ</th>
+              <th className={`${thB} text-center`}>Kế hoạch</th>
+              <th className={`${thB} text-center`}>Thực hiện</th>
+              <th className={`${thB} w-56 text-center`}>% đạt</th>
+              <th className={`${thB} text-center`}>Chênh lệch</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {rows.map(n => {
               const kh = sumMonths(plan ?? undefined, n.months);
               const th = sumMonths(actual ?? undefined, n.months);
@@ -188,35 +191,36 @@ export default function YearPlanTable() {
               return (
                 <tr key={n.key} className={LEVEL_STYLE[n.level]}>
                   {labelCell(n, false)}
-                  <td className="px-4 py-2 text-right tabular-nums text-amber-800">{formatTy(kh)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-teal-800">{started ? formatTy(th) : '—'}</td>
-                  <td className="px-4 py-2">
+                  <td className={`${tdB} ${soO}`}>{trong0(kh, formatTy)}</td>
+                  <td className={`${tdB} ${soO}`}>{started ? trong0(th, formatTy) : '—'}</td>
+                  <td className={tdB}>
                     {started && kh > 0 ? (
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 flex-1 rounded-full bg-slate-100">
                           <div className={`h-1.5 rounded-full ${barTone(pct)}`} style={{ width: `${Math.min(100, pct)}%` }} />
                         </div>
-                        <span className="w-16 text-right text-sm font-semibold tabular-nums">{pct.toFixed(1)}%</span>
+                        <span className={`w-16 text-center font-semibold tabular-nums ${pctTone(pct)}`}>{fmtPt(pct)}</span>
                       </div>
-                    ) : <span className="text-xs text-slate-300">—</span>}
+                    ) : <span className="block text-center text-slate-400">—</span>}
                   </td>
-                  <td className={`px-4 py-2 text-right tabular-nums ${!started ? 'text-slate-300' : diff >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                    {started ? `${diff >= 0 ? '+' : ''}${formatTy(diff)}` : '—'}
+                  <td className={`${tdB} ${soO} ${!started ? 'text-slate-400' : diff >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {started ? trong0(diff, d => `${d > 0 ? '+' : ''}${formatTy(d)}`) : '—'}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
       ) : (
         // Theo khu vực sản xuất: mỗi xưởng 3 cột KH / TH / % đạt, cuối bảng là Tổng
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-sm text-slate-600">
+        <div className={`${khung} m-3`}>
+          <table className={table}>
+            <thead className={thead}>
               <tr>
-                <th rowSpan={2} className="sticky left-0 z-20 bg-slate-50 px-4 py-2 text-left font-medium">Kỳ</th>
+                <th rowSpan={2} className={`${thB} sticky left-0 z-[3] bg-emerald-300 text-center`}>Kỳ</th>
                 {[...workshops, 'Tổng'].map(w => (
-                  <th key={w} colSpan={3} className={`border-l border-slate-200 px-3 py-1.5 text-center font-semibold ${w === 'Tổng' ? 'bg-slate-100 text-slate-800' : 'text-slate-700'}`}>
+                  <th key={w} colSpan={3} className={`${thB} text-center`}>
                     {w}
                   </th>
                 ))}
@@ -224,14 +228,14 @@ export default function YearPlanTable() {
               <tr>
                 {[...workshops, 'Tổng'].map(w => (
                   <React.Fragment key={w}>
-                    <th className={`border-l border-slate-200 px-3 py-1 text-right font-medium text-amber-700 ${w === 'Tổng' ? 'bg-slate-100' : ''}`}>KH</th>
-                    <th className={`px-3 py-1 text-right font-medium text-teal-700 ${w === 'Tổng' ? 'bg-slate-100' : ''}`}>TH</th>
-                    <th className={`px-3 py-1 text-right font-medium text-slate-500 ${w === 'Tổng' ? 'bg-slate-100' : ''}`}>%</th>
+                    <th className={`${thB} text-center`}>KH</th>
+                    <th className={`${thB} text-center`}>TH</th>
+                    <th className={`${thB} text-center`}>%</th>
                   </React.Fragment>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {rows.map(n => {
                 const started = n.months[0] <= lastMonthWithData;
                 let totKh = 0, totTh = 0;
@@ -245,14 +249,12 @@ export default function YearPlanTable() {
                   const pct = kh > 0 ? (th / kh) * 100 : null;
                   return (
                     <React.Fragment key={key}>
-                      <td className={`border-l border-slate-100 px-3 py-1.5 text-right tabular-nums text-amber-800 ${total ? 'bg-slate-50 font-semibold' : ''}`}>
-                        {kh ? formatTy(kh) : <span className="text-slate-300">—</span>}
+                      <td className={`${tdB} ${soO} ${total ? 'font-semibold' : ''}`}>{trong0(kh, formatTy)}</td>
+                      <td className={`${tdB} ${soO} ${total ? 'font-semibold' : ''}`}>
+                        {!started ? <span className="text-slate-400">—</span> : trong0(th, formatTy)}
                       </td>
-                      <td className={`px-3 py-1.5 text-right tabular-nums text-teal-800 ${total ? 'bg-slate-50 font-semibold' : ''}`}>
-                        {!started ? <span className="text-slate-300">—</span> : formatTy(th)}
-                      </td>
-                      <td className={`px-3 py-1.5 text-right text-sm font-semibold tabular-nums ${total ? 'bg-slate-50' : ''} ${started && pct !== null ? pctTone(pct) : 'text-slate-300'}`}>
-                        {started && pct !== null ? `${pct.toFixed(1)}%` : '—'}
+                      <td className={`${tdB} ${soO} font-semibold ${started && pct !== null ? pctTone(pct) : 'text-slate-400'}`}>
+                        {started ? fmtPt(pct) : '—'}
                       </td>
                     </React.Fragment>
                   );

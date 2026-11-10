@@ -457,7 +457,8 @@ export interface GroupAnalysisRow {
   mtdValue: number;
 }
 
-export interface StockDateEntry { date: string; count: number; value: number; }
+/** count = số mã SAP giá trị ≠ 0; count0 = số mã chỉ có dòng giá trị 0 */
+export interface StockDateEntry { date: string; count: number; count0?: number; value: number; }
 export interface StockByProjectRow { name: string; count: number; value: number; }
 
 export interface Revenue2026Data {
@@ -569,7 +570,7 @@ export const fetchStockByProject = async (
 export interface StockHealth {
   date: string;
   /** chuaXuat = HEX xuất TÍNH < 5% số nhập; chuaXuat4 = phần từ 4 tháng trở lên; du = nhập chưa khớp xuất + tồn */
-  tong: { v: number; cu: number; cu12: number; khongNgay: number; ma: number; congTrinh: number; chuaXuat: number; chuaXuat4: number; du: number; duPhanLoai: number };
+  tong: { v: number; cu: number; cu12: number; khongNgay: number; ma: number; ma0?: number; congTrinh: number; chuaXuat: number; chuaXuat4: number; du: number; duPhanLoai: number };
   /** Mọi lần chốt từ cuối năm trước tới ngày xem */
   moc: { d: string; v: number; cu: number }[];
   /** Mốc cuối tháng (mốc cuối = ngày xem). cuGoi/tonGoi của gói đứng yên; vuotMoc/ra đo theo lô, null ở mốc đầu */
@@ -606,7 +607,8 @@ export interface StockHealth {
   };
   /** thangTon = tồn / xuất TÍNH 3 kỳ; thangTheoLo = tồn / mức giảm theo mã + công trình 3 kỳ (2 cách đo) */
   ky: {
-    dong: { den: string; ngay: number; nhap: number; xuatTinh: number; chuaDoiSoat: number; ton: number; thangTon: number | null }[];
+    /** kyDo = kỳ cuối chưa hết tháng */
+    dong: { den: string; ngay: number; nhap: number; xuatTinh: number; chuaDoiSoat: number; ton: number; thangTon: number | null; kyDo?: boolean }[];
     tong: { nhap: number; xuatTinh: number; chuaDoiSoat: number };
     thangTheoLo: number | null;
   };
@@ -835,7 +837,17 @@ export const saveViewProjectMapping = async (
 
 /** HEX đã nhập đủ SL KH tuần / tháng trong kỳ (không tính trễ theo KH đó) — xem productionMetrics.deadlineOf. */
 /** Bảng tên phụ -> tên chuẩn công trình của server (xem productionMetrics.setServerProjectAliases). */
-export const fetchProjectAliases = async (): Promise<{ k: string; c: string }[]> => {
+// Gọi trùng lúc đang chạy (StrictMode bản dev, Làm mới) dùng chung 1 request
+const dangChay = new Map<string, Promise<unknown>>();
+const chanTrung = <T>(khoa: string, f: () => Promise<T>): Promise<T> => {
+  const p = dangChay.get(khoa) as Promise<T> | undefined;
+  if (p) return p;
+  const moi = f().finally(() => { dangChay.delete(khoa); });
+  dangChay.set(khoa, moi);
+  return moi;
+};
+
+export const fetchProjectAliases = (): Promise<{ k: string; c: string }[]> => chanTrung('project-aliases', async () => {
   try {
     const token = getToken();
     const r = await fetch(`${API_BASE_URL}/project-aliases`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
@@ -846,9 +858,9 @@ export const fetchProjectAliases = async (): Promise<{ k: string; c: string }[]>
     console.error('fetchProjectAliases error:', e);
     return [];
   }
-};
+});
 
-export const fetchPlanMet = async (): Promise<{ tuan: string[]; thang: string[] }> => {
+export const fetchPlanMet = (): Promise<{ tuan: string[]; thang: string[] }> => chanTrung('plan-met', async () => {
   try {
     const token = getToken();
     const r = await fetch(`${API_BASE_URL}/production/plan-met`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
@@ -858,7 +870,23 @@ export const fetchPlanMet = async (): Promise<{ tuan: string[]; thang: string[] 
     console.error('fetchPlanMet error:', e);
     return { tuan: [], thang: [] };
   }
-};
+});
+
+export interface TuyChonThoiGian {
+  ngay: string[];
+  khsx: { nam: string[]; thang: string[]; ngay: string[]; tuan: string[] };
+}
+/** Danh sách ngày, năm-tháng-tuần cho bộ lọc Tổng quan. Lỗi trả null: nơi gọi tải bảng như cũ. */
+export const fetchTuyChonThoiGian = (): Promise<TuyChonThoiGian | null> => chanTrung('tuy-chon-thoi-gian', async () => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/overview/tuy-chon-thoi-gian`);
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchTuyChonThoiGian error:', e);
+    return null;
+  }
+});
 
 // ==================== SETUP GỘP XƯỞNG ====================
 

@@ -8,6 +8,7 @@ import { CompactStatCard } from '../shared/CompactStatCard';
 import { MetricSwitcher } from '../shared/MetricSwitcher';
 import { formatNumber } from '../../utils/numberParsers';
 import { formatTrieuAsTy } from '../../../../utils/money';
+import { khung, soO, table, tdB, tfoot, thB, thead, trong0 } from '../../../shared/bangBaoCao';
 import type { MetricType, WorkshopPivotData } from '../../types';
 
 export interface CardMetrics {
@@ -18,6 +19,7 @@ export interface CardMetrics {
   chuaTheSX: number;
   vuongSL: number;
   chuaTrienKhai: number;
+  chuaXepNhom?: number;
 }
 
 interface ProductionStatusSectionProps {
@@ -43,6 +45,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
   setExpandedBops,
   handleExportProductionStatus,
 }) => {
+  const soXuong = (v: number) => trong0(v, x => formatNumber(x, workshopMetric));
   return (
     <div
       ref={sectionRef}
@@ -67,8 +70,11 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
       <div>
         <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2 uppercase tracking-wide">
           <Layers className="w-4 h-4 text-wood-500" /> Khả năng sản xuất
-          <span className="normal-case font-semibold text-slate-600">(tỷ)</span>
+          <span className="normal-case font-semibold text-slate-600">(theo tình trạng, tỷ)</span>
         </h4>
+        {(cardMetrics.chuaXepNhom ?? 0) >= 5 && (
+          <p className="mb-2 text-sm font-medium text-red-600">Chưa xếp nhóm {formatTrieuAsTy(cardMetrics.chuaXepNhom ?? 0)} tỷ</p>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-green-50/50 rounded-xl p-2 border border-green-100 flex flex-col gap-2">
             <CompactStatCard
@@ -82,7 +88,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
             />
             <div className="grid grid-cols-3 gap-2">
               <CompactStatCard
-                title="VECNI + FITTING"
+                title="ĐÓNG GÓI / KĐB"
                 value={formatTrieuAsTy(cardMetrics.vecniFitting)}
                 icon={<div className="w-2 h-2 rounded-full bg-blue-500"></div>}
                 bg="bg-white"
@@ -90,7 +96,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
                 textColor="text-slate-700"
               />
               <CompactStatCard
-                title="ĐANG TRÊN CHUYỀN"
+                title="ĐANG Ở TỔ SX"
                 value={formatTrieuAsTy(cardMetrics.chuyenKhac)}
                 icon={<div className="w-2 h-2 rounded-full bg-indigo-500"></div>}
                 bg="bg-white"
@@ -98,7 +104,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
                 textColor="text-slate-700"
               />
               <CompactStatCard
-                title="CÓ PHIẾU CHƯA SX"
+                title="11. CHƯA SX"
                 value={formatTrieuAsTy(cardMetrics.coPhieuChuaSX)}
                 icon={<div className="w-2 h-2 rounded-full bg-amber-500"></div>}
                 bg="bg-white"
@@ -127,7 +133,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
                 textColor="text-slate-700"
               />
               <CompactStatCard
-                title="CHƯA TRIỂN KHAI SX"
+                title="14-15. CHƯA PHIẾU, TK"
                 value={formatTrieuAsTy(cardMetrics.chuaTrienKhai)}
                 icon={<div className="w-2 h-2 rounded-full bg-slate-400"></div>}
                 bg="bg-white"
@@ -148,24 +154,24 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
           <MetricSwitcher current={workshopMetric} onChange={setWorkshopMetric} />
         </div>
         {pivotWorkshopData ? (
-          <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
-            <table className="w-full text-sm text-right min-w-[900px]">
-              <thead className="bg-wood-50 text-slate-700 font-semibold uppercase">
+          <div className={`${khung} max-h-[70vh]`}>
+            <table className={`${table} min-w-[900px]`}>
+              <thead className={thead}>
                 <tr>
-                  <th className="px-3 py-2 text-left bg-wood-50 border-b border-wood-200 min-w-[150px]">
+                  <th className={`${thB} min-w-[150px] text-center`}>
                     <div className="flex items-center justify-between">
                       <span>BOP</span>
-                      <div className="flex gap-1 ml-2">
+                      <div className="ml-2 flex gap-1">
                         <button
                           onClick={() => setExpandedBops(new Set(pivotWorkshopData.uniqueBops))}
-                          className="p-1 hover:bg-wood-200 rounded text-wood-600"
+                          className="rounded p-1 text-slate-700 hover:bg-emerald-400"
                           title="Mở rộng tất cả"
                         >
                           <PlusSquare size={14} />
                         </button>
                         <button
                           onClick={() => setExpandedBops(new Set())}
-                          className="p-1 hover:bg-wood-200 rounded text-wood-600"
+                          className="rounded p-1 text-slate-700 hover:bg-emerald-400"
                           title="Thu gọn tất cả"
                         >
                           <MinusSquare size={14} />
@@ -173,20 +179,14 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
                       </div>
                     </div>
                   </th>
-                  <th className="px-3 py-2 text-left sticky left-0 bg-wood-50 border-b border-wood-200 z-10 min-w-[180px]">
-                    Tình Trạng
-                  </th>
+                  <th className={`${thB} sticky left-0 z-[3] min-w-[180px] bg-emerald-300 text-center`}>Tình trạng</th>
                   {pivotWorkshopData.uniqueWorkshops.map((w: string) => (
-                    <th key={w} className="px-3 py-2 border-b border-wood-200 whitespace-nowrap text-wood-800">
-                      {w}
-                    </th>
+                    <th key={w} className={`${thB} whitespace-nowrap text-center`}>{w}</th>
                   ))}
-                  <th className="px-3 py-2 bg-wood-100 border-b border-wood-200 font-bold text-slate-800">
-                    Tổng Cộng
-                  </th>
+                  <th className={`${thB} text-center`}>Tổng</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {pivotWorkshopData.uniqueBops.map((bop) => {
                   const isExpanded = expandedBops.has(bop);
                   const toggleExpand = () => {
@@ -200,78 +200,53 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
 
                   return (
                     <React.Fragment key={bop}>
-                      <tr
-                        className="bg-slate-100/80 hover:bg-slate-200/50 transition-colors cursor-pointer"
-                        onClick={toggleExpand}
-                      >
-                        <td className="px-3 py-2 text-left font-bold text-slate-700 border-r border-slate-200 whitespace-nowrap">
+                      <tr className="cursor-pointer bg-white hover:bg-amber-50" onClick={toggleExpand}>
+                        <td className={`${tdB} whitespace-nowrap font-bold`}>
                           <div className="flex items-center gap-2">
-                            <button className="text-slate-500 hover:text-slate-800">
+                            <button className="text-slate-400 hover:text-slate-800">
                               {isExpanded ? <MinusSquare size={14} /> : <PlusSquare size={14} />}
                             </button>
                             {bop || '-'}
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-left font-bold text-slate-700 sticky left-0 bg-slate-100/80 z-10 whitespace-nowrap border-r border-slate-200">
+                        <td className={`${tdB} sticky left-0 z-[1] whitespace-nowrap bg-white font-bold`}>
                           Tổng ({bopRows.length})
                         </td>
-                        {pivotWorkshopData.uniqueWorkshops.map((w: string) => {
-                          const val = pivotWorkshopData.bopTotals[bop]?.[w] || 0;
-                          return (
-                            <td
-                              key={w}
-                              className={`px-3 py-2 whitespace-nowrap font-semibold ${val === 0 ? 'text-slate-400' : 'text-slate-700'}`}
-                            >
-                              {val === 0 ? '-' : formatNumber(val, workshopMetric)}
-                            </td>
-                          );
-                        })}
-                        <td className="px-3 py-2 font-bold text-slate-800 bg-wood-50/80">
-                          {formatNumber(pivotWorkshopData.bopRowTotals[bop], workshopMetric)}
-                        </td>
+                        {pivotWorkshopData.uniqueWorkshops.map((w: string) => (
+                          <td key={w} className={`${tdB} ${soO} font-semibold`}>
+                            {soXuong(pivotWorkshopData.bopTotals[bop]?.[w] || 0)}
+                          </td>
+                        ))}
+                        <td className={`${tdB} ${soO} font-bold`}>{soXuong(pivotWorkshopData.bopRowTotals[bop])}</td>
                       </tr>
 
                       {isExpanded &&
                         bopRows.map((rowItem) => (
-                          <tr key={rowItem.key} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-3 py-2 text-left text-slate-400 border-r border-slate-100 whitespace-nowrap"></td>
-                            <td className="px-3 py-2 text-left font-medium text-slate-700 sticky left-0 bg-white hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-100 pl-6">
+                          <tr key={rowItem.key} className="bg-slate-50">
+                            <td className={tdB}></td>
+                            <td className={`${tdB} sticky left-0 z-[1] whitespace-nowrap bg-slate-50 pl-6`}>
                               {rowItem.status}
                             </td>
                             {pivotWorkshopData.uniqueWorkshops.map((w: string) => {
                               const matrix = pivotWorkshopData?.matrix || {};
-                              const val = matrix?.[rowItem.key]?.[w] || 0;
                               return (
-                                <td
-                                  key={w}
-                                  className={`px-3 py-2 whitespace-nowrap ${val === 0 ? 'text-slate-300' : 'text-slate-600'}`}
-                                >
-                                  {val === 0 ? '-' : formatNumber(val, workshopMetric)}
-                                </td>
+                                <td key={w} className={`${tdB} ${soO}`}>{soXuong(matrix?.[rowItem.key]?.[w] || 0)}</td>
                               );
                             })}
-                            <td className="px-3 py-2 font-bold text-slate-800 bg-wood-50/50">
-                              {formatNumber(pivotWorkshopData.rowTotals[rowItem.key], workshopMetric)}
-                            </td>
+                            <td className={`${tdB} ${soO} font-bold`}>{soXuong(pivotWorkshopData.rowTotals[rowItem.key])}</td>
                           </tr>
                         ))}
                     </React.Fragment>
                   );
                 })}
               </tbody>
-              <tfoot className="bg-wood-100 font-bold text-slate-800 border-t border-wood-300">
+              <tfoot className={tfoot}>
                 <tr>
-                  <td colSpan={2} className="px-3 py-2 text-left sticky left-0 bg-wood-100 z-10">
-                    Tổng Cộng
-                  </td>
+                  <td colSpan={2} className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
                   {pivotWorkshopData.uniqueWorkshops.map((w: string) => (
-                    <td key={w} className="px-3 py-2 whitespace-nowrap">
-                      {formatNumber(pivotWorkshopData.colTotals[w], workshopMetric)}
-                    </td>
+                    <td key={w} className={`${tdB} ${soO}`}>{soXuong(pivotWorkshopData.colTotals[w])}</td>
                   ))}
-                  <td className="px-3 py-2 text-wood-800 text-base">
-                    {formatNumber(pivotWorkshopData.grandTotal, workshopMetric)}
-                  </td>
+                  <td className={`${tdB} ${soO}`}>{soXuong(pivotWorkshopData.grandTotal)}</td>
                 </tr>
               </tfoot>
             </table>

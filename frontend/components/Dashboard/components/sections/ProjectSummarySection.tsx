@@ -7,6 +7,7 @@ import {
 import { hexOBangCongTrinh, type KhoaBangCongTrinh, type OBangCongTrinh } from '../../core/tongQuanSanXuat';
 import { useMoDanhSachHex } from '../Dashboards/DanhSachHex';
 import type { DataRow } from '../../../../types';
+import { khung, soBam, soO, table, tdB, tfoot, thB, thead } from '../../../shared/bangBaoCao';
 
 interface ProjectSummarySectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
@@ -18,10 +19,7 @@ interface ProjectSummarySectionProps {
   nguon?: { rows: DataRow[]; khoa: KhoaBangCongTrinh & { hexKey?: string } };
 }
 
-// Ô viền như bảng BOP; cột STT / Tên công trình dính trái
-const thX = 'border-b border-r border-emerald-200 px-2.5 py-2 font-bold';
-const tdX = 'border-b border-r border-slate-100 px-2.5 py-2';
-const KHO_TEN: Record<KhoCot, string> = { nk: 'P022 · Đã nhập', xk: 'P025 · Đã xuất', ton: 'Tồn kho', chenh: 'Chênh' };
+const KHO_TEN: Record<KhoCot, string> = { nk: 'Đã nhập P022', xk: 'Đã xuất P025', ton: 'Tồn theo đơn', chenh: 'Chênh', xv: 'Xuất vượt nhập' };
 
 export const ProjectSummarySection = ({
   sectionRef,
@@ -42,7 +40,7 @@ export const ProjectSummarySection = ({
   const So = ({ v, ct, o, ten, cls = '' }: { v: number; ct: string | null; o: OBangCongTrinh; ten: string; cls?: string }) =>
     !v ? null : bam
       ? <button type="button" onClick={() => moO(ct, o, ten)} title="Bấm để xem danh sách hạng mục"
-          className={`tabular-nums underline decoration-dotted decoration-slate-400 underline-offset-2 hover:text-blue-700 ${cls}`}>{fmtV(v)}</button>
+          className={`${soBam} hover:text-blue-700 ${cls}`}>{fmtV(v)}</button>
       : <>{fmtV(v)}</>;
   const bang = bangCongTrinh;
   // Số theo kiểu của bảng đang có (máy chủ có thể trả bảng của nút cũ trong lúc chờ tính lại)
@@ -65,26 +63,28 @@ export const ProjectSummarySection = ({
 
   const khoTitle: Record<KhoCot, string> = isCount
     ? {
-        nk: 'Số hạng mục đã có nhập kho (Đã nhập = Đã xuất + Tồn kho + Chênh)',
+        nk: 'Số hạng mục đã có nhập kho (Đã nhập + Xuất vượt nhập = Đã xuất + Tồn + Chênh)',
         xk: 'Số hạng mục hết hàng và đã xuất đủ',
         ton: 'Số hạng mục còn hàng trong kho',
         chenh: 'Số hạng mục đã hết hàng trong kho mà chưa ghi xuất đủ',
+        xv: 'Số hạng mục có xuất vượt đã nhập',
       }
     : {
         nk: 'Thành tiền nhập kho lũy kế (chặn ≤ trị giá từng hạng mục)',
-        xk: 'Thành tiền xuất kho lũy kế (chặn ≤ đã nhập từng hạng mục)',
+        xk: 'Thành tiền xuất kho lũy kế, số gốc',
         ton: 'Tồn kho hiện tại (cột dữ liệu), chặn ≤ đã nhập − đã xuất',
-        chenh: 'Đã nhập − đã xuất − tồn kho: hàng đã nhập nhưng không thấy xuất cũng không còn trong kho (giao thẳng / chưa ghi phiếu xuất)',
+        chenh: 'Đã nhập − đã xuất − tồn kho, không âm',
+        xv: 'Phần xuất kho vượt đã nhập, theo từng hạng mục',
       };
   const stageTitle = (st: string, nhom: string) => (isCount
     ? `${nhom} · ${st}: số hạng mục chưa nhập kho đủ đang ở công đoạn này`
     : `${nhom} · ${st}: giá trị CÒN LẠI chưa nhập kho (trị giá − đã nhập) của hạng mục đang ở công đoạn này`);
 
-  const khoCells = (k: Kho | undefined, nen: string, ct: string | null) => KHO_COT.map((f, idx) => {
+  const khoCells = (k: Kho | undefined, ct: string | null) => KHO_COT.map((f, idx) => {
     const v = k?.[f] ?? 0;
-    const mau = f === 'ton' ? 'font-semibold text-slate-900' : f === 'chenh' ? (isCount || v >= 5 ? 'text-orange-600' : 'text-slate-600') : '';
+    const mau = ct === null ? '' : f === 'chenh' || f === 'xv' ? (isCount || v >= 5 ? 'text-orange-600' : 'text-slate-600') : f === 'ton' ? 'font-semibold' : '';
     return (
-      <td key={f} className={`${tdX} whitespace-nowrap tabular-nums ${nen} ${idx === 0 ? 'border-l-2 border-l-slate-300' : ''} ${v ? mau : ''}`}>
+      <td key={f} className={`${tdB} ${soO} ${idx === 0 ? 'border-l-2 border-l-slate-400' : ''} ${v ? mau : ''}`}>
         <So v={v} ct={ct} o={{ kho: f }} ten={`Kho · ${KHO_TEN[f]}`} />
       </td>
     );
@@ -117,22 +117,22 @@ export const ProjectSummarySection = ({
         </div>
       </div>
       {bang && rows.length > 0 ? (
-        <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
-          <table className={`w-full text-sm text-right ${cot.length > 6 ? 'min-w-[1200px]' : 'min-w-[900px]'} border-separate border-spacing-0`}>
-            <thead className="sticky top-0 z-30 bg-emerald-100 text-slate-800">
+        <div className={`${khung} max-h-[600px]`}>
+          <table className={`${table} ${cot.length > 6 ? 'min-w-[1200px]' : 'min-w-[900px]'}`}>
+            <thead className={thead}>
               {/* 3 hàng tiêu đề: [Tổng giá trị đơn hàng còn lại] bao các nhóm công đoạn + Tổng; nhóm đang tách thì hàng 3 là từng P */}
               <tr>
-                <th rowSpan={3} className={`${thX} w-12 min-w-[48px] px-1 text-center sticky left-0 z-10 bg-emerald-100`}>STT</th>
-                <th rowSpan={3} className={`${thX} text-left sticky left-12 z-10 bg-emerald-100 min-w-[220px] shadow-sm uppercase tracking-tight`}>Tên Công Trình</th>
-                <th rowSpan={3} className={`${thX} text-center font-extrabold text-slate-900 bg-emerald-50`}
+                <th rowSpan={3} className={`${thB} sticky left-0 z-[3] w-12 min-w-[48px] bg-emerald-300 !px-1 text-center`}>STT</th>
+                <th rowSpan={3} className={`${thB} sticky left-12 z-[3] min-w-[220px] bg-emerald-300 text-center`}>Công trình</th>
+                <th rowSpan={3} className={`${thB} text-center`}
                   title={isCount ? 'Tổng số hạng mục của công trình (không hủy), kể cả đã nhập kho đủ' : 'Tổng trị giá đơn hàng của công trình (không hủy), kể cả phần đã nhập kho'}>
                   {isCount ? <>Tổng<br />hạng mục</> : <>Tổng giá trị<br />đơn hàng</>}
                 </th>
-                <th colSpan={cot.length + 1} className={`${thX} text-center text-sm font-extrabold uppercase tracking-wide text-slate-900`}
+                <th colSpan={cot.length + 1} className={`${thB} text-center`}
                   title={isCount ? 'Hạng mục chưa nhập kho đủ, theo công đoạn hiện tại' : 'Giá trị còn lại chưa nhập kho (trị giá − đã nhập), theo công đoạn hiện tại'}>
                   {isCount ? 'Tổng hạng mục còn lại' : 'Tổng giá trị đơn hàng còn lại'}
                 </th>
-                <th colSpan={4} rowSpan={2} className={`${thX} border-l-2 border-l-slate-300 bg-emerald-50 text-center text-xs font-bold uppercase tracking-wide text-emerald-800`}
+                <th colSpan={KHO_COT.length} rowSpan={2} className={`${thB} border-l-2 border-l-slate-400 text-center`}
                   title="Lũy kế các hạng mục không hủy của công trình theo bộ lọc trang, kể cả hạng mục đã nhập kho đủ">
                   Kho (lũy kế)
                 </th>
@@ -142,28 +142,28 @@ export const ProjectSummarySection = ({
                   const mo = moNhom.has(gi);
                   return (
                     <th key={gi} colSpan={mo ? g.stages.length : 1} rowSpan={mo ? 1 : 2}
-                      className={`${thX} cursor-pointer select-none text-center text-xs font-bold uppercase tracking-wide hover:bg-emerald-200`}
+                      className={`${thB} cursor-pointer select-none text-center text-sm hover:bg-emerald-400`}
                       onClick={() => doiNhom(gi)} title={mo ? 'Bấm để gộp lại 1 cột' : `Bấm để tách từng công đoạn (${g.stages.map(tenCotCongDoan).join(', ')})`}>
                       {g.bucket && <span className={`mr-1.5 inline-block h-2 w-2 rounded-sm ${BOP_GROUP[g.bucket].dot}`} />}
                       {tenNhom(g.bucket)}
-                      {!mo && <><br /><span className="font-semibold normal-case text-slate-600">{dayP(g.stages)}</span></>}
-                      <span className="ml-1 font-bold text-emerald-700">{mo ? '−' : '+'}</span>
+                      {!mo && <><br /><span className="font-semibold text-slate-700">{dayP(g.stages)}</span></>}
+                      <span className="ml-1 font-bold text-emerald-800">{mo ? '−' : '+'}</span>
                     </th>
                   );
                 })}
-                <th rowSpan={2} className={`${thX} text-center font-extrabold text-slate-900`}
+                <th rowSpan={2} className={`${thB} text-center`}
                   title={isCount ? 'Cộng số hạng mục chưa nhập kho đủ (các cột công đoạn)' : 'Tổng giá trị đơn hàng còn lại chưa nhập kho (trị giá − đã nhập) = cộng các cột công đoạn'}>
                   Tổng
                 </th>
               </tr>
               <tr>
                 {groups.map((g, gi) => (moNhom.has(gi) ? g.stages.map(st => (
-                  <th key={st} className={`${thX} whitespace-nowrap font-semibold text-slate-700`} title={stageTitle(st, tenNhom(g.bucket))}>
+                  <th key={st} className={`${thB} whitespace-nowrap text-center`} title={stageTitle(st, tenNhom(g.bucket))}>
                     {tenCotCongDoan(st)}
                   </th>
                 )) : null))}
                 {KHO_COT.map((f, idx) => (
-                  <th key={f} className={`${thX} whitespace-nowrap bg-emerald-50 font-semibold text-slate-700 ${idx === 0 ? 'border-l-2 border-l-slate-300' : ''}`} title={khoTitle[f]}>
+                  <th key={f} className={`${thB} text-center leading-tight ${idx === 0 ? 'border-l-2 border-l-slate-400' : ''}`} title={khoTitle[f]}>
                     {KHO_TEN[f]}
                   </th>
                 ))}
@@ -171,29 +171,28 @@ export const ProjectSummarySection = ({
             </thead>
             <tbody>
               {visibleRows.map((row, idx) => (
-                <tr key={row.name} className="hover:bg-slate-50 transition-colors group">
-                  <td className={`${tdX} w-12 min-w-[48px] px-1 text-center tabular-nums text-slate-500 sticky left-0 bg-white group-hover:bg-slate-50 z-10`}>{idx + 1}</td>
-                  <td className={`${tdX} text-left font-medium text-slate-700 sticky left-12 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]`}>{row.name}</td>
-                  <td className={`${tdX} tabular-nums font-semibold text-slate-800 bg-emerald-50/40`}><So v={row.donHang} ct={row.name} o={{ donHang: true }} ten="Tổng đơn hàng" /></td>
+                <tr key={row.name}>
+                  <td className={`${tdB} sticky left-0 z-[1] w-12 min-w-[48px] bg-white !px-1 text-center tabular-nums text-slate-500`}>{idx + 1}</td>
+                  <td className={`${tdB} sticky left-12 z-[1] bg-white font-bold`}>{row.name}</td>
+                  <td className={`${tdB} ${soO} font-semibold`}><So v={row.donHang} ct={row.name} o={{ donHang: true }} ten="Tổng đơn hàng" /></td>
                   {cot.map(c => {
                     const v = cong(row.cells, c.stages);
-                    return <td key={c.key} className={`${tdX} tabular-nums ${c.stages.length > 1 ? 'font-semibold text-slate-800' : 'text-slate-700'}`}><So v={v} ct={row.name} o={{ stages: c.stages }} ten={`Còn lại · ${dayP(c.stages)}`} /></td>;
+                    return <td key={c.key} className={`${tdB} ${soO}`}><So v={v} ct={row.name} o={{ stages: c.stages }} ten={`Còn lại · ${dayP(c.stages)}`} /></td>;
                   })}
-                  <td className={`${tdX} tabular-nums font-bold text-slate-900 bg-slate-50/50`}><So v={row.total} ct={row.name} o={{ stages: bang.stages }} ten="Còn lại · Tổng" /></td>
-                  {khoCells(row.kho, 'bg-emerald-50/30', row.name)}
+                  <td className={`${tdB} ${soO} font-bold`}><So v={row.total} ct={row.name} o={{ stages: bang.stages }} ten="Còn lại · Tổng" /></td>
+                  {khoCells(row.kho, row.name)}
                 </tr>
               ))}
             </tbody>
-            <tfoot className="sticky bottom-0 z-20 bg-yellow-300 font-bold text-red-600">
+            <tfoot className={tfoot}>
               <tr>
-                <td className={`${tdX} w-12 min-w-[48px] px-1 sticky left-0 bg-yellow-300`} />
-                <td className={`${tdX} text-left sticky left-12 bg-yellow-300 text-slate-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]`}>TỔNG CỘNG</td>
-                <td className={`${tdX} tabular-nums`}><So v={bang.donHangTot} ct={null} o={{ donHang: true }} ten="Tổng đơn hàng" /></td>
+                <td colSpan={2} className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
+                <td className={`${tdB} ${soO}`}><So v={bang.donHangTot} ct={null} o={{ donHang: true }} ten="Tổng đơn hàng" /></td>
                 {cot.map(c => (
-                  <td key={c.key} className={`${tdX} tabular-nums`}><So v={cong(bang.colTot, c.stages)} ct={null} o={{ stages: c.stages }} ten={`Còn lại · ${dayP(c.stages)}`} /></td>
+                  <td key={c.key} className={`${tdB} ${soO}`}><So v={cong(bang.colTot, c.stages)} ct={null} o={{ stages: c.stages }} ten={`Còn lại · ${dayP(c.stages)}`} /></td>
                 ))}
-                <td className={`${tdX} tabular-nums`}><So v={bang.grand} ct={null} o={{ stages: bang.stages }} ten="Còn lại · Tổng" /></td>
-                {khoCells(bang.khoTot, '', null)}
+                <td className={`${tdB} ${soO}`}><So v={bang.grand} ct={null} o={{ stages: bang.stages }} ten="Còn lại · Tổng" /></td>
+                {khoCells(bang.khoTot, null)}
               </tr>
             </tfoot>
           </table>

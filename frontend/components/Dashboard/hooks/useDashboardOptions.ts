@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { categoryOptions } from '../utils/filterMatch';
 import { DataRow } from '../../../types';
 import { formatDateToVN, parseVNDate } from '../utils/dateHelpers';
+import { fetchTuyChonThoiGian, type TuyChonThoiGian } from '../../../services/dataService';
+import { napBang } from '../../../services/napBang';
 
 interface UseDashboardOptionsParams {
   productionData: DataRow[];
@@ -46,6 +48,32 @@ const distinctRaw = (data: DataRow[], key: string): Set<unknown> => {
   return raw;
 };
 
+/** Cùng kết quả getUniqueOptions, đầu vào là danh sách giá trị máy chủ gửi */
+export const luaChonTuDanhSach = (ds: unknown[] | undefined): string[] =>
+  getUniqueOptions((ds ?? []).map(v => ({ v })) as DataRow[], 'v');
+
+const BANG_TUY_CHON = ['order', 'tkbv', 'pthsp', 'inventory', 'khsx'];
+
+/**
+ * Danh sách thời gian từ máy chủ, không cần tải nguyên bảng. API lỗi thì tải bảng như cũ; sanSang = false trong lúc chờ
+ * để ngày mặc định không chốt theo danh sách thiếu. `moc` đổi (bảng nhập kho có bản mới) thì lấy lại.
+ */
+function useTuyChonThoiGian(moc: unknown) {
+  const [tuMayChu, setTuMayChu] = useState<TuyChonThoiGian | null>(null);
+  const [duPhong, setDuPhong] = useState(false);
+  const daCo = useRef(false);
+  useEffect(() => {
+    let huy = false;
+    fetchTuyChonThoiGian().then(d => {
+      if (huy) return;
+      if (d) { daCo.current = true; setTuMayChu(d); return; }
+      if (!daCo.current) void napBang(BANG_TUY_CHON).finally(() => { if (!huy) setDuPhong(true); });
+    });
+    return () => { huy = true; };
+  }, [moc]);
+  return { tuMayChu, sanSang: tuMayChu !== null || duPhong };
+}
+
 /**
  * Gom toàn bộ logic tính danh sách option cho các bộ lọc (Dashboard).
  * Bao gồm option riêng theo từng nguồn dữ liệu (KHSX / Inventory) và
@@ -77,6 +105,7 @@ export function useDashboardOptions({
   pthspDateKey,
   invDateKey,
 }: UseDashboardOptionsParams) {
+  const { tuMayChu, sanSang } = useTuyChonThoiGian(inventoryData);
 
   // --- Production filter options ---
   const congTrinhOptions = useMemo(() => getUniqueOptions(productionData, congTrinhKey), [productionData, congTrinhKey]);
@@ -87,10 +116,10 @@ export function useDashboardOptions({
   const khachHangOptions = useMemo(() => categoryOptions(productionData, khachHangKey), [productionData, khachHangKey]);
   const khuVucDuAnOptions = useMemo(() => categoryOptions(productionData, khuVucDuAnKey), [productionData, khuVucDuAnKey]);
   // --- KHSX time filter options ---
-  const khsxNamOptions = useMemo(() => getUniqueOptions(khsxData, khsxNamKey), [khsxData, khsxNamKey]);
-  const khsxThangOptions = useMemo(() => getUniqueOptions(khsxData, khsxThangKey), [khsxData, khsxThangKey]);
-  const khsxNgayOptions = useMemo(() => getUniqueOptions(khsxData, khsxNgayKey), [khsxData, khsxNgayKey]);
-  const khsxTuanOptions = useMemo(() => getUniqueOptions(khsxData, khsxTuanKey), [khsxData, khsxTuanKey]);
+  const khsxNamOptions = useMemo(() => khsxData.length ? getUniqueOptions(khsxData, khsxNamKey) : luaChonTuDanhSach(tuMayChu?.khsx.nam), [khsxData, khsxNamKey, tuMayChu]);
+  const khsxThangOptions = useMemo(() => khsxData.length ? getUniqueOptions(khsxData, khsxThangKey) : luaChonTuDanhSach(tuMayChu?.khsx.thang), [khsxData, khsxThangKey, tuMayChu]);
+  const khsxNgayOptions = useMemo(() => khsxData.length ? getUniqueOptions(khsxData, khsxNgayKey) : luaChonTuDanhSach(tuMayChu?.khsx.ngay), [khsxData, khsxNgayKey, tuMayChu]);
+  const khsxTuanOptions = useMemo(() => khsxData.length ? getUniqueOptions(khsxData, khsxTuanKey) : luaChonTuDanhSach(tuMayChu?.khsx.tuan), [khsxData, khsxTuanKey, tuMayChu]);
 
   // --- Inventory time filter options ---
   const invNamOptions = useMemo(() => getUniqueOptions(inventoryData, invNamKey), [inventoryData, invNamKey]);
@@ -137,6 +166,7 @@ export function useDashboardOptions({
   // ~270 nghìn dòng nhưng chỉ vài nghìn ngày khác nhau: gom giá trị thô trước rồi mới đổi định dạng (trước đổi định
   // dạng từng dòng ~200 ms); sắp xếp dùng thời điểm đã parse sẵn. Kết quả giữ nguyên như cũ.
   const unifiedDateOptions = useMemo(() => {
+    if (!sanSang) return [];
     const dates = new Set<string>();
     const addDates = (data: DataRow[], key: string | undefined) => {
       if (!key) return;
@@ -148,6 +178,10 @@ export function useDashboardOptions({
       }
     };
 
+    for (const val of tuMayChu?.ngay ?? []) {
+      const formatted = formatDateToVN(val);
+      if (formatted) dates.add(formatted);
+    }
     addDates(orderData, orderDateKey);
     addDates(tkbvData, tkbvDateKey);
     addDates(pthspData, pthspDateKey);
@@ -161,7 +195,7 @@ export function useDashboardOptions({
       if (ta !== null && tb !== null) return tb - ta;
       return b.localeCompare(a);
     });
-  }, [orderData, tkbvData, pthspData, inventoryData, orderDateKey, tkbvDateKey, pthspDateKey, invDateKey]);
+  }, [sanSang, tuMayChu, orderData, tkbvData, pthspData, inventoryData, orderDateKey, tkbvDateKey, pthspDateKey, invDateKey]);
 
   return {
     congTrinhOptions,

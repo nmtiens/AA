@@ -1,3 +1,4 @@
+import { macDinhCuaSo } from '../../core/dauTrang';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -98,6 +99,7 @@ interface OrderOverviewSectionProps {
   latestUnifiedDate: Date | null;
   closestStockDate: Date | null;
   stockOverviewCardValue: number;
+  stockOverviewMa0?: number;
   latestStockStats: StockStatsRow;
   latestStockStatsPrevMonth: StockStatsRow;
   stockByProjectData: StockByProjectRow[];
@@ -171,6 +173,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   latestUnifiedDate,
   closestStockDate,
   stockOverviewCardValue,
+  stockOverviewMa0 = 0,
   latestStockStats,
   latestStockStatsPrevMonth,
   stockByProjectData,
@@ -256,21 +259,24 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     }
   };
 
+  // Chọn nhiều công trình: cửa sổ giữ cả danh sách (dòng tổng = thẻ), không rút về phần tử đầu
+  const ctTrongCuaSo = viewProjectWhitelist ?? (filters.congTrinh.length > 1 ? filters.congTrinh : undefined);
+
   // ✅ MỚI: giá trị congTrinh/xuong ĐANG ACTIVE trong TrendFilterContext, đổ ra từ
   // TrendFilterBridge (render bên trong <TrendFilterProvider> ở cuối file). Đây là
   // NGUỒN SỰ THẬT DUY NHẤT dùng để tính filterKey cho CẢ 2 TAB, thay vì tab "Chi tiết
   // dữ liệu" tự tính theo filters.congTrinh/xuong (Dashboard) như trước đây.
   const [activeTrendFilter, setActiveTrendFilter] = useState<GroupAnalysisOverride>({
-    congTrinh: filters.congTrinh[0] || '',
-    xuong: filters.xuong[0] || '',
+    congTrinh: macDinhCuaSo(filters.congTrinh),
+    xuong: filters.xuong.join(','),
   });
 
   // ✅ SỬA: reset activeTrendFilter mỗi khi 1 modal được mở lại (đồng bộ với
   // trendResetKey/TrendFilterProvider), tránh dùng sót giá trị của lần mở modal trước.
   useEffect(() => {
     setActiveTrendFilter({
-      congTrinh: filters.congTrinh[0] || '',
-      xuong: filters.xuong[0] || '',
+      congTrinh: macDinhCuaSo(filters.congTrinh),
+      xuong: filters.xuong.join(','),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trendResetKey]);
@@ -327,7 +333,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     }
     if (activeTrendFilter.xuong && dimension !== 'xuong') params.set('xuong', activeTrendFilter.xuong);
     if (activeTrendFilter.congTrinh && dimension !== 'congtrinh') params.set('congTrinh', activeTrendFilter.congTrinh);
-    if (viewProjectWhitelist !== undefined) params.set('ctWhitelist', viewProjectWhitelist.map(x => x.trim().toUpperCase()).join('|') + '|');
+    if (ctTrongCuaSo !== undefined) params.set('ctWhitelist', ctTrongCuaSo.map(x => x.trim().toUpperCase()).join('|') + '|');
     const id = ++dsReq.current;
     if (tuNguon) {
       const tieuDe = `${ten} — ${name} · ${nhan}`;
@@ -381,10 +387,10 @@ const periodLabel = overviewDateFilters.length > 1
       overviewDateFilters={overviewDateFilters}
       setOverviewDateFilters={setOverviewDateFilters}
       unifiedDateOptions={unifiedDateOptions}
-      defaultXuong={filters.xuong[0] || ''}          // MỚI
-      defaultCongTrinh={filters.congTrinh[0] || ''}  // MỚI
+      defaultXuong={filters.xuong.join(',')}          // nhiều xưởng gửi chung, máy chủ tách
+      defaultCongTrinh={macDinhCuaSo(filters.congTrinh)}
       resetKey={trendResetKey}    
-      viewProjectWhitelist={viewProjectWhitelist} 
+      viewProjectWhitelist={ctTrongCuaSo} 
         granularityRequest={granularityRequest}                    // MỚI
     >
     {/* ✅ MỚI: cầu nối đọc congTrinh/xuong đang active trong context ra ngoài, để tab
@@ -452,16 +458,16 @@ const periodLabel = overviewDateFilters.length > 1
           const so = (c: number | undefined, v: number | undefined) => (dem ? (c ?? 0).toLocaleString('en-US') : formatValueNumber(v ?? 0));
           const ngay = (d: Date | null | undefined) => (d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}` : 'N/A');
           const luong = [
-            { k: 'order', ten: 'Đơn hàng mới', ma: 'P001', dv: 'đơn', s: overviewSummary?.order,
+            { k: 'order', ten: 'Đơn hàng mới', dv: 'hạng mục', s: overviewSummary?.order,
               hint: 'Đơn hàng có ngày nhận từ PM trong ngày / tháng đang xem (bảng Đơn hàng tổng, không tính đơn HỦY). Khác thẻ "Nhóm đơn hàng": thẻ đó tính mọi hạng mục đang theo dõi, không theo ngày.',
               mo: () => openModalWithTrendReset(() => { setIsIpoDetailModalOpen(true); loadGroupAnalysis('order', activeTrendFilter); }) },
-            { k: 'tkbv', ten: 'Triển khai BV', ma: 'P002', dv: 'bản vẽ', s: overviewSummary?.tkbv, hint: 'Bản vẽ đã triển khai (TKBV)',
+            { k: 'tkbv', ten: 'Triển khai BV', dv: 'hạng mục', s: overviewSummary?.tkbv, hint: 'Bản vẽ đã triển khai (TKBV)',
               mo: () => openModalWithTrendReset(() => { setIsTkbvDetailModalOpen(true); loadGroupAnalysis('tkbv', activeTrendFilter); }) },
-            { k: 'pthsp', ten: 'Tính phiếu', ma: 'P012', dv: 'phiếu', s: overviewSummary?.pthsp, hint: 'Phiếu đã tính (PTHSP)',
+            { k: 'pthsp', ten: 'Tính phiếu', dv: 'hạng mục', s: overviewSummary?.pthsp, hint: 'Phiếu đã tính (PTHSP)',
               mo: () => openModalWithTrendReset(() => { setIsPthspDetailModalOpen(true); loadGroupAnalysis('pthsp', activeTrendFilter); }) },
-            { k: 'inventory', ten: 'Nhập kho', ma: 'P022', dv: 'mục', s: overviewSummary?.inventory, hint: 'Hạng mục nhập kho',
+            { k: 'inventory', ten: 'Nhập kho', dv: 'hạng mục', s: overviewSummary?.inventory, hint: 'Hạng mục nhập kho',
               mo: () => openModalWithTrendReset(() => { setIsInventoryDetailModalOpen(true); loadGroupAnalysis('inventory', activeTrendFilter); }) },
-            { k: 'export', ten: 'Xuất kho', ma: 'P025', dv: 'mục', s: overviewSummary?.export, hint: 'Hạng mục xuất kho',
+            { k: 'export', ten: 'Xuất kho', dv: 'hạng mục', s: overviewSummary?.export, hint: 'Hạng mục xuất kho',
               mo: () => openModalWithTrendReset(() => { setIsExportDetailModalOpen(true); loadGroupAnalysis('export', activeTrendFilter); }) },
           ];
           const o = 'group flex flex-col bg-white p-4 text-left transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400 lg:p-5';
@@ -470,7 +476,7 @@ const periodLabel = overviewDateFilters.length > 1
               {luong.map((x, idx) => (
                 <button key={x.k} type="button" onClick={x.mo} className={o} title={`${x.hint}\nBấm để xem chi tiết & xu hướng`}>
                   <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                    {idx + 1}. {x.ten} <span className="text-xs text-slate-500">{x.ma}</span>
+                    {idx + 1}. {x.ten}
                     <Eye size={14} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />
                   </span>
                   <span className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
@@ -491,10 +497,11 @@ const periodLabel = overviewDateFilters.length > 1
                 </span>
                 <span className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
                   {dem ? stockOverviewCardValue.toLocaleString('en-US') : formatValueNumber(stockOverviewCardValue)}
-                  <span className="ml-1 text-sm font-medium text-slate-600">{dem ? 'mục' : valueUnitLabel.toLowerCase()}</span>
+                  <span className="ml-1 text-sm font-medium text-slate-600">{dem ? 'mã SAP' : valueUnitLabel.toLowerCase()}</span>
                 </span>
                 <span className="mt-0.5 text-sm font-medium tabular-nums text-slate-700">
                   cuối T{prevMonthNo}: {so(latestStockStatsPrevMonth.count, latestStockStatsPrevMonth.value)}
+                  {dem && stockOverviewMa0 > 0 && ` · ${stockOverviewMa0.toLocaleString('en-US')} mã giá trị 0`}
                 </span>
               </button>
             </div>
@@ -575,7 +582,7 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
+                    unitLabel={ipoMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                     formatValue={ipoMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-pink-600"
                     secondaryColorClass="text-indigo-600"
@@ -586,7 +593,7 @@ const periodLabel = overviewDateFilters.length > 1
                     <DetailModalTable
                       onValueClick={moDanhSach('order', 'congtrinh', 'Đơn hàng mới')}
                       data={toAnalysisItems(groupAnalysisCache[`order-congtrinh-${filterKey}`] ?? [], ipoMetric)}
-                      unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
+                      unitLabel={ipoMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                       formatValue={ipoMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       title="Chi tiết theo Công trình"
                       icon={Building2}
@@ -675,7 +682,7 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={tkbvMetric === 'COUNT' ? '(SL Bản vẽ)' : '(Tỷ đồng)'}
+                    unitLabel={tkbvMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                     formatValue={tkbvMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-blue-600"
                     secondaryColorClass="text-indigo-600"
@@ -689,7 +696,7 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Building2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={tkbvMetric === 'COUNT' ? '(SL Bản vẽ)' : '(Tỷ đồng)'}
+                      unitLabel={tkbvMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                       formatValue={tkbvMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       primaryColorClass="text-blue-600"
                       secondaryColorClass="text-indigo-600"
@@ -775,7 +782,7 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={pthspMetric === 'COUNT' ? '(SL Phiếu)' : '(Tỷ đồng)'}
+                    unitLabel={pthspMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                     formatValue={pthspMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-purple-600"
                     secondaryColorClass="text-fuchsia-600"
@@ -789,7 +796,7 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Building2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={pthspMetric === 'COUNT' ? '(SL Phiếu)' : '(Tỷ đồng)'}
+                      unitLabel={pthspMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                       formatValue={pthspMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       primaryColorClass="text-purple-600"
                       secondaryColorClass="text-fuchsia-600"
@@ -884,7 +891,7 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={inventoryMetric === 'COUNT' ? '(SL Items)' : '(Tỷ đồng)'}
+                    unitLabel={inventoryMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                     formatValue={inventoryMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-teal-600"
                     secondaryColorClass="text-emerald-600"
@@ -898,7 +905,7 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Building2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={inventoryMetric === 'COUNT' ? '(SL Items)' : '(Tỷ đồng)'}
+                      unitLabel={inventoryMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                       formatValue={inventoryMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       primaryColorClass="text-teal-600"
                       secondaryColorClass="text-emerald-600"
@@ -985,7 +992,8 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={exportMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
+                    unitLabel={exportMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
+                    formatValue={exportMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-amber-600"
                     secondaryColorClass="text-orange-600"
                   />
@@ -998,7 +1006,8 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Briefcase}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={exportMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
+                      unitLabel={exportMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
+                      formatValue={exportMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       primaryColorClass="text-amber-700"
                       secondaryColorClass="text-orange-700"
                     />
@@ -1059,14 +1068,14 @@ const periodLabel = overviewDateFilters.length > 1
           </button>
           <button
             onClick={() => setIsStockDetailModalOpen(false)}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+            title="Đóng"
+            aria-label="Đóng"
+            className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors"
           >
             <X size={24} />
           </button>
         </div>
       </div>
-
-      {/* ...giữ nguyên phần body... */}
 
             <div className="flex-1 overflow-y-auto bg-slate-50/50 custom-scrollbar">
               {stockTab === 'tongquan' ? (
@@ -1105,31 +1114,11 @@ const periodLabel = overviewDateFilters.length > 1
                             .padStart(2, '0')}/${closestStockDate.getFullYear()})`
                         : ''
                     }`}
-                    mtdLabel={`MỚI NHẤT ${
-                      latestStockStats.date
-                        ? `(${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(
-                            latestStockStats.date.getMonth() + 1
-                          )
-                            .toString()
-                            .padStart(2, '0')}/${latestStockStats.date.getFullYear()})`
-                        : ''
-                    }`}
                     unitLabel={stockMetric === 'COUNT' ? '(SL Mã SAP)' : '(Tỷ đồng)'}
                     formatValue={stockMetric === 'COUNT' ? undefined : formatTrieuAsTy}
-                    primaryColorClass="text-slate-700"
-                    secondaryColorClass="text-slate-900"
                   />
                 </div>
               )}
-            </div>
-
-            <div className="p-4 border-t border-slate-200 bg-white flex justify-end">
-              <button
-                onClick={() => setIsStockDetailModalOpen(false)}
-                className="px-8 py-2.5 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition-all shadow-md active:scale-95"
-              >
-                Đóng
-              </button>
             </div>
           </div>
         </div>

@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react';
 import { xuongSetupApi, type KeHoachTuan as KhTuan, type KeHoachTuanDong, type BaoCaoXuong } from '../../services/xuongSetupApi';
 import { gioVN, tenLyDo, hienSl } from '../../services/xuongModel';
-import { BTN, KHUNG, TH, TD } from './xuongDesktopUi';
+import { daNhapDu } from '../../utils/productionMetrics';
+import { BTN, KHUNG, TH_BC as TH, TD_BC as TD, BANG } from './xuongDesktopUi';
+import * as bang from '../shared/bangBaoCao';
+import { fmtPt, fmtTy } from '../../utils/format';
+import { so, oSo, tienXuong as tien, tyLe, cong, catKhac } from './chiSoXuong';
+import The from './TheSo';
 import { BieuDoKeHoach } from './BieuDoXuong';
 import PhanTichXuong from './PhanTichXuong';
 
@@ -19,8 +24,6 @@ import PhanTichXuong from './PhanTichXuong';
 const ngayVN = (offset = 0) => gioVN(Date.now() + offset * 86_400_000).ngay;
 /** Ngày 'YYYY-MM-DD' lùi n ngày */
 const ngayTruoc = (ngay: string, n: number) => new Date(Date.parse(`${ngay}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
-const so = (n: number, le = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: le });
-const tien = (trieu: number) => (Math.abs(trieu) >= 1000 ? `${so(trieu / 1000, 2)} tỷ` : `${so(trieu, 0)} tr`);
 const ddmm = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
 
 /** Tuần ISO của một ngày 'YYYY-MM-DD' */
@@ -45,24 +48,25 @@ const doiTuan = (t: { nam: number; tuan: number }, buoc: number) => {
 export type Muc = 0 | 1 | 2 | 3;
 export interface TinhTrang { ma: string; ten: string; muc: Muc; chiTiet?: string }
 
-/** Hạng mục đã nhập kho đủ giá trị đơn hàng (luỹ kế tới hết tuần) dù trong tuần không nhập đủ kế hoạch */
-export const daNhapTruoc = (r: KeHoachTuanDong) =>
-  r.nhapKho < r.kh * 0.98 && !!r.giaTriDon && r.giaTriDon > 0 && (r.nhapKhoLuyKe ?? 0) >= r.giaTriDon * 0.98;
+/** Trong tuần đã nhập đủ kế hoạch: đủ tiền hoặc đủ số lượng */
+export const datKhTuan = (r: KeHoachTuanDong) => r.kh > 0 && daNhapDu(r.kh, r.nhapKho, false, (r.slKh ?? 0) > 0 && r.slNhapKho >= (r.slKh ?? 0));
+
+/** Hạng mục đã nhập kho đủ đơn hàng (luỹ kế tới hết tuần) dù trong tuần không nhập đủ kế hoạch */
+export const daNhapTruoc = (r: KeHoachTuanDong) => !datKhTuan(r) && daNhapDu(r.giaTriDon ?? 0, r.nhapKhoLuyKe ?? 0, false, !!r.duSlDon);
 
 /** Tuần đã qua VÀ nhập kho đã cập nhật tới hết tuần — chỉ khi đó mới kết luận "rớt" */
 export const tuanDaChot = (kh: { den: string; nhapKhoMoiNhat: string | null }, homNay: string) =>
   kh.den < homNay && !!kh.nhapKhoMoiNhat && kh.nhapKhoMoiNhat >= kh.den;
 
 export function tinhTrang(r: KeHoachTuanDong, tuanDaQua: boolean, homNay: string): TinhTrang {
-  const pct = r.kh > 0 ? r.nhapKho / r.kh : 0;
-  if (r.kh > 0 && pct >= 0.98) return { ma: 'dat', ten: 'Đã nhập kho', muc: 0 };
+  if (datKhTuan(r)) return { ma: 'dat', ten: 'Đã nhập kho', muc: 0 };
   if (daNhapTruoc(r)) return { ma: 'dat_truoc', ten: 'Đã nhập đủ từ trước', muc: 0, chiTiet: 'Nhập kho đủ đơn hàng trước tuần kế hoạch' };
   const quaKhnk = !!r.ngayKhnk && r.ngayKhnk < homNay;
   const cd = r.congDoan;
   const dangO = cd.filter(c => c.trangThai === 'dang_lam').map(c => c.ten);
   const ngung = cd.filter(c => c.trangThai === 'tam_ngung');
   let t: TinhTrang;
-  if (r.nhapKho > 0) t = { ma: 'mot_phan', ten: `Nhập kho ${Math.round(pct * 100)}%`, muc: tuanDaQua ? 3 : 1 };
+  if (r.nhapKho > 0) t = { ma: 'mot_phan', ten: `Nhập kho ${fmtPt(tyLe(r.nhapKho, r.kh) ?? 0)}`, muc: tuanDaQua ? 3 : 1 };
   else if (tuanDaQua) t = { ma: 'rot', ten: 'Rớt kế hoạch', muc: 3 };
   else if (!r.trienKhai && cd.length === 0) t = { ma: 'chua_tk', ten: 'Chưa triển khai', muc: 3, chiTiet: 'Chưa triển khai cho tổ nào (cũng không có số liệu MRA cũ)' };
   else if (ngung.length) t = { ma: 'ngung', ten: 'Tạm ngưng', muc: 2, chiTiet: ngung.map(c => `${c.ten}: ${tenLyDo(c.ngung?.lyDo)}`).join(' · ') };
@@ -89,16 +93,6 @@ const MAU: Record<Muc, string> = {
   2: 'bg-amber-50 text-amber-800 border-amber-200',
   3: 'bg-red-50 text-red-800 border-red-200',
 };
-
-function The({ ten, giaTri, phu, mau }: { ten: string; giaTri: string; phu?: ReactNode; mau?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm rsm:p-4">
-      <p className="text-xs font-semibold text-slate-600">{ten}</p>
-      <p className={`mt-1 text-xl font-bold tabular-nums rsm:text-2xl ${mau ?? 'text-slate-900'}`}>{giaTri}</p>
-      {phu && <p className="mt-0.5 text-xs text-slate-500">{phu}</p>}
-    </div>
-  );
-}
 
 export default function KeHoachTuan({ xuong }: { xuong: string }) {
   const homNay = ngayVN();
@@ -159,7 +153,8 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
     // Điểm danh cả xưởng (nếu có số liệu trong tuần) — đủ hơn số tổ đã dùng app
     const dd = bc?.chamCong?.theoNgay ?? [];
     const gioDd = dd.reduce((a, x) => a + x.gioHc + x.gioTc, 0);
-    const cnDd = dd.length ? dd.reduce((a, x) => a + x.congNhan, 0) / dd.length : 0;
+    const ddCoCn = dd.filter(x => x.congNhan > 0);
+    const cnDd = ddCoCn.length ? ddCoCn.reduce((a, x) => a + x.congNhan, 0) / ddCoCn.length : 0;
     // Độ phủ giờ công: điểm danh cả xưởng có đủ ngày không, bao nhiêu tổ dùng MRA
     const soTo = bc?.theoTo.length ?? 0;
     const soToMra = (bc?.theoTo ?? []).filter(x => x.theoNgay.length > 0).length;
@@ -168,8 +163,8 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
     return {
       tuanDaQua, thieuDuLieu, soTo, soToMra, vuot, dong, tongKh, nkTheoKh, conThieu, nkNgoai, nkTong, gioSp, gioSpTong, gioSpKh, ngoaiGio,
       gioCongApp, cnApp, gioDd, cnDd, canhBao, deY,
-      pctHt: tongKh > 0 ? Math.round((nkTheoKh / tongKh) * 100) : null,
-      pctSpNgoai: gioSpTong > 0 ? Math.round(((gioSpTong - gioSpKh) / gioSpTong) * 100) : null,
+      pctHt: tyLe(nkTheoKh, tongKh),
+      pctSpNgoai: tyLe(gioSpTong - gioSpKh, gioSpTong),
     };
   }, [kh, bc, homNay]);
 
@@ -189,10 +184,9 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
         {!laTuanNay && <button type="button" className={BTN} onClick={() => setT(tuanNay)}>Tuần này</button>}
         <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
       </div>
-      <p className="text-xs text-slate-600">
-        Xem theo tuần kế hoạch (KHSX), không theo khoảng ngày ở trên. Nhập kho có số liệu tới {kh?.nhapKhoMoiNhat ? ddmm(kh.nhapKhoMoiNhat) : '—'}.
-        {kh?.chiTo && <b> Chỉ hạng mục đi qua công đoạn tổ của bạn (kế hoạch, nhập kho, biểu đồ).</b>}
-        {kh?.keHoach.some(r => r.duBao) && ' Dự báo nguy cơ rớt: cộng số ngày "thường mất" của các công đoạn còn lại (số liệu app; công đoạn chưa đủ 10 hạng mục trên app dùng lịch sử MRA cũ).'}
+      <p className="text-sm text-slate-600">
+        Nhập kho tới {kh?.nhapKhoMoiNhat ? ddmm(kh.nhapKhoMoiNhat) : '—'}.
+        {kh?.chiTo && <b> Chỉ hạng mục đi qua công đoạn tổ của bạn.</b>}
       </p>
 
       {loi && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
@@ -241,7 +235,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
               })()}
               {(phanTich.pctSpNgoai ?? 0) >= 30 && (
                 <li className="text-amber-800">
-                  <b>{phanTich.pctSpNgoai}%</b> giờ công sản phẩm ({so(phanTich.gioSpTong - phanTich.gioSpKh)} giờ) dồn vào hạng mục NGOÀI kế hoạch tuần
+                  <b>{fmtPt(phanTich.pctSpNgoai)}</b> giờ công sản phẩm ({so(phanTich.gioSpTong - phanTich.gioSpKh)} giờ) dồn vào hạng mục NGOÀI kế hoạch tuần
                   <span className="text-slate-600"> · Kiểm tra ưu tiên: tổ có đang làm hàng không cần gấp?</span>
                 </li>
               )}
@@ -257,7 +251,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
         <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-6">
           <The ten="Kế hoạch tuần" giaTri={tien(phanTich.tongKh)} phu={`${kh.keHoach.length} hạng mục`} />
           <The ten="Nhập kho theo kế hoạch" giaTri={tien(phanTich.nkTheoKh)}
-            phu={phanTich.pctHt === null ? '' : `${phanTich.pctHt}% kế hoạch`}
+            phu={phanTich.pctHt === null ? '' : `${fmtPt(phanTich.pctHt)} kế hoạch`}
             mau={phanTich.pctHt === null ? undefined : phanTich.pctHt >= 80 ? 'text-emerald-700' : phanTich.pctHt >= 50 ? 'text-amber-700' : 'text-red-700'} />
           <The ten={phanTich.tuanDaQua ? 'Rớt kế hoạch' : 'Còn phải nhập kho'} giaTri={tien(phanTich.conThieu)}
             phu={`${phanTich.dong.filter(x => x.tt.muc !== 0).length} hạng mục chưa đủ`} mau={phanTich.tuanDaQua && phanTich.conThieu > 0 ? 'text-red-700' : undefined} />
@@ -274,9 +268,8 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
             return cn > 0 ? `${so(phanTich.nkTong / cn, 1)} tr` : '—';
           })()} phu={phanTich.gioSpTong > 0 ? `${so(phanTich.nkTong / phanTich.gioSpTong, 2)} tr / giờ công SP` : 'tổng nhập kho tuần ÷ công nhân bình quân'} />
         </div>
-        <p className="text-xs text-slate-500">
-          Doanh số = nhập kho trong tuần của xưởng (cả ngoài kế hoạch). Giờ công lấy từ Dữ liệu Điểm danh nếu có, không thì từ các tổ dùng MRA
-          (chưa đủ tổ thì số này cao hơn thực tế). Giờ công SP: {so(phanTich.gioSpKh, 0)} giờ cho hạng mục kế hoạch, {so(phanTich.gioSpTong - phanTich.gioSpKh, 0)} giờ ngoài kế hoạch.
+        <p className="text-sm text-slate-600">
+          Giờ công SP: {so(phanTich.gioSpKh, 0)} giờ cho KH, {so(phanTich.gioSpTong - phanTich.gioSpKh, 0)} giờ ngoài KH tuần này.
         </p>
 
         <BieuDoKeHoach tongKh={phanTich.tongKh} nkTheoKh={phanTich.nkTheoKh} conThieu={phanTich.conThieu} nkNgoai={phanTich.nkNgoai} vuot={phanTich.vuot} nkTong={phanTich.nkTong}
@@ -286,16 +279,25 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
         {/* Từng hạng mục kế hoạch — cần xử lý lên trước */}
         <div className={KHUNG}>
           <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Hạng mục kế hoạch tuần ({kh.keHoach.length})</p>
-          <table className="w-full min-w-[52rem] rmd:min-w-0">
-            <thead className="bg-slate-50"><tr>
-              <th className={TH}>Hạng mục</th><th className={`${TH} text-right`}>Kế hoạch</th><th className={TH}>Ngày KHNK</th>
-              <th className={`${TH} text-right`}>Nhập kho</th><th className={TH}>Tình trạng</th><th className={`${TH} text-right`}>Giờ công SP</th><th className={TH} />
+          <table className={`${BANG} w-full min-w-[52rem] rmd:min-w-0`}>
+            <thead className={bang.thead}><tr>
+              <th className={TH}>Hạng mục</th><th className={`${TH}`}>Kế hoạch (tỷ)</th><th className={TH}>Ngày KHNK</th>
+              <th className={`${TH}`}>Nhập kho (tỷ)</th><th className={TH}>Tình trạng</th><th className={`${TH}`}>Giờ công SP</th><th className={TH} />
             </tr></thead>
             <tbody>
               {phanTich.dong.map(({ r, tt }) => (
                 <FragmentDong key={r.hex} r={r} tt={tt} gioSp={phanTich.gioSp.get(r.hex) ?? 0} mo={mo === r.hex} onMo={() => setMo(m => (m === r.hex ? null : r.hex))} homNay={homNay} />
               ))}
             </tbody>
+            <tfoot className={bang.tfoot}><tr>
+              <td className={TD}>TỔNG</td>
+              <td className={bang.tdSo}>{bang.trong0(phanTich.tongKh, fmtTy)}</td>
+              <td className={TD} />
+              <td className={bang.tdSo}>{bang.trong0(cong(kh.keHoach, r => r.nhapKho), fmtTy)}</td>
+              <td className={TD} />
+              <td className={bang.tdSo}>{oSo(phanTich.gioSpKh)}</td>
+              <td className={TD} />
+            </tr></tfoot>
           </table>
         </div>
 
@@ -303,31 +305,10 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
         {(kh.ngoaiKeHoach.length > 0 || phanTich.ngoaiGio.length > 0) && (
           <div className="grid gap-3 rlg:grid-cols-2">
             {kh.ngoaiKeHoach.length > 0 && (
-              <div className={KHUNG}>
-                <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Nhập kho ngoài kế hoạch tuần ({kh.ngoaiKeHoach.length}) — {tien(phanTich.nkNgoai)}</p>
-                <ul className="divide-y divide-slate-100 text-sm">
-                  {kh.ngoaiKeHoach.slice(0, 10).map(x => (
-                    <li key={x.hex} className="flex items-center justify-between gap-3 px-4 py-2">
-                      <span className="min-w-0 truncate"><b className="tabular-nums">{x.hex}</b> {x.tenHangMuc ?? ''}</span>
-                      <span className="shrink-0 tabular-nums text-slate-700">{tien(x.nhapKho)}</span>
-                    </li>
-                  ))}
-                  {kh.ngoaiKeHoach.length > 10 && <li className="px-4 py-2 text-xs text-slate-500">+{kh.ngoaiKeHoach.length - 10} hạng mục khác</li>}
-                </ul>
-              </div>
+              <BangNgoaiKh ten={`Nhập kho ngoài KH tuần này (${kh.ngoaiKeHoach.length})`} cot="Nhập kho (tỷ)" ds={kh.ngoaiKeHoach.map(x => ({ hex: x.hex, ten: x.tenHangMuc, gt: x.nhapKho }))} hien={v => fmtTy(v)} />
             )}
             {phanTich.ngoaiGio.length > 0 && (
-              <div className={KHUNG}>
-                <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Giờ công SP cho hạng mục ngoài kế hoạch — {so(phanTich.gioSpTong - phanTich.gioSpKh)} giờ</p>
-                <ul className="divide-y divide-slate-100 text-sm">
-                  {phanTich.ngoaiGio.slice(0, 10).map(h => (
-                    <li key={h.hex} className="flex items-center justify-between gap-3 px-4 py-2">
-                      <span className="min-w-0 truncate"><b className="tabular-nums">{h.hex}</b> {h.tenHangMuc ?? ''}</span>
-                      <span className="shrink-0 tabular-nums text-slate-700">{so(h.gioCong)} giờ</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <BangNgoaiKh ten="Giờ công SP ngoài KH tuần này" cot="Giờ công SP" ds={phanTich.ngoaiGio.map(h => ({ hex: h.hex, ten: h.tenHangMuc, gt: h.gioCong }))} hien={v => so(v)} />
             )}
           </div>
         )}
@@ -352,6 +333,28 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
   );
 }
 
+function BangNgoaiKh({ ten, cot, ds, hien: inSo }: { ten: string; cot: string; ds: Array<{ hex: string; ten?: string | null; gt: number }>; hien: (v: number) => string }) {
+  const { hien, soKhac, khac, tong } = catKhac(ds, 10, x => x.gt);
+  return (
+    <div className={KHUNG}>
+      <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">{ten}</p>
+      <table className={`${BANG} w-full`}>
+        <thead className={bang.thead}><tr><th className={TH}>Hạng mục</th><th className={TH}>{cot}</th></tr></thead>
+        <tbody>
+          {hien.map(x => (
+            <tr key={x.hex}>
+              <td className={TD}><span className="font-semibold tabular-nums">{x.hex}</span> {x.ten ?? ''}</td>
+              <td className={bang.tdSo}>{bang.trong0(x.gt, inSo)}</td>
+            </tr>
+          ))}
+          {soKhac > 0 && <tr><td className={TD}>Khác ({soKhac} hạng mục)</td><td className={bang.tdSo}>{bang.trong0(khac, inSo)}</td></tr>}
+        </tbody>
+        <tfoot className={bang.tfoot}><tr><td className={TD}>TỔNG</td><td className={bang.tdSo}>{bang.trong0(tong, inSo)}</td></tr></tfoot>
+      </table>
+    </div>
+  );
+}
+
 function FragmentDong({ r, tt, gioSp, mo, onMo, homNay }: {
   r: KeHoachTuanDong; tt: TinhTrang; gioSp: number; mo: boolean; onMo: () => void; homNay: string;
 }) {
@@ -361,14 +364,14 @@ function FragmentDong({ r, tt, gioSp, mo, onMo, homNay }: {
         <span className="font-semibold tabular-nums text-slate-900">{r.hex}</span> <span className="text-slate-800">{r.tenHangMuc ?? ''}</span>
         <div className="text-xs text-slate-500">{r.tenCongTrinh ?? ''}</div>
       </td>
-      <td className={`${TD} text-right tabular-nums`}>{tien(r.kh)}{r.slKh ? <div className="text-xs text-slate-500">{hienSl(r.slKh)} {r.dvt ?? ''}</div> : null}</td>
-      <td className={`${TD} tabular-nums ${r.ngayKhnk && r.ngayKhnk < homNay && tt.ma !== 'dat' ? 'font-medium text-red-700' : ''}`}>{r.ngayKhnk ? ddmm(r.ngayKhnk) : '—'}</td>
-      <td className={`${TD} text-right tabular-nums`}>{r.nhapKho > 0 ? tien(r.nhapKho) : '—'}</td>
+      <td className={`${TD} text-center tabular-nums`}>{bang.trong0(r.kh, fmtTy)}{r.slKh ? <div className="text-xs text-slate-500">{hienSl(r.slKh)} {r.dvt ?? ''}</div> : null}</td>
+      <td className={`${TD} text-center tabular-nums ${r.ngayKhnk && r.ngayKhnk < homNay && tt.ma !== 'dat' ? 'font-medium text-red-700' : ''}`}>{r.ngayKhnk ? ddmm(r.ngayKhnk) : ''}</td>
+      <td className={`${TD} text-center tabular-nums`}>{bang.trong0(r.nhapKho, fmtTy)}</td>
       <td className={TD}>
         <span className={`inline-block rounded border px-1.5 py-0.5 text-xs font-medium ${MAU[tt.muc]}`}>{tt.ten}</span>
         {tt.chiTiet && <div className="mt-0.5 text-xs text-slate-600">{tt.chiTiet}</div>}
       </td>
-      <td className={`${TD} text-right tabular-nums`}>{gioSp > 0 ? so(gioSp) : '—'}</td>
+      <td className={`${TD} text-center tabular-nums`}>{oSo(gioSp)}</td>
       <td className={`${TD} text-slate-400`}>{r.congDoan.length ? (mo ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : null}</td>
     </tr>
     {mo && r.congDoan.length > 0 && (

@@ -7,6 +7,7 @@ import {
 import { Activity, PieChart, TrendingUp } from 'lucide-react';
 import { planWeekRange } from '../utils/dateUtils';
 import { formatTrieuAsTy } from '../utils/money';
+import { fmtInt, fmtPt } from '../utils/format';
 
 interface ProductivityData {
     name: string;
@@ -32,14 +33,6 @@ interface ProductivityChartsProps {
     };
 }
 
-const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('vi-VN').format(value);
-};
-
-const formatPercent = (value: number) => {
-    return `${value.toFixed(1)}%`;
-};
-
 const formatDecimal = (value: number) => {
     return !Number.isFinite(value) ? '0' : value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
@@ -47,10 +40,10 @@ const formatDecimal = (value: number) => {
 // Custom Tooltip for better readability
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-        // Sort: Doanh số first
+        // Nhập kho đứng đầu
         const sortedPayload = [...payload].sort((a: any, b: any) => {
-            if (a.name === 'Doanh số') return -1;
-            if (b.name === 'Doanh số') return 1;
+            if (a.name === 'Nhập kho') return -1;
+            if (b.name === 'Nhập kho') return 1;
             return 0;
         });
 
@@ -58,16 +51,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md text-sm">
                 <p className="font-bold text-slate-700 mb-2">{label}</p>
                 {sortedPayload.map((entry: any, index: number) => {
-                    let valueDisplay = formatNumber(entry.value);
+                    let valueDisplay = formatDecimal(entry.value);
 
-                    if (entry.name === 'Doanh số') {
-                        valueDisplay = `${formatTrieuAsTy(entry.value)} Tỷ`;
-                    } else if (entry.name === 'Giờ Hành chính') {
-                        valueDisplay = `${formatNumber(Math.round(entry.value))} Giờ`;
-                    } else if (entry.name === 'Giờ Tăng ca') {
-                        valueDisplay = `${formatNumber(Math.round(entry.value))} Giờ`;
-                    } else if (entry.name === 'Tỉ lệ Tăng ca') {
-                        valueDisplay = `${entry.value.toFixed(1)}%`;
+                    if (entry.name === 'Nhập kho') {
+                        valueDisplay = `${formatTrieuAsTy(entry.value)} tỷ`;
+                    } else if (entry.name === 'Giờ HC' || entry.name === 'Giờ tăng ca') {
+                        valueDisplay = `${formatDecimal(entry.value)} giờ`;
+                    } else if (entry.name === '% tăng ca') {
+                        valueDisplay = fmtPt(entry.value);
                     }
 
                     return (
@@ -94,7 +85,7 @@ const Chart2Tooltip = ({ active, payload, label }: any) => {
             <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
                 <p className="text-xs font-bold text-slate-700 mb-2">{label}</p>
                 <div className="flex items-center justify-between gap-4">
-                    <span className="text-xs text-blue-600 font-medium">BQ DS/CN:</span>
+                    <span className="text-xs text-blue-600 font-medium">DS / CN:</span>
                     <span className="text-sm font-bold text-blue-700">
                         {formatDecimal(data.salesPerWorker)} triệu
                     </span>
@@ -148,7 +139,8 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
         const rows = data ?? [];
         const totalSales = rows.reduce((sum, item) => sum + item.sales, 0);
         const totalWorkers = rows.reduce((sum, item) => sum + item.avgWorkers, 0);
-        return totalWorkers > 0 ? totalSales / totalWorkers : 0;
+        // Đang lọc công trình: DS / CN để trống như bảng Năng suất, không vẽ đường trung bình
+        return totalWorkers > 0 && rows.some(item => item.salesPerWorker > 0) ? totalSales / totalWorkers : 0;
     }, [data]);
 
     // Hook phải gọi trước mọi `return` sớm (quy tắc hooks) — trước đây return null đứng trên useMemo
@@ -255,14 +247,14 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                 <Tooltip content={<CustomTooltip />} />
                                 <Legend verticalAlign="top" height={36} />
 
-                                <Bar yAxisId="left" dataKey="totalHc" name="Giờ Hành chính" stackId="a" fill="#22c55e" barSize={40} />
-                                <Bar yAxisId="left" dataKey="totalTc" name="Giờ Tăng ca" stackId="a" fill="#F2994A" barSize={40} />
+                                <Bar yAxisId="left" dataKey="totalHc" name="Giờ HC" stackId="a" fill="#22c55e" barSize={40} />
+                                <Bar yAxisId="left" dataKey="totalTc" name="Giờ tăng ca" stackId="a" fill="#F2994A" barSize={40} />
 
                                 <Line
                                     yAxisId="sales"
                                     type="monotone"
                                     dataKey="sales"
-                                    name="Doanh số"
+                                    name="Nhập kho"
                                     stroke="#3b82f6"
                                     strokeWidth={3}
                                     dot={{ r: 3, fill: '#3b82f6', stroke: '#3b82f6', strokeWidth: 1 }}
@@ -278,7 +270,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     yAxisId="right"
                                     type="monotone"
                                     dataKey="overtimeRate"
-                                    name="Tỉ lệ Tăng ca"
+                                    name="% tăng ca"
                                     stroke="#eab308"
                                     strokeWidth={2}
                                     dot={{ r: 3, fill: '#eab308', stroke: '#eab308', strokeWidth: 1 }}
@@ -286,7 +278,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     <LabelList
                                         dataKey="overtimeRate"
                                         position="top"
-                                        formatter={(val: number) => val.toFixed(0) + '%'}
+                                        formatter={(val: number) => fmtPt(val)}
                                         style={{ fontSize: 12, fill: '#ca8a04', fontWeight: 'bold' }}
                                     />
                                 </Line>
@@ -314,7 +306,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                 />
                                 <YAxis hide />
                                 <Tooltip content={<Chart2Tooltip />} cursor={{ fill: '#f8fafc' }} />
-                                <Bar dataKey="salesPerWorker" name="BQ DS/CN" radius={[4, 4, 0, 0]}>
+                                <Bar dataKey="salesPerWorker" name="DS / CN" radius={[4, 4, 0, 0]}>
                                     {data.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={WARM_PALETTE[index % WARM_PALETTE.length]} />
                                     ))}
@@ -325,9 +317,11 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                         style={{ fontSize: 12, fill: '#334155', fontWeight: 700 }}
                                     />
                                 </Bar>
-                                <ReferenceLine y={overallAvgSalesPerWorker} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={2}>
-                                    <Label value={`TB AATN: ${formatDecimal(overallAvgSalesPerWorker)} Triệu`} position="insideTopRight" fill="#ef4444" fontSize={12} fontWeight="bold" dy={-20} dx={-10} />
-                                </ReferenceLine>
+                                {overallAvgSalesPerWorker > 0 && (
+                                    <ReferenceLine y={overallAvgSalesPerWorker} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={2}>
+                                        <Label value={`TB AATN: ${formatDecimal(overallAvgSalesPerWorker)} triệu`} position="insideTopRight" fill="#ef4444" fontSize={12} fontWeight="bold" dy={-20} dx={-10} />
+                                    </ReferenceLine>
+                                )}
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -353,12 +347,12 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                 <YAxis
                                     type="number"
                                     dataKey="sales"
-                                    name="Doanh số"
+                                    name="Nhập kho"
                                     tickFormatter={(val: number) => formatTrieuAsTy(val)}
                                     tick={{ fontSize: 12, fill: '#475569' }}
-                                    label={{ value: 'Doanh số (tỷ)', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#475569', style: { textAnchor: 'middle' } }}
+                                    label={{ value: 'Nhập kho (tỷ)', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#475569', style: { textAnchor: 'middle' } }}
                                 />
-                                <ZAxis type="number" dataKey="overtimeRate" range={[50, 600]} name="Tỉ lệ Tăng ca" unit="%" />
+                                <ZAxis type="number" dataKey="overtimeRate" range={[50, 600]} name="% tăng ca" unit="%" />
                                 <Tooltip cursor={{ strokeDasharray: '3 3' }} content={
                                     ({ active, payload }: any) => {
                                         if (active && payload && payload.length) {
@@ -366,10 +360,10 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                             return (
                                                 <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md text-sm">
                                                     <p className="font-bold text-slate-800 mb-1">{d.name}</p>
-                                                    <p className="text-slate-600">Quy mô: <span className="font-medium text-slate-800">{formatNumber(d.avgWorkers)} CN</span></p>
-                                                    <p className="text-slate-600">Doanh số: <span className="font-medium text-slate-800">{formatTrieuAsTy(d.sales)} Tỷ</span></p>
-                                                    <p className="text-slate-600">Tỉ lệ Tăng ca: <span className="font-medium text-orange-600">{formatPercent(d.overtimeRate)}</span></p>
-                                                    <p className="text-blue-600 font-medium text-xs mt-1">NS: {formatDecimal(d.salesPerHour)} triệu/giờ</p>
+                                                    <p className="text-slate-600">TB công nhân: <span className="font-medium text-slate-800">{fmtInt(d.avgWorkers)}</span></p>
+                                                    <p className="text-slate-600">Nhập kho: <span className="font-medium text-slate-800">{formatTrieuAsTy(d.sales)} tỷ</span></p>
+                                                    <p className="text-slate-600">% tăng ca: <span className="font-medium text-orange-600">{fmtPt(d.overtimeRate)}</span></p>
+                                                    <p className="text-blue-600 font-medium text-xs mt-1">DS / giờ: {formatDecimal(d.salesPerHour)} triệu</p>
                                                 </div>
                                             );
                                         }

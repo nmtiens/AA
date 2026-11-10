@@ -164,7 +164,7 @@ const WorkshopGroupSetup: React.FC<Props> = ({ onSaved, embedded = false }) => {
                           </td>
                           {TABLE_ORDER.map(t => (
                             <td key={t} className="px-3 py-1.5 text-right tabular-nums text-slate-600">
-                              {c.counts[t] ? c.counts[t].toLocaleString('vi-VN') : <span className="text-slate-300">–</span>}
+                              {c.counts[t] ? c.counts[t].toLocaleString('en-US') : <span className="text-slate-300">–</span>}
                             </td>
                           ))}
                           <td className="px-3 py-1.5">

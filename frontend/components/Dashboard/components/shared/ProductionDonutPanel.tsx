@@ -342,7 +342,7 @@ interface Props {
 export const ProductionDonutPanel: React.FC<Props> = ({
   data, columns, selection, onSelectionChange, metric: metricProp, onMetricChange, scopeNote, coCauSan = null,
 }) => {
-  const [metricState, setMetricState] = useState<Metric>('count');
+  const [metricState, setMetricState] = useState<Metric>('value');
   const metric = metricProp ?? metricState;
   const setMetric = (m: Metric) => { setMetricState(m); onMetricChange?.(m); };
 

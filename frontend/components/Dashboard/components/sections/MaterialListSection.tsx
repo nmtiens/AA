@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Box, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DataRow } from '../../../../types';
 import { MATERIAL_LIST_COLUMNS, MATERIAL_LIST_COLUMN_LABELS } from '../../constants';
+import { fmtInt } from '../../../../utils/format';
+import * as bang from '../../../shared/bangBaoCao';
 
 const MATERIAL_ITEMS_PER_PAGE = 100;
 
@@ -55,41 +57,47 @@ const totalMaterialPages = Math.max(
           <Box className="w-4 h-4 text-slate-600" />Chi tiết vật tư
         </h3>
        <span className="text-sm text-slate-600 tabular-nums">
-  {paginatedMaterialList.length} / {displayedMaterialData.length}
+  {fmtInt(paginatedMaterialList.length)} / {fmtInt(displayedMaterialData.length)}
 </span>
       </div>
-<div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
-        <table className="w-full text-sm text-left whitespace-nowrap">
-          <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10">
+      <div className={`${bang.khung} max-h-[600px]`}>
+        <table className={`${bang.table} whitespace-nowrap text-left`}>
+          <thead className={bang.thead}>
             <tr>
-              <th className="px-3 py-2 border-b border-slate-200 text-center w-10">STT</th>
+              <th className={`${bang.thC} w-12`}>STT</th>
               {MATERIAL_LIST_COLUMNS.map((col, idx) => (
-                <th key={idx} className="px-3 py-2 border-b border-slate-200">
+                <th key={idx} className={bang.thB}>
                   {MATERIAL_LIST_COLUMN_LABELS[col] || col}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {paginatedMaterialList.length > 0 ? (
               paginatedMaterialList.map((row, index) => (
-                <tr key={index} className={`transition-colors border-b border-slate-100 ${getMaterialRowClassName(row)}`}>
-                  <td className="px-3 py-2 text-center text-slate-500 font-mono text-sm">
+                <tr key={index} className={getMaterialRowClassName(row)}>
+                  <td className={`${bang.tdSo} text-slate-500`}>
                     {(materialListPage - 1) * MATERIAL_ITEMS_PER_PAGE + index + 1}
                   </td>
                   {MATERIAL_LIST_COLUMNS.map((col, colIdx) => (
-                    <td key={colIdx} className="px-3 py-2">{formatCellValue(row[col])}</td>
+                    <td key={colIdx} className={bang.tdB}>{formatCellValue(row[col])}</td>
                   ))}
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={MATERIAL_LIST_COLUMNS.length + 1} className="p-8 text-center text-slate-500">
+                <td colSpan={MATERIAL_LIST_COLUMNS.length + 1} className={`${bang.tdB} p-8 text-center text-slate-500`}>
                   Không có dữ liệu hiển thị.
                 </td>
               </tr>
             )}
           </tbody>
+          <tfoot className={bang.tfoot}>
+            <tr>
+              <td className={bang.tdSo}>TỔNG</td>
+              <td className={bang.tdB} colSpan={MATERIAL_LIST_COLUMNS.length}>{fmtInt(displayedMaterialData.length)} dòng</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       {totalMaterialPages > 1 && (

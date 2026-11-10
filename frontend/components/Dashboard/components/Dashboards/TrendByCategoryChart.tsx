@@ -58,8 +58,8 @@ const KIND_CONFIG: Record<CategoryKind, {
   },
 };
 
-const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+const formatDecimal = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const formatShort = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
   order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Giá trị (tỷ)' },
@@ -161,7 +161,7 @@ export default function TrendByCategoryChart({
 
   const theme = THEME[source];
   // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số lượng HEX') : theme.unitValue;
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số hạng mục') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -316,7 +316,7 @@ export default function TrendByCategoryChart({
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
-              margin={{ top: embedded ? 40 : 48, right: embedded ? cfg.marginRight[0] : cfg.marginRight[1], left: 0, bottom: 0 }}
+              margin={{ top: embedded ? 40 : 48, right: 16, left: 0, bottom: 0 }}
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -364,23 +364,6 @@ export default function TrendByCategoryChart({
                   stroke="#16a34a"
                   strokeWidth={2}
                   strokeDasharray="6 4"
-                  label={(props: any) => {
-                    const { viewBox } = props;
-                    const text = `${cfg.avgLabel}: ${fmtShort(avgAll)}`;
-                    return (
-                      <text
-                        x={viewBox.x + viewBox.width + 8}
-                        y={viewBox.y}
-                        dy={4}
-                        textAnchor="start"
-                        fontSize={12}
-                        fontWeight={600}
-                        fill="#16a34a"
-                      >
-                        {text}
-                      </text>
-                    );
-                  }}
                 />
               )}
             </ComposedChart>
@@ -397,7 +380,7 @@ export default function TrendByCategoryChart({
               backgroundColor: `${theme.bar}1A`,
             }}
           >
-            Tổng: {fmt(totalAll)}
+            Tổng: {fmt(totalAll)} · {cfg.avgLabel}: {fmtShort(avgAll)}
           </div>
         )}
         {pinned && (

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  chonCuoiThang, ghepDauVaoV5, laHuy, laXuatTinh, nhomDuAn, sqlDonPsa, sqlDongLuong, sqlTonKhoV5, sqlTonNgay, tinhTonKhoV5, tinhTuoi,
+  chonCuoiThang, ghepDauVaoV5, laHuy, laKyDo, laXuatTinh, nhomDuAn, sqlDonPsa, sqlDongLuong, sqlTonKhoV5, sqlTonNgay, tinhTonKhoV5, tinhTuoi,
   type DongMoc, type DongNhap, type DongPsa, type DongPsaNhom, type DongTon, type DongXuat, type InputTonKhoV5,
 } from '../src/server/tonKhoV5.js';
 import { LoiChiTiet, chiTietTonKhoV5, docYeuCauChiTiet, laNgay, type YeuCauChiTiet } from '../src/server/tonKhoV5ChiTiet.js';
@@ -50,14 +50,37 @@ describe('định nghĩa', () => {
     assert.equal(nhomDuAn('TỒN', 'UPLOAD AATN'), 'Hàng lẻ (mã TỒN)');
     assert.equal(nhomDuAn('CT1', 'XYZ'), 'Khác');
   });
-  it('mốc cuối tháng: bỏ mốc sát ngày xem', () => {
-    assert.deepEqual(chonCuoiThang(['2026-09-30', '2026-10-01', '2026-10-29', '2026-11-01']), ['2026-09-30', '2026-11-01']);
+  it('mốc cuối tháng: giữ lần chốt cuối mọi tháng, kể cả sát ngày xem', () => {
+    assert.deepEqual(chonCuoiThang(['2026-09-30', '2026-10-01', '2026-10-29', '2026-11-04']), ['2026-09-30', '2026-10-29', '2026-11-04']);
     assert.deepEqual(chonCuoiThang(['2026-09-30', '2026-10-15']), ['2026-09-30', '2026-10-15']);
     assert.deepEqual(chonCuoiThang([]), []);
+  });
+  it('kỳ dở: mốc cuối còn hơn 7 ngày mới hết tháng', () => {
+    assert.equal(laKyDo('2026-11-04'), true);
+    assert.equal(laKyDo('2026-10-29'), false);
+    assert.equal(laKyDo('2026-11-23'), true);
+    assert.equal(laKyDo('2026-11-24'), false);
   });
 });
 
 describe('tổng và phân loại', () => {
+  it('đếm mã giá trị ≠ 0, mã chỉ có giá trị 0 tách riêng; công trình theo tên chuẩn', () => {
+    const ton = [
+      dTon({ sap: 'S1', ten: 'A ' }), dTon({ sap: 'S1', v: 0 }), dTon({ sap: 'S2', ten: 'a', v: 0 }), dTon({ sap: 'S3', ten: 'B', v: 5 }),
+    ];
+    const r = tinhTonKhoV5(dauVao({ ton }));
+    assert.equal(r.tong.ma, 2);
+    assert.equal(r.tong.ma0, 1);
+    assert.equal(r.tong.congTrinh, 2);
+    assert.equal(tinhTonKhoV5({ ...dauVao({ ton }), tenChuan: () => 'GOP' }).tong.congTrinh, 1);
+  });
+  it('kỳ cuối chưa hết tháng là kỳ dở, cửa sổ ra vẫn đủ 3 tháng', () => {
+    const date = '2026-11-04';
+    const r = tinhTonKhoV5(dauVao({ date, ngayChot: ['2026-06-30', '2026-07-31', '2026-08-31', '2026-09-30', '2026-10-29', date] }));
+    assert.deepEqual(r.ky.dong.map(k => k.kyDo), [false, false, false, false, true]);
+    assert.equal(r.ky.dong[4].ngay, 6);
+    assert.equal(r.goiCu.ngay, 96); // 31/07 -> 04/11
+  });
   it('cũ theo tuổi, không có ngày nhập không tính cũ', () => {
     const r = tinhTonKhoV5(dauVao({
       ton: [dTon({ nk: '2026-01-01', v: 100 }), dTon({ nk: null, v: 50 }), dTon({ nk: '2026-10-20', v: 30 })],

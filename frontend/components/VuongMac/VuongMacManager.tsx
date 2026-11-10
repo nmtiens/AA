@@ -8,7 +8,9 @@ import {
 import { fetchXuongList } from '../../services/vuongMacMobileApi';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { STATUS_META, PRIORITY_META, CAT_CODE, CAT_NAME, catIcon, fmtHours, fmtShort, fmtDay, dayKey, displayState, DISPLAY_META, botCountdown } from './model';
+import { STATUS_META, PRIORITY_META, CAT_CODE, CAT_NAME, fmtHours, fmtShort, fmtDay, dayKey, displayState, gomBangNhom, DISPLAY_META, botCountdown } from './model';
+import * as bang from '../shared/bangBaoCao';
+import { fmtInt } from '../../utils/format';
 import { DetailSheet, FormSheet, StatusPill, PriorityPill } from './sheets';
 import { BOP_STAGE_ORDER } from '../../utils/productionMetrics';
 
@@ -20,7 +22,6 @@ import { BOP_STAGE_ORDER } from '../../utils/productionMetrics';
 //  4. Cần xử lý ngay (quá hạn lâu nhất) + danh sách đầy đủ có lọc, xuất Excel, mở chi tiết (cùng sheet với app điện thoại)
 // ============================================================================
 
-const fmtInt = (n: number | null | undefined) => (n === null || n === undefined ? '–' : n.toLocaleString('vi-VN'));
 const todayISO = () => dayKey(new Date());
 const daysAgoISO = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); };
 
@@ -223,18 +224,18 @@ export default function VuongMacManager() {
           </button>
         </div>
       </div>
-      {dashErr && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">⚠️ {dashErr}</p>}
+      {dashErr && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{dashErr}</p>}
 
       {/* 1. KPI: 4 thẻ chính (bấm => lọc danh sách) + dòng chỉ số phụ */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <Kpi icon={<Clock size={16} />} label="Chưa xong" value={t?.open} tone="text-slate-900"
+        <Kpi icon={<Clock size={16} />} label="Chưa xong" pham="Hiện tại" value={t?.open} tone="text-slate-900"
           sub={t ? `${t.open - t.doing} mới · ${t.doing} đang xử lý` : ''} onClick={() => pick({ tab: 'active', due: '' }, 'chưa xong')} />
-        <Kpi icon={<AlertTriangle size={16} />} label="Quá hạn BOT" value={t?.overdue} tone={t?.overdue ? 'text-red-600' : 'text-slate-900'}
-          sub={t ? (t.soon ? `${t.soon} sắp đến hạn (≤ 24 giờ)` : 'không có vướng mắc sắp đến hạn') : ''}
-          subTone={t?.soon ? 'text-amber-700' : undefined} onClick={() => pick({ tab: 'active', due: 'overdue' }, 'quá hạn BOT')} />
-        <Kpi icon={<CheckCircle2 size={16} />} label="Chờ xác nhận" value={t?.waiting} tone="text-slate-900"
-          sub="đã xử lý xong, chờ người báo xác nhận" onClick={() => pick({ tab: 'waiting', due: '' }, 'chờ xác nhận')} />
-        <Kpi icon={<Plus size={16} />} label="Báo mới trong kỳ" value={t?.created} tone="text-slate-900"
+        <Kpi icon={<AlertTriangle size={16} />} label="Quá hạn xử lý" pham="Hiện tại" value={t?.overdue} tone={t?.overdue ? 'text-red-600' : 'text-slate-900'}
+          sub={t?.soon ? `${t.soon} sắp đến hạn` : ''}
+          subTone={t?.soon ? 'text-amber-700' : undefined} onClick={() => pick({ tab: 'active', due: 'overdue' }, 'quá hạn xử lý')} />
+        <Kpi icon={<CheckCircle2 size={16} />} label="Chờ xác nhận" pham="Hiện tại" value={t?.waiting} tone="text-slate-900"
+          onClick={() => pick({ tab: 'waiting', due: '' }, 'chờ xác nhận')} />
+        <Kpi icon={<Plus size={16} />} label="Báo mới" pham="Trong kỳ" value={t?.created} tone="text-slate-900"
           sub={t ? `xử lý xong ${t.done} · đóng ${t.closed}` : ''} />
       </div>
       {t && (
@@ -243,8 +244,8 @@ export default function VuongMacManager() {
           <span>nhận việc TB <b className="font-semibold text-slate-900">{fmtHours(t.avgAcceptHours)}</b></span>
           <span>đóng TB <b className="font-semibold text-slate-900">{fmtHours(t.avgCloseHours)}</b></span>
           <span className="inline-flex items-center gap-1.5"><Flame size={14} className={t.urgent ? 'text-orange-600' : 'text-slate-400'} />Khẩn <b className={`font-semibold ${t.urgent ? 'text-orange-600' : 'text-slate-900'}`}>{fmtInt(t.urgent)}</b></span>
-          <span className="inline-flex items-center gap-1.5"><Siren size={14} className={t.escalated ? 'text-red-600' : 'text-slate-400'} />Đã báo quản lý <b className={`font-semibold ${t.escalated ? 'text-red-600' : 'text-slate-900'}`}>{fmtInt(t.escalated)}</b> <span className="text-slate-400">(quá hạn &gt; 24 giờ)</span></span>
-          {(t.noBot ?? 0) > 0 && <span className="text-amber-700">Chưa có BOT: <b className="font-semibold">{fmtInt(t.noBot)}</b> — nên đặt hạn để theo dõi quá hạn</span>}
+          <span className="inline-flex items-center gap-1.5"><Siren size={14} className={t.escalated ? 'text-red-600' : 'text-slate-400'} />Đã báo quản lý <b className={`font-semibold ${t.escalated ? 'text-red-600' : 'text-slate-900'}`}>{fmtInt(t.escalated)}</b> </span>
+          {(t.noBot ?? 0) > 0 && <span className="text-amber-700">Chưa có hạn: <b className="font-semibold">{fmtInt(t.noBot)}</b></span>}
         </div>
       )}
 
@@ -281,7 +282,7 @@ export default function VuongMacManager() {
 
       {/* 3. Theo nhóm: 1 khung có thẻ (trước 5 bảng nhỏ chật) + Cần xử lý ngay */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <Panel title="Phân tích theo nhóm" sub="bấm 1 dòng để lọc danh sách bên dưới · bấm lại để bỏ lọc"
+        <Panel title="Phân tích theo nhóm" sub="bấm 1 dòng để lọc danh sách"
           right={
             <div className="flex flex-wrap gap-1" role="tablist">
               {NHOM_TABS.map(([k, l]) => (
@@ -290,11 +291,10 @@ export default function VuongMacManager() {
               ))}
             </div>
           }>
-          {nhomTab === 'cat' && <GroupTable rows={dash?.byCategory ?? []} label={n => `${catIcon(n)} ${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`}
+          {nhomTab === 'cat' && <GroupTable rows={dash?.byCategory ?? []} label={n => `${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`}
             onPick={n => pick({ cat: n as FiveMCategory, tab: 'active' }, `${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`)} active={f.cat} />}
           {nhomTab === 'xuong' && <GroupTable rows={dash?.byXuong ?? []} onPick={n => pickRow('xuong', n, `khu vực ${n}`, 'bỏ lọc khu vực')} active={f.xuong} />}
           {nhomTab === 'stage' && <>
-            <p className="mb-2 text-xs text-slate-500">Công đoạn (BOP) của hạng mục lúc báo vướng mắc — biết khâu nào hay vướng</p>
             <GroupTable rows={dash?.byStage ?? []} onPick={n => pickRow('stage', n, `công đoạn ${n}`, 'bỏ lọc công đoạn')} active={f.stage} />
           </>}
           {nhomTab === 'handler' && <GroupTable rows={dash?.byHandler ?? []} onPick={n => {
@@ -323,7 +323,7 @@ export default function VuongMacManager() {
                   </span>
                   <span className="shrink-0 text-right text-xs">
                     <span className={`block font-semibold ${o.due === 'overdue' ? 'text-red-600' : 'text-slate-700'}`}>{o.due === 'overdue' ? 'Quá hạn' : o.due === 'none' ? 'Không BOT' : 'Còn hạn'}</span>
-                    <span className="block text-slate-500">{Math.round(o.ageHours / 24)} ngày tuổi</span>
+                    <span className="block text-slate-500">{fmtInt(o.ageHours / 24)} ngày tuổi</span>
                     <span className="block text-blue-600 opacity-0 group-hover:opacity-100">Xem chi tiết ›</span>
                   </span>
                 </button>
@@ -379,7 +379,7 @@ export default function VuongMacManager() {
           </select>
           {f.tab === 'active' && (
             <select value={f.due} onChange={e => set({ due: e.target.value as ListFilter['due'] })} className="rounded-lg border border-slate-300 px-2 py-1.5">
-              <option value="">Mọi hạn</option><option value="overdue">Quá hạn BOT</option><option value="soon">Sắp đến hạn</option>
+              <option value="">Mọi hạn</option><option value="overdue">Quá hạn xử lý</option><option value="soon">Sắp đến hạn</option>
             </select>
           )}
           <select value={f.sort} onChange={e => set({ sort: e.target.value as ListFilter['sort'] })} className="rounded-lg border border-slate-300 px-2 py-1.5">
@@ -413,11 +413,11 @@ export default function VuongMacManager() {
                       <p className="truncate text-xs text-slate-500" title={v.hangMuc ?? ''}>{v.hangMuc || ''}</p>
                     </td>
                     <td className="max-w-[360px] px-3 py-2"><p className="line-clamp-3 text-slate-800">{v.content}</p>{(v.photos?.length ?? 0) > 0 && <span className="text-xs text-slate-400">📷 {v.photos!.length}</span>}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-slate-700">{catIcon(v.category)} {CAT_CODE[v.category]}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-700">{CAT_CODE[v.category]}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-slate-700">{v.xuong || '—'}<br /><span className="text-xs text-slate-500">{v.stage || '—'}{v.bop && v.stage && !String(v.bop).toUpperCase().startsWith(v.stage) ? ` → ${String(v.bop).slice(0, 4)}` : ''}</span></td>
                     <td className="whitespace-nowrap px-3 py-2">{v.handler ? <span className={mine ? 'font-medium text-indigo-700' : 'text-slate-700'}>{v.handler}</span> : <span className="text-amber-700">Chưa giao</span>}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-slate-700">
-                      {v.bot ? <span className="block text-xs">{v.bot.split(' - ')[1] ?? v.bot}</span> : <span className="text-xs text-slate-400">Chưa có BOT</span>}
+                      {v.bot ? <span className="block text-xs">{v.bot.split(' - ')[1] ?? v.bot}</span> : <span className="text-sm text-slate-500">Chưa có hạn</span>}
                       {cd && <span className={`block text-xs font-medium ${cd.cls}`}>{cd.text}</span>}
                       {v.deadline && <span className="block text-xs text-slate-400">NK hạng mục {fmtDay(v.deadline)}</span>}
                     </td>
@@ -455,16 +455,17 @@ export default function VuongMacManager() {
   }
 }
 
-function Kpi({ icon, label, value, display, tone, sub, subTone, onClick }: {
-  icon: ReactNode; label: string; value: number | null | undefined; display?: string; tone: string; sub?: string; subTone?: string; onClick?: () => void;
+function Kpi({ icon, label, pham, value, display, tone, sub, subTone, onClick }: {
+  icon: ReactNode; label: string; pham?: string; value: number | null | undefined; display?: string; tone: string; sub?: string; subTone?: string; onClick?: () => void;
 }) {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag onClick={onClick} title={onClick ? 'Bấm để lọc danh sách' : undefined}
       className={`group flex flex-col rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left ${onClick ? 'transition hover:border-slate-400' : ''}`}>
       <span className="flex items-center gap-1.5 text-base text-slate-700"><span className="text-slate-400">{icon}</span>{label}
+        {pham && <span className="rounded border border-slate-300 px-1.5 text-[0.8125rem] text-slate-600">{pham}</span>}
         {onClick && <SearchIcon size={14} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />}</span>
-      <span className={`mt-1 text-[2rem] font-bold leading-tight tabular-nums ${tone}`}>{display ?? fmtInt(value)}</span>
+      <span className={`mt-1 text-[2rem] font-bold leading-tight tabular-nums ${tone}`}>{display ?? (value === null || value === undefined ? '–' : fmtInt(value))}</span>
       {sub && <span className={`mt-1 truncate text-sm ${subTone ?? 'text-slate-500'}`} title={sub}>{sub}</span>}
     </Tag>
   );
@@ -500,41 +501,59 @@ function Bars({ rows }: { rows: [string, number, string][] }) {
 function GroupTable({ rows, label, onPick, active, showAvg }: {
   rows: VmGroupStat[]; label?: (name: string) => string; onPick?: (name: string) => void; active?: string; showAvg?: boolean;
 }) {
-  const shown = useMemo(() => rows.filter(r => r.open || r.waiting || r.created || r.done).slice(0, 15), [rows]);
-  const maxOpen = Math.max(1, ...shown.map(r => r.open));
+  const { hien, khac, tong } = useMemo(() => gomBangNhom(rows, 15), [rows]);
+  const cot = showAvg ? 6 : 5;
+  const so = (v: number) => bang.trong0(v, fmtInt);
+  const tdChu = `${bang.tdB} max-w-[280px] truncate`;
   return (
-    <div className="overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="border-b border-slate-200 text-xs text-slate-500">
+    <div className={`${bang.khung} max-h-[480px]`}>
+      <table className={bang.table}>
+        <thead className={bang.thead}>
           <tr>
-            <th className="py-2 text-left font-medium">Nhóm</th>
-            <th className="py-2 text-right font-medium">Chưa xong</th>
-            <th className="py-2 text-right font-medium">Quá hạn</th>
-            <th className="py-2 text-right font-medium">Chờ XN</th>
-            <th className="py-2 text-right font-medium" title="báo mới / xử lý xong trong kỳ">Mới / xong kỳ</th>
-            {showAvg && <th className="py-2 text-right font-medium">TG xử lý</th>}
+            <th className={`${bang.thB} text-left`}>Nhóm</th>
+            <th className={bang.thC}>Chưa xong</th>
+            <th className={bang.thC}>Quá hạn</th>
+            <th className={bang.thC}>Chờ XN</th>
+            <th className={bang.thC}>Mới kỳ</th>
+            {showAvg && <th className={bang.thC}>TG xử lý</th>}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
-          {shown.map(r => (
+        <tbody>
+          {hien.map(r => (
             <tr key={r.name} onClick={onPick ? () => onPick(r.name) : undefined}
-              className={`${onPick ? 'cursor-pointer hover:bg-slate-50' : ''} ${active && active === r.name ? 'bg-slate-100 font-medium' : ''}`}>
-              <td className="max-w-[280px] py-2 pr-3" title={r.name}>
-                <span className="block truncate text-slate-800">{label ? label(r.name) : r.name}</span>
-                {/* thanh nhỏ = số chưa xong so với nhóm nhiều nhất */}
-                <span className="mt-1 block h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-slate-100" aria-hidden>
-                  <span className="block h-full rounded-full bg-slate-500" style={{ width: `${(r.open / maxOpen) * 100}%` }} />
-                </span>
-              </td>
-              <td className="py-2 text-right font-semibold tabular-nums text-slate-900">{r.open}</td>
-              <td className={`py-2 text-right tabular-nums ${r.overdue ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{r.overdue || '–'}</td>
-              <td className={`py-2 text-right tabular-nums ${r.waiting ? 'text-slate-900' : 'text-slate-300'}`}>{r.waiting || '–'}</td>
-              <td className="py-2 text-right tabular-nums text-slate-600">{r.created} / {r.done}</td>
-              {showAvg && <td className="py-2 text-right tabular-nums text-slate-600">{fmtHours(r.avgDoneHours)}</td>}
+              className={`${onPick ? 'cursor-pointer hover:bg-slate-50' : ''} ${active && active === r.name ? 'bg-slate-100 font-bold' : ''}`}>
+              <td className={tdChu} title={r.name}>{label ? label(r.name) : r.name}</td>
+              <td className={bang.tdSo}>{so(r.open)}</td>
+              <td className={`${bang.tdSo} ${r.overdue ? 'font-bold text-red-600' : ''}`}>{so(r.overdue)}</td>
+              <td className={bang.tdSo}>{so(r.waiting)}</td>
+              <td className={bang.tdSo}>{so(r.created)}</td>
+              {showAvg && <td className={bang.tdSo}>{fmtHours(r.avgDoneHours)}</td>}
             </tr>
           ))}
-          {shown.length === 0 && <tr><td colSpan={showAvg ? 6 : 5} className="py-6 text-center text-slate-400">Không có dữ liệu</td></tr>}
+          {khac && (
+            <tr>
+              <td className={tdChu}>Khác</td>
+              <td className={bang.tdSo}>{so(khac.open)}</td>
+              <td className={bang.tdSo}>{so(khac.overdue)}</td>
+              <td className={bang.tdSo}>{so(khac.waiting)}</td>
+              <td className={bang.tdSo}>{so(khac.created)}</td>
+              {showAvg && <td className={bang.tdSo} />}
+            </tr>
+          )}
+          {hien.length === 0 && <tr><td colSpan={cot} className={`${bang.tdB} text-center text-slate-500`}>Không có dữ liệu</td></tr>}
         </tbody>
+        {hien.length > 0 && (
+          <tfoot className={bang.tfoot}>
+            <tr>
+              <td className={bang.tdB}>TỔNG</td>
+              <td className={bang.tdSo}>{so(tong.open)}</td>
+              <td className={bang.tdSo}>{so(tong.overdue)}</td>
+              <td className={bang.tdSo}>{so(tong.waiting)}</td>
+              <td className={bang.tdSo}>{so(tong.created)}</td>
+              {showAvg && <td className={bang.tdSo} />}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

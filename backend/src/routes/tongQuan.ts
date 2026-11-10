@@ -116,7 +116,10 @@ const nhoKetQua = (k: string, buf: Buffer) => {
 };
 
 /** Lấy từ bộ nhớ / bản lưu (luuDb) hoặc dựng mới; luuDb = lưu all_data_snapshot dùng chung mọi phiên bản hàm */
+// Bản tính sẵn gắn phiên bản công thức: đổi công thức thì bản lưu của code cũ không bị đọc nhầm
+const PHIEN_BAN_TINH = 'r3';
 function layHoacDung(khoa: string, ver: string, luuDb: boolean, dung: () => Promise<{ buf: Buffer; timing: string }>) {
+  khoa = `${PHIEN_BAN_TINH}:${khoa}`;
   const k = `${khoa}|${ver}`;
   const nho = ketQuaNho.get(k);
   if (nho) return Promise.resolve({ buf: nho, nguon: 'mem', timing: '' });

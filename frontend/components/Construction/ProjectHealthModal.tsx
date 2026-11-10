@@ -3,7 +3,7 @@ import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListCheck
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, isCancelledIpo, planAfterDue, parsePlanDate, stageRank } from '../../utils/productionMetrics';
+import { deadlineOf, laHuy, planAfterDue, parsePlanDate, stageRank, tyLeHoanThanh } from '../../utils/productionMetrics';
 import { fetchHexExtra, gcnPending as isGcnPending, type HexExtra } from '../../services/productionExtraService';
 import { type RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
@@ -15,8 +15,9 @@ import { mucBopTuDong } from './core/bopPivot';
 import { BopTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
-import { formatTrieuAsTy } from '../../utils/money';
-import { fmtInt, fmtDate, DAY_MS as DAY } from '../../utils/format';
+import { fmtInt, fmtTy, fmtDate, fmtPt, DAY_MS as DAY } from '../../utils/format';
+import * as bang from '../shared/bangBaoCao';
+import { tongHangMuc } from './core/tongChiTiet';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, ReferenceLine } from 'recharts';
 
 // ============================================================================
@@ -122,12 +123,12 @@ function ThanhChia({ segs, total }: { segs: DoanThanh[]; total: number }) {
     <div className="flex h-6 w-full gap-px overflow-hidden rounded-md bg-slate-100">
       {hien.map(x => {
         const pct = (x.value / total) * 100;
-        const pctTxt = pct >= 99.95 ? '100%' : pct < 1 ? '<1%' : `${Math.round(pct)}%`;
+        const pctTxt = fmtPt(pct);
         return (
           <div key={x.label} title={x.title}
                className={`${x.color} ${x.ink} flex min-w-[3px] items-center justify-center overflow-hidden whitespace-nowrap px-1 text-[0.6875rem] font-semibold tabular-nums`}
                style={{ width: `${pct}%` }}>
-            {pct >= 28 ? `${x.label} · ${pctTxt}` : pct >= 7 ? pctTxt : ''}
+            {pct >= 28 ? `${x.label} · ${pctTxt}` : pct >= 9 ? pctTxt : ''}
           </div>
         );
       })}
@@ -143,10 +144,6 @@ const TONE: Record<Tone, { ring: string; text: string; dot: string }> = {
   slate: { ring: 'border-slate-200 bg-white', text: 'text-slate-900', dot: 'bg-slate-300' },
 };
 
-// Tỷ đồng: luôn 2 chữ số thập phân — thống nhất với Báo cáo tiến độ
-const fmtTy = formatTrieuAsTy;
-
-
 /**
  * Chuẩn hoá từng hạng mục (dòng bảng sản xuất) => HexInfo cho các tab BOT / BOP. Dùng chung: cửa sổ 1 công trình
  * và view BOP / BOT cho tất cả công trình ở trang Báo cáo tiến độ công trình.
@@ -154,7 +151,7 @@ const fmtTy = formatTrieuAsTy;
 export const dungHangMucCongTrinh = (src: DataRow[], keys: ProjectHealthKeys, today: number): HexInfo[] => {
   const out: HexInfo[] = [];
   for (const row of src) {
-    if (isCancelledIpo(row[keys.ipoKey])) continue;
+    if (laHuy(row[keys.ipoKey])) continue;
     // Trị giá / đã nhập / còn lại / công đoạn / nhóm / kho: cùng quy tắc với bảng công trình trang Tổng quan (core/bopPivot)
     const m = mucBopTuDong(row, keys);
     const { stage, open } = m;
@@ -235,6 +232,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const khoItems = useMemo(() => (khoRows ? dungHangMuc(khoRows) : items), [khoRows, items, keys, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hexList = useMemo(() => [...new Set(items.map(i => i.hex).filter(Boolean))], [items]);
+  // Đơn HỦY: ngoài mọi tổng, hiện riêng ở tiêu đề
+  const huy = useMemo(() => rows.reduce((a, r) => (laHuy(r[keys.ipoKey]) ? { n: a.n + 1, total: a.total + parseNumber(r[keys.triGiaKey]) } : a), { n: 0, total: 0 }), [rows, keys.ipoKey, keys.triGiaKey]);
   const hangMucByHex = useMemo(() => {
     const m: Record<string, string> = {};
     items.forEach(i => { if (i.hex && !m[i.hex]) m[i.hex] = i.hangMuc; });
@@ -536,9 +535,12 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const [listTab, setListTab] = useState<'urgent' | 'noBot' | 'rest'>('urgent');
   useEffect(() => { if (isOpen) setListTab('urgent'); }, [isOpen, projectName]);
   const shownList = listTab === 'urgent' ? urgent : listTab === 'noBot' ? noBot : rest;
+  const tongDs = useMemo(() => tongHangMuc(shownList), [shownList]);
 
   const botTone: Tone = bot.overdue > 0 ? 'red' : bot.dueSoon > 0 ? 'amber' : 'green';
-  const donePct = bop.total > 0 ? (bop.done / bop.total) * 100 : 0;
+  // % Hoàn thành: mọi IPO trừ HỦY, không theo bộ lọc trang
+  const hoanThanh = useMemo(() => khoItems.reduce((a, i) => ({ total: a.total + i.total, done: a.done + i.inv }), { total: 0, done: 0 }), [khoItems]);
+  const donePct = tyLeHoanThanh(hoanThanh.total, hoanThanh.done);
   const coverPct = bom && hexList.length ? (bom.withMat / hexList.length) * 100 : 0;
   const bomTone: Tone = !bom ? 'slate' : coverPct >= 80 ? 'green' : coverPct >= 40 ? 'amber' : 'red';
 
@@ -577,7 +579,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
           <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-500">Tổng quan công trình</p>
           <h3 id="health-title" className="truncate text-lg font-semibold text-slate-900">{projectName}</h3>
           <p className="mt-0.5 text-[0.6875rem] text-slate-500">
-            {pmText ? `PM: ${pmText} · ` : ''}{meta.pc ? `PC: ${meta.pc} · ` : ''}{fmtInt(hexList.length)} hạng mục · Tổng {fmtTy(bop.total)} tỷ (không tính đơn hủy, theo bộ lọc trang)
+            {pmText ? `PM: ${pmText} · ` : ''}{meta.pc ? `PC: ${meta.pc} · ` : ''}{fmtInt(hexList.length)} hạng mục · Tổng {fmtTy(bop.total)} tỷ
+            {huy.n > 0 && <span className="text-rose-600"> · hủy {fmtTy(huy.total)} tỷ, {fmtInt(huy.n)} mục</span>}
             {meta.nhomCt ? ` · Nhóm: ${meta.nhomCt}` : ''}{meta.tinhTrangDuAn ? ` · Dự án: ${meta.tinhTrangDuAn}` : ''}
           </p>
           {meta.botDuAn && (() => {
@@ -633,7 +636,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
         {/* Tab BOT = đúng 2 bảng "V. BOT - Kế hoạch nhập kho" (tháng / tuần) của file mẫu PC */}
-        {tab === 'bot' && <BotKhnk items={items} onHexClick={setTimelineHex} />}
+        {tab === 'bot' && <BotKhnk items={items} dieuPhoiItems={khoItems} onHexClick={setTimelineHex} />}
         {tab === 'bop' && <BopTab items={items} khoItems={khoItems} onHexClick={setTimelineHex} extra={extra} today={today} />}
         {/* Tab BOM = đúng 2 bảng BOP-M2 của file Excel PC (I. theo danh mục vật liệu · II. theo đơn hàng) */}
         {tab === 'bom' && <BopM2Section key={projectName} tenCongTrinh={projectName} onHexClick={setTimelineHex} />}
@@ -690,10 +693,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
           {/* BOP — công đoạn */}
           <Card icon={Factory} title="BOP" sub="Tiến độ công đoạn" tone="slate" to="bop">
             <p className="text-3xl font-semibold tabular-nums text-emerald-600">
-              {donePct.toLocaleString('en-US', { maximumFractionDigits: 1 })}%
-              <span className="ml-1 text-sm font-medium text-slate-500">đã nhập kho</span>
+              {fmtPt(donePct)}
+              <span className="ml-1 text-sm font-medium text-slate-500">hoàn thành</span>
             </p>
-            <p className="text-xs text-slate-500">{fmtTy(bop.done)} / {fmtTy(bop.total)} tỷ · {fmtInt(bop.stockedItems)} hạng mục nhập đủ</p>
+            <p className="text-xs text-slate-500">{fmtTy(hoanThanh.done)} / {fmtTy(hoanThanh.total)} tỷ mọi IPO · {fmtInt(bop.stockedItems)} hạng mục nhập đủ</p>
             {/* Thanh trị giá đơn hàng: đã nhập kho + phần còn lại theo công đoạn */}
             <div className="mt-3">
               <ThanhChia total={bop.total} segs={[
@@ -766,9 +769,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
               </dd>
             </dl>
             {bom && hexList.length > 0 && coverPct < 50 && (
-              <p className="mt-2 text-[0.6875rem] text-slate-500">
-                Tỷ lệ nối vật tư thấp — nhiều PR chưa ghi mã nhà máy, số liệu BOM chỉ mang tính tham khảo.
-              </p>
+              <p className="mt-2 text-[0.6875rem] text-slate-500">Nhiều PR chưa ghi mã, số BOM chỉ tham khảo.</p>
             )}
           </Card>
         </div>
@@ -779,7 +780,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
           <div className="rounded-xl border border-slate-200 p-4">
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Luồng tiến độ</p>
-              <p className="text-[0.6875rem] text-slate-400">số hạng mục đã qua từng bước · % so với tổng · trị giá (tỷ)</p>
+              <p className="text-[0.6875rem] text-slate-400">hạng mục · % · tỷ</p>
             </div>
             <div className="mt-3 space-y-2">
               {funnel.map((f, idx) => {
@@ -793,14 +794,14 @@ export const ProjectHealthModal: React.FC<Props> = ({
                     <div className="h-5 overflow-hidden rounded bg-slate-100">
                       {f.n !== null && (
                         <div className={`flex h-5 items-center rounded ${bar}`} style={{ width: `${Math.max(pct, f.n > 0 ? 1.5 : 0)}%` }}>
-                          {pct >= 18 && <span className="px-2 text-[0.6875rem] font-semibold text-white">{pct.toFixed(0)}%</span>}
+                          {pct >= 18 && <span className="px-2 text-[0.6875rem] font-semibold text-white">{fmtPt(pct)}</span>}
                         </div>
                       )}
                     </div>
                     <span className="whitespace-nowrap text-right tabular-nums">
                       {f.n === null ? <span className="text-slate-400">chưa có cột</span> : <>
                         <span className="font-semibold text-slate-900">{fmtInt(f.n)}</span>
-                        {pct < 18 && <span className="ml-1 text-slate-500">{pct.toFixed(0)}%</span>}
+                        {pct < 18 && <span className={`ml-1 ${pct === 0 ? 'font-bold text-red-600' : 'text-slate-500'}`}>{fmtPt(pct)}</span>}
                         <span className="ml-1.5 text-slate-400">{fmtTy(f.value)} tỷ</span>
                       </>}
                     </span>
@@ -808,9 +809,6 @@ export const ProjectHealthModal: React.FC<Props> = ({
                 );
               })}
             </div>
-            <p className="mt-2 text-[0.6875rem] text-slate-500">
-              Theo cột tình trạng triển khai bản vẽ / phiếu ở bảng sản xuất (hạng mục đã vào sản xuất tính là đã qua). Bấm thẻ BOP để xem theo công đoạn.
-            </p>
           </div>
 
           {/* Nhịp nhập kho: biểu đồ cột theo tuần + đường nhịp trung bình + dự báo */}
@@ -823,10 +821,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
                 {weekly && weekly.pace > 0 && (
                   <span className="inline-flex items-center gap-1 font-medium text-amber-700">
                     <span className="inline-block w-4 border-t-2 border-dashed border-amber-500" />
-                    TB {formatTrieuAsTy(weekly.pace)} tỷ/tuần
+                    TB {fmtTy(weekly.pace)} tỷ/tuần
                   </span>
                 )}
-                <span>tỷ / tuần · theo bảng nhập kho · tuần hiện tại đang dở (nhạt)</span>
+                <span>tuần hiện tại đang dở (nhạt)</span>
               </p>
             </div>
             {!weekly ? (
@@ -840,11 +838,11 @@ export const ProjectHealthModal: React.FC<Props> = ({
                     <BarChart data={weekly.chart} margin={{ top: 14, right: 6, left: -18, bottom: 0 }} barCategoryGap="22%">
                       <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={0} />
-                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatTrieuAsTy(v)} width={48} />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => fmtTy(v)} width={48} />
                       <Tooltip
                         cursor={{ fill: 'rgba(148,163,184,0.12)' }}
                         labelFormatter={(_l: unknown, p: any[]) => (p?.[0]?.payload ? `Tuần từ ${p[0].payload.full}${p[0].payload.cur ? ' (đang dở)' : ''}` : '')}
-                        formatter={(v: number, _n: string, p: any) => [`${formatTrieuAsTy(v)} tỷ · ${p.payload.hexes} hạng mục`, 'Nhập kho']}
+                        formatter={(v: number, _n: string, p: any) => [`${fmtTy(v)} tỷ · ${p.payload.hexes} hạng mục`, 'Nhập kho']}
                       />
                       <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                         {weekly.chart.map(w => <Cell key={w.start} fill={w.cur ? '#bae6fd' : '#0ea5e9'} />)}
@@ -866,13 +864,13 @@ export const ProjectHealthModal: React.FC<Props> = ({
                     {forecast.remain > 0 && <>
                       <dt className="text-slate-500" title="Còn lại ÷ nhịp trung bình — ước tính thô, giả định nhịp không đổi">Ước xong theo nhịp</dt>
                       <dd className={`text-right font-semibold tabular-nums ${forecast.lateWeeks !== null && forecast.lateWeeks > 0 ? 'text-red-600' : 'text-slate-800'}`}>
-                        {forecast.finish ? <>{fmtDate(forecast.finish)}<span className="block text-[0.625rem] font-normal text-slate-400">~{Math.ceil(forecast.weeksNeeded!)} tuần</span></> : 'không ước được'}
+                        {forecast.finish ? <>{fmtDate(forecast.finish)}<span className="block text-[0.625rem] font-normal text-slate-400">~{fmtInt(Math.ceil(forecast.weeksNeeded!))} tuần</span></> : 'không ước được'}
                       </dd>
                       {forecast.weeksLeft !== null && <>
-                        <dt className="text-slate-500">Cần để kịp BOT dự án<span className="block text-[0.625rem] text-slate-400">còn {forecast.weeksLeft.toFixed(0)} tuần</span></dt>
+                        <dt className="text-slate-500">Cần để kịp BOT dự án<span className="block text-[0.625rem] text-slate-400">còn {fmtInt(forecast.weeksLeft)} tuần</span></dt>
                         <dd className={`text-right tabular-nums ${forecast.needPace !== null && forecast.needPace > weekly.pace ? 'font-semibold text-red-600' : 'text-emerald-700'}`}>
                           {forecast.needPace === null ? 'đã qua BOT' : `${fmtTy(forecast.needPace)} tỷ/tuần`}
-                          {forecast.lateWeeks !== null && forecast.lateWeeks > 0 && forecast.needPace !== null && <span className="block text-[0.625rem] font-normal">trễ ~{forecast.lateWeeks} tuần</span>}
+                          {forecast.lateWeeks !== null && forecast.lateWeeks > 0 && forecast.needPace !== null && <span className="block text-[0.625rem] font-normal">trễ ~{fmtInt(forecast.lateWeeks)} tuần</span>}
                         </dd>
                       </>}
                     </>}
@@ -886,13 +884,14 @@ export const ProjectHealthModal: React.FC<Props> = ({
         <div className="mt-5">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             {([
-              ['urgent', 'Cần xử lý ngay', urgent.length, ListChecks, 'red'],
-              ['noBot', 'Chú ý: không có BOT', noBot.length, AlertTriangle, 'amber'],
-              ['rest', 'Còn lại', rest.length, CalendarClock, 'slate'],
-            ] as const).map(([k, label, n, Icon, tone]) => (
+              ['urgent', 'Cần xử lý ngay', urgent.length, ListChecks, 'red', `Quá hạn hoặc sắp hạn (≤ ${DUE_SOON_DAYS} ngày) và còn vướng vấn đề`],
+              ['noBot', 'Chú ý: không có BOT', noBot.length, AlertTriangle, 'amber', 'Chưa nhập kho đủ, không có KH nhập kho tuần / tháng'],
+              ['rest', 'Còn lại', rest.length, CalendarClock, 'slate', 'Chưa nhập kho đủ, có BOT, không thuộc Cần xử lý ngay'],
+            ] as const).map(([k, label, n, Icon, tone, hint]) => (
               <button
                 key={k}
                 type="button"
+                title={hint}
                 onClick={() => setListTab(k)}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
                   tone === 'red'
@@ -911,13 +910,6 @@ export const ProjectHealthModal: React.FC<Props> = ({
                 </span>
               </button>
             ))}
-            <span className="text-[0.6875rem] text-slate-500">
-              {listTab === 'urgent'
-                ? <>Hạng mục quá hạn hoặc sắp hạn (≤ {DUE_SOON_DAYS} ngày) theo KH nhập kho tuần / tháng mà còn vướng: chưa triển khai / chưa tính phiếu, đã triển khai chưa thấy PR, có VT chưa mua / trễ hẹn giao, KH nhập kho sau ngày cần giao, hoặc có vướng mắc tồn đọng.</>
-                : listTab === 'noBot'
-                  ? <>Hạng mục chưa nhập kho đủ mà chưa có BOT: không có KH nhập kho tuần / tháng (hoặc KH kỳ đã nhập đủ SL mà hạng mục chưa nhập kho đủ) — không theo dõi được quá hạn. Sắp theo công đoạn, giá trị còn lại.</>
-                  : <>Hạng mục chưa nhập kho đủ, đã có BOT, không thuộc "Cần xử lý ngay": còn xa hạn (&gt; {DUE_SOON_DAYS} ngày), hoặc quá hạn / sắp hạn nhưng không vướng vấn đề nào. Sắp theo hạn gần nhất.</>}
-            </span>
           </div>
           {matCount === null || openIssues === null ? (
             <p className="rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-400">Đang tổng hợp…</p>
@@ -926,41 +918,38 @@ export const ProjectHealthModal: React.FC<Props> = ({
               {listTab === 'urgent' ? 'Không có hạng mục nào vừa gấp vừa đang vướng vấn đề.' : listTab === 'noBot' ? 'Mọi hạng mục đang sản xuất đều đã có BOT.' : 'Không còn hạng mục nào khác.'}
             </p>
           ) : (
-            <div className="max-h-[55vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-50 text-slate-500">
+            <div className={`${bang.khung} max-h-[55vh]`}>
+              <table className={bang.table}>
+                <thead className={bang.thead}>
                   <tr>
-                    <th className="w-10 px-2 py-2 text-right font-medium">STT</th>
-                    <th className="px-3 py-2 text-left font-medium">Mã Hex</th>
-                    <th className="px-3 py-2 text-left font-medium">Hạng mục</th>
-                    <th className="px-3 py-2 text-left font-medium">Công đoạn</th>
-                    <th className="px-3 py-2 text-left font-medium">KH tuần</th>
-                    <th className="px-3 py-2 text-left font-medium">KH tháng</th>
-                    <th className="px-3 py-2 text-left font-medium">Cần giao</th>
-                    <th className="px-3 py-2 text-right font-medium">Còn lại (tỷ)</th>
-                    <th className="px-3 py-2 text-left font-medium">Vấn đề</th>
+                    <th className={`${bang.thC} w-14`}>STT</th>
+                    <th className={bang.thC}>Mã Hex</th>
+                    <th className={bang.thC}>Hạng mục</th>
+                    <th className={bang.thC}>Công đoạn</th>
+                    <th className={bang.thC}>KH tuần</th>
+                    <th className={bang.thC}>KH tháng</th>
+                    <th className={bang.thC}>Cần giao</th>
+                    <th className={`${bang.thC} whitespace-nowrap`}>Còn lại (tỷ)</th>
+                    <th className={bang.thC}>Vấn đề</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {shownList.map((i, idx) => (
                     <tr key={i.hex} className="hover:bg-slate-50">
-                      <td className="px-2 py-2 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                      <td className="px-3 py-2 font-medium">
+                      <td className={bang.tdSo}>{fmtInt(idx + 1)}</td>
+                      <td className={`${bang.tdB} whitespace-nowrap font-medium`}>
                         <button type="button" onClick={() => setTimelineHex(i.hex)} title="Xem chi tiết hạng mục (BOP × BOT)" className="text-blue-700 hover:underline">
                           {i.hex}
                         </button>
                       </td>
-                      <td className="max-w-[320px] truncate px-3 py-2 text-slate-600" title={i.hangMuc}>{i.hangMuc}</td>
-                      <td className="px-3 py-2 text-slate-600">{i.stage ?? '—'}</td>
+                      <td className={`${bang.tdB} max-w-[320px] truncate`} title={i.hangMuc}>{i.hangMuc}</td>
+                      <td className={bang.tdSo}>{i.stage ?? '—'}</td>
                       <PlanDateCell i={i} which="tuần" />
                       <PlanDateCell i={i} which="tháng" />
                       <PlanDateCell i={i} which="cần giao" />
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                        {fmtTy(i.remain)}
-                      </td>
-                      <td className="px-3 py-2">
+                      <td className={bang.tdSo}>{bang.trong0(i.remain, fmtTy)}</td>
+                      <td className={bang.tdB}>
                         <div className="flex flex-wrap gap-1">
-                          {i.flags.length === 0 && <span className="text-slate-300">—</span>}
                           {i.flags.map(fl => (
                             <span
                               key={fl}
@@ -977,6 +966,15 @@ export const ProjectHealthModal: React.FC<Props> = ({
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className={bang.tfoot}>
+                  <tr>
+                    <td className={`${bang.tdB} text-center`}>TỔNG</td>
+                    <td className={bang.tdB}>{fmtInt(tongDs.n)}</td>
+                    <td colSpan={5} className={bang.tdB} />
+                    <td className={bang.tdSo}>{bang.trong0(tongDs.remain, fmtTy)}</td>
+                    <td className={bang.tdB} />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

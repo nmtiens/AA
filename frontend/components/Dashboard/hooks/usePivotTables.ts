@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
 import { parseNumber } from '../utils/numberParsers';
-import { doneValue, isStocked, isQtyComplete, remainValue, materialLineState } from '../../../utils/productionMetrics';
+import { doneValue, daNhapDu, laHuy, isQtyComplete, remainValue, materialLineState } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
 import { extractStage } from '../core/stages';
 import {
@@ -224,7 +224,7 @@ export function usePivotTables({
         const statusIpo = String(row[tinhTrangIpoKey] || '').toUpperCase();
 
         // Đơn HỦY không nằm trong tổng đơn hàng / còn lại (khớp số trên bảng)
-        if (statusIpo.includes('HỦY')) {
+        if (laHuy(statusIpo)) {
           cancelled.push(row);
           return;
         }
@@ -235,7 +235,7 @@ export function usePivotTables({
         const totalVal = triGiaDonHangTongKey ? parseNumber(row[triGiaDonHangTongKey]) : 0;
         // Chế độ ĐẾM: danh sách khớp đúng số trong ô — "nhập kho" = hạng mục nhập đủ (giá trị hoặc số lượng),
         // "còn lại" bỏ hạng mục đã nhập đủ số lượng. Chế độ giá trị: hạng mục có phần đã nhập / còn lại.
-        const stockedItem = isStocked(totalVal, invVal, false, isQtyComplete(row));
+        const stockedItem = daNhapDu(totalVal, invVal, false, isQtyComplete(row));
         if (isCountList ? stockedItem : doneValue(totalVal, invVal) > 0) inventory.push(row);
         if (remainValue(totalVal, invVal) <= 0) return; // đã nhập kho đủ -> không còn lại
         if (isCountList && stockedItem) return;

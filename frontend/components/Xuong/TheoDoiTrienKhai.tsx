@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Search, Play, Pause, Inbox, PackageCheck, Check, Clock, Undo2 } from 'lucide-react';
 import { xuongSetupApi, type TheoDoiHangMuc, type TheoDoiCongDoan, type DotTrienKhai } from '../../services/xuongSetupApi';
 import { INPUT, BTN, KHUNG } from './xuongDesktopUi';
+import { tyLe } from './chiSoXuong';
 import { hienSl } from '../../services/xuongModel';
 
 // ============================================================================
@@ -151,7 +152,7 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
       <div className="space-y-3">
         {hien.map(h => {
           const dv = h.dvt || 'cái';
-          const pct = h.slTrienKhai > 0 ? Math.min(100, Math.round((h.slXong / h.slTrienKhai) * 100)) : 0;
+          const pct = Math.min(100, tyLe(h.slXong, h.slTrienKhai) ?? 0);
           const kh = nhanKeHoach(h.keHoach);
           return (
             <div key={h.hex} className={`${KHUNG} p-3`}>

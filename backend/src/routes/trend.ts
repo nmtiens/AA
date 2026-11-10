@@ -14,8 +14,11 @@ import { app } from '../server/app.js';
 const trendCache = createCache<unknown>(120);
 const detailCache = createCache<unknown>(10);   // tới 10.000 dòng / entry
 const filterCache = createCache<unknown>(8);
-const TREND_PARAMS = ['source', 'granularity', 'dateFrom', 'dateTo', 'dates', 'xuong', 'congTrinh', 'dvt', 'phanLoai', 'ctWhitelist', 'dimension', 'value', 'chiHex'];
+const TREND_PARAMS = ['source', 'granularity', 'dateFrom', 'dateTo', 'dates', 'xuong', 'congTrinh', 'dvt', 'phanLoai', 'ctWhitelist', 'dimension', 'value', 'chiHex', 'ky'];
 const sourceVersionKeys = (source: string) => [source === 'stock' ? 'stock' : source, 'production'];
+
+// Bộ lọc nhiều xưởng gửi chung 1 tham số, ngăn bằng dấu phẩy
+const tachXuong = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean);
 
 class BadRequest extends Error { status = 400; }
 
@@ -92,9 +95,9 @@ cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.so
     // [FILTER FIX] chuẩn hóa UPPER/TRIM
     if (xuong) {
       if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
       } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
+        conditions.push(workshopCondition('p.xuong_chinh', tachXuong(xuong), params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
@@ -117,10 +120,11 @@ cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.so
     const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
     const limit = granularity === 'day' ? 15 : 12;
 
-    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueColExpr = needsJoin
       ? numericColQualified(cfg.table, mainAlias, cfg.valueCol)
       : numericCol(cfg.table, cfg.valueCol);
+    // Tồn kho: đếm mã giá trị ≠ 0, cùng tập với thẻ 6
+    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})${isStock ? ` FILTER (WHERE ${valueColExpr} <> 0)` : ''}` : `COUNT(*)`;
     const valueExpr = `SUM(${valueColExpr})`;
     const joinKey = cfg.productionJoinCol || 'hex';
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
@@ -174,8 +178,8 @@ cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.so
         SELECT
           period,
           COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
-          COUNT(DISTINCT hx) AS total_count,
-          (SELECT COUNT(DISTINCT hx) FROM base) AS distinct_total_count
+          COUNT(DISTINCT hx)${isStock ? ' FILTER (WHERE v <> 0)' : ''} AS total_count,
+          (SELECT COUNT(DISTINCT hx)${isStock ? ' FILTER (WHERE v <> 0)' : ''} FROM base) AS distinct_total_count
         FROM base
         GROUP BY 1
         ORDER BY 1 ${useDefaultLimit ? 'DESC' : 'ASC'}
@@ -320,9 +324,9 @@ cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req
 
     if (xuong) {
       if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
       } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
+        conditions.push(workshopCondition('p.xuong_chinh', tachXuong(xuong), params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
@@ -343,7 +347,7 @@ cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req
     const valueRowExpr = needsJoin
       ? numericColQualified(cfg.table, mainAlias, cfg.valueCol)
       : numericCol(cfg.table, cfg.valueCol);
-    const countBase = cfg.hexCol ? 'COUNT(DISTINCT hx)' : 'COUNT(*)';
+    const countBase = cfg.hexCol ? `COUNT(DISTINCT hx)${isStock ? ' FILTER (WHERE v <> 0)' : ''}` : 'COUNT(*)';
     const joinKey = cfg.productionJoinCol || 'hex';
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
     const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
@@ -351,6 +355,26 @@ cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req
     const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : 'p.xuong_chinh';
     // Dòng không có xưởng: tồn kho = mã không khớp dòng sản xuất; nguồn khác = chưa ghi xưởng (giống Tổng quan)
     const noXuongLabel = isStock ? 'TỒN KHO KHÁC' : 'Chưa xác định';
+
+    // Bảng xưởng × kỳ: 1 câu trả cả ô, tổng dòng, tổng cột, tổng chung, nên số đếm không trùng HEX ở mọi tổng
+    const ky = String(req.query.ky || '');
+    if (!isStock && ['day', 'week', 'month'].includes(ky)) {
+      const qKy = `
+        ${withClause ? `${withClause},` : 'WITH'} base AS (
+          SELECT COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS g,
+                 to_char(date_trunc('${ky}', ${colBare(cfg.dateCol)}), 'YYYY-MM-DD') AS ky,
+                 ${cfg.hexCol ? colBare(cfg.hexCol) : 'NULL'} AS hx, ${valueRowExpr} AS v
+          FROM ${cfg.table} ${mainAlias}
+          ${joinClause}
+          WHERE ${conditions.join(' AND ')}
+        )
+        SELECT g, ky, COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value, ${countBase} AS total_count
+        FROM base
+        GROUP BY GROUPING SETS ((g, ky), (g), (ky), ())
+      `;
+      const rKy = await timedQuery(qKy, params, { workMemMb: 32 });
+      return rKy.rows.map(row => ({ xuong: row.g, ky: row.ky, total: Number(row.total_value), totalCount: Number(row.total_count) }));
+    }
 
     const q = `
       ${withClause ? `${withClause},` : 'WITH'} base AS (
@@ -363,7 +387,7 @@ cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req
       SELECT g AS xuong,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
         ${countBase} AS total_count,
-        (SELECT ${cfg.hexCol ? 'COUNT(DISTINCT hx)' : 'COUNT(*)'} FROM base) AS distinct_total
+        (SELECT ${countBase} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -409,9 +433,9 @@ cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String
 
     if (xuong) {
       if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
       } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
+        conditions.push(workshopCondition('p.xuong_chinh', tachXuong(xuong), params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
@@ -432,7 +456,7 @@ cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String
     const valueRowExpr = needsJoin
       ? numericColQualified(cfg.table, mainAlias, cfg.valueCol)
       : numericCol(cfg.table, cfg.valueCol);
-    const countBase = cfg.hexCol ? 'COUNT(DISTINCT hx)' : 'COUNT(*)';
+    const countBase = cfg.hexCol ? `COUNT(DISTINCT hx)${isStock ? ' FILTER (WHERE v <> 0)' : ''}` : 'COUNT(*)';
     const joinKey = cfg.productionJoinCol || 'hex';
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
     const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
@@ -452,7 +476,7 @@ cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String
         COALESCE(NULLIF(MIN(ten), ''), 'Chưa xác định') AS cong_trinh,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
         ${countBase} AS total_count,
-        (SELECT ${cfg.hexCol ? 'COUNT(DISTINCT hx)' : 'COUNT(*)'} FROM base) AS distinct_total
+        (SELECT ${countBase} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -507,9 +531,9 @@ cachedGet('/api/trend-by-dvt', trendCache, req => sourceVersionKeys(String(req.q
 
     if (xuong) {
       if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
       } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
+        conditions.push(workshopCondition('p.xuong_chinh', tachXuong(xuong), params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
@@ -530,7 +554,7 @@ cachedGet('/api/trend-by-dvt', trendCache, req => sourceVersionKeys(String(req.q
     const valueRowExpr = needsJoin
       ? numericColQualified(cfg.table, mainAlias, cfg.valueCol)
       : numericCol(cfg.table, cfg.valueCol);
-    const countBase = cfg.hexCol ? 'COUNT(DISTINCT hx)' : 'COUNT(*)';
+    const countBase = cfg.hexCol ? `COUNT(DISTINCT hx)${isStock ? ' FILTER (WHERE v <> 0)' : ''}` : 'COUNT(*)';
     const joinKey = cfg.productionJoinCol || 'hex';
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
     const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
@@ -548,7 +572,7 @@ cachedGet('/api/trend-by-dvt', trendCache, req => sourceVersionKeys(String(req.q
       SELECT g AS dvt,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
         ${countBase} AS total_count,
-        (SELECT ${cfg.hexCol ? 'COUNT(DISTINCT hx)' : 'COUNT(*)'} FROM base) AS distinct_total
+        (SELECT ${countBase} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -588,9 +612,9 @@ cachedGet('/api/trend-by-phanloai', trendCache, req => sourceVersionKeys(String(
 
     if (xuong) {
       if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params));
       } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
+        conditions.push(workshopCondition('p.xuong_chinh', tachXuong(xuong), params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
@@ -626,8 +650,8 @@ cachedGet('/api/trend-by-phanloai', trendCache, req => sourceVersionKeys(String(
       )
       SELECT g AS phan_loai,
         COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
-        COUNT(DISTINCT hx) AS total_count,
-        (SELECT COUNT(DISTINCT hx) FROM base) AS distinct_total
+        COUNT(DISTINCT hx)${isStock ? ' FILTER (WHERE v <> 0)' : ''} AS total_count,
+        (SELECT COUNT(DISTINCT hx)${isStock ? ' FILTER (WHERE v <> 0)' : ''} FROM base) AS distinct_total
       FROM base
       GROUP BY g
       ORDER BY total_value DESC
@@ -745,8 +769,8 @@ cachedGet('/api/detail', detailCache, req => sourceVersionKeys(String(req.query.
         }
       }
     } else if (xuong) {
-      if (cfg.xuongCol) { conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params)); }
-      else if (cfg.xuongViaProductionJoin) { conditions.push(workshopCondition('p.xuong_chinh', xuong, params)); }
+      if (cfg.xuongCol) { conditions.push(workshopCondition(colBare(cfg.xuongCol), tachXuong(xuong), params)); }
+      else if (cfg.xuongViaProductionJoin) { conditions.push(workshopCondition('p.xuong_chinh', tachXuong(xuong), params)); }
     }
 
     // Chiều công trình

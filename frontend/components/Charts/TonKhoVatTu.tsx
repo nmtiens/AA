@@ -13,14 +13,16 @@ import {
   layChiTietTonKhoVt, layDoanhThuKeHoach, layTongHopTonKhoVt, laLoiChuaCoQuyen, LoiTonKhoVt, type ChiTietTonKhoVt, type TongHopTonKhoVt,
 } from '../../services/tonKhoVtApi';
 import {
-  bangChiTietExcel, bangDocExcel, bangTongHopExcel, boDau, chonNhanTruc, demTheoLoc, dinhDangChenh, dinhDangChiSo,
+  bangChiTietExcel, bangDocExcel, bangNhom, bangTongHopExcel, boDau, chonNhanTruc, demTheoLoc, dinhDangChenh, dinhDangChiSo,
   dinhDangPt, dinhDangSo, dinhDangSoLuong, dinhDangTienDong, dsNgayChot, dungChuoi, khoangTheoLuaChon, locDong,
   NHAN_LOC, ngayThieuCham, nhanNgay, nhanNgayNgan, nhanThang, phanLoaiDong, tachCongTrinh, tenFileAnToan, tenNhomGon, tongCacNhom,
-  congThangKhoa, duBaoTonTheoDoanhThu, SO_THANG_DU_BAO_TOI_DA, catDuBao, namCuaKhoang, TY_LE_ANH_TON, vachTrucY, xepDong, XEP_MAC_DINH, chiSoNhan, tomTatNhom, xuHuongTong,
+  congThangKhoa, duBaoTonTheoDoanhThu, SO_THANG_DU_BAO_TOI_DA, catDuBao, namCuaKhoang, TY_LE_ANH_TON, vachTrucY, xepDong, XEP_MAC_DINH, chiSoNhan, tomTatNhom, tongDong, xuHuongTong,
   type CachXep, type ChiSo, type ChuoiNhom, type CotXep, type DiemChuoi, type DongDaPhanLoai, type KhoangXem, type LocDong,
   type MocXem, type O, type DoanhThuKeHoach, type DiemDuBao, type DuBaoTon,
 } from './tonKhoVatTu/xuLy';
 import { DOANH_SO_CAN_DAT } from './tonKhoVatTu/doanhSoCanDat';
+import * as bang from '../shared/bangBaoCao';
+import { fmtInt, fmtTy } from '../../utils/format';
 
 // ============================================================================
 // TRANG "7. TỒN KHO VẬT TƯ" (bảng ton_kho_vt — chốt hằng tuần, thứ Năm)
@@ -304,28 +306,88 @@ function TooltipDuBao({ d, nhom, mau }: { d: DiemDuBao; nhom: string; mau: strin
 
 const MAU_DT = '#94a3b8';
 
+/** Bảng nhóm đầu trang: dòng TỔNG = 4 ô tổng; bấm Tồn, So trước, Chậm LC mở cửa sổ từng mã */
+function BangNhom({ chuoi, chiSo, moc, onChon }: {
+  chuoi: ChuoiNhom[]; chiSo: ChiSo; moc: MocXem;
+  onChon: (nhom: string, d: DiemChuoi, truoc: DiemChuoi | null, locDau?: LocDong) => void;
+}) {
+  const { dong, tong } = useMemo(() => bangNhom(chuoi), [chuoi]);
+  if (!tong || !dong.length) return null;
+  const dv = chiSo === 'giaTri' ? '(tỷ)' : '(mã)';
+  const f = chiSo === 'giaTri' ? fmtTy : fmtInt;
+  const so = (v: number) => bang.trong0(v, f);
+  const soDau = (v: number | null) => (v === null ? '' : bang.trong0(v, x => `${x > 0 ? '+' : ''}${f(x)}`));
+  const oPt = (v: number | null, coDau = false) => (
+    <td className={`${bang.tdSo} ${v === 0 ? 'text-red-600' : ''}`}>{v === null ? '' : dinhDangPt(v, coDau)}</td>
+  );
+  const nut = (v: string, bam: () => void) => (v ? <button type="button" onClick={bam} className={bang.soBam}>{v}</button> : '');
+  return (
+    <div className={`${bang.khung} bg-white`}>
+      <table className={bang.table}>
+        <thead className={bang.thead}>
+          <tr>
+            <th className={bang.thC}>Nhóm vật tư</th>
+            <th className={bang.thC}>Tồn {nhanSoVoi(dong[0].cuoi, moc)} {dv}</th>
+            <th className={bang.thC}>So trước {dv}</th>
+            <th className={bang.thC}>% so trước</th>
+            <th className={bang.thC}>So đầu khoảng {dv}</th>
+            <th className={bang.thC}>% so đầu khoảng</th>
+            <th className={bang.thC}>Chậm LC &gt; 3 tháng {dv}</th>
+            <th className={bang.thC}>% chậm LC</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dong.map(d => (
+            <tr key={d.nhom}>
+              <td className={`${bang.tdB} whitespace-nowrap font-bold`} title={d.nhom}>{tenNhomGon(d.nhom)}</td>
+              <td className={`${bang.tdSo} font-bold`}>{nut(so(d.cuoi.tong), () => onChon(d.nhom, d.cuoi, d.truoc))}</td>
+              <td className={bang.tdSo}>{nut(soDau(d.cuoi.chenh), () => onChon(d.nhom, d.cuoi, d.truoc))}</td>
+              {oPt(d.cuoi.chenhPt, true)}
+              <td className={bang.tdSo}>{soDau(d.chenhDau)}</td>
+              {oPt(d.ptDau, true)}
+              <td className={bang.tdSo}>{d.cuoi.thieuCham ? '—' : nut(so(d.cuoi.cham), () => onChon(d.nhom, d.cuoi, d.truoc, 'cham'))}</td>
+              {oPt(d.ptCham)}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot className={bang.tfoot}>
+          <tr>
+            <td className={`${bang.tdB} text-center`}>TỔNG</td>
+            <td className={bang.tdSo}>{so(tong.tong)}</td>
+            <td className={bang.tdSo}>{soDau(tong.truoc?.chenh ?? null)}</td>
+            <td className={bang.tdSo}>{tong.truoc?.chenhPt == null ? '' : dinhDangPt(tong.truoc.chenhPt, true)}</td>
+            <td className={bang.tdSo}>{soDau(tong.dau?.chenh ?? null)}</td>
+            <td className={bang.tdSo}>{tong.dau?.chenhPt == null ? '' : dinhDangPt(tong.dau.chenhPt, true)}</td>
+            <td className={bang.tdSo}>{tong.thieuCham ? '—' : so(tong.cham)}</td>
+            <td className={bang.tdSo}>{tong.ptCham === null ? '' : dinhDangPt(tong.ptCham)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
 /**
- * Doanh số cần đạt (kế hoạch, cột) và doanh thu thực tế (đường) từng tháng của cả công ty — 1 biểu đồ ở đầu trang
+ * Doanh số cần đạt (kế hoạch) từng tháng của cả công ty — 1 biểu đồ ở đầu trang. Chưa có số thực tế nối vào nên không vẽ đường thực tế
  * (không lặp dưới từng nhóm: số này của cả công ty, giống nhau ở mọi nhóm). Tháng sau tháng hiện tại = cột viền.
  */
 function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKeHoach; tuThang: string; denThang: string; thangHienTai: string }) {
   const cot = useMemo(() => {
-    const ds: { khoa: string; kh: number | null; khToi: number | null; tt: number | null; nhanKh: number | null }[] = [];
+    const ds: { khoa: string; kh: number | null; khToi: number | null; nhanKh: number | null }[] = [];
     for (let k = tuThang; k <= denThang; k = congThangKhoa(k, 1)) {
       const kh = dt.keHoach[k] ?? null, toi = k > thangHienTai;
-      ds.push({ khoa: k, kh: toi ? null : kh, khToi: toi ? kh : null, tt: toi ? null : dt.thucTe[k] ?? null, nhanKh: kh });
+      ds.push({ khoa: k, kh: toi ? null : kh, khToi: toi ? kh : null, nhanKh: kh });
       if (ds.length > 40) break;
     }
     return ds;
   }, [dt, tuThang, denThang, thangHienTai]);
   if (!cot.some(c => c.nhanKh !== null)) return null;
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 sm:px-5" aria-label="Doanh số cần đạt và doanh thu thực tế từng tháng" data-tkvt-doanhso>
+    <section className="rounded-xl border border-slate-200 bg-white p-4 sm:px-5" aria-label="Doanh số cần đạt từng tháng" data-tkvt-doanhso>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
         <span className="text-base font-semibold text-slate-900">Doanh số cần đạt từng tháng (cả công ty, tỷ)</span>
         <span className="inline-flex items-center gap-1.5 text-sm"><span className="h-3 w-3 rounded-sm" style={{ background: MAU_DT }} aria-hidden />đã qua</span>
         <span className="inline-flex items-center gap-1.5 text-sm"><span className="h-3 w-3 rounded-sm border border-dashed border-slate-500 bg-white" aria-hidden />tháng tới</span>
-        <span className="inline-flex items-center gap-1.5 text-sm"><span className="h-[3px] w-4 rounded-full bg-slate-800" aria-hidden />thực tế</span>
       </div>
       <div className="mt-2 h-[190px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -343,8 +405,6 @@ function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKe
                     <p className="font-semibold text-slate-900">{nhanThang(c.khoa)}</p>
                     <div className="mt-1.5 space-y-1">
                       <HangTooltip mau={MAU_DT} nhan="Doanh số cần đạt" giaTri={c.nhanKh === null ? '—' : `${dinhDangSo(c.nhanKh, 2)} tỷ`} dam />
-                      {c.tt !== null && <HangTooltip mau="#1e293b" nhan="Thực tế" giaTri={`${dinhDangSo(c.tt, 2)} tỷ`} />}
-                      {c.tt !== null && c.nhanKh ? <HangTooltip nhan="Đạt" giaTri={`${Math.round((c.tt / c.nhanKh) * 100)}%`} /> : null}
                     </div>
                   </div>
                 );
@@ -359,7 +419,6 @@ function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKe
                   style={{ fontVariantNumeric: 'tabular-nums' }}>{dinhDangSo(v, 0)}</text>;
               }} />
             </Bar>
-            <Line type="linear" dataKey="tt" stroke="#1e293b" strokeWidth={2} dot={{ r: 2.5, fill: '#1e293b' }} isAnimationActive={false} connectNulls={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -697,6 +756,8 @@ interface MoChiTiet {
   thieuCham?: boolean;
   /** Bộ lọc tên của thẻ (chỉ các mã mang các tên này); bỏ trống = cả nhóm */
   loc?: LocTen;
+  /** Thẻ lọc chọn sẵn: bấm số Chậm LC thì tổng cửa sổ bằng đúng số đó */
+  locDau?: LocDong;
 }
 
 const BUOC_HIEN = 300;
@@ -708,7 +769,7 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
   const [loi, setLoi] = useState<{ thongBao: string; chuaCoQuyen: boolean } | null>(null);
   const [lanTai, setLanTai] = useState(0);
   const oTimRef = useRef<HTMLInputElement>(null);
-  const [loc, setLoc] = useState<LocDong>('tat_ca');
+  const [loc, setLoc] = useState<LocDong>(mo.locDau ?? 'tat_ca');
   const [tim, setTim] = useState('');
   const timHoan = useDeferredValue(tim);
   const [xep, setXep] = useState<CachXep>(XEP_MAC_DINH);
@@ -745,14 +806,8 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
   // Số trên thẻ lọc tính theo ô tìm đang gõ (thẻ nào bấm vào cũng ra đúng số dòng đó)
   const dem = useMemo(() => demTheoLoc(timHoan.trim() ? locDong(ds, 'tat_ca', timHoan) : ds), [ds, timHoan]);
   const daXep = useMemo(() => xepDong(locDong(ds, loc, timHoan), xep), [ds, loc, timHoan, xep]);
-  const tomTat = useMemo(() => {
-    let soMa = 0, gt = 0, gtTruoc = 0, cham = 0;
-    for (const d of ds) {
-      if (d.soLuong !== null) { soMa++; if (d.cham) cham++; }
-      gt += d.giaTri ?? 0; gtTruoc += d.giaTriTruoc ?? 0;
-    }
-    return { soMa, gt, chenh: gt - gtTruoc, cham };
-  }, [ds]);
+  const tomTat = useMemo(() => tongDong(ds), [ds]);
+  const tongLoc = useMemo(() => tongDong(daXep), [daXep]);
 
   const bamCot = (k: CotXep) => {
     if (k === 'chenh') {
@@ -801,7 +856,7 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
           {duLieu && (
             <p className="mt-0.5 text-xs text-slate-500">
               {dinhDangSo(tomTat.soMa)} mã còn tồn
-              {coGia && <> · tổng {dinhDangSo(tomTat.gt / 1000, 2)} tỷ (<ChuChenh v={duLieu.ngayTruoc ? tomTat.chenh : null} pt={null} chiSo="giaTri" />)</>}
+              {coGia && <> · tổng {dinhDangSo(tomTat.giaTri / 1000, 2)} tỷ (<ChuChenh v={duLieu.ngayTruoc ? tomTat.chenh : null} pt={null} chiSo="giaTri" />)</>}
               {mo.thieuCham
                 ? <span className="text-amber-700"> · file chốt ngày này không có cột chậm luân chuyển</span>
                 : <>{' · '}{dinhDangSo(tomTat.cham)} mã chậm luân chuyển &gt; 3 tháng</>}
@@ -868,16 +923,16 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
             </p>
           )}
 
-          <div className="min-h-0 flex-1 overflow-auto custom-scrollbar">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-xs text-slate-500 shadow-[0_1px_0_#e2e8f0]">
+          <div className={`${bang.khung} min-h-0 flex-1`}>
+            <table className={bang.table}>
+              <thead className={bang.thead}>
                 <tr>
                   {cot.map(c => (
-                    <th key={c.k} scope="col" className={`whitespace-nowrap px-3 py-2 font-medium ${c.phai ? 'text-right' : 'text-left'}`}
+                    <th key={c.k} scope="col" className={`${bang.thC} whitespace-nowrap`}
                       aria-sort={dangXep(c.k) ? (xep.giam ? 'descending' : 'ascending') : 'none'}>
                       <button type="button" onClick={() => bamCot(c.k)}
                         title={c.k === 'chenh' ? (xep.cot === 'doLon' ? 'Đang xếp theo độ lớn chênh lệch (tăng hay giảm đều tính) — bấm để xếp tăng nhiều nhất trước' : 'Bấm để đổi cách xếp') : `Xếp theo ${c.nhan}`}
-                        className={`inline-flex items-center gap-1 hover:text-slate-900 ${dangXep(c.k) ? 'text-slate-900' : ''}`}>
+                        className="inline-flex items-center gap-1 font-bold">
                         {c.nhan}
                         {c.k === 'chenh' && xep.cot === 'doLon' && <span className="text-[0.625rem] font-normal">(độ lớn)</span>}
                         {dangXep(c.k) ? (xep.giam ? <ChevronDown size={12} /> : <ChevronUp size={12} />) : <ChevronsUpDown size={12} className="opacity-40" />}
@@ -886,34 +941,32 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {hien.map(d => {
                   const ct = tachCongTrinh(d.congTrinh);
                   const het = d.loai === 'het';
                   return (
-                    <tr key={d.ma} className={`hover:bg-slate-50 ${het ? 'text-slate-400' : 'text-slate-700'}`}>
-                      <td className="whitespace-nowrap px-3 py-1.5 font-mono text-xs">
+                    <tr key={d.ma} className={`hover:bg-slate-50 ${het ? 'text-slate-400' : ''}`}>
+                      <td className={`${bang.tdB} whitespace-nowrap font-mono`}>
                         {d.ma}
                         {d.loai === 'moi' && <span className="ml-1.5 rounded bg-sky-50 px-1.5 py-0.5 font-sans text-[0.625rem] font-semibold text-sky-700">Mới</span>}
                         {het && <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 font-sans text-[0.625rem] font-semibold text-slate-500">Đã hết</span>}
                         {d.ghiChu && <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 font-sans text-[0.625rem] font-semibold text-amber-700" title={d.ghiChu}>{d.ghiChu}</span>}
                       </td>
-                      <td className="max-w-[280px] truncate px-3 py-1.5" title={d.ten ?? undefined}>{d.ten ?? '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-xs">{d.dvt ?? '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{dinhDangSoLuong(d.soLuong)}</td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-slate-500">{dinhDangSoLuong(d.soLuongTruoc)}</td>
-                      {coGia && <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">{dinhDangTienDong(d.giaTri)}</td>}
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
+                      <td className={`${bang.tdB} max-w-[280px] truncate`} title={d.ten ?? undefined}>{d.ten ?? '—'}</td>
+                      <td className={`${bang.tdB} whitespace-nowrap`}>{d.dvt ?? '—'}</td>
+                      <td className={bang.tdSo}>{bang.trong0(d.soLuong ?? 0, dinhDangSoLuong)}</td>
+                      <td className={bang.tdSo}>{bang.trong0(d.soLuongTruoc ?? 0, dinhDangSoLuong)}</td>
+                      {coGia && <td className={bang.tdSo}>{bang.trong0(d.giaTri ?? 0, dinhDangTienDong)}</td>}
+                      <td className={bang.tdSo}>
                         <OChenhDong d={d} coGia={coGia} />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
-                        {d.soThang === null ? '—' : d.soThang.toLocaleString('en-US', { maximumFractionDigits: 1 })}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-1.5">
+                      <td className={bang.tdSo}>{bang.trong0(d.soThang ?? 0, dinhDangSoLuong)}</td>
+                      <td className={`${bang.tdB} whitespace-nowrap text-center`}>
                         {d.cham && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.6875rem] font-medium text-slate-600">Chậm</span>}
                       </td>
-                      <td className="max-w-[260px] px-3 py-1.5 text-xs" title={ct.join('\n') || undefined}>
-                        {ct.length === 0 ? <span className="text-slate-300">—</span> : (
+                      <td className={`${bang.tdB} max-w-[260px]`} title={ct.join('\n') || undefined}>
+                        {ct.length > 0 && (
                           <span className="flex items-center gap-1">
                             <span className="truncate">{ct[0]}</span>
                             {ct.length > 1 && <span className="shrink-0 rounded bg-slate-100 px-1 text-[0.625rem] font-semibold text-slate-500">+{ct.length - 1}</span>}
@@ -924,6 +977,22 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
                   );
                 })}
               </tbody>
+              {daXep.length > 0 && (
+                <tfoot className={bang.tfoot}>
+                  <tr>
+                    <td className={`${bang.tdB} text-center`}>TỔNG</td>
+                    <td className={bang.tdSo}>{fmtInt(tongLoc.soMa)} mã</td>
+                    <td className={bang.tdB} />
+                    <td className={bang.tdB} />
+                    <td className={bang.tdB} />
+                    {coGia && <td className={bang.tdSo}>{dinhDangChiSo(tongLoc.giaTri, 'giaTri')}</td>}
+                    <td className={bang.tdSo}>{coGia && duLieu.ngayTruoc ? bang.trong0(tongLoc.chenh, v => dinhDangChenh(v, 'giaTri')) : ''}</td>
+                    <td className={bang.tdB} />
+                    <td className={bang.tdSo}>{bang.trong0(tongLoc.cham, fmtInt)}</td>
+                    <td className={bang.tdB} />
+                  </tr>
+                </tfoot>
+              )}
             </table>
             {daXep.length === 0 && <p className="px-6 py-12 text-center text-sm text-slate-400">Không có mã nào khớp bộ lọc</p>}
             {daXep.length > gioiHan && (
@@ -944,7 +1013,7 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
 
 function OChenhDong({ d, coGia }: { d: DongDaPhanLoai; coGia: boolean }) {
   const v = coGia ? d.chenhGiaTri ?? 0 : d.chenhSoLuong;
-  if (Math.abs(v) < 1e-9) return <span className="text-slate-400">0</span>;
+  if (Math.abs(v) < 1e-9) return null;
   const tang = v > 0;
   const chu = coGia ? dinhDangTienDong(v, true) : `${tang ? '+' : '−'}${dinhDangSoLuong(Math.abs(v))}`;
   return <span className="font-medium" style={{ color: tang ? MAU_TANG : MAU_GIAM }}>{tang ? '▲' : '▼'} {chu}</span>;
@@ -1221,6 +1290,9 @@ const TonKhoVatTu: React.FC = () => {
     }
   };
 
+  const moDiem = (nhom: string, d: DiemChuoi, truoc: DiemChuoi | null, them: Pick<MoChiTiet, 'loc' | 'locDau'>) => setMoChiTiet({
+    nhom, ngayChot: d.ngayChot, ngaySoVoi: truoc?.ngayChot ?? null, soVoiThang: moc === 'thang' && !!truoc, thieuCham: d.thieuCham, ...them,
+  });
   const giaTri = chiSo === 'giaTri';
   const nhanTruoc = moc === 'tuan' ? 'So với lần chốt trước' : 'So với cuối tháng trước';
 
@@ -1341,6 +1413,8 @@ const TonKhoVatTu: React.FC = () => {
                 phu={tong.thieuCham ? 'lần chốt cuối thiếu cột chậm luân chuyển' : `${dinhDangPt(tong.ptCham)} ${giaTri ? 'tổng giá trị tồn' : 'tổng số mã'}`} />
             </div>
 
+            <BangNhom chuoi={chuoi} chiSo={chiSo} moc={moc} onChon={(nhom, d, truoc, locDau) => moDiem(nhom, d, truoc, { locDau })} />
+
             {dtKH && moc === 'thang' && chuoiThangDu[0]?.diem.length ? (
               <BieuDoDoanhSo dt={dtKH} thangHienTai={thangHienTai}
                 tuThang={tuThangXem ?? chuoiThangDu[0].diem[0].khoa}
@@ -1364,10 +1438,7 @@ const TonKhoVatTu: React.FC = () => {
                 <TheNhom key={c.nhom} chuoi={c} chiSo={chiSo} moc={moc} xuat={dangChup}
                   loc={locTheoNhom[c.nhom] ?? null} ketQuaLoc={ketQuaLoc[c.nhom]} onLoc={l => apDungLoc(c.nhom, l)}
                   phienBan={duLieu?.capNhat ?? ''} khoaLoc={!!dangXuat} doanhThu={dtKH} duBao={duBaoTheoNhom[c.nhom] ?? null} thangHienTai={thangHienTai} tuThang={tuThangXem}
-                  onChon={(nhom, d, truoc) => setMoChiTiet({
-                    nhom, ngayChot: d.ngayChot, ngaySoVoi: truoc?.ngayChot ?? null, soVoiThang: moc === 'thang' && !!truoc,
-                    thieuCham: d.thieuCham, loc: locHieuLuc[nhom],
-                  })} />
+                  onChon={(nhom, d, truoc) => moDiem(nhom, d, truoc, { loc: locHieuLuc[nhom] })} />
               ))}
             </div>
           </>
@@ -1375,7 +1446,7 @@ const TonKhoVatTu: React.FC = () => {
       </div>
 
       {moChiTiet && (
-        <ChiTietModal key={`${moChiTiet.nhom}|${moChiTiet.ngayChot}|${moChiTiet.ngaySoVoi ?? ''}|${moChiTiet.loc?.ten.join('\u0001') ?? ''}`} mo={moChiTiet} onDong={() => setMoChiTiet(null)} />
+        <ChiTietModal key={`${moChiTiet.nhom}|${moChiTiet.ngayChot}|${moChiTiet.ngaySoVoi ?? ''}|${moChiTiet.loc?.ten.join('\u0001') ?? ''}|${moChiTiet.locDau ?? ''}`} mo={moChiTiet} onDong={() => setMoChiTiet(null)} />
       )}
     </div>
   );

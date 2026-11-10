@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  isCancelledIpo, orderValue, doneValue, remainValue, isQtyComplete, isStocked, rowRemain, rowDone,
+  laHuy, orderValue, doneValue, remainValue, isQtyComplete, daNhapDu, rowRemain, rowDone, tyLeHoanThanh, laIpoMacDinh, IPO_MAC_DINH,
   parsePlanDate, deadlineOf, planAfterDue, setPlanMet, RAW_DEADLINE_KEYS,
   materialLineState, isMaterialPending, dwellBucket, DWELL_STUCK, DWELL_NONE,
   canonicalizeProjectNames, canonicalProjectName, projectMatchKey, normProjectName,
@@ -13,12 +13,29 @@ import type { ColumnDefinition, DataRow } from '../types';
 // Mỗi test ghi rõ quy tắc nghiệp vụ nó bảo vệ; đổi quy tắc thì phải đổi test có chủ đích.
 // ============================================================================
 
+describe('IPO mặc định, % hoàn thành', () => {
+  it('1 hằng IPO mặc định', () => {
+    expect(laIpoMacDinh(IPO_MAC_DINH)).toBe(true);
+    expect(laIpoMacDinh('02. HOÀN THÀNH')).toBe(false);
+  });
+  it('tyLeHoanThanh chặn 100, trị giá 0 ra 0', () => {
+    expect(tyLeHoanThanh(200, 50)).toBe(25);
+    expect(tyLeHoanThanh(100, 120)).toBe(100);
+    expect(tyLeHoanThanh(0, 10)).toBe(0);
+  });
+  it('daNhapDu không còn ngưỡng 98%', () => {
+    expect(daNhapDu(100, 98.5)).toBe(false);
+    expect(daNhapDu(100, 98.5, false, true)).toBe(true);
+  });
+});
+
 describe('đơn hủy và giá trị đã nhập / còn lại', () => {
   it('nhận diện đơn HỦY qua cột Tình trạng IPO, không phân biệt hoa thường', () => {
-    expect(isCancelledIpo('03. HỦY')).toBe(true);
-    expect(isCancelledIpo('hủy đơn')).toBe(true);
-    expect(isCancelledIpo('01. ĐANG SẢN XUẤT')).toBe(false);
-    expect(isCancelledIpo(null)).toBe(false);
+    expect(laHuy('03. HỦY')).toBe(true);
+    expect(laHuy('hủy đơn')).toBe(true);
+    expect(laHuy('04. HUỶ')).toBe(true);
+    expect(laHuy('01. ĐANG SẢN XUẤT')).toBe(false);
+    expect(laHuy(null)).toBe(false);
   });
 
   it('đơn hủy không tính trị giá, đã nhập, còn lại', () => {
@@ -49,14 +66,14 @@ describe('đếm hạng mục đã nhập kho', () => {
     expect(isQtyComplete({ so_luong_don_hang_tong: 10, so_luong_nhap_kho_luy_ke: 10 })).toBe(true);
     expect(isQtyComplete({ so_luong_don_hang_tong: 10, so_luong_nhap_kho_luy_ke: 9.5 })).toBe(false);
     expect(isQtyComplete({ so_luong_don_hang_tong: 0, so_luong_nhap_kho_luy_ke: 0 })).toBe(false); // SL đơn 0 không xét
-    expect(isStocked(100, 60, false, true)).toBe(true);   // tiền thiếu nhưng đủ SL
+    expect(daNhapDu(100, 60, false, true)).toBe(true);   // tiền thiếu nhưng đủ SL
   });
 
-  it('isStocked: đủ trị giá, hoặc đủ SL; đơn hủy và trị giá 0 chưa đủ SL thì không', () => {
-    expect(isStocked(100, 100)).toBe(true);
-    expect(isStocked(100, 99.99)).toBe(false);
-    expect(isStocked(100, 100, true)).toBe(false);
-    expect(isStocked(0, 0)).toBe(false);
+  it('daNhapDu: đủ trị giá, hoặc đủ SL; đơn hủy và trị giá 0 chưa đủ SL thì không', () => {
+    expect(daNhapDu(100, 100)).toBe(true);
+    expect(daNhapDu(100, 99.99)).toBe(false);
+    expect(daNhapDu(100, 100, true)).toBe(false);
+    expect(daNhapDu(0, 0)).toBe(false);
   });
 });
 

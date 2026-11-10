@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { DiemTonKhoVt, DongTonKhoVt, TongHopTonKhoVt } from '../../../services/tonKhoVtApi';
 import {
-  bangChiTietExcel, bangTongHopExcel, chonMoc, chonNhanTruc, chuanHoaNhom, demTheoLoc, dinhDangChenh, dinhDangPt, dinhDangTienDong,
+  bangChiTietExcel, bangNhom, bangTongHopExcel, chonMoc, chonNhanTruc, chuanHoaNhom, demTheoLoc, dinhDangChenh, dinhDangPt, dinhDangTienDong,
   dungChuoi, khoangTheoLuaChon, namCuaKhoang, catDuBao, locDong, ngayThieuCham, phanLoaiDong, tenNhomGon, thuTuNhom, tongCacNhom, vachTrucY,
-  chiSoNhan, congThangKhoa, duBaoTonTheoDoanhThu, locTenTheoTim, tomTatNhom, tyLeDatKeHoach, trungBinhTong, vachTheoSoKhoang, xepDong, xuHuongTong,
+  chiSoNhan, congThangKhoa, duBaoTonTheoDoanhThu, locTenTheoTim, tomTatNhom, tyLeDatKeHoach, trungBinhTong, vachTheoSoKhoang, tongDong, xepDong, xuHuongTong,
   KHOANG_TRANG_NHOM, XEP_MAC_DINH,
 } from './xuLy';
 
@@ -176,6 +176,37 @@ const dong = (p: Partial<DongTonKhoVt>): DongTonKhoVt => ({
   soThang: 1, cham: false, congTrinh: null, ghiChu: null, ...p,
 });
 
+describe('bảng nhóm đầu trang', () => {
+  const t: TongHopTonKhoVt = {
+    capNhat: null, ngay: ['2026-10-01', '2026-10-08', '2026-10-15'], nhom: ['KVT Gỗ', 'KVT Đá'],
+    diem: [
+      diem('2026-10-01', 'KVT Gỗ', 100, 10), diem('2026-10-08', 'KVT Gỗ', 200, 20), diem('2026-10-15', 'KVT Gỗ', 300, 30),
+      diem('2026-10-01', 'KVT Đá', 50), diem('2026-10-08', 'KVT Đá', 50), diem('2026-10-15', 'KVT Đá', 40),
+    ],
+  };
+
+  it('cộng các dòng đúng bằng dòng TỔNG, TỔNG đúng 4 ô đầu trang', () => {
+    const chuoi = dungChuoi(t, { moc: 'tuan', chiSo: 'giaTri' });
+    const { dong, tong } = bangNhom(chuoi);
+    expect(tong).toEqual(tongCacNhom(chuoi));
+    expect(dong.reduce((s, d) => s + d.cuoi.tong, 0)).toBe(tong!.tong);
+    expect(dong.reduce((s, d) => s + (d.cuoi.chenh ?? 0), 0)).toBe(tong!.truoc!.chenh);
+    expect(dong.reduce((s, d) => s + (d.chenhDau ?? 0), 0)).toBe(tong!.dau!.chenh);
+    expect(dong.reduce((s, d) => s + d.cuoi.cham, 0)).toBe(tong!.cham);
+  });
+
+  it('truoc là điểm liền trước để cửa sổ từng mã so đúng điểm đó; 1 điểm thì không so', () => {
+    const { dong } = bangNhom(dungChuoi(t, { moc: 'tuan', chiSo: 'giaTri' }));
+    expect(dong.find(d => d.nhom === 'KVT Gỗ')).toMatchObject({ truoc: { ngayChot: '2026-10-08' }, chenhDau: 200, ptDau: 200, ptCham: 10 });
+    const mot = bangNhom(dungChuoi(t, { tu: '2026-10-15', moc: 'tuan', chiSo: 'giaTri' })).dong[0];
+    expect(mot).toMatchObject({ truoc: null, chenhDau: null, ptDau: null });
+  });
+
+  it('không có điểm thì không có bảng', () => {
+    expect(bangNhom([])).toEqual({ dong: [], tong: null });
+  });
+});
+
 describe('phân loại dòng chi tiết', () => {
   it('5 loại theo giá trị khi có quyền xem giá', () => {
     expect(phanLoaiDong(dong({ soLuongTruoc: null, giaTriTruoc: null }), true)).toMatchObject({ loai: 'moi', chenhGiaTri: 10, chenhSoLuong: 1 });
@@ -229,6 +260,21 @@ describe('phân loại dòng chi tiết', () => {
   });
 });
 
+describe('tổng cửa sổ từng mã', () => {
+  const dong = (ma: string, soLuong: number | null, giaTri: number | null, giaTriTruoc: number | null, cham = false) =>
+    phanLoaiDong({ ma, ten: null, nhom: 'KVT Gỗ', dvt: null, soLuong, soLuongTruoc: giaTriTruoc === null ? null : 1, giaTri, giaTriTruoc, soThang: null, cham, congTrinh: null, ghiChu: null }, true);
+
+  it('cộng đủ giá trị và chênh; mã đã hết tính vào chênh, không tính vào số mã', () => {
+    const ds = [dong('A', 1, 100, 80, true), dong('B', 2, 50, null), dong('C', null, null, 30, true)];
+    expect(tongDong(ds)).toEqual({ soMa: 2, giaTri: 150, chenh: 40, cham: 1 });
+  });
+
+  it('theo thẻ Chậm luân chuyển: tổng là phần chậm', () => {
+    const ds = [dong('A', 1, 100, 80, true), dong('B', 2, 50, null)];
+    expect(tongDong(locDong(ds, 'cham', '')).giaTri).toBe(100);
+  });
+});
+
 describe('trục & định dạng', () => {
   it('nhãn trục thưa, luôn giữ điểm cuối', () => {
     const k = Array.from({ length: 33 }, (_, i) => `k${i}`);
@@ -257,8 +303,9 @@ describe('trục & định dạng', () => {
     expect(dinhDangTienDong(-0.03, true)).toBe('−0.03 tr');
     expect(dinhDangTienDong(5, true)).toBe('+5.0 tr');
     expect(dinhDangTienDong(null)).toBe('—');
-    expect(dinhDangPt(5.04, true)).toBe('+5%');
-    expect(dinhDangPt(-25)).toBe('−25%');
+    expect(dinhDangPt(5.04, true)).toBe('+5.0%');
+    expect(dinhDangPt(-25)).toBe('−25.0%');
+    expect(dinhDangPt(0)).toBe('0%');
     expect(dinhDangPt(null)).toBe('—');
   });
   it('định dạng chênh: nhỏ thì triệu, lớn thì tỷ', () => {
@@ -308,17 +355,17 @@ describe('câu tóm tắt & nhãn số', () => {
         'KVT Vải Da Mouss', v * 1000, c * 1000, 100, 50)));
   it('tăng so với đầu khoảng + đỉnh giữa khoảng + % chậm luân chuyển', () => {
     const [c] = dungChuoi(t, { moc: 'thang', chiSo: 'giaTri' });
-    expect(tomTatNhom(c.diem, 'giaTri')).toBe('39.73 tỷ — tăng 13.17 tỷ (+50%) so với T2/26; đỉnh 51.04 tỷ (T8/26), đã giảm 11.31 tỷ; 73% là hàng chậm luân chuyển > 3 tháng');
+    expect(tomTatNhom(c.diem, 'giaTri')).toBe('39.73 tỷ — tăng 13.17 tỷ (+49.6%) so với T2/26; đỉnh 51.04 tỷ (T8/26), đã giảm 11.31 tỷ; 73.0% là hàng chậm luân chuyển > 3 tháng');
   });
   it('gần như không đổi; thấp nhất cuối khoảng; 1 điểm', () => {
     const d = (tong: number, nhan: string, cham = 0) => ({ khoa: nhan, nhan, ngayChot: '2026-10-22', tong, cham, binhThuong: tong - cham, chenh: null, chenhPt: null, thieuCham: false, goc: { giaTri: tong, giaTriCham: cham, soMa: 0, soMaCham: 0 } });
     expect(tomTatNhom([d(16620, 'T2/26'), d(15700, 'T4/26'), d(16180, 'T10/26', 12070)], 'giaTri'))
-      .toBe('16.18 tỷ — giảm 0.44 tỷ (−2.6%) so với T2/26; 75% là hàng chậm luân chuyển > 3 tháng'); // hồi 0.48 tỷ < 5% => không nêu
+      .toBe('16.18 tỷ — giảm 0.44 tỷ (−2.6%) so với T2/26; 74.6% là hàng chậm luân chuyển > 3 tháng'); // hồi 0.48 tỷ < 5% => không nêu
     expect(tomTatNhom([d(20000, 'T2/26'), d(12000, 'T5/26'), d(18000, 'T10/26')], 'giaTri'))
-      .toBe('18.00 tỷ — giảm 2.00 tỷ (−10%) so với T2/26; thấp nhất 12.00 tỷ (T5/26), đã tăng lại 6.00 tỷ; 0% là hàng chậm luân chuyển > 3 tháng');
+      .toBe('18.00 tỷ — giảm 2.00 tỷ (−10.0%) so với T2/26; thấp nhất 12.00 tỷ (T5/26), đã tăng lại 6.00 tỷ; 0% là hàng chậm luân chuyển > 3 tháng');
     expect(tomTatNhom([d(25650, 'T2/26'), d(25000, 'T6/26'), d(25900, 'T10/26')], 'giaTri')).toBe('25.90 tỷ — gần như không đổi so với T2/26; 0% là hàng chậm luân chuyển > 3 tháng');
-    expect(tomTatNhom([d(34470, 'T2/26'), d(30000, 'T6/26'), d(22330, 'T10/26')], 'giaTri')).toBe('22.33 tỷ — giảm 12.14 tỷ (−35%) so với T2/26; thấp nhất từ đầu khoảng; 0% là hàng chậm luân chuyển > 3 tháng');
-    expect(tomTatNhom([d(1365, '22/10', 1221)], 'soMa')).toBe('1,365 mã — 89% là hàng chậm luân chuyển > 3 tháng');
+    expect(tomTatNhom([d(34470, 'T2/26'), d(30000, 'T6/26'), d(22330, 'T10/26')], 'giaTri')).toBe('22.33 tỷ — giảm 12.14 tỷ (−35.2%) so với T2/26; thấp nhất từ đầu khoảng; 0% là hàng chậm luân chuyển > 3 tháng');
+    expect(tomTatNhom([d(1365, '22/10', 1221)], 'soMa')).toBe('1,365 mã — 89.5% là hàng chậm luân chuyển > 3 tháng');
     expect(tomTatNhom([], 'giaTri')).toBe('');
   });
   it('nhãn số: ≤ 13 điểm ghi hết; nhiều hơn chỉ đầu / cuối / cao nhất / thấp nhất; bỏ null', () => {

@@ -29,9 +29,9 @@ export function khoangThoiGian(ms: number): string {
   if (gio) return p ? `${gio} giờ ${p} phút` : `${gio} giờ`;
   return `${p} phút`;
 }
-const so = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+const so = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 /** Giờ: 1 chữ số lẻ (như báo cáo) */
-const so1 = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+const so1 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 1 });
 const ngayGio = (ms: number) => `${hhmm(ms)} ${gioVN(ms).ngay.split('-').reverse().join('/')}`;
 
 function TrangThai({ t }: { t: string }) {

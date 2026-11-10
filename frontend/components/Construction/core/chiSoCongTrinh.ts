@@ -5,6 +5,7 @@
 // Đơn vị tiền: TRIỆU ĐỒNG (utils/money.ts).
 // ============================================================================
 import type { Rec } from './banGhiCongTrinh';
+import { daNhapDu } from '../../../utils/productionMetrics';
 
 const NGAY = 86_400_000;
 
@@ -38,14 +39,14 @@ export function nhomBot(
   return 'sau30';
 }
 
-/** Đã nhập kho đủ trị giá đơn hàng HOẶC đủ số lượng (không tính đơn hủy) */
-export const daNhapDu = (r: Rec) => r.status !== 'HỦY' && ((r.total > 0 && r.done >= r.total) || r.qtyDone);
+/** Bản ghi đã nhập kho đủ: utils/productionMetrics.daNhapDu */
+export const recDaNhapDu = (r: Rec) => daNhapDu(r.total, r.done, r.status === 'HỦY', r.qtyDone);
 
 export interface ChiSo {
   cts: number; items: number; cancelled: number;
   stocked: number; notStocked: number; partial: number; stockedDone: number; partialDone: number;
-  total: number; done: number; remain: number;
-  exported: number; stock: number; stockHuy: number; exportedRecorded: number; unmatched: number;
+  total: number; totalHuy: number; done: number; remain: number;
+  exported: number; xuatVuot: number; stock: number; stockHuy: number; exportedRecorded: number; unmatched: number;
   stockOver: number; stockOverItems: number;
   /** Phần chưa nhập kho theo công đoạn (cộng lại = remain) */
   remainBy: Record<Rec['bucket'], number>;
@@ -61,17 +62,17 @@ export function tinhChiSo(rows: Rec[], today: number): ChiSo {
   const remainBy: ChiSo['remainBy'] = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
   const bot = Object.fromEntries(NHOM_BOT.map(g => [g.key, { n: 0, remain: 0 }])) as ChiSo['bot'];
   const c = {
-    cancelled: 0, stocked: 0, notStocked: 0, partial: 0, stockedDone: 0, partialDone: 0, total: 0, done: 0,
-    exported: 0, stock: 0, stockHuy: 0, exportedRecorded: 0, unmatched: 0, stockOver: 0, stockOverItems: 0,
+    cancelled: 0, stocked: 0, notStocked: 0, partial: 0, stockedDone: 0, partialDone: 0, total: 0, totalHuy: 0, done: 0,
+    exported: 0, xuatVuot: 0, stock: 0, stockHuy: 0, exportedRecorded: 0, unmatched: 0, stockOver: 0, stockOverItems: 0,
     openItems: 0, pastBot: 0, pastBotRemain: 0,
   };
   for (const r of rows) {
     cts.add(r.ctKey);
     remainBy[r.bucket] += Math.max(r.total - r.done, 0);
-    if (r.status === 'HỦY') { c.cancelled++; c.stockHuy += r.stock; }
-    else if (daNhapDu(r)) { c.stocked++; c.stockedDone += r.done; }
+    if (r.status === 'HỦY') { c.cancelled++; c.stockHuy += r.stock; c.totalHuy += r.totalHuy; }
+    else if (recDaNhapDu(r)) { c.stocked++; c.stockedDone += r.done; }
     else { c.notStocked++; if (r.done > 0) { c.partial++; c.partialDone += r.done; } }
-    c.total += r.total; c.done += r.done; c.exported += r.exported; c.stock += r.stock;
+    c.total += r.total; c.done += r.done; c.exported += r.exported; c.xuatVuot += r.xuatVuot; c.stock += r.stock;
     c.exportedRecorded += r.exportedRecorded; c.unmatched += r.unmatched;
     if (r.stockCut > 0.001) { c.stockOver += r.stockCut; c.stockOverItems++; }
     const g = nhomBot(r, today);
@@ -81,12 +82,12 @@ export function tinhChiSo(rows: Rec[], today: number): ChiSo {
       if (r.botDuAn && r.botDuAn.getTime() < today) { c.pastBot++; c.pastBotRemain += rem; }
     }
   }
-  return { ...c, cts: cts.size, items: rows.length, remain: c.total - c.done, remainBy, bot };
+  return { ...c, cts: cts.size, items: rows.length - c.cancelled, remain: c.total - c.done, remainBy, bot };
 }
 
 /** Giải thích cách tính — hiện ở dấu "?" cạnh mỗi con số (thay cho câu chú thích dài) */
 export const GIAI_THICH = {
-  tongGiaTri: 'Tổng trị giá đơn hàng của các hạng mục, gồm cả đơn hủy (khớp file gốc) — lọc Tình trạng IPO để bỏ hủy.',
+  tongGiaTri: 'Tổng trị giá đơn hàng của các hạng mục, không tính đơn hủy.',
   daNhapKho: 'Giá trị đã nhập kho lũy kế (P022), mỗi hạng mục tối đa bằng trị giá đơn hàng. % = đã nhập / tổng giá trị.',
   quaHan: 'Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần → tháng (KH kỳ đã nhập đủ số lượng thì không tính).',
   quaBot: 'Hạng mục chưa nhập kho đủ đã qua BOT dự án — hạn chung của công trình, chỉ để tham khảo.',

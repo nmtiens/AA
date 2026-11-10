@@ -11,6 +11,8 @@ import { cauGanGiong } from './boCau/ganGiong';
 import { traLoiTruyVan } from './traLoiTruyVan';
 import { taiDanhMuc, taiTuDien, xoaDanhMuc, coAI, hoiAI, ghiNhatKy, danhGiaCau, xemNhatKy, type BangDM, type TruyVan, type TuDien } from './truyVanApi';
 import TuTra from './TuTra';
+import { oBang } from './bangTraLoi';
+import * as mau from '../shared/bangBaoCao';
 
 // ============================================================================
 // Cửa sổ HỎI – ĐÁP SỐ LIỆU (nút tròn góc phải dưới), không dùng AI:
@@ -359,19 +361,22 @@ const HoiDapPopup: React.FC = () => {
                       <>
                         <Chu s={m.tra.chu} />
                         {m.tra.bang && m.tra.bang.dong.length > 0 && (
-                          <div className="mt-2 max-h-72 overflow-auto rounded-lg border border-slate-200">
-                            <table className="w-full text-xs">
-                              <thead className="sticky top-0 bg-slate-50 text-slate-500">
-                                <tr>{m.tra.bang.cot.map((c, j) => <th key={j} className={`whitespace-nowrap px-2 py-1.5 font-medium ${m.tra!.bang!.phai?.includes(j) ? 'text-right' : 'text-left'}`}>{c}</th>)}</tr>
+                          <div className={`${mau.khung} mt-2 max-h-72`}>
+                            <table className={mau.table}>
+                              <thead className={mau.thead}>
+                                <tr>{m.tra.bang.cot.map((c, j) => <th key={j} className={`${mau.thC} whitespace-nowrap`}>{c}</th>)}</tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-100">
+                              <tbody>
                                 {m.tra.bang.dong.map((d, r) => (
-                                  <tr key={r}>{d.map((v, j) => <td key={j} className={`px-2 py-1.5 ${m.tra!.bang!.phai?.includes(j) ? 'whitespace-nowrap text-right tabular-nums' : 'max-w-[12rem] truncate'}`} title={String(v)}>{v}</td>)}</tr>
+                                  <tr key={r}>{d.map((v, j) => {
+                                    const so = !!m.tra!.bang!.phai?.includes(j), o = oBang(v, so);
+                                    return <td key={j} className={so ? `${mau.tdSo} ${o.do ? 'text-red-600' : ''}` : `${mau.tdB} max-w-[12rem] truncate`} title={o.chu}>{o.chu}</td>;
+                                  })}</tr>
                                 ))}
                               </tbody>
                               {m.tra.bang.cuoi && (
-                                <tfoot className="sticky bottom-0 border-t border-slate-200 bg-slate-50 font-semibold text-slate-900">
-                                  <tr>{m.tra.bang.cuoi.map((v, j) => <td key={j} className={`px-2 py-1.5 ${m.tra!.bang!.phai?.includes(j) ? 'whitespace-nowrap text-right tabular-nums' : ''}`}>{v}</td>)}</tr>
+                                <tfoot className={mau.tfoot}>
+                                  <tr>{m.tra.bang.cuoi.map((v, j) => <td key={j} className={m.tra!.bang!.phai?.includes(j) ? mau.tdSo : mau.tdB}>{oBang(v, !!m.tra!.bang!.phai?.includes(j)).chu}</td>)}</tr>
                                 </tfoot>
                               )}
                             </table>

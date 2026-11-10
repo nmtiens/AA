@@ -17,6 +17,7 @@ import {
 } from '../../../../services/vuongMacService';
 import { getToken } from '../../../../services/userService';
 import { PhotoThumbs, PhotoViewer } from '../../../shared/VuongMacPhoto';
+import { DISPLAY_META, displayState } from '../../../VuongMac/model';
 
 // VuongMacItem có thêm handler?, bot?, solution?, note?, resolvedNote?, extensions?, createdDepartment?, canModify? (xem vuongMacService)
 type ChatItem = VuongMacItem;
@@ -468,12 +469,16 @@ export const VuongMacDetailModal = ({
       </span>
     ) : lockedHint;
 
-  const statusPill = (done: boolean) => (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.6875rem] font-medium ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${done ? 'bg-emerald-500' : 'bg-red-500'}`} />
-      {done ? 'Đã xử lý' : 'Đang tồn đọng'}
-    </span>
-  );
+  // Cùng nhãn và màu với màn Vướng mắc: Mới báo, Đang xử lý, Quá hạn, Sắp đến hạn, Chờ xác nhận, Đã đóng
+  const statusPill = (v: ChatItem) => {
+    const st = DISPLAY_META[displayState(v)];
+    return (
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.6875rem] font-medium ${st.pill}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+        {st.label}
+      </span>
+    );
+  };
 
   // Ô chọn BOT (bắt đầu - kết thúc) dùng cho wizard và form "Cần thêm thời gian"
   const botFields = (
@@ -842,7 +847,7 @@ export const VuongMacDetailModal = ({
                         )}
 
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-2.5">
-                          {statusPill(done)}
+                          {statusPill(v)}
                           {!done && renderActions(v)}
                         </div>
                       </div>
@@ -937,7 +942,7 @@ export const VuongMacDetailModal = ({
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-semibold text-slate-800">Chi tiết vướng mắc</h4>
-                {statusPill(detail.isResolved)}
+                {statusPill(detail)}
               </div>
               <button type="button" onClick={() => setDetailId(null)} aria-label="Đóng" className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                 <X size={18} />

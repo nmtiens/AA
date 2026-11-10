@@ -3,6 +3,8 @@ import { FileSpreadsheet, X } from 'lucide-react';
 import { TRONG_M2, NHOM_VAT_TU, pivotM2, giaTriLoc, docFileBopM2, khopCongTrinh, type DuLieuM2, type HexM2, type VatLieuM2 } from './core/bopM2';
 import { Pivot, ChiTiet, Loc, khopO, tenO, TAT_CA, type ChonO } from './PivotExcel';
 import { API_BASE_URL } from '../../services/dataService';
+import { IPO_MAC_DINH } from '../../utils/productionMetrics';
+import { fmtInt } from '../../utils/format';
 
 // ============================================================================
 // Tab BOM — ĐÚNG 2 pivot của sheet 01_REPORT trong file mẫu PC (không thêm số / cột nào ngoài template):
@@ -16,7 +18,7 @@ import { API_BASE_URL } from '../../services/dataService';
 // chọn file .xlsx đọc trên trình duyệt (nhớ ở máy này).
 // ============================================================================
 
-const MAC_DINH_IPO = '01. ĐANG SẢN XUẤT';
+const MAC_DINH_IPO = IPO_MAC_DINH;
 const khoaLuu = (ct: string) => `bopM2:${ct}`;
 
 // Nhớ kết quả /api/bop-m2 theo mã công trình trong phiên (5 phút): chuyển tab / mở lại công trình không tải lại.
@@ -159,20 +161,20 @@ const HaiBangBom = ({ duLieu, onHexClick, coCt = false }: {
           <h3 className="text-lg font-bold text-red-600">II. BOM - THEO DANH MỤC VẬT LIỆU (BOP-M2)</h3>
           <Loc nhan="PHÂN LOẠI NHU CẦU ĐẶT MUA" gia={nhuCau} ds={dsNhuCau} onDoi={v => { setNhuCau(v); setOVl(null); }} />
           <Pivot cotDong="NHÓM VẬT TƯ" p={bangVl} chon={oVl} onChon={setOVl} />
-          {oVl ? (
+          {oVl && (
             <ChiTiet tieuDe={`Chi tiết vật liệu: ${tenO(oVl)}`} cot={coCt ? [['CÔNG TRÌNH', v => v.ct ?? ''], ...COT_VL] : COT_VL} onDong={() => setOVl(null)}
               ds={vlLoc.filter(khopO(oVl, (v: VatLieuM2) => v.nhom, v => v.m))} />
-          ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng để xem danh sách vật liệu.</p>}
+          )}
         </section>
 
         <section className="space-y-2">
           <h3 className="text-lg font-bold text-red-600">3/ TÌNH TRẠNG VẬT TƯ THEO ĐƠN HÀNG (ITEM BY ITEM)</h3>
           <Loc nhan="TÌNH TRẠNG IPO FINAL" gia={ipoChon} ds={dsIpo} onDoi={v => { setIpo(v); setOHex(null); }} />
           <Pivot cotDong="PHÂN LOẠI NHÓM SẢN PHẨM" p={bangHex} chon={oHex} onChon={setOHex} />
-          {oHex ? (
+          {oHex && (
             <ChiTiet tieuDe={`Chi tiết HEX: ${tenO(oHex)}`} cot={coCt ? [['CÔNG TRÌNH', h => h.ct ?? ''], ...COT_HEX] : COT_HEX} onDong={() => setOHex(null)} onHex={onHexClick}
               ds={hexLoc.filter(khopO(oHex, (h: HexM2) => h.nhomSp, h => h.final))} />
-          ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng để xem danh sách HEX.</p>}
+          )}
         </section>
 
     </>
@@ -228,7 +230,7 @@ export const BomTatCa = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: string[];
         {!khoa ? 'Không có công trình nào có mã CTxx-xxx trong phạm vi đang xem.'
           : loi ? <span className="text-red-600">Không tải được BOP-M2 ({loi}).</span>
           : dangTai ? 'Đang tải BOP-M2 của các công trình…'
-          : <>Gộp <b className="text-slate-800">{kq!.soCt}</b> / {ma.length} công trình đã nạp file BOP-M2 vào DB · {kq!.duLieu.hex.length.toLocaleString('en-US')} HEX · {kq!.duLieu.vatLieu.length.toLocaleString('en-US')} dòng vật liệu</>}
+          : <><b className="text-slate-800">{fmtInt(kq!.soCt)}</b> / {fmtInt(ma.length)} công trình đã nạp · {fmtInt(kq!.duLieu.hex.length)} HEX · {fmtInt(kq!.duLieu.vatLieu.length)} dòng vật liệu</>}
       </p>
       {kq && kq.khoa === khoa && <HaiBangBom key={khoa} duLieu={kq.duLieu} onHexClick={onHexClick} coCt />}
     </div>

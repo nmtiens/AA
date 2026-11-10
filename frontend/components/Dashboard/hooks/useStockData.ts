@@ -53,6 +53,8 @@ interface UseStockDataResult {
   latestStockStats: StockStatsResult;
   latestStockStatsPrevMonth: StockStatsResult;
   stockOverviewCardValue: number;
+  /** Số mã giá trị 0 ở ngày thẻ Tồn kho, không tính vào thẻ */
+  stockOverviewMa0: number;
   loadStockByProject: () => void;
   /** Danh sách công trình đang dùng để lọc tồn kho (đã giao với whitelist của view nếu có) */
   stockScopeCongTrinh: string[];
@@ -179,16 +181,16 @@ export function useStockData({
     return { count: entry.count, value: entry.value, date: d };
   }, [stockDates, latestUnifiedDate]);
 
-  const stockOverviewCardValue = useMemo(() => {
-    if (!closestStockDate) return 0;
+  const stockOverviewEntry = useMemo(() => {
+    if (!closestStockDate) return undefined;
     const dateStr = toISODateLocal(closestStockDate);
-    const entry = stockDates.find(s => {
+    return stockDates.find(s => {
       const sDate = parseVNDate(s.date) || new Date(s.date);
       return toISODateLocal(sDate) === dateStr;
     });
-    if (!entry) return 0;
-    return overviewMetric === 'COUNT' ? entry.count : entry.value;
-  }, [stockDates, closestStockDate, overviewMetric]);
+  }, [stockDates, closestStockDate]);
+  const stockOverviewCardValue = !stockOverviewEntry ? 0 : overviewMetric === 'COUNT' ? stockOverviewEntry.count : stockOverviewEntry.value;
+  const stockOverviewMa0 = stockOverviewEntry?.count0 ?? 0;
 
 const loadStockByProject = useCallback(() => {
     if (isScopedWithNoProjects) {
@@ -214,6 +216,7 @@ const loadStockByProject = useCallback(() => {
     latestStockStats,
     latestStockStatsPrevMonth,
     stockOverviewCardValue,
+    stockOverviewMa0,
     loadStockByProject,
     stockTotalCount,
   };

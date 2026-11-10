@@ -1,9 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES, APP_VIEWS } from '../types';
 import { useLocation } from 'react-router-dom';
-import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight, Check, Filter, ChevronDown, XCircle, LayoutTemplate } from 'lucide-react';
+import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight, Check, Filter, ChevronDown, XCircle, LayoutTemplate, Sigma } from 'lucide-react';
 import { exportToCSV } from '../services/dataService';
 import { parseNumber } from './Dashboard/utils/numberParsers';
+import { fmtInt } from '../utils/format';
+import { tachHuy } from '../utils/tachHuyTong';
+import { findColumnKey } from './Dashboard/utils/columnKeyResolver';
+import * as bang from './shared/bangBaoCao';
 
 interface DataGridProps {
   data: DataRow[];
@@ -29,7 +33,7 @@ const fmtSoLe = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const hienO = (v: unknown): { text: React.ReactNode; so: boolean } => {
   if (typeof v === 'number') return Number.isInteger(v) ? { text: v, so: true } : { text: fmtSoLe.format(v), so: true };
   if (typeof v === 'string' && /^-?\d+\.\d{3,}$/.test(v.trim())) return { text: fmtSoLe.format(Number(v)), so: true };
-  return { text: v as React.ReactNode, so: false };
+  return { text: v as React.ReactNode, so: typeof v === 'string' && /^-?[\d,]+(\.\d+)?$/.test(v.trim()) };
 };
 
 // Tên cột dữ liệu gốc viết HOA hết ("TRỊ GIÁ ĐƠN HÀNG TỔNG") => viết thường, hoa chữ đầu cho dễ đọc
@@ -37,9 +41,9 @@ const tenCot = (label: string) =>
   label !== label.toLocaleUpperCase('vi') ? label : label.toLocaleLowerCase('vi').replace(/^\p{L}/u, c => c.toLocaleUpperCase('vi')).replace(/\bhex\b/gi, 'HEX');
 
 const formatAggregationValue = (value: number, type: AggregationType): string => {
-  if (type === 'COUNT' || type === 'DISTINCT_COUNT') return value.toLocaleString('vi-VN');
+  if (type === 'COUNT' || type === 'DISTINCT_COUNT') return fmtInt(value);
   // For Sum/Avg, format with 2 decimals strict
-  return new Intl.NumberFormat('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 };
 
 // --- Helper Components ---
@@ -216,9 +220,7 @@ const DataGrid: React.FC<DataGridProps> = ({
           const label = col.label?.toUpperCase() || '';
           const keyUpper = key.toUpperCase();
 
-          if (key === TARGET_COLUMN_NAMES.HEX) {
-            defaults[key] = 'COUNT';
-          } else if (key === TARGET_COLUMN_NAMES.CONG_TRINH) {
+          if (key === TARGET_COLUMN_NAMES.HEX || key === TARGET_COLUMN_NAMES.CONG_TRINH) {
             defaults[key] = 'DISTINCT_COUNT';
           } else if (
             label.includes('GIÁ TRỊ') ||
@@ -387,11 +389,22 @@ const DataGrid: React.FC<DataGridProps> = ({
     return result;
   }, [data, visibleColumns, searchTerm, primaryFilterValue, additionalSearchValues, advancedFilters, sortConfig, primaryKey, additionalSearchColumns]);
 
+  // Tổng tiền bỏ dòng HỦY, hiện riêng 1 dòng; bảng không có cột Tình trạng IPO thì không đổi
+  const ipoKey = useMemo(() => findColumnKey(columns, 'tinh_trang_ipo'), [columns]);
+  const tongHuy = (col: ColumnDefinition, type: AggregationType) => {
+    if (type !== 'SUM') return 0;
+    return tachHuy(processedData, ipoKey, col.key, col.label).huy.reduce((a, r) => a + parseNumber(r[col.key]), 0);
+  };
+  const huyTheoCot = enableAggregation ? visibleColumns.map(col => tongHuy(col, aggregationSettings[col.key] || 'NONE')) : [];
+
   // Calculate Aggregation
-  const getAggregationResult = (colKey: string, type: AggregationType) => {
+  const getAggregationResult = (col: ColumnDefinition, type: AggregationType) => {
     if (type === 'NONE') return null;
 
-    const values = processedData.map(row => row[colKey]);
+    const colKey = col.key;
+    // Đếm giữ mọi dòng, Tổng và Trung bình tiền bỏ HỦY
+    const rows = type === 'SUM' || type === 'AVERAGE' ? tachHuy(processedData, ipoKey, colKey, col.label).tinh : processedData;
+    const values = rows.map(row => row[colKey]);
 
     if (type === 'COUNT') {
       return values.length;
@@ -464,7 +477,7 @@ const DataGrid: React.FC<DataGridProps> = ({
     <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <h1 className="page-title">{tenTrang}</h1>
       <span className="text-sm text-slate-500">
-        {processedData.length.toLocaleString('en-US')} dòng{processedData.length !== data.length ? ` / ${data.length.toLocaleString('en-US')} (đang lọc)` : ''}
+        {fmtInt(processedData.length)} dòng{processedData.length !== data.length ? ` / ${fmtInt(data.length)} (đang lọc)` : ''}
       </span>
     </div>
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -597,35 +610,52 @@ const DataGrid: React.FC<DataGridProps> = ({
 
       {/* Table Area */}
       <div className="flex-1 overflow-auto custom-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
-          <thead className="bg-white sticky top-0 z-10 shadow-[0_1px_0_#e2e8f0]">
+        <table className={`${bang.table} text-left min-w-[1000px]`}>
+          <thead className={bang.thead}>
             <tr>
-              <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 w-12">#</th>
+              <th className={`${bang.thC} w-12`}>#</th>
               {visibleColumns.map(col => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-xs font-medium whitespace-nowrap cursor-pointer hover:bg-slate-50 transition-colors group ${sortConfig?.key === col.key ? 'text-slate-900' : 'text-slate-500'}`}
+                  className={`${bang.thB} whitespace-nowrap cursor-pointer hover:bg-emerald-200 transition-colors group`}
                   onClick={() => handleSort(col.key)}
                 >
                   <div className="flex items-center gap-1" title={col.label}>
                     {tenCot(col.label)}
-                    <ArrowUpDown size={12} className={`text-slate-300 transition-colors ${sortConfig?.key === col.key ? 'text-slate-900' : 'group-hover:text-slate-400'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig?.key === col.key ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-700'}`} />
+                    {enableAggregation && (
+                      <span className="relative ml-auto inline-flex" onClick={(e) => e.stopPropagation()} title="Phép tính dòng tổng">
+                        <Sigma size={13} className={aggregationSettings[col.key] && aggregationSettings[col.key] !== 'NONE' ? 'text-slate-900' : 'text-slate-500'} />
+                        <select
+                          aria-label={`Phép tính cột ${tenCot(col.label)}`}
+                          className="absolute inset-0 w-full cursor-pointer opacity-0"
+                          value={aggregationSettings[col.key] || 'NONE'}
+                          onChange={(e) => setAggregationSettings(prev => ({ ...prev, [col.key]: e.target.value as AggregationType }))}
+                        >
+                          <option value="NONE">Không tính</option>
+                          <option value="SUM">Tổng</option>
+                          <option value="COUNT">Đếm dòng</option>
+                          <option value="DISTINCT_COUNT">Đếm khác nhau</option>
+                          <option value="AVERAGE">Trung bình</option>
+                        </select>
+                      </span>
+                    )}
                   </div>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
+          <tbody className="bg-white">
             {paginatedData.length > 0 ? (
               paginatedData.map((row, index) => (
                 <tr key={index} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-2.5 text-center text-xs text-slate-400 font-mono">
+                  <td className={`${bang.tdSo} text-slate-500`}>
                     {(currentPage - 1) * ROWS_PER_PAGE + index + 1}
                   </td>
                   {visibleColumns.map(col => {
                     const o = hienO(row[col.key]);
                     return (
-                      <td key={col.key} className={`px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap ${o.so ? 'tabular-nums' : ''}`}>
+                      <td key={col.key} className={o.so ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}>
                         {o.text}
                       </td>
                     );
@@ -646,36 +676,24 @@ const DataGrid: React.FC<DataGridProps> = ({
 
           {/* Aggregation Footer */}
           {enableAggregation && (
-            <tfoot className="bg-slate-50 sticky bottom-0 z-20 font-semibold shadow-[0_-1px_0_#cbd5e1]">
+            <tfoot className={bang.tfoot}>
+              {huyTheoCot.some(Boolean) && (
+                <tr className="text-slate-700 [&_td]:!bottom-[2.35rem] [&_td]:!bg-slate-100">
+                  <td className={bang.tdSo}>HỦY</td>
+                  {visibleColumns.map((col, i) => (
+                    <td key={col.key} className={bang.tdSo}>{huyTheoCot[i] ? formatAggregationValue(huyTheoCot[i], 'SUM') : ''}</td>
+                  ))}
+                </tr>
+              )}
               <tr>
-                <td className="px-4 py-3 text-center text-xs text-slate-700">
-                  Tổng
-                </td>
+                <td className={bang.tdSo}>TỔNG</td>
                 {visibleColumns.map(col => {
                   const type = aggregationSettings[col.key] || 'NONE';
-                  const result = getAggregationResult(col.key, type);
+                  const result = getAggregationResult(col, type);
 
                   return (
-                    <td key={col.key} className="px-4 py-2 min-w-[120px]">
-                      <div className="flex flex-col gap-1 w-full">
-                        <select
-                          className="text-[0.6875rem] font-medium text-slate-500 bg-transparent border-none focus:ring-0 cursor-pointer p-0 w-full hover:text-slate-900 transition-colors"
-                          value={type}
-                          onChange={(e) => setAggregationSettings(prev => ({ ...prev, [col.key]: e.target.value as AggregationType }))}
-                        >
-                          <option value="NONE">-- Chọn --</option>
-                          <option value="SUM">Tổng (Sum)</option>
-                          <option value="COUNT">Đếm (Count)</option>
-                          <option value="DISTINCT_COUNT">Đếm khác nhau</option>
-                          <option value="AVERAGE">Trung bình</option>
-                        </select>
-
-                        {type !== 'NONE' && result !== null && (
-                          <div className="text-right font-semibold tabular-nums text-slate-900 text-sm border-t border-slate-200 pt-1">
-                            {formatAggregationValue(result, type)}
-                          </div>
-                        )}
-                      </div>
+                    <td key={col.key} className={bang.tdSo}>
+                      {type !== 'NONE' && result !== null ? formatAggregationValue(result, type) : ''}
                     </td>
                   );
                 })}

@@ -5,7 +5,7 @@ import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 } from 'recharts';
 import {
   Filter, BarChart2, Table as TableIcon,
-  Calendar, TrendingUp, Import, Activity, X, XCircle as CloseIcon, Eye,
+  Activity, X, XCircle as CloseIcon, Eye,
 } from 'lucide-react';
 import { formatDecimal, formatInteger } from '../../utils/numberParsers';
 import { formatTy, formatTrieuAsTy } from '../../../../utils/money';
@@ -15,7 +15,17 @@ import { WeeklyVennDiagram } from '../shared/WeeklyVennDiagram';
 import { ProjectChartTooltip } from '../shared/tooltips/ProjectChartTooltip';
 import { WorkshopChartTooltip } from '../shared/tooltips/WorkshopChartTooltip';
 import ProductivityCharts from '../../../ProductivityCharts';
+import { mauTyLe } from '../../core/dauTrang';
+import { tyLeKh } from '../../core/chiTietHex';
 import { planWeekOf, type ViewMode } from '../../hooks/useUnifiedTimeFilters';
+import { khung, soO, table, tdB, tfoot, thB, thead, trong0 } from '../../../shared/bangBaoCao';
+import { fmtPt } from '../../../../utils/format';
+
+// Cột tỷ lệ: 0% hiện đỏ, chưa có KH thì "—"
+const mauNkKh = (pt: number | null) => (pt === null ? '' : mauTyLe(pt).o);
+const soTy = (v: number) => trong0(v, formatTy);
+const soLe = (v: number) => trong0(v, formatDecimal);
+const soNguyen = (v: number) => trong0(v, formatInteger);
 // ---------------------------------------------------------------------------
 // Types (mirror the fields actually consumed below — verify against
 // useKhsxSummary's real return type and replace this block with an import
@@ -30,6 +40,11 @@ export interface UnifiedTimeFilters {
 }
 
 
+// Thẻ số đầu tab: cùng kiểu thẻ đầu trang Tổng quan
+const THE_KH = 'flex flex-col rounded-2xl border border-slate-200 bg-white px-5 py-4';
+const THE_TEN = 'mb-1.5 text-sm font-semibold text-slate-600';
+const THE_SO = 'text-3xl font-semibold tabular-nums tracking-tight';
+
 const TH_PLAN_COLOR = '#3b82f6';
 const TH_OUT_COLOR = '#bfdbfe';
 
@@ -38,11 +53,11 @@ const TH_OUT_COLOR = '#bfdbfe';
 const ThStackLabel = ({ x, y, width, item }: { x?: number; y?: number; width?: number; item?: { khValue: number; thValue: number; thOutValue: number } }) => {
   if (!item || x === undefined || y === undefined || width === undefined) return null;
   if (!(item.khValue > 0)) return null;
-  const percent = Math.round((item.thValue / item.khValue) * 100);
-  const color = percent >= 80 ? '#059669' : percent >= 50 ? '#d97706' : '#dc2626';
+  const percent = (item.thValue / item.khValue) * 100;
+  const color = mauTyLe(percent).hex;
   return (
     <text x={x + width / 2} y={y - 5} fill={color} fontSize={12} fontWeight={700} textAnchor="middle">
-      {percent}%
+      {fmtPt(percent)}
     </text>
   );
 };
@@ -133,6 +148,8 @@ interface KhsxPlanActualSectionProps {
   // nhiệm tính lại mảng này mỗi khi unifiedTimeFilters.nam thay đổi.
   yearlyPlan2026WorkshopChartData: YearlyWorkshopRow[];
   selectedRevenueYearLabel: string;   // MỚI
+  /** Đang lọc công trình: giờ công không chia theo công trình, ẩn các chỉ số chia giờ */
+  locCongTrinh?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,8 +180,10 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
   productivityAnalysisData,
   yearlyPlan2026WorkshopChartData,
   selectedRevenueYearLabel,
+  locCongTrinh = false,
 }) => {
   const [isWeeklyDetailModalOpen, setIsWeeklyDetailModalOpen] = useState(false);
+  const tongTuan = (f: (b: (typeof weeklyPlanVsActualData)[number]) => number) => weeklyPlanVsActualData.reduce((a, b) => a + f(b), 0);
 
   if (khsxDataLength === 0 && inventoryDataLength === 0) return null;
 
@@ -177,9 +196,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
       >
         <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-orange-500 to-indigo-600 p-2 rounded-lg text-white">
-              <BarChart2 size={24} />
-            </div>
+            <BarChart2 size={22} className="text-slate-600" />
             <h3 className="text-lg font-bold text-slate-800">Kế hoạch & Nhập kho</h3>
           </div>
 
@@ -317,7 +334,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           return (
                             <text x={x + width / 2} y={y - 18} fill="#2563eb" fontSize={12} fontWeight={700} textAnchor="middle">
                               <tspan x={x + width / 2} dy="0">{formatTy(actual)}</tspan>
-                              <tspan x={x + width / 2} dy="14">({Math.round(percent)}%)</tspan>
+                              <tspan x={x + width / 2} dy="14">({fmtPt(percent)})</tspan>
                             </text>
                           );
                         }}
@@ -336,80 +353,37 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
           <>
             {/* ================= CHẾ ĐỘ THÁNG/TUẦN: giữ nguyên toàn bộ nội dung cũ ================= */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-4 bg-orange-50 rounded-xl border border-orange-100 shadow-sm flex flex-col justify-center">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-orange-100 rounded text-orange-600">
-                    <Calendar size={18} />
-                  </div>
-                  <p className="text-sm font-bold text-orange-800 uppercase">Kế hoạch (tỷ)</p>
-                </div>
-                <h4 className="text-2xl lg:text-3xl font-bold text-orange-600 tracking-tight">
-                  {formatTy(totalKhsxAmount)}
-                </h4>
-                {viewMode === 'MONTH' && weeklyKhFallback !== undefined && (
-                  <div
-                    className="mt-1.5 rounded-md bg-amber-100/70 px-2 py-1 text-sm font-medium text-amber-800"
-                    title="Kỳ đang xem chưa nhập kế hoạch THÁNG (bảng KHSX). Số dưới đây là tổng kế hoạch TUẦN trong cùng kỳ — chuyển sang 'Xem theo TUẦN' để so KH tuần với thực hiện."
-                  >
-                    Chưa có KH tháng · KH tuần: {formatTy(weeklyKhFallback)} tỷ
-                  </div>
+              <div className={THE_KH}>
+                <p className={THE_TEN}>{viewMode === 'WEEK' ? 'KH tuần' : 'KH tháng đã chốt'} (tỷ)</p>
+                <h4 className={`${THE_SO} text-slate-900`}>{formatTy(totalKhsxAmount)}</h4>
+                {totalKhsxAmount <= 0 && (
+                  <p className="mt-1.5 text-sm font-medium text-amber-700">
+                    {viewMode === 'WEEK' ? 'Chưa có KH tuần' : 'Chưa có KH tháng'}
+                    {viewMode === 'MONTH' && weeklyKhFallback !== undefined && <> · KH tuần: {formatTy(weeklyKhFallback)} tỷ</>}
+                  </p>
                 )}
               </div>
-              <div className="p-4 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl border border-teal-100 shadow-sm flex flex-col justify-center relative overflow-hidden">
-                <div className="flex items-center gap-2 mb-2 z-10">
-                  <div className="p-1.5 bg-teal-100 rounded text-teal-600">
-                    <TrendingUp size={18} />
-                  </div>
-                  <p
-                    className="text-sm font-bold text-teal-800 uppercase"
-                    title="Nhập kho của các hạng mục CÓ trong kế hoạch cùng kỳ ÷ tổng kế hoạch. Nhập kho của hạng mục ngoài kế hoạch không tính vào tỷ lệ."
-                  >
-                    Tỷ lệ NK theo KH / KH
-                  </p>
-                </div>
-                <div className="flex items-baseline gap-2 z-10">
-                  <h4
-                    className={`text-3xl font-bold tracking-tight ${
-                      completionRate >= 80 ? 'text-emerald-600' : completionRate >= 50 ? 'text-amber-600' : 'text-red-500'
-                    }`}
-                  >
-                    {formatDecimal(completionRate)}%
-                  </h4>
-                </div>
-                <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 z-10">
+              <div className={THE_KH}>
+                <p className={THE_TEN} title="Nhập kho của hạng mục có trong kế hoạch ÷ tổng kế hoạch">NK theo KH / KH</p>
+                <h4 className={`${THE_SO} ${totalKhsxAmount > 0 ? mauTyLe(completionRate).chu : 'text-slate-500'}`}>
+                  {totalKhsxAmount > 0 ? fmtPt(completionRate) : 'Chưa có KH'}
+                </h4>
+                <div className="mt-3 h-1.5 w-full rounded-full bg-slate-200">
                   <div
-                    className={`h-1.5 rounded-full transition-all duration-500 ${
-                      completionRate >= 100
-                        ? 'bg-emerald-500'
-                        : completionRate >= 80
-                        ? 'bg-teal-500'
-                        : completionRate >= 50
-                        ? 'bg-amber-500'
-                        : 'bg-red-500'
-                    }`}
+                    className={`h-1.5 rounded-full transition-all duration-500 ${mauTyLe(completionRate).thanh}`}
                     style={{ width: `${Math.min(completionRate, 100)}%` }}
-                  ></div>
-                </div>
-                <div className="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2">
-                  <TrendingUp size={80} className="text-teal-600" />
+                  />
                 </div>
               </div>
-              <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-center">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-indigo-100 rounded text-indigo-600">
-                    <Import size={18} />
-                  </div>
-                  <p className="text-sm font-bold text-indigo-800 uppercase">Nhập kho (tỷ)</p>
-                </div>
-                <h4 className="text-2xl lg:text-3xl font-bold text-indigo-600 tracking-tight">
-                  {formatTy(totalInventoryAmount)}
-                </h4>
-                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
-                  <span className="inline-flex items-center gap-1 text-indigo-800/80">
+              <div className={THE_KH}>
+                <p className={THE_TEN}>Nhập kho (tỷ)</p>
+                <h4 className={`${THE_SO} text-slate-900`}>{formatTy(totalInventoryAmount)}</h4>
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-slate-600">
+                  <span className="inline-flex items-center gap-1">
                     <i className="h-2 w-2 rounded-sm" style={{ background: TH_PLAN_COLOR }} />
                     Theo KH: <b className="tabular-nums">{formatTy(totalInventoryPlanAmount)}</b>
                   </span>
-                  <span className="inline-flex items-center gap-1 text-indigo-800/80">
+                  <span className="inline-flex items-center gap-1">
                     <i className="h-2 w-2 rounded-sm" style={{ background: TH_OUT_COLOR }} />
                     Ngoài KH: <b className="tabular-nums">{formatTy(Math.max(totalInventoryAmount - totalInventoryPlanAmount, 0))}</b>
                   </span>
@@ -478,8 +452,8 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
 
                 {weeklyPlanVsActualData.length > 0 ? (
                   <div className="flex flex-col xl:flex-row gap-6 items-start">
-                    <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg flex-1 min-w-0">
-                      <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between pb-2">
                         <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
                           <TableIcon className="w-4 h-4 text-wood-500" />
                           {(() => {
@@ -499,83 +473,54 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           <Eye size={16} />
                         </button>
                       </div>
-                      <table className="w-full text-sm text-right min-w-[800px]">
-                        <thead className="bg-wood-50 text-slate-700 font-semibold uppercase">
+                      <div className={`${khung} max-h-[70vh]`}>
+                      <table className={table}>
+                        <thead className={thead}>
                           <tr>
-                            <th className="px-4 py-3 text-left sticky left-0 bg-wood-50 border-b border-wood-200 z-10 w-32">
-                              Xưởng
-                            </th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">KH (tỷ)</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">NK tuần (tỷ)</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">NK / KH</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-green-700 bg-green-50">ĐÚNG TIẾN ĐỘ</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-red-700 bg-red-50">CHẬM TIẾN ĐỘ</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-teal-700 bg-teal-50">NGOÀI KẾ HOẠCH</th>
+                            <th className={`${thB} sticky left-0 z-[3] w-32 bg-emerald-300 text-center`}>Xưởng</th>
+                            <th className={`${thB} text-center`}>KH (tỷ)</th>
+                            <th className={`${thB} text-center`}>NK tuần (tỷ)</th>
+                            <th className={`${thB} text-center`}>NK / KH</th>
+                            <th className={`${thB} text-center`}>Đúng tiến độ</th>
+                            <th className={`${thB} text-center`}>Chậm tiến độ</th>
+                            <th className={`${thB} text-center`}>Ngoài kế hoạch</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody>
                           {weeklyPlanVsActualData.map((item, idx) => {
                             const dungTienDo = item.dungKh + item.thucHienDungKh1Phan + item.nhapKhoTruocKh;
                             const chamTienDo = item.rotKh + item.thucHienRotKh1Phan;
                             const ngoaiKeHoach = item.vuotKh + item.nhapKhoNgoaiKh;
-                            const percent = item.plan > 0 ? (item.actualWeek / item.plan) * 100 : 0;
+                            const percent = tyLeKh(item.actualWeek, item.plan);
 
                             return (
-                              <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white hover:bg-slate-50 z-10 border-r border-slate-100">
-                                  {item.name}
-                                </td>
-                                <td className="px-4 py-3 text-slate-600 font-bold">{formatTy(item.plan)}</td>
-                                <td className="px-4 py-3 font-bold text-slate-800">{formatTy(item.actualWeek)}</td>
-                                <td className="px-4 py-3">
-                                  <span
-                                    className={`px-2 py-1 rounded font-bold text-xs inline-block w-16 text-center ${
-                                      percent >= 80
-                                        ? 'bg-green-100 text-green-700'
-                                        : percent >= 50
-                                        ? 'bg-yellow-100 text-yellow-700'
-                                        : 'bg-red-100 text-red-700'
-                                    }`}
-                                  >
-                                    {formatDecimal(percent)}%
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-green-700 bg-green-50/30 font-bold">{formatTy(dungTienDo)}</td>
-                                <td className="px-4 py-3 text-red-700 bg-red-50/30 font-bold">{formatTy(chamTienDo)}</td>
-                                <td className="px-4 py-3 text-teal-700 bg-teal-50/30 font-bold">{formatTy(ngoaiKeHoach)}</td>
+                              <tr key={idx}>
+                                <td className={`${tdB} sticky left-0 z-[1] whitespace-nowrap bg-white font-bold`}>{item.name}</td>
+                                <td className={`${tdB} ${soO}`}>{soTy(item.plan)}</td>
+                                <td className={`${tdB} ${soO}`}>{soTy(item.actualWeek)}</td>
+                                <td className={`${tdB} ${soO} font-bold ${mauNkKh(percent)}`}>{fmtPt(percent)}</td>
+                                <td className={`${tdB} ${soO}`}>{soTy(dungTienDo)}</td>
+                                <td className={`${tdB} ${soO}`}>{soTy(chamTienDo)}</td>
+                                <td className={`${tdB} ${soO}`}>{soTy(ngoaiKeHoach)}</td>
                               </tr>
                             );
                           })}
                         </tbody>
-                        <tfoot className="bg-wood-100 font-bold text-slate-800 border-t border-wood-300">
+                        <tfoot className={tfoot}>
                           <tr>
-                            <td className="px-4 py-3 text-left sticky left-0 bg-wood-100 z-10">TỔNG CỘNG</td>
-                            <td className="px-4 py-3">{formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
-                            <td className="px-4 py-3">
-                              {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
+                            <td className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
+                            <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.plan))}</td>
+                            <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.actualWeek))}</td>
+                            <td className={`${tdB} ${soO}`}>
+                              {fmtPt(tyLeKh(tongTuan(b => b.actualWeek), tongTuan(b => b.plan)))}
                             </td>
-                            <td className="px-4 py-3">
-                              {(() => {
-                                const totalPlan = weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0);
-                                const totalActual = weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0);
-                                const totalPercent = totalPlan > 0 ? (totalActual / totalPlan) * 100 : 0;
-                                return `${formatDecimal(totalPercent)}%`;
-                              })()}
-                            </td>
-                            <td className="px-4 py-3 text-green-800 bg-green-100/50">
-                              {formatTy(
-                                weeklyPlanVsActualData.reduce((a, b) => a + b.dungKh + b.thucHienDungKh1Phan + b.nhapKhoTruocKh, 0)
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-red-800 bg-red-100/50">
-                              {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh + b.thucHienRotKh1Phan, 0))}
-                            </td>
-                            <td className="px-4 py-3 text-teal-800 bg-teal-100/50">
-                              {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh + b.nhapKhoNgoaiKh, 0))}
-                            </td>
+                            <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.dungKh + b.thucHienDungKh1Phan + b.nhapKhoTruocKh))}</td>
+                            <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.rotKh + b.thucHienRotKh1Phan))}</td>
+                            <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.vuotKh + b.nhapKhoNgoaiKh))}</td>
                           </tr>
                         </tfoot>
                       </table>
+                      </div>
                     </div>
 
                     <div className="w-full xl:w-auto xl:max-w-[40%] shrink-0">
@@ -614,68 +559,57 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
                     <Activity className="w-4 h-4 text-purple-600" /> Năng suất
+                    {locCongTrinh && <span className="font-medium normal-case tracking-normal text-slate-500">Giờ công theo xưởng, không theo công trình</span>}
                   </h4>
                 </div>
 
                 {productivityAnalysisData.length > 0 ? (
-                  <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
-                    <table className="w-full text-sm text-right min-w-[1200px]">
-                      <thead className="bg-purple-50 text-slate-700 font-semibold uppercase">
+                  <div className={`${khung} max-h-[70vh]`}>
+                    <table className={table}>
+                      <thead className={thead}>
                         <tr>
-                          <th className="px-4 py-3 text-left border-b border-purple-200 sticky left-0 bg-purple-50 z-10 w-[200px]">
-                            Xưởng
-                          </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Định biên">
-                            ĐỊNH BIÊN
-                          </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Trung bình số lượng công nhân">
-                            TB CÔNG NHÂN
-                          </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Tổng giờ công hành chính">GIỜ HC</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Tổng giờ tăng ca">GIỜ TĂNG CA</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700" title="Tỷ lệ giờ tăng ca">% TĂNG CA</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-purple-800 bg-purple-100/30" title="Doanh số nhập kho">
-                            NHẬP KHO (TỶ)
-                          </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700" title="Bình quân doanh số / 1 giờ">DS / GIỜ (TRIỆU)</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700" title="Bình quân doanh số / 1 công nhân">DS / CN (TRIỆU)</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700" title="Bình quân giờ công / 1 công nhân">GIỜ / CN</th>
+                          <th className={`${thB} sticky left-0 z-[3] w-[200px] bg-emerald-300 text-center`}>Xưởng</th>
+                          <th className={`${thB} text-center`} title="Định biên">Định biên</th>
+                          <th className={`${thB} text-center`} title="Trung bình số lượng công nhân">TB công nhân</th>
+                          <th className={`${thB} text-center`} title="Tổng giờ công hành chính">Giờ HC</th>
+                          <th className={`${thB} text-center`} title="Tổng giờ tăng ca">Giờ tăng ca</th>
+                          <th className={`${thB} text-center`} title="Tỷ lệ giờ tăng ca">% tăng ca</th>
+                          <th className={`${thB} text-center`} title="Doanh số nhập kho">Nhập kho (tỷ)</th>
+                          <th className={`${thB} text-center`} title="Bình quân doanh số / 1 giờ">DS / giờ (triệu)</th>
+                          <th className={`${thB} text-center`} title="Bình quân doanh số / 1 công nhân">DS / CN (triệu)</th>
+                          <th className={`${thB} text-center`} title="Bình quân giờ công / 1 công nhân">Giờ / CN</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody>
                         {productivityAnalysisData.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white z-10 border-r border-slate-100 drop-shadow-sm">
-                              {item.name}
-                            </td>
-                            <td className="px-2 py-3 text-slate-700">{formatInteger(item.avgDinhBien)}</td>
-                            <td className="px-2 py-3 text-slate-700">{formatInteger(item.avgWorkers)}</td>
-                            <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalHc)}</td>
-                            <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalTc)}</td>
-                            <td className="px-2 py-3 text-orange-600">{formatDecimal(item.overtimeRate)}%</td>
-                            <td className="px-2 py-3 text-purple-700 font-bold bg-purple-50/20">{formatTrieuAsTy(item.sales)}</td>
-                            <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerHour)}</td>
-                            <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerWorker)}</td>
-                            <td className="px-2 py-3 text-orange-600">{formatDecimal(item.hoursPerWorker)}</td>
+                          <tr key={idx}>
+                            <td className={`${tdB} sticky left-0 z-[1] whitespace-nowrap bg-white font-bold`}>{item.name}</td>
+                            <td className={`${tdB} ${soO}`}>{soNguyen(item.avgDinhBien)}</td>
+                            <td className={`${tdB} ${soO}`}>{soNguyen(item.avgWorkers)}</td>
+                            <td className={`${tdB} ${soO}`}>{soLe(item.totalHc)}</td>
+                            <td className={`${tdB} ${soO}`}>{soLe(item.totalTc)}</td>
+                            <td className={`${tdB} ${soO} ${item.overtimeRate ? '' : 'text-red-600'}`}>{fmtPt(item.overtimeRate)}</td>
+                            <td className={`${tdB} ${soO} font-bold`}>{trong0(item.sales, formatTrieuAsTy)}</td>
+                            <td className={`${tdB} ${soO}`}>{soLe(item.salesPerHour)}</td>
+                            <td className={`${tdB} ${soO}`}>{soLe(item.salesPerWorker)}</td>
+                            <td className={`${tdB} ${soO}`}>{soLe(item.hoursPerWorker)}</td>
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-purple-100 font-bold text-slate-800 border-t border-purple-300">
+                      <tfoot className={tfoot}>
                         <tr>
-                          <td className="px-4 py-3 text-left sticky left-0 bg-purple-100 z-10 w-[200px]">
-                            TỔNG CỘNG / BÌNH QUÂN
+                          <td className={`${tdB} left-0 !z-[3] w-[200px] text-center`}>TỔNG / BÌNH QUÂN</td>
+                          <td className={`${tdB} ${soO}`}>
+                            {soNguyen(productivityAnalysisData.reduce((sum, item) => sum + item.avgDinhBien, 0))}
                           </td>
-                          <td className="px-2 py-3">
-                            {formatInteger(productivityAnalysisData.reduce((sum, item) => sum + item.avgDinhBien, 0))}
+                          <td className={`${tdB} ${soO}`}>
+                            {soNguyen(productivityAnalysisData.reduce((sum, item) => sum + item.avgWorkers, 0))}
                           </td>
-                          <td className="px-2 py-3">
-                            {formatInteger(productivityAnalysisData.reduce((sum, item) => sum + item.avgWorkers, 0))}
+                          <td className={`${tdB} ${soO}`}>
+                            {soLe(productivityAnalysisData.reduce((sum, item) => sum + item.totalHc, 0))}
                           </td>
-                          <td className="px-2 py-3">
-                            {formatDecimal(productivityAnalysisData.reduce((sum, item) => sum + item.totalHc, 0))}
-                          </td>
-                          <td className="px-2 py-3">
-                            {formatDecimal(productivityAnalysisData.reduce((sum, item) => sum + item.totalTc, 0))}
+                          <td className={`${tdB} ${soO}`}>
+                            {soLe(productivityAnalysisData.reduce((sum, item) => sum + item.totalTc, 0))}
                           </td>
                           {(() => {
                             const totalSales = productivityAnalysisData.reduce((sum, item) => sum + item.sales, 0);
@@ -684,18 +618,18 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                             const totalTc = productivityAnalysisData.reduce((sum, item) => sum + item.totalTc, 0);
                             const totalHours = totalHc + totalTc;
 
-                            const avgSalesPerHour = totalHours > 0 ? totalSales / totalHours : 0;
-                            const avgSalesPerWorker = totalAvgWorkers > 0 ? totalSales / totalAvgWorkers : 0;
+                            const avgSalesPerHour = !locCongTrinh && totalHours > 0 ? totalSales / totalHours : 0;
+                            const avgSalesPerWorker = !locCongTrinh && totalAvgWorkers > 0 ? totalSales / totalAvgWorkers : 0;
                             const avgOvertimeRate = totalHours > 0 ? (totalTc / totalHours) * 100 : 0;
                             const avgHoursPerWorker = totalAvgWorkers > 0 ? totalHours / totalAvgWorkers : 0;
 
                             return (
                               <>
-                                <td className="px-2 py-3 text-orange-800">{formatDecimal(avgOvertimeRate)}%</td>
-                                <td className="px-2 py-3 text-purple-900">{formatTrieuAsTy(totalSales)}</td>
-                                <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerHour)}</td>
-                                <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerWorker)}</td>
-                                <td className="px-2 py-3 text-orange-800">{formatDecimal(avgHoursPerWorker)}</td>
+                                <td className={`${tdB} ${soO}`}>{fmtPt(avgOvertimeRate)}</td>
+                                <td className={`${tdB} ${soO}`}>{trong0(totalSales, formatTrieuAsTy)}</td>
+                                <td className={`${tdB} ${soO}`}>{soLe(avgSalesPerHour)}</td>
+                                <td className={`${tdB} ${soO}`}>{soLe(avgSalesPerWorker)}</td>
+                                <td className={`${tdB} ${soO}`}>{soLe(avgHoursPerWorker)}</td>
                               </>
                             );
                           })()}
@@ -736,113 +670,51 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
             </div>
 
             <div className="flex-1 overflow-auto p-6 bg-slate-50/50 custom-scrollbar">
-              <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg bg-white shadow-sm">
-                <table className="w-full text-sm text-right min-w-[1500px]">
-                  <thead className="bg-orange-50 text-slate-700 font-semibold uppercase sticky top-0 z-20">
+              <div className={`${khung} max-h-full bg-white`}>
+                <table className={`${table} min-w-[1100px]`}>
+                  <thead className={thead}>
                     <tr>
-                      <th className="px-4 py-3 text-left sticky left-0 bg-orange-50 border-b border-orange-200 z-30 w-32 shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
-                        Xưởng
-                      </th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">KH (tỷ)</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">NK tuần (tỷ)</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">NK / KH</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-green-700 bg-green-50">ĐÚNG KẾ HOẠCH</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-blue-700 bg-blue-50">
-                        THỰC HIỆN ĐÚNG KH 1 PHẦN
-                      </th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-red-700 bg-red-50">RỚT KẾ HOẠCH</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-700 bg-orange-50">
-                        THỰC HIỆN RỚT KH 1 PHẦN
-                      </th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-purple-700 bg-purple-50">
-                        NHẬP KHO TRƯỚC KH
-                      </th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-teal-700 bg-teal-50">VƯỢT KẾ HOẠCH</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-gray-700 bg-gray-100">
-                        NHẬP KHO NGOÀI KH
-                      </th>
+                      <th className={`${thB} sticky left-0 z-[3] w-32 bg-emerald-300 text-center`}>Xưởng</th>
+                      {['KH (tỷ)', 'NK tuần (tỷ)', 'NK / KH', 'Đúng kế hoạch', 'Thực hiện đúng KH 1 phần', 'Rớt kế hoạch', 'Thực hiện rớt KH 1 phần', 'Nhập kho trước KH', 'Vượt kế hoạch', 'Nhập kho ngoài KH'].map(t => (
+                        <th key={t} className={`${thB} text-center`}>{t}</th>
+                      ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {weeklyPlanVsActualData.map((item, idx) => {
-                      const percent = item.plan > 0 ? (item.actualWeek / item.plan) * 100 : 0;
+                      const percent = tyLeKh(item.actualWeek, item.plan);
                       return (
-                        <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                          <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-100 shadow-[1px_0_3px_rgba(0,0,0,0.05)]">
-                            {item.name}
-                          </td>
-                          <td className="px-4 py-3 text-slate-600 font-bold">{formatTy(item.plan)}</td>
-                          <td className="px-4 py-3 font-bold text-slate-800">{formatTy(item.actualWeek)}</td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`px-2 py-1 rounded font-bold text-xs inline-block w-16 text-center ${
-                                percent >= 80
-                                  ? 'bg-green-100 text-green-700'
-                                  : percent >= 50
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              {formatDecimal(percent)}%
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-green-700 bg-green-50/30">{formatTy(item.dungKh)}</td>
-                          <td className="px-4 py-3 text-blue-700 bg-blue-50/30">
-                            {formatTy(item.thucHienDungKh1Phan)}
-                          </td>
-                          <td className="px-4 py-3 text-red-700 bg-red-50/30">{formatTy(item.rotKh)}</td>
-                          <td className="px-4 py-3 text-orange-700 bg-orange-50/30">
-                            {formatTy(item.thucHienRotKh1Phan)}
-                          </td>
-                          <td className="px-4 py-3 text-purple-700 bg-purple-50/30">
-                            {formatTy(item.nhapKhoTruocKh)}
-                          </td>
-                          <td className="px-4 py-3 text-teal-700 bg-teal-50/30">{formatTy(item.vuotKh)}</td>
-                          <td className="px-4 py-3 text-gray-700 bg-gray-50/30">
-                            {formatTy(item.nhapKhoNgoaiKh)}
-                          </td>
+                        <tr key={idx}>
+                          <td className={`${tdB} sticky left-0 z-[1] whitespace-nowrap bg-white font-bold`}>{item.name}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.plan)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.actualWeek)}</td>
+                          <td className={`${tdB} ${soO} font-bold ${mauNkKh(percent)}`}>{fmtPt(percent)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.dungKh)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.thucHienDungKh1Phan)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.rotKh)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.thucHienRotKh1Phan)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.nhapKhoTruocKh)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.vuotKh)}</td>
+                          <td className={`${tdB} ${soO}`}>{soTy(item.nhapKhoNgoaiKh)}</td>
                         </tr>
                       );
                     })}
                   </tbody>
-                  <tfoot className="bg-orange-100 font-bold text-slate-800 border-t border-orange-300 sticky bottom-0 z-20 shadow-[0_-2px_5px_rgba(0,0,0,0.1)]">
+                  <tfoot className={tfoot}>
                     <tr>
-                      <td className="px-4 py-3 text-left sticky left-0 bg-orange-100 z-30 shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
-                        TỔNG CỘNG
+                      <td className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.plan))}</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.actualWeek))}</td>
+                      <td className={`${tdB} ${soO}`}>
+                        {fmtPt(tyLeKh(tongTuan(b => b.actualWeek), tongTuan(b => b.plan)))}
                       </td>
-                      <td className="px-4 py-3">{formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
-                      <td className="px-4 py-3">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
-                      </td>
-                      <td className="px-4 py-3">
-                        {(() => {
-                          const totalPlan = weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0);
-                          const totalActual = weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0);
-                          const totalPercent = totalPlan > 0 ? (totalActual / totalPlan) * 100 : 0;
-                          return `${formatDecimal(totalPercent)}%`;
-                        })()}
-                      </td>
-                      <td className="px-4 py-3 text-green-800 bg-green-100/50">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.dungKh, 0))}
-                      </td>
-                      <td className="px-4 py-3 text-blue-800 bg-blue-100/50">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.thucHienDungKh1Phan, 0))}
-                      </td>
-                      <td className="px-4 py-3 text-red-800 bg-red-100/50">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh, 0))}
-                      </td>
-                      <td className="px-4 py-3 text-orange-800 bg-orange-100/50">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.thucHienRotKh1Phan, 0))}
-                      </td>
-                      <td className="px-4 py-3 text-purple-800 bg-purple-100/50">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.nhapKhoTruocKh, 0))}
-                      </td>
-                      <td className="px-4 py-3 text-teal-800 bg-teal-100/50">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh, 0))}
-                      </td>
-                      <td className="px-4 py-3 text-gray-800 bg-gray-200/50">
-                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.nhapKhoNgoaiKh, 0))}
-                      </td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.dungKh))}</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.thucHienDungKh1Phan))}</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.rotKh))}</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.thucHienRotKh1Phan))}</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.nhapKhoTruocKh))}</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.vuotKh))}</td>
+                      <td className={`${tdB} ${soO}`}>{soTy(tongTuan(b => b.nhapKhoNgoaiKh))}</td>
                     </tr>
                   </tfoot>
                 </table>

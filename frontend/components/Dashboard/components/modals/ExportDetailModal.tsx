@@ -780,7 +780,7 @@ export const ExportDetailModal = ({
                           case 'soLuong':
                             return (
                               <td key="soLuong" className={`px-3 py-2.5 text-right align-top text-slate-800 ${cellBorder}`}>
-                                {parseNumber(row[soLuongKey]).toLocaleString('vi-VN')}
+                                {parseNumber(row[soLuongKey]).toLocaleString('en-US')}
                               </td>
                             );
 
@@ -885,7 +885,7 @@ export const ExportDetailModal = ({
                                   applyFrozen(
                                     <td key={key} className="px-3 py-3 text-right">
                                       {key === 'soLuong'
-                                        ? totals.soLuong.toLocaleString('vi-VN')
+                                        ? totals.soLuong.toLocaleString('en-US')
                                         : moneyTotal(totals.thanhTien)}
                                     </td>,
                                     frozen.get(key),

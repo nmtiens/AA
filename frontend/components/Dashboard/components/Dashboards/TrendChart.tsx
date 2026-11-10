@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useTrendFilter, Granularity } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { fmtPt } from '../../../../utils/format';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 import { fetchYearPlan } from '../../../../services/dataService';
 
@@ -21,8 +22,8 @@ interface ApiPoint { period: string; total: number; totalCount: number; distinct
 // total = null: kỳ không có dữ liệu (chỉ dùng cho tồn kho — số chụp theo ngày, thiếu ngày thì để trống, không vẽ 0)
 interface TrendPoint { period: string; periodKey: string; total: number | null; plan?: number; }
 
-const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+const formatDecimal = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const formatShort = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 // Ngày của kỳ theo phần "YYYY-MM-DD" (server trả nửa đêm UTC của ngày đó): new Date(chuỗi) hiểu là giờ UTC rồi
 // đọc theo giờ máy => máy ở múi giờ âm lùi 1 ngày, mọi cột thành 0. Đọc thẳng năm / tháng / ngày theo giờ máy.
@@ -218,7 +219,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
 
   const theme = THEME[source];
   // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số lượng HEX') : theme.unitValue;
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số hạng mục') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -411,11 +412,11 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
-              margin={{ top: embedded ? 40 : 48, right: embedded ? 130 : 150, left: 0, bottom: 0 }}
+              margin={{ top: embedded ? 40 : 48, right: 16, left: 0, bottom: 0 }}
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="period" tick={{ fontSize: 12, fill: '#475569' }} interval={0} />
+              <XAxis dataKey="period" tick={{ fontSize: 12, fill: '#475569' }} interval="preserveStartEnd" minTickGap={12} />
               <YAxis
                 tickFormatter={fmt}
                 tick={{ fontSize: 12, fill: '#475569' }}
@@ -433,7 +434,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
                 name={unit}
                 fill={theme.bar}
                 radius={[4, 4, 0, 0]}
-                barSize={embedded ? 22 : 30}
+                maxBarSize={embedded ? 22 : 30}
                 cursor="pointer"
               >
                 {chartData.map(entry => (
@@ -442,18 +443,20 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
                     fill={pinned?.point.periodKey === entry.periodKey ? theme.barDark : theme.bar}
                   />
                 ))}
-                <LabelList
-                  dataKey="total"
-                  position="top"
-                  offset={10}
-                  formatter={(v: number | null) => (v == null ? '' : fmt(v))}
-                  fontSize={12}
-                  fontWeight={700}
-                  fill={theme.barDark}
-                />
+                {chartData.length <= 31 && (
+                  <LabelList
+                    dataKey="total"
+                    position="top"
+                    offset={10}
+                    formatter={(v: number | null) => (v == null ? '' : fmt(v))}
+                    fontSize={12}
+                    fontWeight={700}
+                    fill={theme.barDark}
+                  />
+                )}
               </Bar>
               {showPlan && (
-                <Bar dataKey="plan" name="Kế hoạch (tỷ)" fill={PLAN_COLOR} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
+                <Bar dataKey="plan" name="Kế hoạch (tỷ)" fill={PLAN_COLOR} radius={[4, 4, 0, 0]} maxBarSize={embedded ? 22 : 30}>
                   <LabelList
                     dataKey="plan"
                     position="top"
@@ -471,23 +474,6 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
                   stroke="#16a34a"
                   strokeWidth={2}
                   strokeDasharray="6 4"
-                  label={(props: any) => {
-                    const { viewBox } = props;
-                    const text = `TB: ${fmtShort(avgAll)}`;
-                    return (
-                      <text
-                        x={viewBox.x + viewBox.width + 8}
-                        y={viewBox.y}
-                        dy={4}
-                        textAnchor="start"
-                        fontSize={12}
-                        fontWeight={600}
-                        fill="#16a34a"
-                      >
-                        {text}
-                      </text>
-                    );
-                  }}
                 />
               )}
             </ComposedChart>
@@ -510,10 +496,10 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
           >
             {isStock
               ? (stockLatest ? `${stockLatest.period}: ${fmt(stockLatest.total ?? 0)}` : 'Không có dữ liệu')
-              : `Tổng: ${fmt(totalAll)}`}
+              : `Tổng: ${fmt(totalAll)} · TB: ${fmtShort(avgAll)}`}
             {showPlan && (
               <span style={{ color: PLAN_DARK }}>
-                {' '}· KH: {fmt(planTotal)} · Đạt {planTotal > 0 ? ((totalAll / planTotal) * 100).toFixed(1) : '0'}%
+                {' '}· KH: {fmt(planTotal)} · Đạt <span className={totalAll > 0 ? '' : 'text-red-600'}>{fmtPt(planTotal > 0 ? (totalAll / planTotal) * 100 : 0)}</span>
               </span>
             )}
           </div>

@@ -7,6 +7,7 @@ import {
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
 import { formatTy, trieuToTy } from '../../../../utils/money';
+import { topVaKhac } from './xuongKy';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
@@ -19,8 +20,8 @@ interface ApiCongTrinhPoint {
 }
 interface ChartPoint { congTrinh: string; congTrinhCode: string; total: number; }
 
-const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
+const formatDecimal = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const formatShort = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 function wrapLabel(name: string, maxCharsPerLine: number, maxLines = 3): string[] {
   const words = name.split(' ');
@@ -158,7 +159,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const theme = THEME[source];
   // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số lượng HEX') : theme.unitValue;
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số hạng mục') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -221,22 +222,21 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
     const pickValue = (p: ApiCongTrinhPoint) => (displayMode === 'COUNT' ? p.totalCount : isMoney ? trieuToTy(p.total) : p.total);
-    return raw
-      .map(p => ({
-        congTrinh: p.congTrinhName || p.congTrinhCode,
-        congTrinhCode: p.congTrinhCode,
-        total: pickValue(p),
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, topN)
-      .reverse();
-  }, [raw, displayMode, topN, hasValidRange]);
+    const rows = raw.map(p => ({
+      congTrinh: p.congTrinhName || p.congTrinhCode,
+      congTrinhCode: p.congTrinhCode,
+      total: pickValue(p),
+    }));
+    // Số đếm không trùng HEX nên cộng các cột không ra Tổng: dòng Khác chỉ có ở chế độ Giá trị
+    return topVaKhac(rows, topN, displayMode !== 'COUNT');
+  }, [raw, displayMode, topN, hasValidRange, isMoney]);
 
+  // TB trên toàn bộ công trình, cùng phạm vi với Tổng
   const avgAll = useMemo(() => {
-    if (chartData.length === 0) return 0;
-    const sum = chartData.reduce((s, p) => s + p.total, 0);
-    return Number((sum / chartData.length).toFixed(2));
-  }, [chartData]);
+    if (raw.length === 0) return 0;
+    const sum = raw.reduce((s, p) => s + (displayMode === 'COUNT' ? p.totalCount : isMoney ? trieuToTy(p.total) : p.total), 0);
+    return Number((sum / raw.length).toFixed(2));
+  }, [raw, displayMode, isMoney]);
 
   const totalAll = useMemo(() => {
     if (!hasValidRange) return 0;
@@ -332,7 +332,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
             <ComposedChart
               data={chartData}
               layout="vertical"
-              margin={{ top: 10, right: embedded ? 70 : 90, left: 10, bottom: 10 }}
+              margin={{ top: 10, right: 70, left: 10, bottom: 10 }}
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
@@ -376,22 +376,6 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                   stroke="#16a34a"
                   strokeWidth={2}
                   strokeDasharray="6 4"
-                  label={(props: any) => {
-                    const { viewBox } = props;
-                    const text = `TB: ${fmtShort(avgAll)}`;
-                    return (
-                      <text
-                        x={viewBox.x}
-                        y={viewBox.y - 6}
-                        textAnchor="middle"
-                        fontSize={12}
-                        fontWeight={600}
-                        fill="#16a34a"
-                      >
-                        {text}
-                      </text>
-                    );
-                  }}
                 />
               )}
             </ComposedChart>
@@ -408,7 +392,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
               backgroundColor: `${theme.bar}1A`,
             }}
           >
-            Tổng: {fmt(totalAll)}
+            Tổng: {fmt(totalAll)} · TB: {fmtShort(avgAll)}
           </div>
         )}
         {pinned && (

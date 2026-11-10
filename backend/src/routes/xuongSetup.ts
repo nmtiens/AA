@@ -19,6 +19,7 @@ import { xoaGioCongLuu } from './xuongBaoCao.js';
 import { baoHangChoNhan, baoXuongPhu } from './xuongThongBao.js';
 import { sqlThaoTacCanXuLy } from '../server/xuong/canXem.js';
 import { kiemTraHuyDot } from '../server/xuong/huyTrienKhai.js';
+import { demChoNhan } from '../server/xuong/chiSoHienTai.js';
 import { chonGoiY, loiThanhPhan, type ThanhPhanTuyen } from '../server/xuong/tuyenMacDinh.js';
 
 // ============================================================================
@@ -200,21 +201,8 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
       const nd = await nguoiDungTheoId(r.rows.map(x => x.to_truong_user_id));
       for (const x of r.rows) x.to_truong = nd.get(Number(x.to_truong_user_id))?.full_name ?? null;
     }
-    // Chờ nhận: cùng quy tắc màn tổ — bỏ dòng đã nhận đủ số triển khai / đơn hàng (số chỉ có đủ, không vượt;
-    // dữ liệu ghi trước khi có giới hạn có thể "giao tới" nhiều hơn)
-    const choNhanTo = new Map<number, number>();
-    {
-      const cap = (await poolMra.query(
-        `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
-           JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
-         WHERE t.xuong = $1 AND t.active`, [xuong])).rows;
-      const gh = await gioiHanNhan(poolMra, cap.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
-      for (const x of cap) {
-        const g = gh.get(`${x.hex}|${x.cong_doan_id}`);
-        if (g && g.moc !== null && g.moc - g.daNhan <= 0.0005) continue;
-        choNhanTo.set(Number(x.to_id), (choNhanTo.get(Number(x.to_id)) ?? 0) + 1);
-      }
-    }
+    // Chờ nhận: cùng quy tắc màn tổ và Báo cáo — bỏ dòng đã nhận đủ số triển khai / đơn hàng
+    const choNhanTo = (await demChoNhan(poolMra, xuong, null, gioiHanNhan)).theoTo;
     // Chấm công hôm nay theo tổ: có mặt / tổng danh sách, vắng, trễ, về sớm (ca chính / Chủ nhật)
     type NguoiDd = { mnv: string; hoTen: string };
     const diemDanh = new Map<number, {

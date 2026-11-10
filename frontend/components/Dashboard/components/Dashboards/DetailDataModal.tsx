@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Eye, X, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Download } from 'lucide-react';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
-import { formatTrieuAsTy } from '../../../../utils/money';
+import { fmtInt, fmtQty, fmtTy } from '../../../../utils/format';
+import { ModalShell } from '../../../shared/ModalShell';
+import * as bang from '../../../shared/bangBaoCao';
 import { resolveColumnLabel } from '../../../../services/dataService';
 
 const ROWS_PER_PAGE = 200;
@@ -14,7 +16,7 @@ const GROUP_BY_COLUMN = 'hex';
 
 // Các cột CỘNG DỒN khi gom nhóm: số lượng + thành tiền / giá trị của từng dòng (nhiều lần nhập / xuất / lô tồn của
 // cùng 1 HEX). Trị giá đơn hàng là của cả hạng mục (lặp lại mỗi dòng) nên KHÔNG cộng.
-const isSumColumn = (col: string) => /^so_luong/.test(col) || /^thanh_tien/.test(col) || col === 'gia_tri';
+const isSumColumn = (col: string) => /^so_luong/.test(col) || /^thanh_tien/.test(col) || /^tri_gia/.test(col) || col === 'gia_tri';
 
 interface DetailDataModalProps {
   open: boolean;
@@ -69,11 +71,15 @@ const formatNgay = (s: string): string | null => {
 };
 // Cột MÃ / số thứ tự thời gian: giữ nguyên chữ số, không thêm dấu phân cách nghìn (HEX "251.012.933", năm "2.026" là sai)
 const MA_COLUMN_RE = /^(hex|ma_|id|id_|so_pr|so_po|so_phieu|so_ipo|lenh_|pr_line|plant|sloc|nam|thang|ngay|tuan)(_|$)/;
+/** Cột số căn giữa: cột cộng được, cột tiền */
+const isSoCol = (col: string) => isSumColumn(col) || isMoneyColumn(col);
 const formatCellValue = (v: any, col?: string) => {
   if (v === null || v === undefined) return '';
-  if (col && isMoneyColumn(col) && v !== '' && Number.isFinite(Number(v))) return formatTrieuAsTy(Number(v));
+  // Cột số: 0 để trống như mọi bảng báo cáo
+  if (col && isSoCol(col) && v !== '' && Number(v) === 0) return '';
+  if (col && isMoneyColumn(col) && v !== '' && Number.isFinite(Number(v))) return fmtTy(Number(v));
   if (col && MA_COLUMN_RE.test(col) && typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v));
-  if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+  if (typeof v === 'number') return fmtQty(v);
   if (typeof v === 'string') { const ngay = formatNgay(v.trim()); if (ngay) return ngay; }
   return String(v);
 };
@@ -90,6 +96,9 @@ const slugify = (s: string) =>
     .replace(/đ/g, 'd')
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+
+/** Dòng TỔNG cộng toàn bộ dòng đã tải, không theo trang */
+const tongCot = (rows: Record<string, any>[], col: string) => rows.reduce((s, r) => s + (Number(r[col]) || 0), 0);
 
 // Gộp nhiều dòng có cùng giá trị GROUP_BY_COLUMN thành 1 dòng đại diện:
 // - Cột số lượng / thành tiền / giá trị (isSumColumn) => cộng dồn
@@ -219,21 +228,21 @@ export default function DetailDataModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4"
+    <ModalShell
+      open={open}
+      onClose={onClose}
+      labelledBy="detail-data-title"
+      overlayClassName="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4"
+      panelClassName="bg-white rounded-xl shadow-xl w-full max-w-[95vw] xl:max-w-[1600px] h-[92vh] flex flex-col focus:outline-none"
     >
-      {/* Cửa sổ to hơn: chiếm gần hết màn hình thay vì max-w-6xl cố định */}
-      <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-[95vw] xl:max-w-[1600px] h-[92vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex min-h-0 flex-1 flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
-          <h3 className="font-bold text-slate-700 flex items-center gap-2">
+          <h3 id="detail-data-title" className="font-bold text-slate-700 flex items-center gap-2">
             <Eye size={16} style={{ color: accentColor }} />
             {title}
             {canGroup && (
-              <span className="text-[0.6875rem] font-normal text-slate-400">
-                ({groups.length.toLocaleString('vi-VN')} {groupBy.label} · {rows.length.toLocaleString('vi-VN')} dòng)
+              <span className="text-[0.8125rem] font-normal text-slate-500">
+                ({fmtInt(groups.length)} {groupBy.label} · {fmtInt(rows.length)} dòng)
               </span>
             )}
           </h3>
@@ -249,8 +258,8 @@ export default function DetailDataModal({
               disabled={loading || rows.length === 0}
               title={
                 truncated
-                  ? 'Server đã giới hạn số dòng, file chỉ chứa các dòng đã tải về'
-                  : 'Xuất dữ liệu đang hiển thị ra file .CSV'
+                  ? 'File chỉ chứa các dòng đã tải'
+                  : 'Xuất ra file .CSV'
               }
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               style={{
@@ -269,23 +278,23 @@ export default function DetailDataModal({
         </div>
 
         {/* Không đệm phía trên: tiêu đề dính sát mép khung cuộn (đệm trên làm dòng dữ liệu lọt lên phía trên tiêu đề) */}
-        <div className="overflow-auto flex-1 px-4 pb-4">
+        <div className="overflow-auto flex-1 px-4">
           {loading ? (
             <div className="text-center text-slate-400 py-10 text-sm">Đang tải...</div>
           ) : rows.length === 0 ? (
             <div className="text-center text-slate-400 py-10 text-sm">Không có dữ liệu chi tiết cho bộ lọc hiện tại</div>
           ) : (
-            <table className="min-w-full text-xs border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_0_#e2e8f0]">
+            <table className={`${bang.table} min-w-full`}>
+              <thead className={bang.thead}>
                 <tr>
-                  <th className="w-10 px-2 py-1.5 text-right border-b border-slate-200 font-semibold text-slate-600 whitespace-nowrap">STT</th>
-                  {canGroup && <th className="w-6 border-b border-slate-200" />}
+                  <th className={`${bang.thC} w-10 whitespace-nowrap`}>STT</th>
+                  {canGroup && <th className={`${bang.thB} w-6`} />}
                   {/* ✅ Header lặp theo orderedColumns (đúng thứ tự + tập cột đã setup)
                       thay vì luôn lặp cố định theo toàn bộ columns gốc. */}
                   {orderedColumns.map(col => (
                     <th
                       key={col}
-                      className="px-2 py-1.5 text-left border-b border-slate-200 font-semibold text-slate-600 whitespace-nowrap"
+                      className={`${bang.thB} whitespace-nowrap ${isSoCol(col) ? 'text-center' : 'text-left'}`}
                     >
                       {formatColumnLabel(col)}
                     </th>
@@ -298,9 +307,8 @@ export default function DetailDataModal({
                       const isMulti = g.rows.length > 1;
                       const isOpen = expanded.has(g.key);
                       return (
-                        <>
+                        <Fragment key={g.key}>
                           <tr
-                            key={g.key}
                             className={
                               isMulti
                                 ? 'bg-indigo-50/70 hover:bg-indigo-100/70 cursor-pointer'
@@ -308,15 +316,15 @@ export default function DetailDataModal({
                             }
                             onClick={() => isMulti && toggleGroup(g.key)}
                           >
-                            <td className="px-2 py-1 border-b border-slate-100 text-right tabular-nums text-slate-400">{(page - 1) * ROWS_PER_PAGE + gi + 1}</td>
-                            <td className="px-1 py-1 border-b border-slate-100 text-slate-600">
+                            <td className={`${bang.tdSo} text-slate-500`}>{(page - 1) * ROWS_PER_PAGE + gi + 1}</td>
+                            <td className={`${bang.tdB} !px-1 text-slate-600`}>
                               {isMulti && (isOpen ? <ChevronDown size={14} strokeWidth={2.75} /> : <ChevronRightIcon size={14} strokeWidth={2.75} />)}
                             </td>
                             {/* ✅ Body (hàng cha đã gộp) lặp theo orderedColumns. */}
                             {orderedColumns.map(col => (
                               <td
                                 key={col}
-                                className={`px-2 py-1 border-b border-slate-100 whitespace-nowrap ${isMulti ? 'font-bold text-slate-800' : ''}`}
+                                className={`${isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`} ${isMulti ? 'font-bold' : ''}`}
                               >
                                 {formatCellValue(g.merged[col], col)}
                                 {col === groupCol && isMulti && (
@@ -328,32 +336,40 @@ export default function DetailDataModal({
                             ))}
                           </tr>
                           {isMulti && isOpen && g.rows.map((row, i) => (
-                            <tr key={`${g.key}-${i}`} className="bg-indigo-50/20 text-slate-500">
-                              <td className="border-b border-slate-100" />
-                              <td className="border-b border-slate-100" />
+                            <tr key={`${g.key}-${i}`} className="bg-indigo-50/20 text-slate-600">
+                              <td className={bang.tdB} />
+                              <td className={bang.tdB} />
                               {/* ✅ Body (các dòng con khi mở nhóm) lặp theo orderedColumns. */}
                               {orderedColumns.map(col => (
-                                <td key={col} className="px-2 py-1 pl-4 border-b border-slate-100 whitespace-nowrap">
+                                <td key={col} className={isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}>
                                   {formatCellValue(row[col], col)}
                                 </td>
                               ))}
                             </tr>
                           ))}
-                        </>
+                        </Fragment>
                       );
                     })
                   : pagedRows.map((row, i) => (
                       <tr key={i} className="odd:bg-white even:bg-slate-50/50 hover:bg-indigo-50/40">
-                        <td className="px-2 py-1 border-b border-slate-100 text-right tabular-nums text-slate-400">{(page - 1) * ROWS_PER_PAGE + i + 1}</td>
+                        <td className={`${bang.tdSo} text-slate-500`}>{(page - 1) * ROWS_PER_PAGE + i + 1}</td>
                         {/* ✅ Body (chế độ phẳng, không group) lặp theo orderedColumns. */}
                         {orderedColumns.map(col => (
-                          <td key={col} className="px-2 py-1 border-b border-slate-100 whitespace-nowrap">
+                          <td key={col} className={isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}>
                             {formatCellValue(row[col], col)}
                           </td>
                         ))}
                       </tr>
                     ))}
               </tbody>
+              <tfoot className={bang.tfoot}>
+                <tr>
+                  <td className={bang.tdSo} colSpan={canGroup ? 2 : 1}>{truncated ? 'TỔNG đã tải' : 'TỔNG'}</td>
+                  {orderedColumns.map(col => (
+                    <td key={col} className={bang.tdSo}>{isSumColumn(col) ? formatCellValue(tongCot(rows, col), col) : ''}</td>
+                  ))}
+                </tr>
+              </tfoot>
             </table>
           )}
         </div>
@@ -363,10 +379,9 @@ export default function DetailDataModal({
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 shrink-0 bg-white">
             <span className="text-[0.6875rem] text-slate-500">
               {canGroup
-                ? <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} {groupBy.label} ({rows.length.toLocaleString('vi-VN')} dòng gốc)</>
-                : <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} dòng</>
+                ? <>{fmtInt(startIdx)}–{fmtInt(endIdx)} / {fmtInt(totalUnits)} {groupBy.label}</>
+                : <>{fmtInt(startIdx)}–{fmtInt(endIdx)} / {fmtInt(totalUnits)} dòng</>
               }
-              {truncated ? ' (server đã giới hạn số dòng trả về)' : ''}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
@@ -394,10 +409,10 @@ export default function DetailDataModal({
 
         {truncated && (
           <div className="px-5 py-2 text-[0.6875rem] text-amber-600 bg-amber-50 border-t border-amber-100 shrink-0">
-            Dữ liệu server đã bị giới hạn số dòng — vui lòng thu hẹp bộ lọc (khoảng ngày, xưởng, công trình...) để xem đầy đủ hơn.
+            Chỉ tải {fmtInt(rows.length)} dòng đầu, TỔNG chưa đủ. Thu hẹp bộ lọc để xem đủ.
           </div>
         )}
       </div>
-    </div>
+    </ModalShell>
   );
 }

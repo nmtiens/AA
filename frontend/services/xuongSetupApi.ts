@@ -160,7 +160,7 @@ export interface BaoCaoHangMuc {
     thanhPhan?: Array<{ ten: string; tuyen: Array<{ congDoanId: string; ten: string }> }>;
   } | null;
   /** Kế hoạch tuần KHSX gần nhất (đã tới hạn trước): tuần, ngày KHNK, giá trị (triệu); nhập kho luỹ kế để biết đã xong chưa */
-  keHoach?: { nam: number; tuan: number; kh: number; ngayKhnk: string | null; giaTriDon: number | null; nhapKhoLuyKe: number } | null;
+  keHoach?: { nam: number; tuan: number; kh: number; ngayKhnk: string | null; giaTriDon: number | null; nhapKhoLuyKe: number; duSlDon?: boolean } | null;
 }
 /** Phân tích số liệu app của xưởng (cùng cách phân tích lịch sử MRA cũ): giờ trong ca = phần đoạn chạy nằm trong ca chính, bỏ Chủ nhật */
 export interface PhanTichXuong {
@@ -181,8 +181,8 @@ export interface KeHoachTuanCongDoan {
 export interface KeHoachTuanDong {
   hex: string; tenHangMuc: string | null; tenCongTrinh: string | null; dvt: string | null;
   slKh: number | null; kh: number; ngayKhnk: string | null; nhapKho: number; slNhapKho: number;
-  /** Nhập kho luỹ kế tới hết tuần (mọi lần) và giá trị đơn hàng — để nhận ra hạng mục đã nhập đủ từ trước tuần */
-  nhapKhoLuyKe: number; giaTriDon: number | null;
+  /** Nhập kho luỹ kế tới hết tuần (mọi lần), giá trị đơn hàng, đã đủ SL đơn hàng — để nhận ra hạng mục đã nhập đủ từ trước tuần */
+  nhapKhoLuyKe: number; giaTriDon: number | null; duSlDon?: boolean;
   trienKhai: { sl: number; luc: string } | null; congDoan: KeHoachTuanCongDoan[];
   /** Dự báo (tuần chưa qua, hạng mục có tuyến): ngày lịch còn cần theo mốc "thường mất" từng công đoạn còn lại */
   duBao?: {
@@ -212,6 +212,8 @@ export interface BaoCaoXuong {
     chotQuanSo: { ngayCoChay: number; ngayChot: number }; khaiVuotQuanSo: number;
   };
   theoTo: BaoCaoTo[];
+  /** Tổng xưởng đếm cặp hạng mục × công đoạn khác nhau, không cộng các tổ */
+  hienTaiTong: { dangChay: number; tamNgung: number; choNhan: number };
   hangMuc: BaoCaoHangMuc[];
   /** Chấm công theo người (chỉ khi tổ đã điểm danh / khai tên) */
   theoNguoi?: BaoCaoNguoi[];

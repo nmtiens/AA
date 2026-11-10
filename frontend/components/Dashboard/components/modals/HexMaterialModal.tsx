@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Download, ChevronUp, ChevronDown, ChevronsUpDown, Package } from 'lucide-react';
-import { formatSmartDecimal } from '../../utils/numberParsers';
 import { downloadCsvFile, rowsToCsvString } from '../../utils/csvExport';
 import { MaterialPrTable, buildPrGroups, prGroupsToCsvRows } from './MaterialPrTable';
 import { PrHexDetailModal } from './PrHexDetailModal';
 import { isMaterialMissing, materialLineState } from '../../../../utils/productionMetrics';
+import { fmtInt, fmtQty } from '../../../../utils/format';
+import * as bang from '../../../shared/bangBaoCao';
+import { ngayChuoi, tongCungDvt } from '../../core/chiTietHex';
 
 // Vật tư liên quan đến các hạng mục (hex). Bảng vat_tu không có hex trực tiếp:
 // backend map bằng mã nhà máy bỏ 4 số đầu (xem /api/material/by-hex).
@@ -108,16 +110,11 @@ const BASE_COLUMNS: ColDef[] = [
   { key: 'nguoi_yeu_cau', label: 'Người yêu cầu', kind: 'text', width: 100 },
 ];
 
-const fmtDate = (v: string | null): string => {
-  if (!v) return '';
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleDateString('vi-VN');
-};
-
 const fmtNum = (v: unknown): string => {
   if (v === null || v === undefined || v === '') return '';
   const n = Number(v);
-  return Number.isFinite(n) ? formatSmartDecimal(n, 3) : String(v);
+  if (n === 0) return '';
+  return Number.isFinite(n) ? fmtQty(n) : String(v);
 };
 
 // Số PR / PO / mã SAP là số lớn kiểu double — hiện nguyên dạng, không dấu phẩy.
@@ -266,7 +263,7 @@ export const HexMaterialModal = ({
 
   const renderValue = (row: MaterialRow, col: ColDef): string => {
     const v = cellValue(row, col.key);
-    if (col.kind === 'date') return fmtDate(v as string | null);
+    if (col.kind === 'date') return ngayChuoi(v as string | null);
     if (col.kind === 'num') return fmtNum(v);
     if (col.kind === 'code') return fmtCode(v);
     return v == null ? '' : String(v);
@@ -321,9 +318,7 @@ export const HexMaterialModal = ({
               {isUnassigned ? 'Vật tư chưa có mã nhà máy chỉ định' : 'Vật tư theo hạng mục'} — {title}
             </h3>
             <p className="mt-0.5 text-xs text-slate-500">
-              {isUnassigned
-                ? 'Hex không khớp được vật tư theo mã nhà máy → lấy vật tư cùng mã công trình có ô mã nhà máy trống / không có mã'
-                : `${hexes.length} hex · map qua mã nhà máy (bỏ 4 số đầu = mã hex; 1 ô có nhiều mã thì tách từng mã; ô trống thì lấy mã trong Item note PR)`}
+              {isUnassigned ? 'Vật tư cùng công trình, chưa có mã nhà máy' : `${fmtInt(hexes.length)} hex`}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -349,16 +344,16 @@ export const HexMaterialModal = ({
 
         <div className="grid shrink-0 grid-cols-2 gap-3 px-5 pt-3 sm:grid-cols-4">
           {[
-            { label: stats.cancelled ? `Dòng vật tư (gồm ${stats.cancelled} hủy)` : 'Dòng vật tư', value: stats.lines, cls: 'text-slate-800' },
+            { label: stats.cancelled ? `Dòng vật tư (gồm ${fmtInt(stats.cancelled)} HỦY)` : 'Dòng vật tư', value: stats.lines, cls: 'text-slate-800' },
             isUnassigned
               ? { label: 'Công trình', value: stats.projectCount, cls: 'text-slate-800' }
-              : { label: 'Hex có vật tư', value: `${stats.hexWithMaterial} / ${hexes.length}`, cls: 'text-slate-800' },
+              : { label: 'Hex có vật tư', value: `${fmtInt(stats.hexWithMaterial)} / ${fmtInt(hexes.length)}`, cls: 'text-slate-800' },
             { label: 'Số PR', value: stats.prCount, cls: 'text-slate-800' },
-            { label: 'Dòng còn thiếu (SL còn lại > 0)', value: stats.missing, cls: 'text-amber-600' },
+            { label: 'Dòng còn thiếu', value: stats.missing, cls: 'text-amber-600' },
           ].map(s => (
             <div key={s.label} className="rounded-lg border border-slate-200 px-3 py-2">
               <div className="text-[0.6875rem] text-slate-500">{s.label}</div>
-              <div className={`text-lg font-bold ${s.cls}`}>{rows === null ? '…' : s.value}</div>
+              <div className={`text-lg font-bold tabular-nums ${s.cls}`}>{rows === null ? '…' : typeof s.value === 'number' ? fmtInt(s.value) : s.value}</div>
             </div>
           ))}
         </div>
@@ -405,11 +400,11 @@ export const HexMaterialModal = ({
             Chỉ dòng còn thiếu
           </label>
           <span className="ml-auto text-xs text-slate-500">
-            {byPr ? `${prCountShown} PR · ${sorted.length} dòng` : `${sorted.length} dòng`}
+            {byPr ? `${fmtInt(prCountShown)} PR · ${fmtInt(sorted.length)} dòng` : `${fmtInt(sorted.length)} dòng`}
           </span>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-5 pb-4 custom-scrollbar">
+        <div className="min-h-0 flex-1 overflow-auto px-5 custom-scrollbar">
           {rows === null ? (
             <div className="p-8 text-center text-sm text-slate-400">Đang tải vật tư...</div>
           ) : error ? (
@@ -430,27 +425,26 @@ export const HexMaterialModal = ({
                   : 'Không có vật tư nào gắn với các hex này (không tìm thấy mã nhà máy tương ứng).'}
             </div>
           ) : (
-            <table className="border-separate border-spacing-0 text-xs" style={{ width: tableWidth, tableLayout: 'fixed' }}>
+            <div className={`${bang.khung} mt-3 h-full`}>
+            <table className={bang.table} style={{ width: tableWidth, tableLayout: 'fixed' }}>
               <colgroup>
                 <col style={{ width: 48 }} />
                 {columns.map(c => <col key={c.key} style={{ width: c.width }} />)}
               </colgroup>
-              <thead className="sticky top-0 z-10 font-bold uppercase tracking-tight text-slate-800">
+              <thead className={bang.thead}>
                 <tr>
-                  <th className="border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center">STT</th>
+                  <th className={bang.thC}>STT</th>
                   {columns.map(c => (
                     <th
                       key={c.key}
                       onClick={() => toggleSort(c.key)}
-                      className={`cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 transition-colors hover:bg-emerald-100 ${
-                        c.kind === 'num' ? 'text-right' : 'text-left'
-                      }`}
+                      className={`${bang.thB} cursor-pointer select-none transition-colors hover:bg-emerald-400 ${c.kind === 'num' ? 'text-center' : 'text-left'}`}
                     >
                       <span className="inline-flex items-center gap-1">
                         {c.label}
                         {sort?.key === c.key
                           ? (sort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)
-                          : <ChevronsUpDown size={12} className="text-slate-300" />}
+                          : <ChevronsUpDown size={12} className="text-slate-600" />}
                       </span>
                     </th>
                   ))}
@@ -461,19 +455,17 @@ export const HexMaterialModal = ({
                   const missing = isMaterialMissing(r);
                   return (
                     <tr key={`${r.hexes[0]}-${r.so_pr}-${r.pr_line}-${i}`} className="hover:bg-slate-50">
-                      <td className="border-b border-r border-slate-100 px-2 py-2 text-center align-top font-semibold text-slate-500">{i + 1}</td>
+                      <td className={`${bang.tdSo} text-slate-500`}>{i + 1}</td>
                       {columns.map(c => (
                         <td
                           key={c.key}
-                          className={`whitespace-pre-line break-words border-b border-r border-slate-100 px-2 py-2 align-top ${
-                            c.kind === 'num' ? 'text-right tabular-nums' : 'text-left'
-                          } ${c.key === 'hex' ? 'font-medium text-slate-700' : 'text-slate-600'} ${
+                          className={`${c.kind === 'num' ? bang.tdSo : `${bang.tdB} whitespace-pre-line break-words text-left`} ${
                             c.key === 'so_luong_con_lai' && missing ? 'font-semibold text-amber-600' : ''
                           }`}
                         >
                           {(() => {
                             const text = renderValue(r, c);
-                            if (!text) return <span className="text-slate-300">—</span>;
+                            if (!text) return null;
                             const parts = text.split('\n');
                             if (parts.length <= COLLAPSE_LIMIT) return text;
                             const open = expanded.has(r);
@@ -512,7 +504,20 @@ export const HexMaterialModal = ({
                   );
                 })}
               </tbody>
+              <tfoot className={bang.tfoot}>
+                <tr>
+                  <td className={bang.tdSo}>TỔNG</td>
+                  {columns.map((c, i) => {
+                    if (i === 0) return <td key={c.key} className={bang.tdB}>{fmtInt(sorted.length)} dòng</td>;
+                    if (c.kind !== 'num') return <td key={c.key} className={bang.tdB} />;
+                    // Cộng số lượng chỉ có nghĩa khi cùng ĐVT
+                    const v = tongCungDvt(sorted, r => r.dvt, r => r[c.key as keyof MaterialRow]);
+                    return <td key={c.key} className={bang.tdSo}>{v ? fmtQty(v) : ''}</td>;
+                  })}
+                </tr>
+              </tfoot>
             </table>
+            </div>
           )}
         </div>
       </div>

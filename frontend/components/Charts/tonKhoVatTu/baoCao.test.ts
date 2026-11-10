@@ -40,7 +40,7 @@ describe('báo cáo tồn kho vật tư — tổng kết nhóm', () => {
     expect(k.tb).toBeCloseTo(VAI.reduce((s, x) => s + x[0], 0) / 9 * 1000);
     expect(k.xh?.huong).toBe('tang');
     expect(k.ptCham).toBeCloseTo(29.01 / 39.73 * 100);
-    expect(chuXuHuong(tongKetNhom(chuoi[1], 'giaTri')!.xh, 'giaTri', 'thang')).toMatch(/^giảm ~\d+\.\d\d tỷ\/tháng \(−\d+% cả khoảng\)$/);
+    expect(chuXuHuong(tongKetNhom(chuoi[1], 'giaTri')!.xh, 'giaTri', 'thang')).toMatch(/^giảm ~\d+\.\d\d tỷ\/tháng \(−\d+\.\d% cả khoảng\)$/);
   });
   it('xu hướng không rõ (R² < 0.5): chữ "không rõ", Excel không ghi độ dốc', () => {
     const xh = { giaTri: [], moiDiem: 0.24, ptCaKhoang: 8.1, r2: 0.19, huong: 'khongRo' as const };
@@ -75,7 +75,7 @@ describe('báo cáo tồn kho vật tư — PDF', () => {
     expect(t).toContain('người lập: Nguyễn Văn Ấn');
     expect(t).toContain('lập lúc 10:45 27/10/2026');
     expect(t).toContain('Tổng kết theo nhóm');
-    expect(t).toMatch(/39\.73 tỷ — tăng 13\.17 tỷ \(\+50%\) so với T2\/26/);
+    expect(t).toMatch(/39\.73 tỷ — tăng 13\.17 tỷ \(\+49\.6%\) so với T2\/26/);
     expect(t).toContain('Trung bình 9 tháng');
     expect(t).toContain('So kỳ trước');
     // lần chốt cuối tháng 9 (24/09) thiếu cờ => có ghi chú

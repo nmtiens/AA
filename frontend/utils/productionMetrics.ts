@@ -16,7 +16,12 @@ import { parseNumber } from '../components/Dashboard/utils/numberParsers';
 import { parseVNDate } from '../components/Dashboard/utils/dateHelpers';
 import { findColumnKey } from '../components/Dashboard/utils/columnKeyResolver';
 
-export const isCancelledIpo = (ipo: unknown): boolean => String(ipo ?? '').toUpperCase().includes('HỦY');
+/** Tình trạng IPO mặc định của mọi trang; "Tất cả" = mọi IPO, HỦY luôn = 0 trong tổng */
+export const IPO_MAC_DINH = '01. ĐANG SẢN XUẤT';
+export const laIpoMacDinh = (ipo: unknown): boolean => /ĐANG SẢN XUẤT/i.test(String(ipo ?? ''));
+
+/** Đơn HỦY theo cột Tình trạng IPO (cả cách gõ HUỶ) */
+export const laHuy = (ipo: unknown): boolean => /H(?:ỦY|UỶ)/.test(String(ipo ?? '').normalize('NFC').toUpperCase());
 
 /** Trị giá tính vào tổng (0 nếu đơn HỦY). Đơn vị giữ nguyên như dữ liệu gốc (triệu đồng). */
 export const orderValue = (total: number, cancelled: boolean): number => (cancelled ? 0 : total);
@@ -47,20 +52,23 @@ export const isQtyComplete = (row: DataRow): boolean => {
 };
 
 /**
- * Hạng mục "đã nhập kho đủ" (dùng cho mọi chỗ ĐẾM hạng mục): không HỦY và (trị giá > 0 và không còn lại,
- * HOẶC đã nhập đủ số lượng — qtyDone). Hạng mục trị giá 0 chưa nhập đủ SL không tính là đã nhập.
+ * Hạng mục "đã nhập kho đủ", 1 định nghĩa toàn app: không HỦY và (đủ tiền HOẶC đủ số lượng). Không dùng ngưỡng 98%.
+ * Hạng mục trị giá 0 chưa nhập đủ SL không tính là đã nhập.
  */
-export const isStocked = (total: number, nhapKho: number, cancelled = false, qtyDone = false): boolean =>
+export const daNhapDu = (total: number, nhapKho: number, cancelled = false, qtyDone = false): boolean =>
   !cancelled && ((total > 0 && remainValue(total, nhapKho) <= 0) || qtyDone);
 
+/** % hoàn thành (0-100): đã nhập / trị giá. Nơi gọi truyền tổng của mọi IPO trừ HỦY, không theo bộ lọc IPO */
+export const tyLeHoanThanh = (total: number, done: number): number => (total > 0 ? Math.min(100, (done / total) * 100) : 0);
+
 export const rowRemain = (row: DataRow, k: ProductionValueKeys): number =>
-  remainValue(parseNumber(row[k.triGiaKey]), parseNumber(row[k.nhapKhoKey]), isCancelledIpo(row[k.ipoKey]));
+  remainValue(parseNumber(row[k.triGiaKey]), parseNumber(row[k.nhapKhoKey]), laHuy(row[k.ipoKey]));
 
 export const rowDone = (row: DataRow, k: ProductionValueKeys): number =>
-  doneValue(parseNumber(row[k.triGiaKey]), parseNumber(row[k.nhapKhoKey]), isCancelledIpo(row[k.ipoKey]));
+  doneValue(parseNumber(row[k.triGiaKey]), parseNumber(row[k.nhapKhoKey]), laHuy(row[k.ipoKey]));
 
 export const rowOrder = (row: DataRow, k: ProductionValueKeys): number =>
-  orderValue(parseNumber(row[k.triGiaKey]), isCancelledIpo(row[k.ipoKey]));
+  orderValue(parseNumber(row[k.triGiaKey]), laHuy(row[k.ipoKey]));
 
 export const resolveValueKeys = (columns: ColumnDefinition[]): ProductionValueKeys => ({
   triGiaKey: findColumnKey(columns, 'tri_gia_don_hang_tong') || 'tri_gia_don_hang_tong',

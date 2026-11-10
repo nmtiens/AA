@@ -9,6 +9,8 @@ import { CheckpointTriangle } from '../shared/CheckpointTriangle';
 import { ModalShell } from '../../../shared/ModalShell';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import { formatTy, formatTrieuAsTy } from '../../../../utils/money';
+import { fmtInt, fmtTy } from '../../../../utils/format';
+import * as bang from '../../../shared/bangBaoCao';
 import type { MetricType } from '../../types';
 
 const QUARTER_COLOR = '#ef4444';
@@ -134,14 +136,15 @@ export const FactoryRevenueSection = ({
   };
   // Ô số trong bảng: bấm được (mở danh sách HEX) khi cha có truyền onPivotValueClick
   const renderPivotValue = (value: number, name: string | null) => {
-    const text = formatNumber(value, workshopMetric);
-    if (!onPivotValueClick || value === 0) return <span className={value === 0 ? 'text-slate-300' : ''}>{text}</span>;
+    if (!value) return null;
+    const text = workshopMetric === 'COUNT_HEX' ? fmtInt(value) : fmtTy(value);
+    if (!onPivotValueClick) return text;
     return (
       <button
         type="button"
         onClick={() => onPivotValueClick(name, selectedFunnelItem)}
-        className="text-slate-800 hover:text-emerald-700 hover:underline font-semibold"
-        title="Bấm để xem danh sách HEX"
+        title="Bấm để xem danh sách hạng mục"
+        className={`${bang.soBam} hover:text-blue-700`}
       >
         {text}
       </button>
@@ -414,7 +417,7 @@ export const FactoryRevenueSection = ({
         onClose={closeFunnelModal}
         labelledBy="factory-funnel-detail-title"
         overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
-        panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"
+        panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"
       >
             <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
               <h2 id="factory-funnel-detail-title" className="text-lg font-bold text-slate-800">
@@ -431,39 +434,28 @@ export const FactoryRevenueSection = ({
             </div>
             <div className="p-4 sm:p-6 overflow-y-auto">
               {pivotFunnelData && pivotFunnelData.data && pivotFunnelData.data.length > 0 ? (
-                <div className="overflow-x-auto rounded-lg border border-slate-200">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50">
+                <div className={`${bang.khung} max-h-[70vh]`}>
+                  <table className={bang.table}>
+                    <thead className={bang.thead}>
                       <tr>
-                        <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">
-                          {selectedFunnelItem ? 'Công trình' : 'BOP'}
-                        </th>
-                        <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">
-                          {workshopMetric === 'COUNT_HEX' ? 'Số hạng mục' : 'Giá trị (tỷ)'}
-                        </th>
+                        <th className={`${bang.thC} w-12`}>STT</th>
+                        <th className={bang.thC}>{selectedFunnelItem ? 'Công trình' : 'BOP'}</th>
+                        <th className={`${bang.thC} w-40`}>{workshopMetric === 'COUNT_HEX' ? 'Số hạng mục' : 'Giá trị (tỷ)'}</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-slate-100">
+                    <tbody>
                       {pivotFunnelData.data.map((item, index) => (
-                        <tr key={item.name} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-left font-medium text-slate-700 flex items-center gap-2">
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">
-                              {index + 1}
-                            </span>
-                            <span className="break-words" title={item.name}>{item.name}</span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                            {renderPivotValue(item.value, item.name)}
-                          </td>
+                        <tr key={item.name} className="hover:bg-slate-50">
+                          <td className={`${bang.tdSo} text-slate-500`}>{index + 1}</td>
+                          <td className={`${bang.tdB} break-words`} title={item.name}>{item.name}</td>
+                          <td className={bang.tdSo}>{renderPivotValue(item.value, item.name)}</td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-wood-100 font-bold text-slate-800 border-t border-wood-300">
+                    <tfoot className={bang.tfoot}>
                       <tr>
-                        <td className="px-4 py-3 text-left uppercase text-slate-700">Tổng Cộng</td>
-                        <td className="px-4 py-3 text-right text-slate-800 text-base">
-                          {renderPivotValue(pivotFunnelData.total, null)}
-                        </td>
+                        <td colSpan={2} className={bang.tdSo}>TỔNG</td>
+                        <td className={bang.tdSo}>{renderPivotValue(pivotFunnelData.total, null)}</td>
                       </tr>
                     </tfoot>
                   </table>

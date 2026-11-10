@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download,
   ChevronLeft, ChevronRight, Package,
 } from 'lucide-react';
 import { parseNumber } from '../../utils/numberParsers';
-import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../../../utils/money';
+import { fmtDate, fmtInt, fmtTy } from '../../../../utils/format';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
-import { deadlineOf as deadlineOfRow, DEADLINE_SOURCE_LABEL, doneValue, isCancelledIpo, type DeadlineKeys } from '../../../../utils/productionMetrics';
+import { deadlineOf as deadlineOfRow, DEADLINE_SOURCE_LABEL, type DeadlineKeys } from '../../../../utils/productionMetrics';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
@@ -21,6 +21,9 @@ import { VuongMacDetailModal } from './VuongMacDetailModal';
 import { HexMaterialModal, type MaterialViewMode } from './HexMaterialModal';
 import { xuongSetupApi, type TomTatHex } from '../../../../services/xuongSetupApi';
 import XuongHexChiTiet from '../../../Xuong/XuongHexChiTiet';
+import { ModalShell } from '../../../shared/ModalShell';
+import * as bang from '../../../shared/bangBaoCao';
+import { chenCotSoHex, soHex, tongHex, type KhoaSoHex, type SoHex } from '../../core/chiTietHex';
 
 export interface HexDetailColumnKeys {
   hexKey: string;
@@ -53,12 +56,14 @@ interface HexDetailModalProps {
   rows: DataRow[];
   columnKeys: HexDetailColumnKeys;
   currentUser: string;
+  /** Giá trị của chính số vừa bấm theo từng HEX (bảng nguồn, trong kỳ): thêm 1 cột để tổng bằng số đã bấm */
+  giaTriKy?: Record<string, number> | null;
 }
 
 type NotesResponse = Record<string, Record<string, string | null>>;
 
-// Giá trị gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
-const money = (value: number) => formatTrieuAsTy(value);
+// Giá trị gốc là triệu đồng: hiển thị tỷ, ô 0 để trống
+const money = (value: number) => bang.trong0(value, fmtTy);
 
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
@@ -325,9 +330,15 @@ const COL_WIDTHS = {
   bop: 80,
   tinhTrang: 200,
   phanLoai: 160,
-  triGia: 130,
-  thanhTienPhieu: 130,
-  thanhTienKho: 130,
+  triGia: 110,
+  thanhTienPhieu: 110,
+  thanhTienKho: 110,
+  giaTriKy: 110,
+  conLai: 110,
+  daXuat: 110,
+  tonKho: 110,
+  chenh: 100,
+  xuatVuot: 110,
   ghiChuNhapKho: 280,
   thongTinQc: 280,
   ghiChuXuatKho: 280,
@@ -348,6 +359,12 @@ type SortKey =
   | 'triGia'
   | 'thanhTienPhieu'
   | 'thanhTienKho'
+  | 'giaTriKy'
+  | 'conLai'
+  | 'daXuat'
+  | 'tonKho'
+  | 'chenh'
+  | 'xuatVuot'
   | 'ghiChuNhapKho'
   | 'thongTinQc'
   | 'ghiChuXuatKho'
@@ -371,6 +388,12 @@ type OptionalColKey =
   | 'triGia'
   | 'thanhTienPhieu'
   | 'thanhTienKho'
+  | 'giaTriKy'
+  | 'conLai'
+  | 'daXuat'
+  | 'tonKho'
+  | 'chenh'
+  | 'xuatVuot'
   | 'ghiChuDonHangTong'
   | 'ghiChuPhieu'
   | 'ghiChuNhapKho'
@@ -378,52 +401,44 @@ type OptionalColKey =
   | 'ghiChuXuatKho'
   | 'vuongMac';
 
-const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: SortKey; align?: 'left' | 'right' }> = {
-  congTrinh: { label: 'Công Trình', sortKey: 'congTrinh' },
-  hangMuc: { label: 'Hạng Mục', sortKey: 'hangMuc' },
-  xuong: { label: 'Khu Vực SX', sortKey: 'xuong' },
+/** Cột số căn giữa + lấy số nào ở mỗi cột: cùng khoá ở bảng và dòng TỔNG */
+const COT_SO: Partial<Record<OptionalColKey, keyof Omit<SoHex, 'huy' | 'triGiaHuy'>>> = {
+  triGia: 'triGia', thanhTienPhieu: 'phieu', thanhTienKho: 'nhap', conLai: 'conLai',
+  daXuat: 'xuat', tonKho: 'ton', chenh: 'chenh', xuatVuot: 'xv',
+};
+
+const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: SortKey; align?: 'left' | 'center' }> = {
+  congTrinh: { label: 'Công trình', sortKey: 'congTrinh' },
+  hangMuc: { label: 'Hạng mục', sortKey: 'hangMuc' },
+  xuong: { label: 'Khu vực SX', sortKey: 'xuong' },
   bop: { label: 'BOP', sortKey: 'bop' },
-  tinhTrang: { label: 'Tình Trạng', sortKey: 'tinhTrang' },
-  phanLoai: { label: <>Phân Loại <br />Nhóm SP</>, sortKey: 'phanLoai', align: 'right' },
-  triGia: { label: <>Trị Giá Đơn <br />Hàng Tổng (tỷ)</>, sortKey: 'triGia', align: 'right' },
-  thanhTienPhieu: { label: <>Thành Tiền <br />Tính Phiếu (tỷ)</>, sortKey: 'thanhTienPhieu', align: 'right' },
-  thanhTienKho: { label: <>Thành Tiền <br />Nhập Kho (tỷ)</>, sortKey: 'thanhTienKho', align: 'right' },
-  ghiChuDonHangTong: { label: <>Ghi Chú <br />Đơn Hàng Tổng</>, sortKey: 'ghiChuDonHangTong' },
-  ghiChuPhieu: { label: <>Ghi Chú <br />Phiếu</>, sortKey: 'ghiChuPhieu' },
-  ghiChuNhapKho: { label: <>Ghi Chú <br />Nhập Kho</>, sortKey: 'ghiChuNhapKho' },
-  thongTinQc: { label: <>Thông Tin <br />QC</>, sortKey: 'thongTinQc' },
-  ghiChuXuatKho: { label: <>Ghi Chú <br />Xuất Kho</>, sortKey: 'ghiChuXuatKho' },
+  tinhTrang: { label: 'Tình trạng', sortKey: 'tinhTrang' },
+  phanLoai: { label: 'Phân loại nhóm SP', sortKey: 'phanLoai' },
+  giaTriKy: { label: 'Giá trị kỳ (tỷ)', sortKey: 'giaTriKy', align: 'center' },
+  triGia: { label: 'Trị giá (tỷ)', sortKey: 'triGia', align: 'center' },
+  thanhTienPhieu: { label: 'Tính phiếu (tỷ)', sortKey: 'thanhTienPhieu', align: 'center' },
+  thanhTienKho: { label: 'Đã nhập (tỷ)', sortKey: 'thanhTienKho', align: 'center' },
+  conLai: { label: 'Còn lại (tỷ)', sortKey: 'conLai', align: 'center' },
+  daXuat: { label: 'Đã xuất (tỷ)', sortKey: 'daXuat', align: 'center' },
+  tonKho: { label: 'Tồn theo đơn (tỷ)', sortKey: 'tonKho', align: 'center' },
+  chenh: { label: 'Chênh (tỷ)', sortKey: 'chenh', align: 'center' },
+  xuatVuot: { label: 'Xuất vượt nhập (tỷ)', sortKey: 'xuatVuot', align: 'center' },
+  ghiChuDonHangTong: { label: 'Ghi chú đơn hàng tổng', sortKey: 'ghiChuDonHangTong' },
+  ghiChuPhieu: { label: 'Ghi chú phiếu', sortKey: 'ghiChuPhieu' },
+  ghiChuNhapKho: { label: 'Ghi chú nhập kho', sortKey: 'ghiChuNhapKho' },
+  thongTinQc: { label: 'Thông tin QC', sortKey: 'thongTinQc' },
+  ghiChuXuatKho: { label: 'Ghi chú xuất kho', sortKey: 'ghiChuXuatKho' },
   // Chỉ để thỏa kiểu dữ liệu — header thật của "vuongMac" render đặc biệt (2 tầng).
   vuongMac: { label: 'Vướng Mắc (5M)', sortKey: 'vmMan' },
 };
 
-const FOOTER_KIND: Record<OptionalColKey, 'label' | 'total' | 'blank'> = {
-  congTrinh: 'label',
-  hangMuc: 'label',
-  xuong: 'label',
-  bop: 'label',
-  tinhTrang: 'label',
-  phanLoai: 'blank',
-  triGia: 'total',
-  thanhTienPhieu: 'total',
-  thanhTienKho: 'total',
-  ghiChuDonHangTong: 'blank',
-  ghiChuPhieu: 'blank',
-  ghiChuNhapKho: 'blank',
-  thongTinQc: 'blank',
-  ghiChuXuatKho: 'blank',
-  vuongMac: 'blank',
-};
+const COT_KHO_CSV = ['Còn Lại (Triệu đồng)', 'Đã Xuất (Triệu đồng)', 'Tồn Theo Đơn (Triệu đồng)', 'Chênh (Triệu đồng)', 'Xuất Vượt Nhập (Triệu đồng)'];
 
-const NUMERIC_SORT_KEYS: SortKey[] = ['triGia', 'thanhTienPhieu', 'thanhTienKho'];
+const NUMERIC_SORT_KEYS: SortKey[] = ['giaTriKy', 'triGia', 'thanhTienPhieu', 'thanhTienKho', 'conLai', 'daXuat', 'tonKho', 'chenh', 'xuatVuot'];
 
 const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
-  if (!active) return <ChevronsUpDown size={12} className="shrink-0 text-slate-400" />;
-  return dir === 'asc' ? (
-    <ChevronUp size={12} className="shrink-0 text-emerald-700" />
-  ) : (
-    <ChevronDown size={12} className="shrink-0 text-emerald-700" />
-  );
+  if (!active) return <ChevronsUpDown size={12} className="shrink-0 text-slate-600" />;
+  return dir === 'asc' ? <ChevronUp size={12} className="shrink-0" /> : <ChevronDown size={12} className="shrink-0" />;
 };
 
 // Ghi chú theo hex — API nhận tối đa 2000 hex / lần => chia lô rồi gộp (trước gửi cả danh sách, quá 2000
@@ -451,18 +466,10 @@ export const HexDetailModal = ({
   rows,
   columnKeys,
   currentUser,
+  giaTriKy = null,
 }: HexDetailModalProps) => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
-
-  const bodyScrollRef = useRef<HTMLDivElement>(null);
-  const headerScrollRef = useRef<HTMLDivElement>(null);
-  const footerScrollRef = useRef<HTMLDivElement>(null);
-
-  const [scrollbarWidth, setScrollbarWidth] = useState(0);
-
-  // Đã cuộn ngang hết sang phải hay chưa — để tô đỏ 2 ô đệm ở rìa phải header đúng lúc.
-  const [scrolledToEnd, setScrolledToEnd] = useState(false);
 
   const {
     hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
@@ -571,39 +578,6 @@ export const HexDetailModal = ({
     fetchVuongMacList(hexList).then(setVuongMacMap);
   }, [isOpen, hexList, vuongMacDetail.open]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const measure = () => {
-      const el = bodyScrollRef.current;
-      if (el) setScrollbarWidth(el.offsetWidth - el.clientWidth);
-    };
-    measure();
-    const raf = requestAnimationFrame(measure);
-    window.addEventListener('resize', measure);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', measure);
-    };
-  }, [isOpen, rows, search]);
-
-  const handleBodyScroll = useCallback(() => {
-    const el = bodyScrollRef.current;
-    const left = el?.scrollLeft ?? 0;
-    if (headerScrollRef.current) headerScrollRef.current.scrollLeft = left;
-    if (footerScrollRef.current) footerScrollRef.current.scrollLeft = left;
-
-    if (el) {
-      const atEnd = left + el.clientWidth >= el.scrollWidth - 1;
-      setScrolledToEnd(atEnd);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    handleBodyScroll();
-     
-  }, [isOpen, rows, search, handleBodyScroll]);
-
   const getNotePreview = useCallback(
     (row: DataRow, key: string): string => String(notesMap[String(row[hexKey] || '')]?.[key] ?? ''),
     [notesMap, hexKey]
@@ -702,9 +676,9 @@ export const HexDetailModal = ({
     { key: 'bop', label: 'BOP' },
     { key: 'tinhTrang', label: 'Tình Trạng' },
     { key: 'phanLoai', label: 'Phân Loại Nhóm Sản Phẩm' },
-    { key: 'triGia', label: 'Trị Giá Đơn Hàng Tổng (tỷ)' },
-    { key: 'thanhTienPhieu', label: 'Thành Tiền Tính Phiếu (tỷ)' },
-    { key: 'thanhTienKho', label: 'Thành Tiền Nhập Kho (tỷ)' },
+    { key: 'triGia', label: 'Trị giá (tỷ)' },
+    { key: 'thanhTienPhieu', label: 'Tính phiếu (tỷ)' },
+    { key: 'thanhTienKho', label: 'Đã nhập (tỷ)' },
     { key: 'ghiChuDonHangTong', label: 'Ghi Chú Đơn Hàng Tổng' },
     { key: 'ghiChuPhieu', label: 'Ghi Chú Phiếu' },
     { key: 'ghiChuNhapKho', label: 'Tổng Hợp Ghi Chú Nhập Kho' },
@@ -719,9 +693,14 @@ export const HexDetailModal = ({
   );
 
   const orderedCols = useMemo(
-    () => visibleCols.map(c => c.key) as OptionalColKey[],
-    [visibleCols]
+    () => chenCotSoHex(visibleCols.map(c => c.key), !!giaTriKy) as OptionalColKey[],
+    [visibleCols, giaTriKy]
   );
+
+  const khoaSo = useMemo<KhoaSoHex>(() => ({
+    triGiaKey: triGiaDonHangTongKey, phieuKey: thanhTienTinhPhieuKey, nhapKhoKey: thanhTienNhapKhoKey,
+  }), [triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey]);
+  const kyCua = useCallback((row: DataRow) => giaTriKy?.[String(row[hexKey] ?? '').trim()] ?? 0, [giaTriKy, hexKey]);
 
   // ✅ Freeze: gồm cả STT + Mã Hex + các cột phụ. Nhóm "Vướng Mắc (5M)" không
   // ghim được — hook tự cắt phần ghim lại ở trước nhóm này.
@@ -735,8 +714,6 @@ export const HexDetailModal = ({
   );
 
   const hasVuongMacCol = orderedCols.includes('vuongMac');
-  const lastColIsVuongMac = orderedCols[orderedCols.length - 1] === 'vuongMac';
-  const showRedEdge = lastColIsVuongMac && scrolledToEnd;
 
   // Ngày hạn (quy tắc chung): CHỈ KH nhập kho tuần → KH nhập kho tháng (ngày cần giao chỉ tham khảo).
   // Khoá ngày cần giao: ưu tiên khoá được truyền vào, không thì dò theo tên cột trong dữ liệu.
@@ -806,9 +783,15 @@ export const HexDetailModal = ({
         case 'bop': return String(row[bopKey] || '');
         case 'tinhTrang': return String(row[tinhTrangKey] || '');
         case 'phanLoai': return String(row[phanLoaiNhomSanPhamKey] || '');
-        case 'triGia': return parseNumber(row[triGiaDonHangTongKey]);
-        case 'thanhTienPhieu': return parseNumber(row[thanhTienTinhPhieuKey]);
-        case 'thanhTienKho': return parseNumber(row[thanhTienNhapKhoKey]);
+        case 'giaTriKy': return kyCua(row);
+        case 'triGia': return soHex(row, khoaSo).triGia;
+        case 'thanhTienPhieu': return soHex(row, khoaSo).phieu;
+        case 'thanhTienKho': return soHex(row, khoaSo).nhap;
+        case 'conLai': return soHex(row, khoaSo).conLai;
+        case 'daXuat': return soHex(row, khoaSo).xuat;
+        case 'tonKho': return soHex(row, khoaSo).ton;
+        case 'chenh': return soHex(row, khoaSo).chenh;
+        case 'xuatVuot': return soHex(row, khoaSo).xv;
         case 'ghiChuNhapKho': return getNotePreview(row, ghiChuNhapKhoKey);
         case 'thongTinQc': return getNotePreview(row, thongTinQcKey);
         case 'ghiChuXuatKho': return getNotePreview(row, ghiChuXuatKhoKey);
@@ -833,25 +816,13 @@ export const HexDetailModal = ({
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
   }, [
     indexedRows, sort, hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
-    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    phanLoaiNhomSanPhamKey, khoaSo, kyCua,
     ghiChuNhapKhoKey, thongTinQcKey, ghiChuXuatKhoKey, ghiChuDonHangTongKey, ghiChuPhieuKey,
     getNotePreview, getOpenVuongMacByCategory,
   ]);
 
-  const totals = useMemo(() => {
-    return filteredRows.reduce(
-      (acc, row) => {
-        // Tổng theo quy tắc chung: đơn HỦY = 0, đã nhập kho chặn trong [0, trị giá]
-        const cancelled = isCancelledIpo(row['tinh_trang_ipo']);
-        const tg = parseNumber(row[triGiaDonHangTongKey]);
-        acc.triGiaDonHangTong += cancelled ? 0 : tg;
-        acc.thanhTienTinhPhieu += cancelled ? 0 : parseNumber(row[thanhTienTinhPhieuKey]);
-        acc.thanhTienNhapKho += doneValue(tg, parseNumber(row[thanhTienNhapKhoKey]), cancelled);
-        return acc;
-      },
-      { triGiaDonHangTong: 0, thanhTienTinhPhieu: 0, thanhTienNhapKho: 0 }
-    );
-  }, [filteredRows, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey]);
+  const totals = useMemo(() => tongHex(filteredRows, khoaSo), [filteredRows, khoaSo]);
+  const tongKy = useMemo(() => filteredRows.reduce((a, row) => a + kyCua(row), 0), [filteredRows, kyCua]);
 
   if (!isOpen) return null;
 
@@ -867,6 +838,8 @@ export const HexDetailModal = ({
     'Trị Giá Đơn Hàng Tổng (Triệu đồng)',
     'Thành Tiền Tính Phiếu (Triệu đồng)',
     'Thành Tiền Nhập Kho (Triệu đồng)',
+    ...COT_KHO_CSV,
+    ...(giaTriKy ? ['Giá Trị Kỳ (Triệu đồng)'] : []),
     'Ghi Chú Đơn Hàng Tổng',
     'Ghi Chú Phiếu',
     'Tổng Hợp Ghi Chú Nhập Kho',
@@ -911,6 +884,11 @@ export const HexDetailModal = ({
       'Trị Giá Đơn Hàng Tổng (Triệu đồng)': parseNumber(row[triGiaDonHangTongKey]),
       'Thành Tiền Tính Phiếu (Triệu đồng)': parseNumber(row[thanhTienTinhPhieuKey]),
       'Thành Tiền Nhập Kho (Triệu đồng)': parseNumber(row[thanhTienNhapKhoKey]),
+      ...(() => {
+        const s = soHex(row, khoaSo);
+        return Object.fromEntries(COT_KHO_CSV.map((ten, i) => [ten, [s.conLai, s.xuat, s.ton, s.chenh, s.xv][i]]));
+      })(),
+      ...(giaTriKy ? { 'Giá Trị Kỳ (Triệu đồng)': kyCua(row) } : {}),
       'Ghi Chú Đơn Hàng Tổng': fullNoteOf(row, ghiChuDonHangTongKey),
       'Ghi Chú Phiếu': fullNoteOf(row, ghiChuPhieuKey),
       'Tổng Hợp Ghi Chú Nhập Kho': fullNoteOf(row, ghiChuNhapKhoKey),
@@ -954,23 +932,20 @@ export const HexDetailModal = ({
     tableLayout: 'fixed',
   };
 
-  const headerCellClass =
-    'cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 transition-colors hover:bg-emerald-100';
+  const headerCellClass = `${bang.thB} cursor-pointer select-none transition-colors hover:bg-emerald-400`;
 
   const SortableHeader = ({
     sortKey,
     align = 'left',
     children,
     className = '',
-    isLast = false,
     rowSpan = 1,
     style,
   }: {
     sortKey: SortKey;
-    align?: 'left' | 'right';
+    align?: 'left' | 'center';
     children: React.ReactNode;
     className?: string;
-    isLast?: boolean;
     rowSpan?: number;
     style?: React.CSSProperties;
   }) => (
@@ -978,9 +953,9 @@ export const HexDetailModal = ({
       onClick={() => toggleSort(sortKey)}
       rowSpan={rowSpan}
       style={style}
-      className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}
+      className={`${headerCellClass} ${align === 'center' ? 'text-center' : 'text-left'} ${className}`}
     >
-      <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+      <span className={`inline-flex items-center gap-1 ${align === 'center' ? 'justify-center' : ''}`}>
         {children}
         <SortIcon active={sort?.key === sortKey} dir={sort?.dir} />
       </span>
@@ -1002,7 +977,7 @@ export const HexDetailModal = ({
         style={style}
         onClick={(e) => openNoteCell(row, columnKey, label, e)}
         title="Bấm để xem đầy đủ nội dung"
-        className={`cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors group-hover:bg-slate-50 hover:!bg-emerald-50 ${className}`}
+        className={`${bang.tdB} cursor-pointer break-words whitespace-normal text-left transition-colors group-hover:bg-slate-50 hover:!bg-emerald-50 ${className}`}
       >
         {truncateText(preview) || '—'}
       </td>
@@ -1017,9 +992,7 @@ export const HexDetailModal = ({
       <td
         onClick={(e) => openVuongMacCell(row, category, e)}
         title={`Bấm để xem/nhập vướng mắc — ${FIVE_M_VI[category]}`}
-        className={`cursor-pointer border-r border-red-100 px-2 py-2.5 text-left align-top transition-colors last:border-r-0 hover:bg-red-50 ${
-          openList.length > 0 ? 'bg-red-50/60' : ''
-        }`}
+        className={`${bang.tdB} cursor-pointer text-left transition-colors hover:bg-red-50 ${openList.length > 0 ? 'bg-red-50/60' : ''}`}
       >
         {!latest ? (
           <span className="text-slate-300">—</span>
@@ -1045,70 +1018,33 @@ export const HexDetailModal = ({
   };
 
   // Render 1 ô "phụ" theo key — riêng "vuongMac" trả về MẢNG 5 <td>.
-  const renderCell = (row: DataRow, key: OptionalColKey): React.ReactNode => {
+  const oChu = (key: string, v: unknown) => (
+    <td key={key} className={`${bang.tdB} break-words group-hover:bg-slate-50`}>{String(v || '—')}</td>
+  );
+  const renderCell = (row: DataRow, key: OptionalColKey, s: SoHex): React.ReactNode => {
+    const cotSo = COT_SO[key];
+    if (cotSo) return <td key={key} className={`${bang.tdSo} group-hover:bg-slate-50`}>{money(s[cotSo])}</td>;
     switch (key) {
       case 'congTrinh':
-        return showProjectColumn ? (
-          <td key="congTrinh" className="px-3 py-2.5 text-left align-top text-slate-700 group-hover:bg-slate-50">
-            {String(row[congTrinhKey] || '—')}
-          </td>
-        ) : null;
+        return showProjectColumn ? oChu(key, row[congTrinhKey]) : null;
 
       case 'hangMuc':
-        return (
-          <td key="hangMuc" className="px-3 py-2.5 text-left align-top text-slate-700 group-hover:bg-slate-50">
-            {String(row[hangMucKey] || '—')}
-          </td>
-        );
+        return oChu(key, row[hangMucKey]);
 
       case 'xuong':
-        return (
-          <td key="xuong" className="px-3 py-2.5 text-left align-top text-slate-600 group-hover:bg-slate-50">
-            {String(row[xuongKey] || '—')}
-          </td>
-        );
+        return oChu(key, row[xuongKey]);
 
       case 'bop':
-        return (
-          <td key="bop" className="px-3 py-2.5 text-left align-top text-slate-600 group-hover:bg-slate-50">
-            {String(row[bopKey] || '—')}
-          </td>
-        );
+        return oChu(key, row[bopKey]);
 
       case 'tinhTrang':
-        return (
-          <td key="tinhTrang" className="px-3 py-2.5 text-left align-top text-slate-600 group-hover:bg-slate-50">
-            {String(row[tinhTrangKey] || '—')}
-          </td>
-        );
+        return oChu(key, row[tinhTrangKey]);
 
       case 'phanLoai':
-        return (
-          <td key="phanLoai" className="px-3 py-2.5 text-right align-top text-slate-600 group-hover:bg-slate-50">
-            {String(row[phanLoaiNhomSanPhamKey] || '—')}
-          </td>
-        );
+        return oChu(key, row[phanLoaiNhomSanPhamKey]);
 
-      case 'triGia':
-        return (
-          <td key="triGia" className="px-3 py-2.5 text-right align-top text-slate-800 group-hover:bg-slate-50">
-            {money(parseNumber(row[triGiaDonHangTongKey]))}
-          </td>
-        );
-
-      case 'thanhTienPhieu':
-        return (
-          <td key="thanhTienPhieu" className="px-3 py-2.5 text-right align-top text-slate-800 group-hover:bg-slate-50">
-            {money(parseNumber(row[thanhTienTinhPhieuKey]))}
-          </td>
-        );
-
-      case 'thanhTienKho':
-        return (
-          <td key="thanhTienKho" className="px-3 py-2.5 text-right align-top font-medium text-indigo-700 group-hover:bg-slate-50">
-            {money(parseNumber(row[thanhTienNhapKhoKey]))}
-          </td>
-        );
+      case 'giaTriKy':
+        return <td key={key} className={`${bang.tdSo} font-bold group-hover:bg-slate-50`}>{money(kyCua(row))}</td>;
 
       case 'ghiChuDonHangTong':
         return (
@@ -1147,24 +1083,26 @@ export const HexDetailModal = ({
 
   return createPortal(
     <>
-      <div
-        className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/50 p-4"
-        role="dialog"
-        aria-modal="true"
+      <ModalShell
+        open={isOpen}
+        onClose={onClose}
+        labelledBy="hex-detail-title"
+        overlayClassName="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/50 p-4"
+        panelClassName="flex h-[94vh] w-[98vw] max-w-[2200px] flex-col rounded-xl bg-white shadow-xl focus:outline-none"
       >
-        <div
-          className="flex flex-col rounded-xl bg-white shadow-xl"
-          style={{ width: '98vw', maxWidth: 2200, height: '94vh' }}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="flex min-h-0 flex-1 flex-col" onClick={(e) => e.stopPropagation()}>
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
             <div>
-              <h3 className="text-base font-semibold text-slate-800">
+              <h3 id="hex-detail-title" className="text-base font-semibold text-slate-800">
                 Chi tiết theo Hex — {title}
               </h3>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {projectName ?? 'Tất cả công trình'} · {filteredRows.length} hex ·{' '}
-                Đơn vị tiền: {TY_UNIT_LABEL} · Bấm vào ô ghi chú để xem đầy đủ
+              <p className="mt-0.5 text-sm text-slate-500">
+                {projectName ?? 'Tất cả công trình'} · {fmtInt(totals.n)} hex
+                {totals.huy.n > 0 && (
+                  <span className="ml-2 rounded bg-red-50 px-1.5 py-0.5 font-medium text-red-700">
+                    HỦY: {fmtInt(totals.huy.n)} hex · {fmtTy(totals.huy.triGia)} tỷ
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -1193,7 +1131,7 @@ export const HexDetailModal = ({
                 <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[0.6875rem] text-white">
                   {unassignedCount === null
                     ? '…'
-                    : `${unassignedCount.lines.toLocaleString('vi-VN')} dòng · ${unassignedCount.prs} PR`}
+                    : `${fmtInt(unassignedCount.lines)} dòng · ${fmtInt(unassignedCount.prs)} PR`}
                 </span>
               </button>
               <ModalColumnSetupButton
@@ -1253,285 +1191,192 @@ export const HexDetailModal = ({
                       : 'bg-white text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  {label} <span className="opacity-70">({n === null ? '…' : n.toLocaleString('vi-VN')})</span>
+                  {label} <span className="opacity-70">({n === null ? '…' : fmtInt(n)})</span>
                 </button>
               ))}
             </div>
             {materialFilter === 'without' && (
               <span className="text-xs text-slate-500">
-                {hasDeadline
-                  ? <>Sắp theo hạn (KH nhập kho tuần → tháng) — gấp nhất lên đầu · <span className="font-semibold text-red-600">chữ đỏ</span> = đã quá hạn</>
-                  : 'Không có cột ngày kế hoạch / cần giao để sắp xếp'}
+                {hasDeadline ? <>Gấp nhất lên đầu · <span className="font-semibold text-red-600">đỏ</span> = quá hạn</> : 'Không có ngày kế hoạch'}
               </span>
             )}
           </div>
 
           {filteredRows.length > 0 ? (
-            <>
-              <div className="shrink-0 overflow-hidden">
-                <div className="flex bg-emerald-50">
-                  {/* Đệm trái (luôn xanh) và đệm phải (đỏ CHỈ KHI cột cuối là
-                      Vướng Mắc VÀ đã cuộn hết sang phải) là 2 div độc lập. */}
-                  <div className="w-5 shrink-0 bg-emerald-50" />
-                  <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                    <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
-                      <ColGroup />
-                      <thead className="font-bold uppercase tracking-tight text-slate-800">
-                        <tr>
-                          <th
-                            onClick={() => toggleSort('stt')}
+            <div className="min-h-0 flex-1 overflow-hidden px-5 pb-4">
+              <div className={`${bang.khung} h-full`}>
+                <table style={tableStyle} className={bang.table}>
+                  <ColGroup />
+                  <thead className={bang.thead}>
+                    <tr>
+                      <th
+                        onClick={() => toggleSort('stt')}
+                        rowSpan={hasVuongMacCol ? 2 : 1}
+                        style={fzStyle(frozen.get('stt'))}
+                        className={`${fzClass(frozen.get('stt'))} ${headerCellClass} bg-emerald-300 text-center`}
+                      >
+                        <span className="inline-flex items-center justify-center gap-1">
+                          STT
+                          <SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />
+                        </span>
+                      </th>
+                      <th
+                        onClick={() => toggleSort('hex')}
+                        rowSpan={hasVuongMacCol ? 2 : 1}
+                        style={fzStyle(frozen.get('hex'))}
+                        className={`${fzClass(frozen.get('hex'))} ${headerCellClass} min-w-[140px] bg-emerald-300 text-left`}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          Mã Hex
+                          <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
+                        </span>
+                      </th>
+                      {orderedCols.map((key) => {
+                        if (key === 'vuongMac') {
+                          return (
+                            <th key="vuongMac-group" colSpan={FIVE_M_ORDER.length} className={bang.thC}>
+                              Vướng Mắc (5M)
+                            </th>
+                          );
+                        }
+                        const meta = COLUMN_META[key];
+                        return applyFrozen(
+                          <SortableHeader
+                            key={key}
+                            sortKey={meta.sortKey}
+                            align={meta.align}
                             rowSpan={hasVuongMacCol ? 2 : 1}
-                            style={fzStyle(frozen.get('stt'))}
-                            className={`${fzClass(frozen.get('stt'))} cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100`}
                           >
-                            <span className="inline-flex items-center justify-center gap-1">
-                              STT
-                              <SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />
-                            </span>
-                          </th>
-                          <th
-                            onClick={() => toggleSort('hex')}
-                            rowSpan={hasVuongMacCol ? 2 : 1}
-                            style={fzStyle(frozen.get('hex'))}
-                            className={`${fzClass(frozen.get('hex'))} min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100`}
-                          >
-                            <span className="inline-flex items-center gap-1">
-                              Mã Hex
-                              <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
-                            </span>
-                          </th>
-                          {orderedCols.map((key, i) => {
-                            const isLast = i === orderedCols.length - 1;
-                            if (key === 'vuongMac') {
-                              return (
-                                <th
-                                  key="vuongMac-group"
-                                  colSpan={FIVE_M_ORDER.length}
-                                  className={`cursor-default select-none border-b border-red-200 bg-red-50 px-3 py-3 text-center text-red-700 ${
-                                    isLast ? '' : 'border-r border-red-200'
-                                  }`}
-                                >
-                                  Vướng Mắc (5M)
-                                </th>
-                              );
-                            }
-                            const meta = COLUMN_META[key];
-                            return applyFrozen(
-                              <SortableHeader
-                                key={key}
-                                sortKey={meta.sortKey}
-                                align={meta.align}
-                                isLast={isLast}
-                                rowSpan={hasVuongMacCol ? 2 : 1}
-                              >
-                                {meta.label}
-                              </SortableHeader>,
-                              frozen.get(key),
-                              '!bg-emerald-50'
-                            );
-                          })}
-                        </tr>
-                        {hasVuongMacCol && (
-                          <tr>
-                            {FIVE_M_ORDER.map((cat, idx) => (
-                              <th
-                                key={cat}
-                                onClick={() => toggleSort(CATEGORY_SORT_KEY[cat])}
-                                title={`${FIVE_M_VI[cat]} (${FIVE_M_SHORT[cat]})`}
-                                className={`cursor-pointer select-none border-b border-red-200 bg-red-50/70 px-1 py-2 text-center text-red-700 transition-colors hover:bg-red-100 ${
-                                  idx < FIVE_M_ORDER.length - 1 ? 'border-r border-red-100' : ''
-                                }`}
-                              >
-                                <span className="inline-flex flex-col items-center justify-center gap-0.5 text-[0.6562rem] normal-case leading-tight">
-                                  <span className="whitespace-normal break-words">
-                                    {FIVE_M_VI[cat]} ({FIVE_M_SHORT[cat]})
-                                  </span>
-                                  <SortIcon active={sort?.key === CATEGORY_SORT_KEY[cat]} dir={sort?.dir} />
-                                </span>
-                              </th>
-                            ))}
-                          </tr>
-                        )}
-                      </thead>
-                    </table>
-                  </div>
-                  <div className={`w-5 shrink-0 ${showRedEdge ? 'bg-red-50' : 'bg-emerald-50'}`} />
-                  {scrollbarWidth > 0 && (
-                    <div
-                      style={{ width: scrollbarWidth }}
-                      className={`shrink-0 ${showRedEdge ? 'bg-red-50' : 'bg-emerald-50'}`}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Lớp NGOÀI chỉ tạo đệm 20px, KHÔNG cuộn; lớp TRONG (bodyScrollRef)
-                  mới cuộn và không có padding — để sticky neo sát mép, không hở khe. */}
-              <div className="min-h-0 flex-1 overflow-hidden px-5">
-                <div
-                  ref={bodyScrollRef}
-                  onScroll={handleBodyScroll}
-                  className="h-full overflow-auto custom-scrollbar"
-                >
-                  <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
-                    <ColGroup />
-                    <tbody className="divide-y divide-emerald-50">
-                      {sortedRows.map((entry) => {
-                        const row = entry.row;
-                        return (
-                          <tr key={entry.stt} className="group transition-colors hover:bg-slate-50">
-                            <td
-                              style={fzStyle(frozen.get('stt'))}
-                              className={`${fzClass(frozen.get('stt'))} border-r border-slate-100 bg-white group-hover:bg-slate-50 px-2 py-2.5 text-center align-top font-semibold text-slate-500`}
-                            >
-                              {entry.stt}
-                            </td>
-                            <td
-                              style={fzStyle(frozen.get('hex'))}
-                              className={`${fzClass(frozen.get('hex'))} border-r border-slate-100 bg-white group-hover:bg-slate-50 px-3 py-2.5 text-left align-top font-medium text-slate-700`}
-                            >
-                              {row[hexKey] && materialCountByHex && !materialCountByHex[String(row[hexKey])] ? (
-                                String(row[hexKey])
-                              ) : row[hexKey] ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setMaterialView({
-                                    hexes: [String(row[hexKey])],
-                                    title: `Hex ${String(row[hexKey])}`,
-                                    mode: 'matched',
-                                  })}
-                                  title="Bấm để xem vật tư của hex này"
-                                  className="text-left text-amber-700 hover:underline"
-                                >
-                                  {String(row[hexKey])}
-                                  {materialCountByHex?.[String(row[hexKey])] ? (
-                                    <span className="ml-1 rounded bg-amber-50 px-1 text-[0.625rem] font-semibold text-amber-600">
-                                      {materialCountByHex[String(row[hexKey])]} VT
-                                    </span>
-                                  ) : null}
-                                </button>
-                              ) : '—'}
-                              {row[hexKey] && xuongTomTat[String(row[hexKey])] && (() => {
-                                const t = xuongTomTat[String(row[hexKey])];
-                                const o = t.dangO[0];
-                                return (
-                                  <button type="button" onClick={() => setXuongHex(String(row[hexKey]))}
-                                    title="Xem tiến độ ở xưởng: công đoạn, số lượng, giờ công"
-                                    className="mt-0.5 block text-left text-[0.6875rem] font-normal text-emerald-700 hover:underline">
-                                    {o ? `Xưởng: ${o.ten ?? ''}${t.dangO.length > 1 ? ` +${t.dangO.length - 1}` : ''}` : 'Xưởng: xong'}
-                                  </button>
-                                );
-                              })()}
-                              {materialFilter === 'without' && hasDeadline && (() => {
-                                const info = deadlineInfo(row);
-                                const d = info?.date;
-                                if (!d || !info?.source) return <div className="mt-0.5 text-[0.625rem] font-normal text-slate-400">Chưa có hạn</div>;
-                                const late = d.getTime() < todayStart;
-                                return (
-                                  <div
-                                    title={`${DEADLINE_SOURCE_LABEL[info.source]}${late ? ' — đã quá hạn' : ''}`}
-                                    className={`mt-0.5 whitespace-nowrap text-[0.625rem] ${late ? 'font-semibold text-red-600' : 'font-normal text-slate-500'}`}
-                                  >
-                                    Hạn: {d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                    <span className="ml-1 font-normal text-slate-400">({info.source})</span>
-                                  </div>
-                                );
-                              })()}
-                            </td>
-                            {orderedCols.map((key) =>
-                              applyFrozen(
-                                renderCell(row, key),
-                                frozen.get(key),
-                                '!bg-white group-hover:!bg-slate-50'
-                              )
-                            )}
-                          </tr>
+                            {meta.label}
+                          </SortableHeader>,
+                          frozen.get(key),
+                          '!bg-emerald-300'
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
-                <div className="flex">
-                  <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                    <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
-                      <ColGroup />
-                      <tfoot className="font-bold text-slate-900">
-                        <tr>
-                          {(() => {
-                            const cells: React.ReactNode[] = [];
-                            let pendingSpan = 2; // STT + Mã Hex luôn có mặt
-                            let labelRendered = false;
-
-                            const flushLabel = () => {
-                              cells.push(
-                                <td
-                                  key="label"
-                                  className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} bg-emerald-100 px-3 py-3 text-left`}
-                                  colSpan={pendingSpan}
-                                >
-                                  <span title="Tổng theo quy tắc chung: không tính đơn HỦY; thành tiền nhập kho mỗi hex chặn ≤ trị giá — nên có thể khác cộng tay các ô">
-                                    TỔNG CỘNG ({filteredRows.length} hex)
-                                    <span className="ml-1 text-[0.625rem] font-normal text-emerald-800/70">· không tính HỦY, NK ≤ trị giá</span>
+                    </tr>
+                    {hasVuongMacCol && (
+                      <tr>
+                        {FIVE_M_ORDER.map((cat) => (
+                          <th
+                            key={cat}
+                            onClick={() => toggleSort(CATEGORY_SORT_KEY[cat])}
+                            title={`${FIVE_M_VI[cat]} (${FIVE_M_SHORT[cat]})`}
+                            className={`${headerCellClass} text-center`}
+                          >
+                            <span className="inline-flex flex-col items-center justify-center gap-0.5 text-xs leading-tight">
+                              <span className="whitespace-normal break-words">
+                                {FIVE_M_VI[cat]} ({FIVE_M_SHORT[cat]})
+                              </span>
+                              <SortIcon active={sort?.key === CATEGORY_SORT_KEY[cat]} dir={sort?.dir} />
+                            </span>
+                          </th>
+                        ))}
+                      </tr>
+                    )}
+                  </thead>
+                  <tbody>
+                    {sortedRows.map((entry) => {
+                      const row = entry.row;
+                      const s = soHex(row, khoaSo);
+                      return (
+                        <tr key={entry.stt} className={`group transition-colors hover:bg-slate-50 ${s.huy ? 'text-slate-400' : ''}`}>
+                          <td
+                            style={fzStyle(frozen.get('stt'))}
+                            className={`${fzClass(frozen.get('stt'))} ${bang.tdSo} bg-white text-slate-500 group-hover:bg-slate-50`}
+                          >
+                            {entry.stt}
+                          </td>
+                          <td
+                            style={fzStyle(frozen.get('hex'))}
+                            className={`${fzClass(frozen.get('hex'))} ${bang.tdB} bg-white text-left group-hover:bg-slate-50`}
+                          >
+                            {row[hexKey] && materialCountByHex && !materialCountByHex[String(row[hexKey])] ? (
+                              String(row[hexKey])
+                            ) : row[hexKey] ? (
+                              <button
+                                type="button"
+                                onClick={() => setMaterialView({
+                                  hexes: [String(row[hexKey])],
+                                  title: `Hex ${String(row[hexKey])}`,
+                                  mode: 'matched',
+                                })}
+                                title="Bấm để xem vật tư của hex này"
+                                className="text-left text-amber-700 hover:underline"
+                              >
+                                {String(row[hexKey])}
+                                {materialCountByHex?.[String(row[hexKey])] ? (
+                                  <span className="ml-1 rounded bg-amber-50 px-1 text-[0.625rem] font-semibold text-amber-600">
+                                    {materialCountByHex[String(row[hexKey])]} VT
                                   </span>
-                                </td>
+                                ) : null}
+                              </button>
+                            ) : '—'}
+                            {s.huy && <span className="ml-1 rounded bg-red-50 px-1 text-[0.625rem] font-semibold text-red-700">HỦY</span>}
+                            {row[hexKey] && xuongTomTat[String(row[hexKey])] && (() => {
+                              const t = xuongTomTat[String(row[hexKey])];
+                              const o = t.dangO[0];
+                              return (
+                                <button type="button" onClick={() => setXuongHex(String(row[hexKey]))}
+                                  title="Xem tiến độ ở xưởng: công đoạn, số lượng, giờ công"
+                                  className="mt-0.5 block text-left text-[0.6875rem] font-normal text-emerald-700 hover:underline">
+                                  {o ? `Xưởng: ${o.ten ?? ''}${t.dangO.length > 1 ? ` +${t.dangO.length - 1}` : ''}` : 'Xưởng: xong'}
+                                </button>
                               );
-                              labelRendered = true;
-                            };
-
-                            orderedCols.forEach((key) => {
-                              const kind = FOOTER_KIND[key];
-                              if (!labelRendered && kind === 'label') {
-                                pendingSpan += 1;
-                                return;
-                              }
-                              if (!labelRendered) flushLabel();
-                              if (kind === 'total') {
-                                const value =
-                                  key === 'triGia' ? totals.triGiaDonHangTong :
-                                  key === 'thanhTienPhieu' ? totals.thanhTienTinhPhieu :
-                                  totals.thanhTienNhapKho;
-                                cells.push(
-                                  applyFrozen(
-                                    <td
-                                      key={key}
-                                      className={`px-3 py-3 text-right ${key === 'thanhTienKho' ? 'text-indigo-800' : ''}`}
-                                    >
-                                      {money(value)}
-                                    </td>,
-                                    frozen.get(key),
-                                    '!bg-emerald-100'
-                                  )
-                                );
-                              } else if (key === 'vuongMac') {
-                                cells.push(<td key={key} className="px-3 py-3" colSpan={FIVE_M_ORDER.length} />);
-                              } else {
-                                cells.push(
-                                  applyFrozen(
-                                    <td key={key} className="px-3 py-3" />,
-                                    frozen.get(key),
-                                    '!bg-emerald-100'
-                                  )
-                                );
-                              }
-                            });
-
-                            if (!labelRendered) flushLabel();
-
-                            return cells;
-                          })()}
+                            })()}
+                            {materialFilter === 'without' && hasDeadline && (() => {
+                              const info = deadlineInfo(row);
+                              const d = info?.date;
+                              if (!d || !info?.source) return <div className="mt-0.5 text-[0.625rem] font-normal text-slate-400">Chưa có hạn</div>;
+                              const late = d.getTime() < todayStart;
+                              return (
+                                <div
+                                  title={`${DEADLINE_SOURCE_LABEL[info.source]}${late ? ' — đã quá hạn' : ''}`}
+                                  className={`mt-0.5 whitespace-nowrap text-[0.625rem] ${late ? 'font-semibold text-red-600' : 'font-normal text-slate-500'}`}
+                                >
+                                  Hạn: {fmtDate(d)}
+                                  <span className="ml-1 font-normal text-slate-400">({info.source})</span>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          {orderedCols.map((key) =>
+                            applyFrozen(
+                              renderCell(row, key, s),
+                              frozen.get(key),
+                              '!bg-white group-hover:!bg-slate-50'
+                            )
+                          )}
                         </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                  {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
-                </div>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className={bang.tfoot}>
+                    <tr>
+                      <td
+                        colSpan={2}
+                        style={frozen.has('stt') ? { left: 0 } : undefined}
+                        className={`${bang.tdSo} ${frozen.has('stt') ? '!z-[12]' : ''}`}
+                      >
+                        TỔNG ({fmtInt(totals.n)} hex)
+                      </td>
+                      {orderedCols.map((key) => {
+                        if (key === 'vuongMac') return <td key={key} className={bang.tdB} colSpan={FIVE_M_ORDER.length} />;
+                        if (key === 'congTrinh' && !showProjectColumn) return null;
+                        const cotSo = COT_SO[key];
+                        const v = cotSo ? totals[cotSo] : key === 'giaTriKy' ? tongKy : 0;
+                        return applyFrozen(
+                          <td key={key} className={bang.tdSo}>{money(v)}</td>,
+                          frozen.get(key),
+                          '!z-[12]'
+                        );
+                      })}
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-            </>
+            </div>
           ) : (
-            <div className="min-h-0 flex-1 overflow-auto p-5">
+            <div className="min-h-0 flex-1 overflow-auto px-5">
               <div className="rounded-lg bg-slate-50 p-8 text-center text-slate-500">
                 {materialFilter === 'with' && hexWithMaterialCount === 0
                   ? 'Không có hex nào map được vật tư theo mã nhà máy — chọn "Tất cả" để xem đủ danh sách.'
@@ -1542,7 +1387,7 @@ export const HexDetailModal = ({
             </div>
           )}
         </div>
-      </div>
+      </ModalShell>
 
       {/* Popup ghi chú: chỉ đóng bằng nút X. */}
       {selectedNote && (
@@ -1583,9 +1428,14 @@ export const HexDetailModal = ({
       )}
 
       {xuongHex && (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setXuongHex(null)}>
-          <div role="dialog" aria-label={`Xưởng — hex ${xuongHex}`} onClick={e => e.stopPropagation()}
-            className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-50 shadow-xl">
+        <ModalShell
+          open
+          onClose={() => setXuongHex(null)}
+          label={`Xưởng — hex ${xuongHex}`}
+          closeOnBackdrop
+          overlayClassName="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-900/50 p-4"
+          panelClassName="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-50 shadow-xl focus:outline-none"
+        >
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
               <div className="min-w-0">
                 <p className="text-base font-bold text-slate-800">Xưởng — hex <span className="tabular-nums">{xuongHex}</span></p>
@@ -1594,8 +1444,7 @@ export const HexDetailModal = ({
               <button type="button" onClick={() => setXuongHex(null)} aria-label="Đóng" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18} /></button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4"><XuongHexChiTiet hex={xuongHex} /></div>
-          </div>
-        </div>
+        </ModalShell>
       )}
 
       <HexMaterialModal

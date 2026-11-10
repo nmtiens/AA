@@ -8,13 +8,16 @@ import { timedQuery } from '../db.js';
 // CHỈ dùng cho kết quả không phụ thuộc người dùng.
 // ============================================================================
 let sharedCacheDisabled = false; // bảng chưa tạo: thôi thử trong instance này
+// Đổi khi công thức tính đổi: bản lưu của code cũ không bị đọc nhầm, 2 bản chạy song song không ghi đè nhau
+const PHIEN_BAN_TINH = 'r3';
+const khoaChung = (key: string) => `${PHIEN_BAN_TINH}:${key}`;
 const isMissingTable = (e: unknown) => (e as { code?: string })?.code === '42P01';
 
 export async function readShared<T>(key: string, versions: string): Promise<T | undefined> {
   if (sharedCacheDisabled) return undefined;
   try {
     const r = await timedQuery<{ data: T }>(
-      'SELECT data FROM api_result_cache WHERE cache_key = $1 AND versions = $2', [key, versions]);
+      'SELECT data FROM api_result_cache WHERE cache_key = $1 AND versions = $2', [khoaChung(key), versions]);
     return r.rows[0]?.data;
   } catch (e) {
     if (isMissingTable(e)) sharedCacheDisabled = true;
@@ -28,7 +31,7 @@ export async function writeShared(key: string, versions: string, data: unknown):
     await timedQuery(
       `INSERT INTO api_result_cache (cache_key, versions, data, updated_at) VALUES ($1, $2, $3::jsonb, NOW())
        ON CONFLICT (cache_key) DO UPDATE SET versions = EXCLUDED.versions, data = EXCLUDED.data, updated_at = NOW()`,
-      [key, versions, JSON.stringify(data)]);
+      [khoaChung(key), versions, JSON.stringify(data)]);
   } catch (e) {
     if (isMissingTable(e)) sharedCacheDisabled = true;
   }

@@ -8,8 +8,11 @@ import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter'
 import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
-import { projectMatchKey } from '../../utils/productionMetrics';
-import type { RemainBucket } from '../Dashboard/core/tongQuanSanXuat';
+import { projectMatchKey, laIpoMacDinh, tyLeHoanThanh } from '../../utils/productionMetrics';
+import type { RemainBucket } from '../Dashboard/core/stages';
+import { recDaNhapDu } from './core/chiSoCongTrinh';
+import { tomTatChiTiet, giaTriTieuDiem, type TieuDiem } from './core/tongChiTiet';
+import { khung as khungB, soBam as GACH, table as bangB, tdB, tdSo as soB, tfoot as tfootB, thC as thB, thead as theadB, trong0 } from '../shared/bangBaoCao';
 import { taoBanGhi, NO_MONTH, type Rec } from './core/banGhiCongTrinh';
 import { useToast } from '../../context/ToastContext';
 import { CONFIGURABLE_VIEWS, getProjectsForView, type ProjectGroupId } from './utils/viewDataConfig';
@@ -25,7 +28,7 @@ import { BaoCaoBot } from './BaoCaoBot';
 import { HexTimelineModal } from './HexTimelineModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
-import { fmtInt } from '../../utils/format';
+import { fmtInt, fmtPt } from '../../utils/format';
 import { API_BASE_URL } from '../../services/dataService';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
@@ -37,7 +40,7 @@ type Filters = Partial<Record<FKey, string | undefined>>;
 
 // Mặc định không lọc Tình trạng IPO: các ô KPI hiện tổng toàn bộ công trình, chỉ đổi khi người dùng chọn lọc
 // Mặc định chỉ xem hạng mục ĐANG SẢN XUẤT (khớp bộ lọc mặc định ở trang Tổng quan); chọn lại được ở bộ lọc
-const isDefaultIpo = (ipo: string) => /ĐANG SẢN XUẤT/i.test(ipo);
+const isDefaultIpo = laIpoMacDinh;
 
 const GROUP_SHORT: Record<ProjectGroupId, string> = { 'luong-do': 'Luồng đỏ', 'can-mau': 'Căn mẫu' };
 
@@ -51,7 +54,7 @@ const COLOR_REMAIN = '#f59e0b';
 // Giá trị gốc tính theo triệu đồng (khớp backend TRIEU_TO_TY) => Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
 const fmtTy = formatTrieuAsTy;
-const pctOf = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toFixed(v / total < 0.01 && v > 0 ? 1 : 0)}%` : '—');
+const pctOf = (v: number, total: number) => (total > 0 ? fmtPt((v / total) * 100) : '—');
 // Làm tròn triệu đồng về bội 10 (= 0,01 tỷ, đúng số hiển thị của fmtTy)
 const roundTy = (trieu: number) => Math.round(trieu / 10) * 10 + 0; // + 0: bỏ -0
 /** Chia `target` (đã làm tròn 0,01 tỷ) cho các phần theo phần dư lớn nhất => các ô con cộng đúng ô cha. */
@@ -114,8 +117,14 @@ const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = fal
   </div>
 );
 
+// Cột số của bảng trong cửa sổ chi tiết: cùng tên với các ô phía trên
+const COT_CHI_TIET: { k: DetailFocus; t: string }[] = [
+  { k: 'items', t: 'Hạng mục' }, { k: 'total', t: 'Tổng giá trị (Tỷ)' }, { k: 'done', t: 'Đã nhập kho (Tỷ)' }, { k: 'remain', t: 'Chưa nhập kho (Tỷ)' },
+  { k: 'exported', t: 'Đã xuất / giao (Tỷ)' }, { k: 'stock', t: 'Tồn theo đơn đang xem (Tỷ)' }, { k: 'unmatched', t: 'Chênh (Tỷ)' }, { k: 'xuatVuot', t: 'Xuất vượt nhập (Tỷ)' },
+];
+
 // Mô tả 1 cửa sổ chi tiết (cấp 1)
-type DetailFocus = 'items' | 'total' | 'done' | 'remain' | 'exported' | 'stock';
+type DetailFocus = TieuDiem;
 interface DetailSpec {
   eyebrow: string;          // dòng nhỏ phía trên tiêu đề, vd. "Chỉ số", "Tháng hạn giao", "Người phụ trách (PC)"
   title: string;
@@ -205,7 +214,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const [f, setF] = useState<Filters>({});
   // null = chưa chọn gì => dùng mặc định (Đang sản xuất) khi đã có dữ liệu
   const [ipoPicked, setIpoSel] = useState<string[] | null>(null);
-  const [metric, setMetric] = useState<'count' | 'value'>('count'); // cho 3 biểu đồ tròn
+  const [metric, setMetric] = useState<'count' | 'value'>('value'); // cho 3 biểu đồ tròn
   const [ctSearch, setCtSearch] = useState('');
 
   const toggle = (k: FKey, v: string) => setF(p => ({ ...p, [k]: p[k] === v ? undefined : v }));
@@ -213,7 +222,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const activeKeys = (Object.keys(f) as FKey[]).filter(k => f[k]);
 
   // Đã nhập kho đủ trị giá đơn hàng HOẶC đủ số lượng (dùng chung cho ô KPI và popup chi tiết)
-  const isStocked = (r: Rec) => r.status !== 'HỦY' && ((r.total > 0 && r.done >= r.total) || r.qtyDone);
 
   // ---------- 1. Chuẩn hoá từng dòng 1 lần (lõi dùng chung với máy chủ: core/banGhiCongTrinh.ts) ----------
   // Chưa có bảng sản xuất mà máy chủ đã gửi bản ghi => dùng bản ghi máy chủ (dòng gốc chỉ có hex)
@@ -267,20 +275,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // còn lại (chưa nhập hoặc mới nhập 1 phần) là "chưa nhập kho". Đơn HỦY tính riêng.
   const kpi = useMemo(() => {
     const cts = new Set<string>();
-    let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0, exported = 0, stock = 0, exportedRecorded = 0, unmatched = 0;
+    let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, totalHuy = 0, done = 0, exported = 0, xuatVuot = 0, stock = 0, exportedRecorded = 0, unmatched = 0;
     // Giá trị đã nhập kho tách theo hạng mục nhập đủ / nhập một phần (cộng lại = done, trừ phần của đơn hủy)
     let stockedDone = 0, partialDone = 0;
     let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho vượt giá trị đã nhập (tồn bị chặn ≤ đã nhập)
-    let stockHuy = 0; // tồn kho của đơn HỦY (đã nhập của HỦY = phần còn trong kho — banGhiCongTrinh)
+    let stockHuy = 0; // tồn kho của đơn HỦY: tồn kho vẫn gồm hàng HỦY còn trong kho
     // Phần chưa nhập kho theo công đoạn — cộng lại đúng bằng Giá trị chưa nhập kho
     const remainBy: Record<RemainBucket | 'cancelled', number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
     for (const r of rowsAll) {
       cts.add(r.ctKey);
       remainBy[r.bucket] += Math.max(r.total - r.done, 0);
-      if (r.status === 'HỦY') { cancelled++; stockHuy += r.stock; }
-      else if (isStocked(r)) { stocked++; stockedDone += r.done; }
+      if (r.status === 'HỦY') { cancelled++; stockHuy += r.stock; totalHuy += r.totalHuy; }
+      else if (recDaNhapDu(r)) { stocked++; stockedDone += r.done; }
       else { notStocked++; if (r.done > 0) { partial++; partialDone += r.done; } }
-      total += r.total; done += r.done; exported += r.exported; stock += r.stock; exportedRecorded += r.exportedRecorded; unmatched += r.unmatched;
+      total += r.total; done += r.done; exported += r.exported; xuatVuot += r.xuatVuot; stock += r.stock; exportedRecorded += r.exportedRecorded; unmatched += r.unmatched;
       if (r.stockCut > 0.001) { stockOver += r.stockCut; stockOverItems++; }
     }
     // Cảnh báo: quá hạn KH nhập kho / chưa có KH / qua BOT dự án (hạng mục còn theo dõi)
@@ -294,8 +302,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       if (r.botDuAn && r.botDuAn.getTime() < today) { pastBot++; pastBotRemain += rem; }
     }
     return {
-      cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, stockedDone, partialDone, total, done, remain: total - done,
-      exported, stock, stockHuy, exportedRecorded, unmatched, stockOver, stockOverItems, remainBy,
+      cts: cts.size, items: rowsAll.length - cancelled, cancelled, stocked, notStocked, partial, stockedDone, partialDone, total, totalHuy, done, remain: total - done,
+      exported, xuatVuot, stock, stockHuy, exportedRecorded, unmatched, stockOver, stockOverItems, remainBy,
       overdue, overdueRemain, noPlan, noPlanRemain, metWait, metWaitRemain, pastBot, pastBotRemain,
     };
   }, [rowsAll, today]);
@@ -324,7 +332,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const outBuckets = useMemo(() => monthData.filter(d => d.key !== NO_MONTH && chartMonthOrder(d.key) % 2 === 0 && d.done + d.remain > 0.0005), [monthData]);
 
   // ---------- 4. Biểu đồ tròn ----------
-  const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k), r => r[k], r => r.ctKey, r => r.total, metric);
+  const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k).filter(r => r.status !== 'HỦY'), r => r[k], r => r.ctKey, r => r.total, metric);
   const kvData = useMemo(() => orderMix(donut('kv')), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
   const khData = useMemo(() => orderMix(groupTopN(donut('kh'), TOP_CUSTOMERS, f.kh ? [f.kh] : [])), [records, f, metric]); // eslint-disable-line react-hooks/exhaustive-deps
   const plData = useMemo(() => orderMix(donut('pl')), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
@@ -334,11 +342,24 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const m = new Map<string, { name: string; cts: Set<string>; items: number; total: number }>();
     for (const r of apply('pc')) {
       const e = m.get(r.pc) ?? { name: r.pc, cts: new Set<string>(), items: 0, total: 0 };
-      e.cts.add(r.ctKey); e.items++; e.total += r.total;
+      e.cts.add(r.ctKey); if (r.status !== 'HỦY') e.items++; e.total += r.total;
       m.set(r.pc, e);
     }
     return [...m.values()].sort((a, b) => b.total - a.total || b.items - a.items);
   }, [records, f]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // % Hoàn thành của 1 công trình: mọi Tình trạng IPO trừ HỦY, không theo bộ lọc IPO (bản ghi HỦY có total = done = 0)
+  const hoanThanhCt = useMemo(() => {
+    const m = new Map<string, { total: number; done: number }>();
+    for (const r of groupRecords) {
+      if (!activeKeys.every(k => k === 'ct' || r[k] === f[k])) continue;
+      const e = m.get(r.ct) ?? { total: 0, done: 0 };
+      e.total += r.total; e.done += r.done;
+      m.set(r.ct, e);
+    }
+    return m;
+  }, [groupRecords, f]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pctHoanThanh = (ct: string) => { const e = hoanThanhCt.get(ct); return e ? tyLeHoanThanh(e.total, e.done) : 0; };
 
   const ctTable = useMemo(() => {
     const q = ctSearch.trim().toLowerCase();
@@ -347,9 +368,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     for (const r of apply('ct')) {
       if (q && !r.ct.toLowerCase().includes(q)) continue;
       const e = m.get(r.ct) ?? { name: r.ct, ctKey: r.ctKey, pms: new Set<string>(), mas: new Set<string>(), items: 0, total: 0, cancelled: 0, done: 0, open: 0, overdue: 0, botDates: [] };
-      e.pms.add(r.pm); if (r.ma) e.mas.add(r.ma); e.items++; e.total += r.total; e.done += r.done;
-      // Trị giá đơn hủy nằm trong Tổng GT (cửa sổ công trình thì bỏ hủy) — tách riêng để ghi chú trên bảng
-      if (r.status === 'HỦY') e.cancelled += r.total;
+      e.pms.add(r.pm); if (r.ma) e.mas.add(r.ma); e.total += r.total; e.done += r.done;
+      // Đơn hủy = 0 trong Tổng GT, số hủy ghi riêng trên bảng
+      if (r.status === 'HỦY') e.cancelled += r.totalHuy; else e.items++;
       if (r.open) e.open++; if (r.overdue) e.overdue++;
       // Khoá ngày giờ địa phương (toISOString lùi 1 ngày ở +7)
       // Bỏ đơn HỦY khi gom BOT dự án (khớp ProjectHealthModal)
@@ -365,7 +386,31 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey) };
     }).sort((a, b) => b.total - a.total || b.items - a.items);
   }, [records, f, ctSearch, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Phạm vi bảng có đơn hủy => cột Tổng GT ghi chú "gồm cả đơn hủy"
+  // Dòng TỔNG bảng công trình: cộng các dòng đang hiện; % hoàn thành mọi IPO trừ HỦY như từng dòng;
+  // vướng mắc mỗi mã chỉ cộng 1 lần như ô "Vướng mắc đang mở"
+  const ctTong = useMemo(() => {
+    const s = { items: 0, total: 0, cancelled: 0, done: 0, overdue: 0, vm: 0 };
+    let htTotal = 0, htDone = 0;
+    const seenMa = new Set<string>(), seenName = new Set<string>();
+    for (const r of ctTable) {
+      s.items += r.items; s.total += r.total; s.cancelled += r.cancelled; s.done += r.done; s.overdue += r.overdue;
+      htTotal += hoanThanhCt.get(r.name)?.total ?? 0; htDone += hoanThanhCt.get(r.name)?.done ?? 0;
+      let hit = false;
+      r.mas.forEach(ma => {
+        const v = vmIndex.byMa.get(ma);
+        if (!v) return;
+        hit = true;
+        if (seenMa.has(ma)) return;
+        seenMa.add(ma); s.vm += v.open;
+      });
+      if (!hit && !seenName.has(r.ctKey)) {
+        seenName.add(r.ctKey);
+        s.vm += vmIndex.byName.get(r.ctKey)?.open ?? 0;
+      }
+    }
+    return { ...s, pct: tyLeHoanThanh(htTotal, htDone) };
+  }, [ctTable, vmIndex, hoanThanhCt]);
+  // Phạm vi bảng có đơn hủy => cột Tổng GT ghi riêng số hủy
   const ctHasCancel = ctTable.some(r => r.cancelled > 0);
   // Ô "Vướng mắc đang mở": theo MỌI bộ lọc trang (rowsAll, không theo ô tìm của bảng);
   // mỗi mã công trình chỉ cộng 1 lần (1 mã có thể nằm ở nhiều công trình / nhiều tên)
@@ -410,21 +455,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   const detailData = useMemo(() => {
     if (!detail) return null;
-    const cts = new Set<string>();
-    let total = 0, done = 0, exported = 0, stock = 0;
-    const m = new Map<string, { name: string; pms: Set<string>; items: number; total: number; done: number; exported: number; stock: number }>();
-    for (const r of detailRows) {
-      cts.add(r.ctKey); total += r.total; done += r.done; exported += r.exported; stock += r.stock;
-      const e = m.get(r.ct) ?? { name: r.ct, pms: new Set<string>(), items: 0, total: 0, done: 0, exported: 0, stock: 0 };
-      e.pms.add(r.pm); e.items++; e.total += r.total; e.done += r.done; e.exported += r.exported; e.stock += r.stock;
-      m.set(r.ct, e);
-    }
-    // Sắp theo đúng chỉ số đang xem
-    const metricOf = (p: { items: number; total: number; done: number; exported: number; stock: number }) =>
-      detail.focus === 'items' ? p.items : detail.focus === 'done' ? p.done : detail.focus === 'remain' ? p.total - p.done
-        : detail.focus === 'exported' ? p.exported : detail.focus === 'stock' ? p.stock : p.total;
-    const projects = [...m.values()].sort((a, b) => metricOf(b) - metricOf(a) || b.items - a.items);
-    return { cts: cts.size, items: detailRows.length, total, done, remain: total - done, exported, stock, projects };
+    const t = tomTatChiTiet(detailRows, detail.focus);
+    return { ...t, remain: t.total - t.done };
   }, [detail, detailRows]);
 
   const detailProjects = useMemo(() => {
@@ -625,8 +657,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   // Phần chưa nhập kho theo công đoạn, giữ thứ tự cột của bảng công trình: P001 -> P002 -> Trên chuyền
   // (cùng thứ tự với thanh tỷ trọng). Màu cùng 1 họ xám / cam theo độ "gần xong": xám = chưa triển khai,
-  // càng đậm càng gần nhập kho. Đơn hủy tách màu đỏ nhạt.
-  // P022–P025 nhập chưa đủ / đơn hủy chỉ hiện khi có số.
+  // càng đậm càng gần nhập kho. P022–P025 nhập chưa đủ chỉ hiện khi có số.
   const remainTiles = ([
     { key: 'notDeployed', label: 'Chưa triển khai (P001)', bar: 'bg-slate-300', ink: 'text-slate-800',
       hint: 'Phần chưa nhập kho của hạng mục ở P001 / 15. CHƯA TRIỂN KHAI.' },
@@ -636,45 +667,48 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       hint: 'Phần chưa nhập kho của hạng mục ở P012 → P021 (gồm GCVT).' },
     { key: 'shortfall', label: 'P022–P025 nhập chưa đủ', bar: 'bg-orange-600', ink: 'text-white',
       hint: 'Hạng mục đã ở P022 / P025 nhưng giá trị nhập kho chưa đủ trị giá đơn hàng (lệch đơn giá / nhập thiếu).' },
-    { key: 'cancelled', label: 'Đơn hủy', bar: 'bg-rose-200', ink: 'text-rose-900',
-      hint: 'Trị giá đơn hàng của hạng mục có Tình trạng IPO = HỦY (tính trong tổng để khớp file gốc — lọc Tình trạng IPO để bỏ).' },
   ] as const).filter(t => t.key === 'notDeployed' || t.key === 'p002' || t.key === 'onLine' || kpi.remainBy[t.key] > 0.0005);
   // Số HIỂN THỊ (làm tròn 0,01 tỷ) của các ô giá trị, cộng khớp tuyệt đối trên màn hình:
-  // Đã nhập = Đã xuất + Tồn + Chưa thấy xuất / tồn; Tổng = Đã nhập + Chưa nhập; các ô con Chưa nhập chia theo phần dư lớn nhất.
+  // Đã nhập + Xuất vượt nhập = Đã xuất + Tồn (không hủy) + Chênh; Tổng = Đã nhập + Chưa nhập; các ô con Chưa nhập chia theo phần dư lớn nhất.
   const shownExported = roundTy(kpi.exported);
-  const shownUnmatched = roundTy(kpi.done) - shownExported - roundTy(kpi.stock);
+  const shownXuatVuot = roundTy(kpi.xuatVuot);
+  const shownStockKhongHuy = roundTy(kpi.stock - kpi.stockHuy);
+  const shownUnmatched = Math.max(roundTy(kpi.done) + shownXuatVuot - shownExported - shownStockKhongHuy, 0);
   const shownRemain = roundTy(kpi.total) - roundTy(kpi.done);
   const shownRemainBy = apportionTy(remainTiles.map(t => kpi.remainBy[t.key]), shownRemain);
 
   // Đoạn của thanh tỷ trọng = đúng các ô bên dưới (cùng màu, cùng số hiển thị, bấm mở cùng cửa sổ chi tiết)
-  type Seg = { key: string; label: string; v: number; bar: string; ink: string; hint: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'> };
-  const EXPORT_HINT = 'TT xuất kho lũy kế của hạng mục, đúng cột TT XK LŨY KẾ ở file gốc (có hạng mục ghi xuất cao hơn nhập do lệch đơn giá); đơn hủy không tính.';
-  const UNMATCHED_HINT = 'Đã nhập − Đã xuất − Tồn kho, theo từng hạng mục: phần đã nhập kho nhưng không thấy trong TT xuất kho lũy kế lẫn tồn kho hiện tại (bảng xuất kho chỉ có dữ liệu từ 01/2025, giao không qua phiếu xuất, SAP chưa cập nhật…), đã trừ phần xuất ghi vượt nhập.';
-  const STOCK_HINT = kpi.stockOverItems > 0
-    ? `Tồn kho hiện tại (mọi tình trạng, kể cả đơn hủy), mỗi hạng mục tối đa bằng đã nhập − đã xuất. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
-    : 'Tồn kho hiện tại (mọi tình trạng, kể cả đơn hủy), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất.';
+  // v = số in trên ô; w = phần vẽ trên thanh khi khác v (Đã xuất trừ phần vượt nhập, Tồn trừ hàng hủy)
+  type Seg = { key: string; label: string; v: number; w?: number; bar: string; ink: string; hint: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'> };
+  const EXPORT_HINT = 'TT xuất kho lũy kế, số gốc; đơn hủy không tính.';
+  const XUAT_VUOT_HINT = 'Phần xuất kho lũy kế vượt đã nhập, theo từng hạng mục.';
+  const UNMATCHED_HINT = 'Đã nhập − Đã xuất − Tồn, không âm: đã nhập mà không thấy xuất lẫn tồn.';
+  const STOCK_HINT = 'Cột tồn kho của bảng sản xuất, chỉ các hạng mục đang xem, mỗi hạng mục tối đa bằng đã nhập − đã xuất. Khác thẻ Tồn kho (toàn kho, bảng tồn kho).';
   const doneSegs: Seg[] = [
-    { key: 'exported', label: 'Đã xuất / giao (P025)', v: shownExported, bar: 'bg-emerald-600', ink: 'text-white', hint: EXPORT_HINT,
+    { key: 'exported', label: 'Đã xuất / giao (P025)', v: shownExported, w: shownExported - shownXuatVuot, bar: 'bg-emerald-600', ink: 'text-white', hint: EXPORT_HINT,
       spec: { pred: r => r.exported > 0, focus: 'exported', note: EXPORT_HINT } },
-    { key: 'stock', label: 'Tồn kho', v: roundTy(kpi.stock), bar: 'bg-emerald-300', ink: 'text-emerald-950', hint: STOCK_HINT,
-      spec: { pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất; gồm cả đơn hủy còn tồn.' } },
-    ...(shownUnmatched > 0.0005 ? [{ key: 'unmatched', label: 'Chưa thấy xuất / tồn', v: shownUnmatched, bar: 'bg-lime-200', ink: 'text-lime-950', hint: UNMATCHED_HINT,
-      spec: { pred: (r: Rec) => r.unmatched > 0.0005, focus: 'done' as DetailFocus, note: UNMATCHED_HINT } }] : []),
+    { key: 'stock', label: 'Tồn theo đơn đang xem', v: roundTy(kpi.stock), w: shownStockKhongHuy, bar: 'bg-emerald-300', ink: 'text-emerald-950', hint: STOCK_HINT,
+      spec: { pred: r => r.stock > 0, focus: 'stock', note: STOCK_HINT } },
+    ...(shownUnmatched > 0.0005 ? [{ key: 'unmatched', label: 'Chênh', v: shownUnmatched, bar: 'bg-lime-200', ink: 'text-lime-950', hint: UNMATCHED_HINT,
+      spec: { pred: (r: Rec) => r.unmatched > 0.0005, focus: 'unmatched' as DetailFocus, note: UNMATCHED_HINT } }] : []),
+    ...(shownXuatVuot > 0.0005 ? [{ key: 'xuatVuot', label: 'Xuất vượt nhập', v: shownXuatVuot, w: 0, bar: 'bg-rose-300', ink: 'text-rose-950', hint: XUAT_VUOT_HINT,
+      spec: { pred: (r: Rec) => r.xuatVuot > 0.0005, focus: 'xuatVuot' as DetailFocus, note: XUAT_VUOT_HINT } }] : []),
   ];
   const remainSegs: Seg[] = remainTiles.map((t, i) => ({
     key: t.key, label: t.label, v: shownRemainBy[i], bar: t.bar, ink: t.ink, hint: t.hint,
     spec: { pred: (r: Rec) => r.bucket === t.key && r.total - r.done > 0, focus: 'remain' as DetailFocus, note: t.hint },
   }));
-  const segTotal = [...doneSegs, ...remainSegs].reduce((a, x) => a + Math.max(x.v, 0), 0);
+  const rongSeg = (x: Seg) => Math.max(x.w ?? x.v, 0);
+  const segTotal = [...doneSegs, ...remainSegs].reduce((a, x) => a + rongSeg(x), 0);
   const segPct = (v: number) => (segTotal > 0 ? (Math.max(v, 0) / segTotal) * 100 : 0);
-  const doneW = doneSegs.reduce((a, x) => a + segPct(x.v), 0);
+  const doneW = doneSegs.reduce((a, x) => a + segPct(rongSeg(x)), 0);
   // % IN RA (số nguyên) theo phần dư lớn nhất: chia 100% cho 2 nhóm trước, rồi chia % nhóm cho các đoạn
   // => % ngoặc nhóm = tổng % các đoạn trong nhóm, Đã nhập + Chưa nhập = 100%
-  const sumV = (segs: Seg[]) => segs.reduce((a, x) => a + Math.max(x.v, 0), 0);
+  const sumV = (segs: Seg[]) => segs.reduce((a, x) => a + rongSeg(x), 0);
   const [donePctInt, remainPctInt] = apportionInt([sumV(doneSegs), sumV(remainSegs)], 100);
   const segPctInt = new Map<string, number>();
   ([[doneSegs, donePctInt], [remainSegs, remainPctInt]] as const).forEach(([segs, p]) => {
-    const parts = apportionInt(segs.map(x => x.v), p);
+    const parts = apportionInt(segs.map(rongSeg), p);
     segs.forEach((x, i) => segPctInt.set(x.key, parts[i]));
   });
   // Nhóm có giá trị nhưng làm tròn ra 0% thì ghi "<1%" (thay vì 0%)
@@ -843,14 +877,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         <div className={viewCT === 'tong' ? 'space-y-4' : 'hidden'}>
         {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
             Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho
-            Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn kho
+            Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn theo đơn đang xem
             Chưa nhập kho = Chưa triển khai (P001) + Chưa tính phiếu (P002) + Đang trên chuyền (P012→P021)
-                            [+ P022–P025 nhập chưa đủ] [+ đơn hủy] */}
+                            [+ P022–P025 nhập chưa đủ] */}
         <div className={`${cardCls} p-4`}>
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
             <button
               type="button"
-              onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Tổng giá trị đơn hàng', pred: () => true, focus: 'total', note: 'Tổng trị giá đơn hàng, gồm cả đơn hủy (khớp file gốc) — lọc Tình trạng IPO để bỏ hủy.' })}
+              onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Tổng giá trị đơn hàng', pred: () => true, focus: 'total', note: 'Tổng trị giá đơn hàng, không tính đơn hủy.' })}
               title="Bấm để xem chi tiết"
               className="group text-left"
             >
@@ -863,6 +897,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             </button>
             <p className="text-[0.6875rem] text-slate-500">
               {fmtInt(kpi.cts)} công trình · {fmtInt(kpi.items)} hạng mục · đã nhập kho <b className="text-emerald-700">{donePctLabel}</b> giá trị
+              {kpi.cancelled > 0 && <span className="text-rose-600"> · hủy {fmtTy(kpi.totalHuy)} tỷ, {fmtInt(kpi.cancelled)} mục (ngoài tổng)</span>}
             </p>
           </div>
           {/* Thanh tỷ trọng: 2 nhóm (xanh = đã nhập kho, cam / xám = chưa nhập kho), mỗi đoạn = 1 ô bên dưới.
@@ -883,14 +918,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               </div>
             </div>
             <div className="flex h-8 gap-[2px] overflow-hidden rounded-md bg-white">
-              {[...doneSegs, ...remainSegs].filter(x => x.v > 0).map(x => {
-                const w = segPct(x.v);
+              {[...doneSegs, ...remainSegs].filter(x => rongSeg(x) > 0).map(x => {
+                const w = segPct(rongSeg(x));
                 return (
                   <button
                     key={x.key}
                     type="button"
                     onClick={() => openDetail({ eyebrow: 'Chỉ số', title: x.label, ...x.spec })}
-                    title={`${x.label}: ${fmtTy(x.v)} tỷ (${pctOf(x.v, segTotal)})\n${x.hint}\nBấm để xem chi tiết`}
+                    title={`${x.label}: ${fmtTy(x.v)} tỷ (${pctOf(rongSeg(x), segTotal)})\n${x.hint}\nBấm để xem chi tiết`}
                     className={`${x.bar} ${x.ink} flex min-w-[3px] items-center justify-center overflow-hidden text-[0.6875rem] font-semibold tabular-nums transition hover:brightness-95 hover:ring-2 hover:ring-inset hover:ring-slate-900/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-900`}
                     style={{ width: `${w}%` }}
                   >
@@ -903,18 +938,25 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
               <Mini label="Đã nhập kho (P022)" value={roundTy(kpi.done)} tone="text-emerald-700" strong
-                    hint={`Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng) = ${fmtTy(kpi.stockedDone)} tỷ của ${fmtInt(kpi.stocked)} mục nhập đủ + ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần${kpi.stockHuy > 0.0005 ? ` + ${fmtTy(kpi.stockHuy)} tỷ đơn hủy còn trong kho` : ''}.`}
+                    hint={`Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng) = ${fmtTy(kpi.stockedDone)} tỷ của ${fmtInt(kpi.stocked)} mục nhập đủ + ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần.`}
                     spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
-              <div className={`mt-2 grid gap-2 ${doneSegs.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <div className={`mt-2 grid gap-2 ${doneSegs.length > 3 ? 'grid-cols-2' : doneSegs.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {doneSegs.map(x => (
                   <Mini key={x.key} label={x.label} value={x.v} tone="text-slate-900" bar={x.bar} hint={x.hint} spec={x.spec} />
                 ))}
               </div>
+              {kpi.stockOverItems > 0 && (
+                <button type="button" title="Phần tồn kho vượt đã nhập − đã xuất, không tính vào ô Tồn. Bấm để xem chi tiết"
+                  onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Tồn vượt nhập − xuất', pred: r => r.stockCut > 0.001, focus: 'stockCut', note: 'Hạng mục có tồn kho lớn hơn đã nhập − đã xuất.' })}
+                  className="mt-1.5 text-sm font-semibold text-slate-700 hover:underline">
+                  Tồn vượt nhập − xuất: <span className="tabular-nums">{fmtTy(kpi.stockOver)}</span> tỷ · {fmtInt(kpi.stockOverItems)} mục
+                </button>
+              )}
             </div>
             <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
               <Mini label="Chưa nhập kho" value={shownRemain} tone="text-amber-700" strong
                     hint="Trị giá đơn hàng − giá trị đã nhập kho, chia theo công đoạn BOP hiện tại của hạng mục."
-                    spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho (gồm cả trị giá đơn hủy — lọc Tình trạng IPO để bỏ).' }} />
+                    spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho, không tính đơn hủy.' }} />
               <div className={`mt-2 grid gap-2 ${remainSegs.length > 3 ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-3'}`}>
                 {remainSegs.map(x => (
                   <Mini key={x.key} label={x.label} value={x.v} tone="text-slate-900" bar={x.bar} hint={x.hint} spec={x.spec} />
@@ -929,15 +971,15 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <Kpi label="Công trình" value={fmtInt(kpi.cts)}
                spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm công trình theo tên chuẩn — gộp các cách viết của cùng công trình).' }} />
           <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
-               sub={kpi.cancelled > 0 ? `trong đó ${fmtInt(kpi.cancelled)} hủy` : undefined}
-               spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
+               sub={kpi.cancelled > 0 ? `ngoài tổng ${fmtInt(kpi.cancelled)} hủy` : undefined}
+               spec={{ pred: r => r.status !== 'HỦY', focus: 'items', note: 'Mọi hạng mục, không tính đơn hủy.' }} />
           <Kpi label="Đã nhập kho đủ" value={fmtInt(kpi.stocked)} unit="mục" tone="text-emerald-600"
                sub={`${fmtTy(kpi.stockedDone)} tỷ`}
                hint={`Đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng — ${fmtTy(kpi.stockedDone)} tỷ. Ô "Đã nhập kho (P022)" ${fmtTy(roundTy(kpi.done))} tỷ còn gồm ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần.`}
-               spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng (không tính đơn hủy).' }} />
+               spec={{ pred: recDaNhapDu, focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng (không tính đơn hủy).' }} />
           <Kpi label="Chưa nhập kho đủ" value={fmtInt(kpi.notStocked)} unit="mục" tone="text-amber-600"
                sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần (${fmtTy(kpi.partialDone)} tỷ)` : undefined}
-               spec={{ pred: r => r.status !== 'HỦY' && !isStocked(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />
+               spec={{ pred: r => r.status !== 'HỦY' && !recDaNhapDu(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />
           <Kpi label="Quá hạn KH nhập kho" value={fmtInt(kpi.overdue)} unit="mục" tone={kpi.overdue ? 'text-red-600' : 'text-slate-900'}
                sub={`${fmtTy(kpi.overdueRemain)} tỷ chưa nhập kho`}
                hint="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng (KH kỳ đã nhập đủ SL thì không tính)"
@@ -1038,28 +1080,28 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             </div>
 
             <div className={`${cardCls} overflow-hidden`}>
-              <p className="text-xs font-semibold text-slate-700 px-4 pt-3 pb-2">Theo người phụ trách (PC)</p>
-              <div className="max-h-[340px] overflow-auto custom-scrollbar">
-                <table className="w-full table-fixed text-xs">
-                  <thead className="sticky top-0 bg-slate-50 text-slate-500">
+              <p className="text-sm font-bold text-slate-900 px-4 pt-3 pb-2">Theo người phụ trách (PC)</p>
+              <div className="max-h-[340px] overflow-auto border-t border-slate-300 custom-scrollbar">
+                <table className={bangB}>
+                  <thead className={theadB}>
                     <tr>
-                      <th className="text-right font-medium pl-3 pr-1.5 py-2 w-8">STT</th>
-                      <th className="text-left font-medium px-1.5 py-2">Tên PC</th>
-                      <th className="text-right font-medium px-1.5 py-2 w-8" title="Số công trình">CT</th>
-                      <th className="text-right font-medium px-1.5 py-2 w-12" title="Số hạng mục">Mục</th>
-                      <th className="text-right font-medium pl-1.5 pr-3 py-2 w-[3.75rem]" title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
+                      <th className={`${thB} w-px`}>STT</th>
+                      <th className={thB}>Tên PC</th>
+                      <th className={`${thB} w-px`} title="Số công trình">CT</th>
+                      <th className={`${thB} w-px`} title="Số hạng mục">Mục</th>
+                      <th className={`${thB} w-px whitespace-nowrap`} title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {pcTable.map((r, idx) => (
                       <tr key={r.name} onClick={() => openDetail({
                             eyebrow: 'Người phụ trách (PC)', title: r.name, exclude: 'pc',
                             pred: rec => rec.pc === r.name, focus: 'total', filter: { key: 'pc', value: r.name },
                           })}
                           title="Bấm để xem các công trình PC đang quản lý"
-                          className={`group cursor-pointer hover:bg-slate-50 ${f.pc === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="pl-3 pr-1.5 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                        <td className="px-1.5 py-1.5 text-slate-800">
+                          className={`group cursor-pointer hover:bg-amber-50 ${f.pc === r.name ? 'bg-amber-100 font-semibold' : ''}`}>
+                        <td className={soB}>{idx + 1}</td>
+                        <td className={`${tdB} font-bold`}>
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="min-w-0 break-words group-hover:text-blue-700 group-hover:underline">{r.name}</span>
                             {/* Lọc chéo theo PC (tách riêng để bấm dòng là mở chi tiết PC) */}
@@ -1074,19 +1116,18 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                             </button>
                           </div>
                         </td>
-                        <td className="px-1.5 py-1.5 text-right tabular-nums">{r.cts.size}</td>
-                        <td className="px-1.5 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
-                        <td className="pl-1.5 pr-3 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
+                        <td className={soB}><span className={GACH}>{r.cts.size}</span></td>
+                        <td className={soB}><span className={GACH}>{fmtInt(r.items)}</span></td>
+                        <td className={soB}><span className={GACH}>{fmtTy(r.total)}</span></td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="sticky bottom-0 bg-slate-50 font-semibold text-slate-800">
+                  <tfoot className={tfootB}>
                     <tr>
-                      <td />
-                      <td className="px-1.5 py-2">Tổng cộng</td>
-                      <td className="px-1.5 py-2 text-right tabular-nums">{new Set(pcTable.flatMap(r => [...r.cts])).size}</td>
-                      <td className="px-1.5 py-2 text-right tabular-nums">{fmtInt(pcTable.reduce((s, r) => s + r.items, 0))}</td>
-                      <td className="pl-1.5 pr-3 py-2 text-right tabular-nums">{fmtTy(pcTable.reduce((s, r) => s + r.total, 0))}</td>
+                      <td colSpan={2} className={`${tdB} text-center`}>TỔNG</td>
+                      <td className={soB}>{new Set(pcTable.flatMap(r => [...r.cts])).size}</td>
+                      <td className={soB}>{fmtInt(pcTable.reduce((s, r) => s + r.items, 0))}</td>
+                      <td className={soB}>{fmtTy(pcTable.reduce((s, r) => s + r.total, 0))}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1097,7 +1138,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           {/* Cột giữa: danh sách công trình (rộng 6/12 cột, tên công trình hiện đầy đủ) */}
           <div className={`xl:col-span-8 2xl:col-span-1 ${cardCls} overflow-hidden flex flex-col`}>
             <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
-              <p className="text-xs font-semibold text-slate-700">Danh sách công trình ({fmtInt(ctTable.length)})</p>
+              <p className="text-sm font-bold text-slate-900">Danh sách công trình ({fmtInt(ctTable.length)})</p>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -1106,35 +1147,35 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 />
               </div>
             </div>
-            <div className="flex-1 max-h-[720px] overflow-auto custom-scrollbar">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-50 text-slate-500">
+            <div className="flex-1 max-h-[720px] overflow-auto border-t border-slate-300 custom-scrollbar">
+              <table className={bangB}>
+                <thead className={theadB}>
                   <tr>
-                    <th className="text-right font-medium pl-4 pr-2 py-2 w-10">STT</th>
-                    <th className="text-left font-medium px-2 py-2">Tên công trình</th>
-                    <th className="text-left font-medium px-2 py-2">PM</th>
-                    <th className="text-right font-medium px-2 py-2 whitespace-nowrap">Hạng mục</th>
-                    <th className="text-right font-medium px-2 py-2"
-                        title={ctHasCancel ? 'Tổng trị giá đơn hàng, gồm cả đơn hủy (dòng phụ "hủy …" = phần trị giá đơn hủy). Cửa sổ công trình không tính đơn hủy — lọc Tình trạng IPO để bỏ.' : undefined}>
+                    <th className={`${thB} w-px`}>STT</th>
+                    <th className={thB}>Tên công trình</th>
+                    <th className={thB}>PM</th>
+                    <th className={thB}>Hạng mục</th>
+                    <th className={thB}
+                        title={ctHasCancel ? 'Tổng trị giá đơn hàng, không tính đơn hủy (dòng phụ "hủy …" = trị giá đơn hủy)' : undefined}>
                       Tổng giá trị (Tỷ){ctHasCancel && <span className="text-rose-500">*</span>}
                     </th>
-                    <th className="text-left font-medium px-2 py-2 w-20">Hoàn thành</th>
-                    <th className="text-left font-medium px-2 py-2" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT dự án</th>
-                    <th className="text-right font-medium px-2 py-2" title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
-                    <th className="text-right font-medium pl-2 pr-4 py-2" title="Vướng mắc chưa xử lý xong (theo mã công trình)">Vướng mắc</th>
+                    <th className={`${thB} min-w-[5.5rem]`}>Hoàn thành</th>
+                    <th className={thB} title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT dự án</th>
+                    <th className={thB} title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
+                    <th className={thB} title="Vướng mắc chưa xử lý xong (theo mã công trình)">Vướng mắc</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {ctTable.map((r, idx) => {
-                    const pct = r.total > 0 ? Math.min(100, (r.done / r.total) * 100) : 0;
+                    const pct = pctHoanThanh(r.name);
                     const pms = [...r.pms];
                     const botLeft = r.botDuAn ? Math.floor((r.botDuAn.getTime() - today) / 86_400_000) : null;
                     return (
                       <tr key={r.name} onClick={() => { if (canBang()) setHealth({ ct: r.name, inDetail: false }); }}
                           title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
-                          className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                        <td className="px-2 py-1.5 text-slate-800 min-w-[260px]">
+                          className={`group cursor-pointer hover:bg-amber-50 ${f.ct === r.name ? 'bg-amber-100 font-semibold' : ''}`}>
+                        <td className={soB}>{idx + 1}</td>
+                        <td className={`${tdB} min-w-[140px] font-bold`}>
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="break-words group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
                             {/* Lọc chéo theo công trình (tách riêng để bấm dòng là mở HEX) */}
@@ -1149,32 +1190,32 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                             </button>
                           </div>
                         </td>
-                        <td className="min-w-[140px] px-2 py-1.5 text-slate-600" title={pms.join(', ')}>
-                          {pms.map(pm => <div key={pm} className="whitespace-nowrap">{pm}</div>)}
+                        <td className={tdB} title={pms.join(', ')}>
+                          {pms.map(pm => <div key={pm}>{pm}</div>)}
                         </td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">
-                          {fmtTy(r.total)}
+                        <td className={soB}><span className={GACH}>{fmtInt(r.items)}</span></td>
+                        <td className={soB}>
+                          <span className={GACH}>{fmtTy(r.total)}</span>
                           {r.cancelled > 0 && (
-                            <div className="text-[0.625rem] font-normal leading-tight text-rose-500" title="Trị giá đơn hủy (đã tính trong Tổng GT)">hủy {fmtTy(r.cancelled)}</div>
+                            <div className="text-xs font-medium leading-tight text-rose-600" title="Trị giá đơn hủy (ngoài Tổng GT)">hủy {fmtTy(r.cancelled)}</div>
                           )}
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className={tdB}>
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
                               <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="w-9 text-right tabular-nums text-slate-500">{pct.toFixed(0)}%</span>
+                            <span className={`w-12 shrink-0 text-center tabular-nums ${pct === 0 ? 'font-bold text-red-600' : ''}`}>{fmtPt(pct)}</span>
                           </div>
                         </td>
-                        <td className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${!r.botDuAn ? 'text-slate-300' : r.open === 0 ? 'text-emerald-600' : botLeft! < 0 ? 'font-semibold text-red-600' : botLeft! <= 30 ? 'text-amber-600' : 'text-slate-500'}`}
+                        <td className={`${soB} ${!r.botDuAn ? '' : r.open === 0 ? 'text-emerald-700' : botLeft! < 0 ? 'font-bold text-red-600' : botLeft! <= 30 ? 'text-amber-600' : ''}`}
                             title={r.botDuAn ? (r.open === 0 ? 'Đã nhập kho đủ' : botLeft! < 0 ? `Quá BOT dự án ${-botLeft!} ngày · còn ${fmtInt(r.open)} hạng mục` : `Còn ${botLeft} ngày · ${fmtInt(r.open)} hạng mục chưa xong`) : 'Chưa có BOT dự án'}>
-                          {r.botDuAn ? r.botDuAn.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                          {r.botDuAn ? r.botDuAn.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
                         </td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${r.overdue ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{r.overdue || '—'}</td>
-                        <td className={`pl-2 pr-4 py-1.5 text-right tabular-nums ${r.vm.open ? 'font-semibold text-red-600' : 'text-slate-300'}`}
+                        <td className={`${soB} ${r.overdue ? 'font-bold text-red-600' : ''}`}>{r.overdue || ''}</td>
+                        <td className={`${soB} ${r.vm.open ? 'font-bold text-red-600' : ''}`}
                             title={r.vm.open ? `${r.vm.open} vướng mắc đang mở · ${r.vm.overdue} quá hạn BOT` : undefined}>
-                          {vmRows === null ? '…' : r.vm.open || '—'}
+                          {vmRows === null ? '…' : r.vm.open || ''}
                         </td>
                       </tr>
                     );
@@ -1183,6 +1224,22 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
                   )}
                 </tbody>
+                {ctTable.length > 0 && (
+                  <tfoot className={tfootB}>
+                    <tr>
+                      <td colSpan={3} className={`${tdB} text-center`}>TỔNG</td>
+                      <td className={soB}>{fmtInt(ctTong.items)}</td>
+                      <td className={soB}>
+                        {fmtTy(ctTong.total)}
+                        {ctTong.cancelled > 0 && <div className="text-xs font-medium leading-tight">hủy {fmtTy(ctTong.cancelled)}</div>}
+                      </td>
+                      <td className={soB}>{fmtPt(ctTong.pct)}</td>
+                      <td className={tdB} />
+                      <td className={soB}>{ctTong.overdue ? fmtInt(ctTong.overdue) : ''}</td>
+                      <td className={soB}>{vmRows === null ? '…' : ctTong.vm ? fmtInt(ctTong.vm) : ''}</td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           </div>
@@ -1220,15 +1277,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         onClose={() => setDetail(null)}
         labelledBy="detail-title"
         overlayClassName="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 p-4"
-        panelClassName="w-full max-w-6xl max-h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
+        panelClassName="w-full max-w-[1500px] max-h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
       >
         {detail && detailData && (
           <>
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div className="min-w-0">
                 <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-500">{detail.eyebrow}</p>
-                <h3 id="detail-title" className="text-lg font-semibold text-slate-900 truncate">{detail.title}</h3>
-                {detail.note && <p className="text-[0.6875rem] text-slate-500 mt-0.5">{detail.note}</p>}
+                <h3 id="detail-title" className="text-lg font-semibold text-slate-900 truncate" title={detail.note}>{detail.title}</h3>
                 {filterSummary(detail.exclude) && (
                   <p className="text-[0.6875rem] text-slate-500 mt-0.5">Theo bộ lọc: {filterSummary(detail.exclude)}</p>
                 )}
@@ -1244,13 +1300,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 )}
                 <button
                   onClick={() => { if (canBang()) setHexScope({ ct: null, inDetail: true }); }}
-                  disabled={detailData.items === 0 || detailData.items > MAX_HEX_ALL}
-                  title={detailData.items > MAX_HEX_ALL
-                    ? `Quá nhiều (${fmtInt(detailData.items)} HEX) — chọn 1 công trình bên dưới để xem HEX`
+                  disabled={detailData.rows === 0 || detailData.rows > MAX_HEX_ALL}
+                  title={detailData.rows > MAX_HEX_ALL
+                    ? `Quá nhiều (${fmtInt(detailData.rows)} HEX) — chọn 1 công trình bên dưới để xem HEX`
                     : 'Xem toàn bộ HEX trong cửa sổ này'}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400"
                 >
-                  Xem tất cả HEX ({fmtInt(detailData.items)})
+                  Xem tất cả HEX ({fmtInt(detailData.rows)})
                 </button>
                 <button onClick={() => setDetail(null)} aria-label="Đóng"
                         className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
@@ -1260,24 +1316,26 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             </div>
 
             {/* Số liệu tổng — ô đang xem được tô viền */}
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 px-5 py-4">
+            <div className="grid grid-cols-2 gap-3 px-5 py-4 md:grid-cols-4 xl:grid-cols-none xl:auto-cols-fr xl:grid-flow-col">
               <PcStat label="Công trình" value={fmtInt(detailData.cts)} />
-              <PcStat label="Hạng mục" value={fmtInt(detailData.items)} active={detail.focus === 'items'} />
-              <PcStat label="Tổng giá trị" value={fmtTy(detailData.total)} unit="Tỷ" active={detail.focus === 'total'} />
+              <PcStat label="Hạng mục" value={fmtInt(detailData.items)} active={detail.focus === 'items'} sub={detailData.huyN ? `hủy ${fmtInt(detailData.huyN)} mục` : undefined} />
+              <PcStat label="Tổng giá trị" value={fmtTy(detailData.total)} unit="Tỷ" active={detail.focus === 'total'} sub={detailData.huyN ? `hủy ${fmtTy(detailData.totalHuy)} tỷ` : undefined} />
               <PcStat
                 label="Đã nhập kho" value={fmtTy(detailData.done)} unit="Tỷ" tone="text-emerald-600"
                 active={detail.focus === 'done'}
-                sub={`${(detailData.total > 0 ? (detailData.done / detailData.total) * 100 : 0).toFixed(1)}% tổng giá trị`}
+                sub={fmtPt(tyLeHoanThanh(detailData.total, detailData.done))}
               />
               <PcStat label="Chưa nhập kho" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} />
               <PcStat label="Đã xuất / giao" value={fmtTy(detailData.exported)} unit="Tỷ" tone="text-sky-700" active={detail.focus === 'exported'} />
-              <PcStat label="Tồn kho" value={fmtTy(detailData.stock)} unit="Tỷ" tone="text-violet-700" active={detail.focus === 'stock'} />
+              <PcStat label="Tồn theo đơn đang xem" value={fmtTy(detailData.stock)} unit="Tỷ" tone="text-violet-700" active={detail.focus === 'stock'} />
+              <PcStat label="Chênh" value={fmtTy(detailData.unmatched)} unit="Tỷ" active={detail.focus === 'unmatched'} />
+              <PcStat label="Xuất vượt nhập" value={fmtTy(detailData.xuatVuot)} unit="Tỷ" tone="text-rose-700" active={detail.focus === 'xuatVuot'} />
+              {detail.focus === 'stockCut' && <PcStat label="Tồn vượt nhập − xuất" value={fmtTy(detailData.stockCut)} unit="Tỷ" tone="text-rose-700" active />}
             </div>
 
             <div className="flex items-center justify-between gap-3 px-5 pb-2">
               <p className="text-xs font-semibold text-slate-700">
                 Danh sách công trình ({fmtInt(detailProjects.length)})
-                <span className="font-normal text-slate-400"> · bấm 1 dòng để xem tổng quan BOT · BOP · BOM</span>
               </p>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1289,75 +1347,77 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar px-5 pb-5">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="text-right font-medium px-2 py-2 w-10">STT</th>
-                    <th className="text-left font-medium px-2 py-2">Tên công trình</th>
-                    <th className="text-left font-medium px-2 py-2">PM</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'items' ? 'text-slate-900' : ''}`}>Hạng mục</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'total' ? 'text-slate-900' : ''}`}>Tổng GT (Tỷ)</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'done' ? 'text-slate-900' : ''}`}>Đã nhập kho (Tỷ)</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'remain' ? 'text-slate-900' : ''}`}>Chưa nhập kho (Tỷ)</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'exported' ? 'text-slate-900' : ''}`}>Đã xuất / giao (Tỷ)</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'stock' ? 'text-slate-900' : ''}`}>Tồn kho (Tỷ)</th>
-                    <th className="text-left font-medium px-2 py-2 w-32">% hoàn thành</th>
-                    <th className="w-6" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {detailProjects.map((p, i) => {
-                    const pct = p.total > 0 ? Math.min(100, (p.done / p.total) * 100) : 0;
-                    const pms = [...p.pms];
-                    const strong = (k: DetailFocus) => (detail.focus === k ? 'font-semibold text-slate-900' : '');
-                    return (
-                      <tr key={p.name} onClick={() => { if (canBang()) setHealth({ ct: p.name, inDetail: true }); }}
-                          className="group cursor-pointer hover:bg-blue-50/60">
-                        <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{i + 1}</td>
-                        <td className="px-2 py-1.5 text-slate-800 max-w-[320px] truncate group-hover:text-blue-700" title={p.name}>{p.name}</td>
-                        <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap" title={pms.join(', ')}>
-                          {pms[0]}{pms.length > 1 ? ` +${pms.length - 1}` : ''}
-                        </td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('items')}`}>{fmtInt(p.items)}</td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('total')}`}>{fmtTy(p.total)}</td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('done')}`}>{fmtTy(p.done)}</td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('remain')}`}>{fmtTy(p.total - p.done)}</td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('exported')}`}>{fmtTy(p.exported)}</td>
-                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('stock')}`}>{fmtTy(p.stock)}</td>
-                        <td className="px-2 py-1.5">
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
-                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="w-9 text-right tabular-nums text-slate-500">{pct.toFixed(0)}%</span>
-                          </div>
-                        </td>
-                        <td className="px-1 text-slate-300 group-hover:text-blue-600"><ChevronRight size={14} /></td>
-                      </tr>
-                    );
-                  })}
-                  {detailProjects.length === 0 && (
-                    <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
-                  )}
-                </tbody>
-                {detailProjects.length > 0 && (
-                  <tfoot className="sticky bottom-0 bg-slate-50 font-semibold text-slate-800">
+            <div className="flex-1 min-h-0 px-5 pb-5 overflow-hidden flex flex-col">
+              <div className={`${khungB} min-h-0 flex-1`}>
+                <table className={bangB}>
+                  <thead className={theadB}>
                     <tr>
-                      <td />
-                      <td className="px-2 py-2">Tổng cộng</td>
-                      <td />
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtInt(detailProjects.reduce((s, p) => s + p.items, 0))}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.total, 0))}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.done, 0))}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.total - p.done, 0))}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.exported, 0))}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.stock, 0))}</td>
-                      <td colSpan={2} />
+                      <th className={`${thB} w-14`}>STT</th>
+                      <th className={thB}>Tên công trình</th>
+                      <th className={thB}>PM</th>
+                      {COT_CHI_TIET.map(c => <th key={c.k} className={`${thB} ${detail.focus === c.k ? 'bg-emerald-400' : ''}`}>{c.t}</th>)}
+                      {detail.focus === 'stockCut' && <th className={`${thB} bg-emerald-400`}>Tồn vượt nhập − xuất (Tỷ)</th>}
+                      <th className={`${thB} w-40`}>% Hoàn thành</th>
                     </tr>
-                  </tfoot>
-                )}
-              </table>
+                  </thead>
+                  <tbody>
+                    {detailProjects.map((p, i) => {
+                      const pct = pctHoanThanh(p.name);
+                      const pms = [...p.pms];
+                      const dam = (k: DetailFocus) => (detail.focus === k ? 'font-bold' : '');
+                      return (
+                        <tr key={p.name} onClick={() => { if (canBang()) setHealth({ ct: p.name, inDetail: true }); }}
+                            className="group cursor-pointer hover:bg-blue-50/60">
+                          <td className={soB}>{fmtInt(i + 1)}</td>
+                          <td className={`${tdB} max-w-[320px] truncate group-hover:text-blue-700`} title={p.name}>{p.name}</td>
+                          <td className={`${tdB} whitespace-nowrap`} title={pms.join(', ')}>
+                            {pms[0]}{pms.length > 1 ? ` +${pms.length - 1}` : ''}
+                          </td>
+                          <td className={`${soB} ${dam('items')}`}>{trong0(p.items, fmtInt)}</td>
+                          <td className={`${soB} ${dam('total')}`}>
+                            {trong0(p.total, fmtTy)}
+                            {p.huyN > 0 && <div className="text-xs font-medium leading-tight text-rose-600" title="Trị giá đơn hủy (ngoài Tổng GT)">hủy {fmtTy(p.totalHuy)}</div>}
+                          </td>
+                          {COT_CHI_TIET.slice(2).map(c => <td key={c.k} className={`${soB} ${dam(c.k)}`}>{trong0(giaTriTieuDiem(p, c.k), fmtTy)}</td>)}
+                          {detail.focus === 'stockCut' && <td className={`${soB} font-bold`}>{trong0(p.stockCut, fmtTy)}</td>}
+                          <td className={tdB}>
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className={`w-12 shrink-0 text-center tabular-nums ${pct === 0 ? 'font-bold text-red-600' : ''}`}>{fmtPt(pct)}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {detailProjects.length === 0 && (
+                      <tr><td colSpan={13} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
+                    )}
+                  </tbody>
+                  {detailProjects.length > 0 && (() => {
+                    const cong = (k: DetailFocus) => detailProjects.reduce((s, p) => s + giaTriTieuDiem(p, k), 0);
+                    const huyTong = detailProjects.reduce((s, p) => s + p.totalHuy, 0);
+                    const ht = detailProjects.reduce((a, p) => { const e = hoanThanhCt.get(p.name); return e ? { total: a.total + e.total, done: a.done + e.done } : a; }, { total: 0, done: 0 });
+                    const pct = tyLeHoanThanh(ht.total, ht.done);
+                    return (
+                      <tfoot className={tfootB}>
+                        <tr>
+                          <td colSpan={3} className={`${tdB} text-center`}>TỔNG</td>
+                          <td className={soB}>{trong0(cong('items'), fmtInt)}</td>
+                          <td className={soB}>
+                            {trong0(cong('total'), fmtTy)}
+                            {huyTong > 0 && <div className="text-xs font-medium leading-tight">hủy {fmtTy(huyTong)}</div>}
+                          </td>
+                          {COT_CHI_TIET.slice(2).map(c => <td key={c.k} className={soB}>{trong0(cong(c.k), fmtTy)}</td>)}
+                          {detail.focus === 'stockCut' && <td className={soB}>{trong0(cong('stockCut'), fmtTy)}</td>}
+                          <td className={soB}>{fmtPt(pct)}</td>
+                        </tr>
+                      </tfoot>
+                    );
+                  })()}
+                </table>
+              </div>
             </div>
           </>
         )}
