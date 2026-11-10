@@ -5,15 +5,14 @@ import { ensureWorkshopGroups, getWorkshopMapping, normWorkshop } from '../serve
 import { authenticateJWT, requireRole } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
 import { app } from '../server/app.js';
+import { docViewMapping, luuViewMapping, viewMappingSchema } from '../server/viewMapping.js';
 
 // ============================================================================
 // VIEW PROJECT MAPPING — danh sách công trình đã setup cho từng view (Luồng
 // đỏ, Căn mẫu...), lưu tập trung ở DB thay vì localStorage để mọi người dùng
 // truy cập web ở bất kỳ máy nào đều thấy cùng 1 cấu hình do admin setup.
 // ============================================================================
-const viewMappingSchema = z.object({
-  projects: z.array(z.string()),
-});
+// Schema + đọc/ghi (kèm STT, luồng đỏ/vàng ở view_id '<viewId>:thu-tu') ở server/viewMapping.ts
 
 // Cấu hình nhỏ đọc lúc mở app (view-project-mapping, table-column-config): giữ trong bộ nhớ 30 giây, DB tạm lỗi
 // (vd pooler hết kết nối khi cả trang bắn ~20 request lúc đăng nhập) thì thử lại 1 lần, vẫn lỗi thì trả bản cũ
@@ -42,11 +41,7 @@ app.get('/api/view-project-mapping', async (_req: Request, res: Response) => {
   try {
     const mapping = await readSetting('view-project-mapping', async () => {
       const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
-      const out: Record<string, string[]> = {};
-      r.rows.forEach(row => {
-        out[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
-      });
-      return out;
+      return docViewMapping(r.rows);
     });
     res.json(mapping);
   } catch (error) {
@@ -63,16 +58,9 @@ app.post(
   validateBody(viewMappingSchema),
   async (req: Request, res: Response) => {
     try {
-      const { viewId } = req.params;
-      const { projects } = req.body;
-
-      await pool.query(
-        `INSERT INTO view_project_mapping (view_id, projects, updated_at)
-         VALUES ($1, $2::jsonb, now())
-         ON CONFLICT (view_id) DO UPDATE
-         SET projects = EXCLUDED.projects, updated_at = now()`,
-        [viewId, JSON.stringify(projects)]
-      );
+      const viewId = String(req.params.viewId || '');
+      const loi = await withTransaction(client => luuViewMapping((sql, params) => client.query(sql, params), viewId, req.body));
+      if (loi) return res.status(400).json({ success: false, message: loi });
       settingsCache.delete('view-project-mapping');
 
       res.json({ success: true, message: 'Đã lưu setup' });

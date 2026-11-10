@@ -80010,31 +80010,66 @@ app.get("/api/bop-m2", async (req, res) => {
   }
 });
 
-// src/routes/botTongHop.ts
+// src/server/botTongHop.ts
+var KHOA_HOP_LE = /^(CHUA|\d{4}|\d{4}-\d{2}|\d{4}-\d{2}-\d{2})$/;
+var dinhDang = (khoa) => khoa.length === 4 ? "YYYY" : khoa.length === 7 ? "YYYY-MM" : "YYYY-MM-DD";
 var chuoi = (x) => x === null || x === void 0 ? "" : String(x);
+var oTuDong = (r) => {
+  const ngay3 = chuoi(r.ngay);
+  return { ten: chuoi(r.ten), ipo: chuoi(r.ipo), ngay: ngay3, thang: ngay3.slice(0, 7), ct: !!r.ct, tt: r.tt === null || r.tt === void 0 ? null : Number(r.tt), so: Number(r.so) || 0 };
+};
+var COT_CAN = [["tt", "TT \u0110H C\xD2N L\u1EA0I"], ["ipo", "T\xCCNH TR\u1EA0NG IPO FINAL"], ["ten", "T\xCAN C\xD4NG TR\xCCNH"]];
+var fileCanXem = (f, tk) => {
+  const theo = new Map(tk.map((r) => [chuoi(r.nguon), r]));
+  const out = [];
+  for (const r of f) {
+    const nguon = chuoi(r.nguon);
+    const t = theo.get(nguon);
+    const soDong = Number(t?.n) || 0;
+    const ten = Array.isArray(t?.ds) ? t.ds.map(chuoi).filter(Boolean).sort() : [];
+    const chung = { nguon, luc: chuoi(r.nap_luc) || null, soDong, ten };
+    if (r.loi) {
+      out.push({ ...chung, kieu: "doc", loi: chuoi(r.loi), luuTot: soDong ? chuoi(r.mtime) || null : null });
+      continue;
+    }
+    if (!soDong) continue;
+    const thieu = COT_CAN.filter(([k]) => !Number(t[k])).map(([, nhan]) => nhan);
+    if (thieu.length) out.push({ ...chung, kieu: "cot", loi: `C\u1ED9t ${thieu.join(", ")} tr\u1ED1ng c\u1EA3 file (thi\u1EBFu / \u0111\u1ED5i t\xEAn c\u1ED9t?)`, luuTot: chuoi(r.mtime) || null });
+  }
+  return out.sort((a, b) => a.kieu === b.kieu ? a.nguon.localeCompare(b.nguon) : a.kieu === "doc" ? -1 : 1);
+};
+
+// src/routes/botTongHop.ts
 var LA_CT = `(COALESCE(ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
 app.get("/api/bot-tong-hop", async (_req, res) => {
   try {
-    const [o, f, l] = await Promise.all([
+    const [o, f, l, tk] = await Promise.all([
       timedQuery(`SELECT COALESCE(ten_ct, '') AS ten, COALESCE(ipo, '') AS ipo,
-                         COALESCE(to_char(ngay_can_giao, 'YYYY-MM'), '') AS thang, ${LA_CT} AS ct,
+                         COALESCE(to_char(ngay_can_giao, 'YYYY-MM-DD'), '') AS ngay, ${LA_CT} AS ct,
                          SUM(tt_con_lai) AS tt, COUNT(*)::int AS so
                     FROM bot_tong_hop GROUP BY 1, 2, 3, 4`),
-      timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc
+      timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc,
+                         to_char(mtime AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS mtime
                     FROM bot_tong_hop_file`),
       // Giờ lưu file công trình gần nhất của từng TÊN CÔNG TRÌNH (tô dòng "cập nhật hôm nay")
       timedQuery(`SELECT COALESCE(b.ten_ct, '') AS ten, to_char(MAX(f.mtime) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luu
                     FROM (SELECT DISTINCT nguon, ten_ct FROM bot_tong_hop) b JOIN bot_tong_hop_file f USING (nguon)
-                   GROUP BY 1`)
+                   GROUP BY 1`),
+      // Thống kê theo file: file lỗi (tên công trình + số dòng cũ đang hiện) và file có cột cần trống cả file
+      timedQuery(`SELECT nguon, COUNT(*)::int AS n, COUNT(tt_con_lai)::int AS tt, COUNT(ipo)::int AS ipo, COUNT(ten_ct)::int AS ten,
+                         ARRAY_AGG(DISTINCT COALESCE(ten_ct, '')) AS ds
+                    FROM bot_tong_hop GROUP BY nguon
+                  HAVING COUNT(tt_con_lai) = 0 OR COUNT(ipo) = 0 OR COUNT(ten_ct) = 0
+                      OR nguon IN (SELECT nguon FROM bot_tong_hop_file WHERE loi IS NOT NULL)`)
     ]);
-    const capNhat = f.rows.reduce((m, r) => r.nap_luc > m ? r.nap_luc : m, "");
+    const capNhat = f.rows.reduce((m, r) => !r.loi && r.nap_luc > m ? r.nap_luc : m, "");
     res.json({
       coBang: true,
       capNhat: capNhat || null,
       soFile: f.rows.filter((r) => !r.loi).length,
-      fileLoi: f.rows.filter((r) => r.loi).map((r) => ({ nguon: chuoi(r.nguon), loi: chuoi(r.loi) })),
+      fileLoi: fileCanXem(f.rows, tk.rows),
       ipos: [...new Set(o.rows.map((r) => chuoi(r.ipo)))].sort(),
-      o: o.rows.map((r) => ({ ten: chuoi(r.ten), ipo: chuoi(r.ipo), thang: chuoi(r.thang), ct: !!r.ct, tt: r.tt === null ? null : Number(r.tt), so: r.so })),
+      o: o.rows.map(oTuDong),
       luuFile: Object.fromEntries(l.rows.filter((r) => r.luu).map((r) => [chuoi(r.ten), chuoi(r.luu)]))
     });
   } catch (e) {
@@ -80047,7 +80082,7 @@ app.get("/api/bot-tong-hop/chi-tiet", async (req, res) => {
   const ten = String(req.query.ten ?? "");
   const ipos = String(req.query.ipo ?? "").split("|").filter(Boolean).slice(0, 20);
   const thang2 = String(req.query.thang ?? "");
-  if (thang2 && !/^(CHUA|\d{4}|\d{4}-\d{2})$/.test(thang2)) return res.status(400).json({ error: "Sai th\xE1ng" });
+  if (thang2 && !KHOA_HOP_LE.test(thang2)) return res.status(400).json({ error: "Sai th\xE1ng" });
   const dk = [`COALESCE(ten_ct, '') = $1`];
   const ts = [ten];
   if (ipos.length) {
@@ -80058,7 +80093,7 @@ app.get("/api/bot-tong-hop/chi-tiet", async (req, res) => {
   if (thang2 === "CHUA") dk.push("ngay_can_giao IS NULL");
   else if (thang2) {
     ts.push(thang2);
-    dk.push(`to_char(ngay_can_giao, '${thang2.length === 4 ? "YYYY" : "YYYY-MM"}') = $${ts.length}`);
+    dk.push(`to_char(ngay_can_giao, '${dinhDang(thang2)}') = $${ts.length}`);
   }
   try {
     const r = await timedQuery(`SELECT ma_ct, hex, ipo, to_char(ngay_can_giao, 'DD/MM/YYYY') AS ngay, tt_con_lai, nguon
@@ -80238,10 +80273,40 @@ app.get("/api/khsx-nam/plan-actual", async (req, res) => {
   }
 });
 
-// src/routes/settings.ts
-var viewMappingSchema = external_exports.object({
-  projects: external_exports.array(external_exports.string())
+// src/server/viewMapping.ts
+var HAU_TO_THU_TU = ":thu-tu";
+var khoaThuTu = (viewId) => `${viewId}${HAU_TO_THU_TU}`;
+var laKhoaThuTu = (viewId) => viewId.endsWith(HAU_TO_THU_TU);
+var thuTuCongTrinhSchema = external_exports.object({
+  ten: external_exports.string().trim().min(1).max(300),
+  stt: external_exports.number().int().min(1).max(9999),
+  luong: external_exports.enum(["do", "vang"])
 });
+var viewMappingSchema = external_exports.object({
+  projects: external_exports.array(external_exports.string().max(300)).max(2e3),
+  /** Không gửi = giữ nguyên thứ tự đã lưu (client cũ chỉ gửi projects). */
+  thuTu: external_exports.array(thuTuCongTrinhSchema).max(2e3).optional()
+});
+var UPSERT = `INSERT INTO view_project_mapping (view_id, projects, updated_at)
+  VALUES ($1, $2::jsonb, now())
+  ON CONFLICT (view_id) DO UPDATE
+  SET projects = EXCLUDED.projects, updated_at = now()`;
+async function luuViewMapping(query, viewId, body) {
+  if (!viewId || laKhoaThuTu(viewId)) return "viewId kh\xF4ng h\u1EE3p l\u1EC7";
+  await query(UPSERT, [viewId, JSON.stringify(body.projects)]);
+  if (body.thuTu) await query(UPSERT, [khoaThuTu(viewId), JSON.stringify(body.thuTu)]);
+  return null;
+}
+function docViewMapping(rows) {
+  const out = {};
+  for (const row of rows) {
+    const arr = Array.isArray(row.projects) ? row.projects : [];
+    out[row.view_id] = laKhoaThuTu(row.view_id) ? arr.filter((x) => thuTuCongTrinhSchema.safeParse(x).success) : arr.filter((x) => typeof x === "string");
+  }
+  return out;
+}
+
+// src/routes/settings.ts
 var SETTINGS_TTL_MS = 3e4;
 var settingsCache = /* @__PURE__ */ new Map();
 var readSetting = async (key, load3) => {
@@ -80269,11 +80334,7 @@ app.get("/api/view-project-mapping", async (_req, res) => {
   try {
     const mapping = await readSetting("view-project-mapping", async () => {
       const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
-      const out = {};
-      r.rows.forEach((row) => {
-        out[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
-      });
-      return out;
+      return docViewMapping(r.rows);
     });
     res.json(mapping);
   } catch (error61) {
@@ -80288,15 +80349,9 @@ app.post(
   validateBody(viewMappingSchema),
   async (req, res) => {
     try {
-      const { viewId } = req.params;
-      const { projects } = req.body;
-      await pool.query(
-        `INSERT INTO view_project_mapping (view_id, projects, updated_at)
-         VALUES ($1, $2::jsonb, now())
-         ON CONFLICT (view_id) DO UPDATE
-         SET projects = EXCLUDED.projects, updated_at = now()`,
-        [viewId, JSON.stringify(projects)]
-      );
+      const viewId = String(req.params.viewId || "");
+      const loi = await withTransaction((client) => luuViewMapping((sql, params) => client.query(sql, params), viewId, req.body));
+      if (loi) return res.status(400).json({ success: false, message: loi });
       settingsCache.delete("view-project-mapping");
       res.json({ success: true, message: "\u0110\xE3 l\u01B0u setup" });
     } catch (error61) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dungBaoCaoBot, luuHomNay, CHUA_BOT, type OBot } from './baoCaoBot';
+import { dungBaoCaoBot, luuHomNay, tenFile, loiTheoTen, CHUA_BOT, type OBot } from './baoCaoBot';
 
 describe('luuHomNay (giờ Việt Nam)', () => {
   const bayGio = new Date('2026-11-09T10:00:00Z');   // 17:00 ngày 09/11 giờ VN
@@ -46,7 +46,7 @@ describe('dungBaoCaoBot', () => {
   it('bung năm: cột tháng có dữ liệu + cột tổng năm, tổng năm vẫn đúng', () => {
     const b = dungBaoCaoBot(o, dsx, new Set(['2026']), true);
     expect(b.cot.map(c => c.khoa)).toEqual([CHUA_BOT, '2026-03', '2026-05', '2026-11', '2026', '2027']);
-    expect(b.cot.find(c => c.khoa === '2026')).toMatchObject({ nhan: 'Tổng 2026', dangMo: true });
+    expect(b.cot.find(c => c.khoa === '2026')).toMatchObject({ nhan: 'Tổng', dangMo: true });
     const a = b.dong.find(d => d.ten === 'A')!;
     expect(a.o).toEqual({ [CHUA_BOT]: 10, '2026-03': 5, '2026-11': 7, '2026': 12 });
     expect(b.tong).toBe(122);
@@ -61,5 +61,68 @@ describe('dungBaoCaoBot', () => {
   it('chỉ mã CT: bỏ OEM / hàng lẻ như lọc MÃ CÔNG TRÌNH của file', () => {
     expect(dungBaoCaoBot(o, dsx).dong.map(d => d.ten)).toContain('OEM');
     expect(dungBaoCaoBot(o, dsx, new Set(), true).dong.map(d => d.ten)).not.toContain('OEM');
+  });
+
+  const on: OBot[] = [
+    { ten: 'A', ipo: 'x', thang: '2026-03', ngay: '2026-03-05', ct: true, tt: 2, so: 1 },
+    { ten: 'A', ipo: 'x', thang: '2026-03', ngay: '2026-03-20', ct: true, tt: 3, so: 1 },
+    { ten: 'B', ipo: 'x', thang: '2026-04', ngay: '2026-04-01', ct: true, tt: 4, so: 1 },
+    { ten: 'B', ipo: 'x', thang: '2027-01', ngay: '2027-01-02', ct: true, tt: 9, so: 1 },
+    { ten: 'B', ipo: 'x', thang: '', ngay: '', ct: true, tt: 1, so: 1 },
+  ];
+
+  it('tiêu đề 1 tầng khi chưa bung', () => {
+    const b = dungBaoCaoBot(on, null);
+    expect(b.tieuDe.length).toBe(1);
+    expect(b.tieuDe[0].map(h => [h.khoa, h.colSpan, h.rowSpan])).toEqual([[CHUA_BOT, 1, 1], ['2026', 1, 1], ['2027', 1, 1]]);
+  });
+
+  it('bung năm: tầng 1 năm gộp ngang trên các tháng + Tổng, ô đóng rowSpan hết các tầng', () => {
+    const b = dungBaoCaoBot(on, null, new Set(['2026']));
+    expect(b.tieuDe.map(t => t.map(h => [h.nhan, h.colSpan, h.rowSpan]))).toEqual([
+      [['CHƯA BOT', 1, 2], ['2026', 3, 1], ['2027', 1, 2]],
+      [['T3', 1, 1], ['T4', 1, 1], ['Tổng', 1, 1]],
+    ]);
+    expect(b.cot.map(c => c.khoa)).toEqual([CHUA_BOT, '2026-03', '2026-04', '2026', '2027']);
+    expect(b.cot.find(c => c.khoa === '2026-03')).toMatchObject({ moDuoc: true, dangMo: false });
+  });
+
+  it('bung tháng: tầng 3 ngày (dd/mm) + Tổng tháng, cộng đúng ngày / tháng / năm', () => {
+    const b = dungBaoCaoBot(on, null, new Set(['2026']), false, new Set(['2026-03']));
+    expect(b.tieuDe.map(t => t.map(h => [h.nhan, h.colSpan, h.rowSpan]))).toEqual([
+      [['CHƯA BOT', 1, 3], ['2026', 5, 1], ['2027', 1, 3]],
+      [['T3', 3, 1], ['T4', 1, 2], ['Tổng', 1, 2]],
+      [['05/03', 1, 1], ['20/03', 1, 1], ['Tổng', 1, 1]],
+    ]);
+    expect(b.cot.map(c => c.khoa)).toEqual([CHUA_BOT, '2026-03-05', '2026-03-20', '2026-03', '2026-04', '2026', '2027']);
+    expect(b.dong.find(d => d.ten === 'A')!.o).toEqual({ '2026-03-05': 2, '2026-03-20': 3, '2026-03': 5, '2026': 5 });
+    expect(b.tongCot).toMatchObject({ '2026-03': 5, '2026-04': 4, '2026': 9, '2027': 9, [CHUA_BOT]: 1 });
+    expect(b.tong).toBe(19);
+  });
+
+  it('tháng mở nhưng năm đóng: không bung; dữ liệu máy chủ cũ (không có ngày): tháng không bung được', () => {
+    expect(dungBaoCaoBot(on, null, new Set(), false, new Set(['2026-03'])).tieuDe.length).toBe(1);
+    const cu = on.map(({ ngay: _n, ...x }) => x);
+    const b = dungBaoCaoBot(cu, null, new Set(['2026']), false, new Set(['2026-03']));
+    expect(b.tieuDe.length).toBe(2);
+    expect(b.cot.find(c => c.khoa === '2026-03')).toMatchObject({ moDuoc: false });
+    expect(b.dong.find(d => d.ten === 'A')!.o).toEqual({ '2026-03': 5, '2026': 5 });
+  });
+});
+
+describe('file công trình lỗi', () => {
+  it('tenFile lấy tên cuối đường dẫn', () => {
+    expect(tenFile(String.raw`NĂM 2026\CT26-061 X\02_SẢN XUẤT\a_CT26-061.xlsx`)).toBe('a_CT26-061.xlsx');
+    expect(tenFile('NĂM 2026/x/b.xlsx')).toBe('b.xlsx');
+    expect(tenFile('a.xlsx')).toBe('a.xlsx');
+  });
+  it('loiTheoTen gom theo tên công trình; máy chủ cũ (không có ten) => rỗng', () => {
+    const f1 = { nguon: 'a', loi: 'x', ten: ['A', 'B'] };
+    const f2 = { nguon: 'b', loi: 'y', ten: ['A'] };
+    const m = loiTheoTen([f1, f2, { nguon: 'c', loi: 'z' }]);
+    expect(m.get('A')).toEqual([f1, f2]);
+    expect(m.get('B')).toEqual([f1]);
+    expect(m.size).toBe(2);
+    expect(loiTheoTen(undefined).size).toBe(0);
   });
 });

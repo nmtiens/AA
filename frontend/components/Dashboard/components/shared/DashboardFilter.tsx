@@ -11,6 +11,8 @@ interface DashboardFilterProps {
   emptyLabel?: string;
   /** Có => hiện nút "Bỏ chọn tất cả" trong hộp chọn */
   onClearAll?: () => void;
+  /** Hộp chọn bám mép phải nút (khi nút nằm sát mép phải màn hình) */
+  canhPhai?: boolean;
 }
 
 export const DashboardFilter = ({
@@ -21,6 +23,7 @@ export const DashboardFilter = ({
   singleSelect,
   emptyLabel = 'Tất cả',
   onClearAll,
+  canhPhai,
 }: DashboardFilterProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,7 +73,7 @@ export const DashboardFilter = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 flex flex-col max-h-[300px]">
+        <div className={`absolute top-full ${canhPhai ? 'right-0' : 'left-0'} mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 flex flex-col max-h-[300px]`}>
           <div className="p-2 border-b border-slate-100">
             <input
               type="text"

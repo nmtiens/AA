@@ -11,6 +11,8 @@ import { fmtInt, fmtTy, fmtDate, fmtPt, fmtQty, DAY_MS as DAY } from '../../util
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
 import { tongHangMuc } from './core/tongChiTiet';
+import { mauLuong, soSanhThuTu } from './core/thuTuNhom';
+import { useThuTuLuongDo } from './useThuTuLuongDo';
 import {
   BOP_GROUP, KHO_COT, khoCua, laKho as laKhoBop, tinhCayBop, mucCongDoan, fmtGiaTriBop, stageOfBop, tenCotCongDoan,
   type BopMetric, type Kho, type KhoCot,
@@ -720,6 +722,8 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
   const laKho = (i: HexInfo, f: KhoCot) => laKhoBop(i, f, metric);
 
   const ctOf = (i: HexInfo) => i.congTrinh || NO_CT;
+  // Công trình trong danh sách Luồng đỏ lên đầu theo STT, dòng gốc tô đỏ / vàng
+  const thuTuNhom = useThuTuLuongDo();
   // 1 công trình (cửa sổ công trình) thì không có bậc công trình
   const bac = useMemo(() => BAC_BOP[cheDo].filter(c => tatCa || c !== 'ct'), [cheDo, tatCa]);
   const nutCheDo: ChieuBop[] = tatCa ? ['ct', 'nsp', 'xuong'] : ['nsp', 'xuong'];
@@ -729,16 +733,17 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
       const c = b[bacSo];
       if (c === 'nsp') return x.ten === NO_NSP ? 1 : y.ten === NO_NSP ? -1 : x.ten.localeCompare(y.ten, 'vi', { numeric: true });
       if (c === 'xuong') return sapXuong(x.ten, y.ten);
-      return Number(x.ten === NO_CT) - Number(y.ten === NO_CT) || y.total - x.total || y.kho.nk - x.kho.nk || x.ten.localeCompare(y.ten, 'vi');
+      return Number(x.ten === NO_CT) - Number(y.ten === NO_CT) || soSanhThuTu(thuTuNhom(x.ten), thuTuNhom(y.ten))
+        || y.total - x.total || y.kho.nk - x.kho.nk || x.ten.localeCompare(y.ten, 'vi');
     });
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const pivot = useMemo(() => tinhCay(bac), [items, khoItems, metric, bac]);
+  const pivot = useMemo(() => tinhCay(bac), [items, khoItems, metric, bac, thuTuNhom]);
   // Cây đảo 2 bậc dưới: chỉ tính khi có dòng đang chọn chiều đó
   const bacDao = useMemo<ChieuBop[]>(() => [bac[0], bac[2], bac[1]], [bac]);
   const canCayDao = tatCa && Object.values(chonCon).includes(bacDao[1]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const cayDao = useMemo(() => (canCayDao ? new Map(tinhCay(bacDao).goc.map(n => [n.ten, n])) : null), [canCayDao, items, khoItems, metric, bacDao]);
+  const cayDao = useMemo(() => (canCayDao ? new Map(tinhCay(bacDao).goc.map(n => [n.ten, n])) : null), [canCayDao, items, khoItems, metric, bacDao, thuTuNhom]);
   // Mặc định mỗi nhóm công đoạn là 1 cột; bấm tên nhóm mới tách ra từng P
   const cot = pivot.groups.flatMap((g, gi) => (moNhom.has(gi) ? g.stages.map(st => ({ key: st, stages: [st] })) : [{ key: `g${gi}`, stages: g.stages }]));
   const congCot = (o: Record<string, number>, stages: string[]) => stages.reduce((a, st) => a + (o[st] ?? 0), 0);
@@ -859,7 +864,9 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
   const dongCay = (n: (typeof pivot.goc)[number], b: ChieuBop[]): React.ReactNode => {
     soDong += 1;
     const base = coSoDong(n, b), sau = n.duong.length - 1, khoa = khoaNut(n.duong, b), mo = moDong.has(khoa);
-    const nen = sau === 0 ? 'bg-white' : sau === 1 ? 'bg-slate-50' : 'bg-slate-100';
+    const tt = sau === 0 && b[0] === 'ct' ? thuTuNhom(n.ten) : null, mau = mauLuong(tt);
+    const nen = mau ? mau.nen : sau === 0 ? 'bg-white' : sau === 1 ? 'bg-slate-50' : 'bg-slate-100';
+    const sttTag = mau && <span className={`mr-1.5 inline-block min-w-[1.5rem] rounded px-1 text-center text-sm tabular-nums ${mau.stt}`}>{tt!.stt}</span>;
     const coChon = tatCa && sau === 0;
     const chon = coChon ? chonCon[n.ten] : undefined;
     const bacCon = chon === bacDao[1] ? bacDao : b;
@@ -868,12 +875,12 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
     return (
       <React.Fragment key={khoa}>
         <tr className={`${nen} text-slate-900`}>
-          <td className={`${tdB} sticky left-0 z-[1] truncate text-[0.9375rem] ${nen} ${sau ? 'font-medium' : 'font-bold'}`} style={{ maxWidth: rongTen, paddingLeft: `${0.5 + sau * 1.25}rem` }} title={`${TEN_CHIEU[b[sau]]}: ${n.ten}`}>
+          <td className={`${tdB} sticky left-0 z-[1] truncate text-[0.9375rem] ${nen} ${sau ? 'font-medium' : 'font-bold'}`} style={{ maxWidth: rongTen, paddingLeft: `${0.5 + sau * 1.25}rem` }} title={`${TEN_CHIEU[b[sau]]}: ${n.ten}${mau ? ` · ${mau.nhan} STT ${tt!.stt}` : ''}`}>
             {n.con.length > 0
               ? <button type="button" onClick={() => doiDong(khoa)} className="text-left hover:underline">
-                  <span className="inline-block w-4 text-slate-400">{mo ? '▾' : '▸'}</span>{n.ten}
+                  <span className="inline-block w-4 text-slate-400">{mo ? '▾' : '▸'}</span>{sttTag}{n.ten}
                 </button>
-              : <span className="pl-4">{n.ten}</span>}
+              : <span className="pl-4">{sttTag}{n.ten}</span>}
           </td>
           {cell(n.donHang, { ...base, donHang: true }, 'font-bold')}
           {cot.map(c => <React.Fragment key={c.key}>{cell(congCot(n.cells, c.stages), { ...base, stages: c.stages })}</React.Fragment>)}

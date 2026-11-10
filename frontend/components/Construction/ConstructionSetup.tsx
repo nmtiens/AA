@@ -15,6 +15,8 @@
 //
 // Tổng quan công trình (nhóm Luồng đỏ / Căn mẫu) lọc theo đúng tên đã chọn ở đây
 // (so theo tên chuẩn, không phụ thuộc thứ tự).
+// 3) Mỗi công trình đã chọn có ô STT (tự gõ, cho trùng, cho bỏ số; trống = theo vị trí) và nút
+//    Đỏ / Vàng (luồng) — lưu kèm ở '<nhóm>:thu-tu' (core/thuTuNhom). "Đánh lại STT" đưa về 1..n.
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -25,6 +27,7 @@ import {
   GripVertical,
   X,
   ListOrdered,
+  ListRestart,
 } from 'lucide-react';
 import { DataRow } from '../../types';
 import { useToast } from '../../context/ToastContext';
@@ -34,7 +37,22 @@ import {
   getProjectsForView,
   setProjectsForView,
   collectUniqueProjects,
+  getThuTuDaLuu,
 } from './utils/viewDataConfig';
+import { laSttHopLe, type Luong, type ThuTuCongTrinh } from './core/thuTuNhom';
+
+/** 1 dòng đã chọn ở màn Setup: stt là chuỗi đang gõ ('' = theo vị trí) */
+interface DongChon { ten: string; stt: string; luong: Luong }
+
+const sttCua = (d: DongChon, i: number): number => {
+  const n = Number(d.stt);
+  return d.stt !== '' && laSttHopLe(n) ? n : i + 1;
+};
+const sangThuTu = (rows: DongChon[]): ThuTuCongTrinh[] => rows.map((d, i) => ({ ten: d.ten, stt: sttCua(d, i), luong: d.luong }));
+const khoaSoSanh = (rows: DongChon[]) => JSON.stringify(sangThuTu(rows));
+/** STT đang đúng 1..n theo vị trí — đổi chỗ thì đánh lại theo vị trí mới (người dùng chưa gõ số riêng) */
+const laTuanTu = (rows: DongChon[]) => rows.every((d, i) => sttCua(d, i) === i + 1);
+const danhLai = (rows: DongChon[]): DongChon[] => rows.map((d, i) => ({ ...d, stt: String(i + 1) }));
 
 interface ConstructionSetupProps {
   /** Nằm trong trang chung Setup dữ liệu (thẻ): tiêu đề gọn, không icon lớn */
@@ -59,14 +77,23 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
 
   const [selectedViewId, setSelectedViewId] = useState<string>(CONFIGURABLE_VIEWS[0]?.id || '');
 
-  // ✅ SỬA: Set -> mảng có thứ tự. Thứ tự phần tử = độ ưu tiên
-  // (index 0 = ưu tiên cao nhất). Toggle chọn thêm sẽ nối vào cuối mảng.
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  // Mảng có thứ tự (index 0 = đầu danh sách) + STT / luồng từng dòng. Toggle chọn thêm sẽ nối vào cuối.
+  const [rows, setRows] = useState<DongChon[]>([]);
+  const selectedProjects = useMemo(() => rows.map(d => d.ten), [rows]);
+  // Đổi danh sách tên (thêm / bỏ / đổi chỗ) mà giữ STT, luồng của dòng cũ; STT đang 1..n thì theo vị trí mới
+  const setSelectedProjects = (upd: string[] | ((prev: string[]) => string[])) => setRows(prev => {
+    const names = typeof upd === 'function' ? upd(prev.map(d => d.ten)) : upd;
+    const theoTen = new Map(prev.map(d => [d.ten, d] as const));
+    const next = names.map((ten): DongChon => theoTen.get(ten) ?? { ten, stt: '', luong: 'do' });
+    return laTuanTu(prev) ? next.map(d => ({ ...d, stt: '' })) : next;
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   // Danh sách lúc tải / lần lưu gần nhất — so để báo "chưa lưu"
-  const [daLuu, setDaLuu] = useState<string[]>([]);
-  const chuaLuu = daLuu.join('\u0001') !== selectedProjects.join('\u0001');
+  const [daLuu, setDaLuu] = useState<DongChon[]>([]);
+  const chuaLuu = khoaSoSanh(daLuu) !== khoaSoSanh(rows);
+  const suaDong = (index: number, patch: Partial<DongChon>) =>
+    setRows(prev => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
   const [chiChuaChon, setChiChuaChon] = useState(false);
 
   // ✅ MỚI: state cho kéo-thả sắp xếp ưu tiên
@@ -86,8 +113,14 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
     // thì đổi về tên đang dùng thay vì âm thầm bỏ (lưu lại sẽ xoá công trình đó khỏi view)
     const byKey = new Map(allProjects.map(p => [projectMatchKey(p), p] as const));
     const cleaned = [...new Set(saved.map((p) => byKey.get(projectMatchKey(p))).filter((p): p is string => !!p))];
-    setSelectedProjects(cleaned);
-    setDaLuu(cleaned);
+    // STT / luồng đã lưu (khớp tên chuẩn); chưa lưu thì STT trống (= theo vị trí), luồng đỏ
+    const thuTu = new Map(getThuTuDaLuu(selectedViewId).map(t => [projectMatchKey(t.ten), t] as const));
+    const dong = cleaned.map((ten): DongChon => {
+      const t = thuTu.get(projectMatchKey(ten));
+      return { ten, stt: t ? String(t.stt) : '', luong: t?.luong === 'vang' ? 'vang' : 'do' };
+    });
+    setRows(dong);
+    setDaLuu(dong);
   }, [selectedViewId, allProjects]);
 
   const toggleProject = (congTrinh: string) => {
@@ -179,9 +212,12 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
     setIsSaving(true);
     try {
       // Gửi nguyên mảng có thứ tự (= thứ tự ưu tiên) lên backend.
-      const ok = await setProjectsForView(selectedViewId, selectedProjects);
+      const thuTu = sangThuTu(rows);
+      const ok = await setProjectsForView(selectedViewId, selectedProjects, thuTu);
       if (ok) {
-        setDaLuu(selectedProjects);
+        const daChuan = rows.map((d, i) => ({ ...d, stt: String(thuTu[i].stt) }));
+        setRows(daChuan);
+        setDaLuu(daChuan);
         showToast(`Đã lưu setup cho "${selectedView?.label}"`, 'success');
       } else {
         showToast(
@@ -220,7 +256,7 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
         <div className="ml-auto flex items-center gap-2">
           {chuaLuu && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Có thay đổi chưa lưu</span>}
           {chuaLuu && (
-            <button type="button" onClick={() => setSelectedProjects(daLuu)} className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50">Huỷ thay đổi</button>
+            <button type="button" onClick={() => setRows(daLuu)} className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50">Huỷ thay đổi</button>
           )}
           <button
             onClick={handleSave}
@@ -271,7 +307,8 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
               <ul className="divide-y divide-slate-100">
                 {filteredProjects.map(congTrinh => {
                   const checked = selectedSet.has(congTrinh);
-                  const thu = checked ? selectedProjects.indexOf(congTrinh) + 1 : 0;
+                  const viTri = checked ? selectedProjects.indexOf(congTrinh) : -1;
+                  const thu = viTri >= 0 ? sttCua(rows[viTri], viTri) : 0;
                   return (
                     <li key={congTrinh}>
                       <label className={`flex cursor-pointer items-center gap-3 px-4 py-2 hover:bg-slate-50 ${checked ? 'bg-slate-50/60' : ''}`}>
@@ -293,14 +330,19 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
             <ListOrdered size={16} className="text-slate-500" />
             <h2 className="text-base font-semibold text-slate-900">Đã chọn · thứ tự ưu tiên</h2>
             <span className="text-sm text-slate-400">({selectedProjects.length})</span>
-            <span className="ml-auto text-xs text-slate-500">Kéo (⠿) hoặc bấm mũi tên để đổi thứ tự — số 1 ưu tiên cao nhất</span>
+            <span className="ml-auto text-xs text-slate-500">Gõ STT (cho trùng, bỏ số) · kéo ⠿ đổi chỗ</span>
+            <button type="button" onClick={() => setRows(danhLai)} disabled={rows.length === 0}
+              title="Đưa STT về 1, 2, 3… theo thứ tự đang xếp"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+              <ListRestart size={14} /> Đánh lại STT
+            </button>
           </div>
           <div className="min-h-[16rem] flex-1 overflow-y-auto custom-scrollbar">
             {selectedProjects.length === 0 ? (
               <div className="p-10 text-center text-sm text-slate-400">Chưa chọn công trình nào. Tick công trình ở cột bên trái để thêm.</div>
             ) : (
               <ol className="divide-y divide-slate-100">
-                {selectedProjects.map((congTrinh, index) => (
+                {rows.map(({ ten: congTrinh, stt, luong }, index) => (
                   <li
                     key={congTrinh}
                     draggable
@@ -309,12 +351,20 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
                     onDrop={handleDrop(index)}
                     onDragEnd={handleDragEnd}
                     className={`group flex items-center gap-3 px-3 py-2 transition-colors
+                      ${luong === 'vang' ? 'bg-amber-50' : 'bg-red-50'}
                       ${dragIndex === index ? 'opacity-40' : ''}
-                      ${dragOverIndex === index && dragIndex !== null && dragIndex !== index ? 'border-t-2 border-slate-900 bg-slate-50' : 'hover:bg-slate-50'}`}
+                      ${dragOverIndex === index && dragIndex !== null && dragIndex !== index ? 'border-t-2 border-slate-900' : ''}`}
                   >
                     <span className="cursor-grab text-slate-300 group-hover:text-slate-500 active:cursor-grabbing" title="Kéo để sắp xếp"><GripVertical size={16} /></span>
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{index + 1}</span>
+                    <input type="text" inputMode="numeric" value={stt} placeholder={String(index + 1)} aria-label={`STT ${congTrinh}`}
+                      onChange={e => suaDong(index, { stt: e.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 4) })}
+                      className="h-7 w-11 shrink-0 rounded-md border border-slate-300 bg-white text-center text-sm font-semibold tabular-nums text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:border-slate-500 focus:outline-none" />
                     <span className="flex-1 truncate text-sm font-medium text-slate-800" title={congTrinh}>{congTrinh}</span>
+                    <button type="button" onClick={() => suaDong(index, { luong: luong === 'vang' ? 'do' : 'vang' })}
+                      title={luong === 'vang' ? 'Luồng vàng — bấm đổi sang đỏ' : 'Luồng đỏ — bấm đổi sang vàng'} aria-pressed={luong === 'vang'}
+                      className={`h-7 shrink-0 rounded-full px-2.5 text-xs font-semibold ${luong === 'vang' ? 'bg-amber-300 text-amber-950 hover:bg-amber-400' : 'bg-red-600 text-white hover:bg-red-700'}`}>
+                      {luong === 'vang' ? 'Vàng' : 'Đỏ'}
+                    </button>
                     <span className="flex shrink-0 items-center opacity-40 transition group-hover:opacity-100">
                       <button onClick={() => moveProject(index, -1)} disabled={index === 0} title="Tăng ưu tiên"
                         className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-25"><ChevronDown size={15} className="rotate-180" /></button>

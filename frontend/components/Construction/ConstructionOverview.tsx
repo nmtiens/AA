@@ -16,6 +16,8 @@ import { khung as khungB, soBam as GACH, table as bangB, tdB, tdSo as soB, tfoot
 import { taoBanGhi, NO_MONTH, type Rec } from './core/banGhiCongTrinh';
 import { useToast } from '../../context/ToastContext';
 import { CONFIGURABLE_VIEWS, getProjectsForView, type ProjectGroupId } from './utils/viewDataConfig';
+import { useThuTuLuongDo } from './useThuTuLuongDo';
+import { mauLuong, soSanhThuTu, sttHienThi } from './core/thuTuNhom';
 import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuongMacService';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
@@ -25,6 +27,7 @@ import { BopTab } from './ProjectHealthTabs';
 import { BotKhnk } from './BotKhnk';
 import { BomTatCa, taiTruocBomTatCa } from './BopM2Section';
 import { BaoCaoBot } from './BaoCaoBot';
+import { maIpo } from './core/baoCaoBot';
 import { HexTimelineModal } from './HexTimelineModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
@@ -258,6 +261,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     [groupRecords]
   );
   const ipoSel = useMemo(() => ipoPicked ?? ipoOptions.filter(isDefaultIpo), [ipoPicked, ipoOptions]);
+  // Tab BÁO CÁO BOT lấy số từ file công trình: ô "Tình Trạng IPO" có thêm các IPO chỉ có trong file (vd. 03. TẠM NGƯNG)
+  const [ipoBot, setIpoBot] = useState<string[]>([]);
+  const ipoOptionsHien = useMemo(() => {
+    if (viewCT !== 'bcbot') return ipoOptions;
+    const ma = new Set(ipoOptions.map(maIpo));
+    return [...ipoOptions, ...ipoBot.filter(x => !ma.has(maIpo(x)))].sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [viewCT, ipoOptions, ipoBot]);
+  const laBcBot = viewCT === 'bcbot';   // BÁO CÁO BOT không theo các bộ lọc khác của trang => ẩn cho gọn
   const records = useMemo(() => {
     if (ipoSel.length === 0) return groupRecords;
     const set = new Set(ipoSel);
@@ -361,6 +372,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   }, [groupRecords, f]); // eslint-disable-line react-hooks/exhaustive-deps
   const pctHoanThanh = (ct: string) => { const e = hoanThanhCt.get(ct); return e ? tyLeHoanThanh(e.total, e.done) : 0; };
 
+  // Danh sách Luồng đỏ (Setup → Nhóm công trình): công trình trong luồng lên đầu theo STT, tô đỏ / vàng
+  const thuTuNhom = useThuTuLuongDo();
   const ctTable = useMemo(() => {
     const q = ctSearch.trim().toLowerCase();
     type Row = { name: string; ctKey: string; pms: Set<string>; mas: Set<string>; items: number; total: number; cancelled: number; done: number; open: number; overdue: number; botDates: string[] };
@@ -383,9 +396,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       e.botDates.forEach(d => cnt.set(d, (cnt.get(d) ?? 0) + 1));
       let best = '', n = -1; cnt.forEach((c, d) => { if (c > n) { best = d; n = c; } });
       const botDuAn = best ? new Date(Number(best.slice(0, 4)), Number(best.slice(5, 7)) - 1, Number(best.slice(8, 10))) : null;
-      return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey) };
-    }).sort((a, b) => b.total - a.total || b.items - a.items);
-  }, [records, f, ctSearch, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+      return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey), thuTu: thuTuNhom(e.name) };
+    }).sort((a, b) => soSanhThuTu(a.thuTu, b.thuTu) || b.total - a.total || b.items - a.items);
+  }, [records, f, ctSearch, vmIndex, thuTuNhom]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ctStt = useMemo(() => sttHienThi(ctTable.map(r => r.thuTu)), [ctTable]);
   // Dòng TỔNG bảng công trình: cộng các dòng đang hiện; % hoàn thành mọi IPO trừ HỦY như từng dòng;
   // vướng mắc mỗi mã chỉ cộng 1 lần như ô "Vướng mắc đang mở"
   const ctTong = useMemo(() => {
@@ -725,16 +739,18 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <h2 className="text-lg font-semibold tracking-tight text-slate-900">
               Báo cáo tiến độ công trình{group && <span className="text-red-700"> · {GROUP_SHORT[group]}</span>}
             </h2>
-            <p className="text-xs text-slate-500">Giá trị tính bằng Tỷ đồng · Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết</p>
+            <p className="text-xs text-slate-500" title="Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết">Đơn vị: tỷ đồng · bấm số để xem chi tiết</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định tất cả */}
             <DashboardFilter
               label="Tình Trạng IPO"
-              options={ipoOptions}
+              canhPhai={laBcBot}
+              options={ipoOptionsHien}
               selectedValues={ipoSel}
               onChange={setIpoSel}
             />
+            {!laBcBot && (<>
             <SearchableSelect
               value={f.ct ?? ''}
               onChange={v => setKey('ct', v)}
@@ -788,10 +804,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
               />
             )}
+            </>)}
           </div>
         </div>
 
-        {activeKeys.length > 0 && (
+        {activeKeys.length > 0 && !laBcBot && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {activeKeys.map(k => (
               <button
@@ -866,7 +883,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 Tất cả công trình đang xem: <b className="text-slate-800">{fmtInt(tenCtTatCa.length)}</b> công trình · <b className="text-slate-800">{fmtInt(rowsAll.length)}</b> hạng mục (theo nhóm / bộ lọc phía trên). Bấm HEX để xem chi tiết hạng mục.
               </p>
             )}
-            {viewCT === 'bcbot' && <BaoCaoBot onHexClick={setHexXem} />}
+            {viewCT === 'bcbot' && <BaoCaoBot onHexClick={setHexXem} ipoChon={ipoSel} onIpos={setIpoBot} />}
             {viewCT === 'bop' && (coBang
               ? <BopTab items={hangMucTatCa} onHexClick={setHexXem} extra={null} today={homNay} tatCa />
               : <p className="py-10 text-center text-sm font-semibold text-slate-500">Đang tải chi tiết hạng mục…</p>)}
@@ -1170,11 +1187,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     const pct = pctHoanThanh(r.name);
                     const pms = [...r.pms];
                     const botLeft = r.botDuAn ? Math.floor((r.botDuAn.getTime() - today) / 86_400_000) : null;
+                    const mau = mauLuong(r.thuTu);
+                    const dangChon = f.ct === r.name;
                     return (
                       <tr key={r.name} onClick={() => { if (canBang()) setHealth({ ct: r.name, inDetail: false }); }}
-                          title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
-                          className={`group cursor-pointer hover:bg-amber-50 ${f.ct === r.name ? 'bg-amber-100 font-semibold' : ''}`}>
-                        <td className={soB}>{idx + 1}</td>
+                          title={`${mau ? `${mau.nhan} · ` : ''}Bấm để xem tổng quan công trình (BOT · BOP · BOM)`}
+                          className={`group cursor-pointer ${mau ? `${dangChon ? 'bg-amber-200 font-semibold' : mau.nen} ${mau.hover}` : `hover:bg-amber-50 ${dangChon ? 'bg-amber-100 font-semibold' : ''}`}`}>
+                        <td className={`${soB} ${mau?.stt ?? ''}`}>{ctStt[idx]}</td>
                         <td className={`${tdB} min-w-[140px] font-bold`}>
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="break-words group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>

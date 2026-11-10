@@ -1,45 +1,55 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { app } from '../server/app.js';
+import { KHOA_HOP_LE, dinhDang, chuoi, oTuDong, fileCanXem } from '../server/botTongHop.js';
 
 // ============================================================================
 // BÁO CÁO BOT — giá trị đơn hàng còn lại theo dự án (như sheet BÁO CÁO BOT của MASTER_PROJECT_COORDINATION.xlsx)
 //   GET /api/bot-tong-hop                         => { coBang, capNhat, soFile, fileLoi[], ipos[], o[], luuFile{tên CT: giờ lưu file} }
-//       o = các ô đã cộng sẵn: TÊN CÔNG TRÌNH × TÌNH TRẠNG IPO FINAL × tháng NGÀY CẦN GIAO PC ĐỀ XUẤT ('' = CHƯA BOT)
-//       (giao diện lọc IPO + dựng pivot năm / tháng: frontend/components/Construction/core/baoCaoBot.ts)
-//   GET /api/bot-tong-hop/chi-tiet?ten=&ipo=a|b&thang=&ct=1  => dòng HEX của 1 ô (thang: 'YYYY-MM', 'YYYY', 'CHUA', '' = cả hàng;
+//       fileLoi = file cần xem (server/botTongHop.fileCanXem): tool đọc lỗi (số cũ giữ nguyên) hoặc cột cần trống cả file
+//       o = các ô đã cộng sẵn: TÊN CÔNG TRÌNH × TÌNH TRẠNG IPO FINAL × ngày NGÀY CẦN GIAO PC ĐỀ XUẤT ('' = CHƯA BOT);
+//       mỗi ô có ngay 'YYYY-MM-DD' và thang 'YYYY-MM' (giữ cho bản giao diện cũ) — giao diện tự cộng lên tháng / năm
+//       (lọc IPO + dựng pivot năm / tháng / ngày: frontend/components/Construction/core/baoCaoBot.ts)
+//   GET /api/bot-tong-hop/chi-tiet?ten=&ipo=a|b&thang=&ct=1  => dòng HEX của 1 ô (thang: 'YYYY-MM-DD', 'YYYY-MM', 'YYYY', 'CHUA', '' = cả hàng;
 //       ct=1: chỉ mã CTxx-xxx)
 // - Bảng bot_tong_hop / bot_tong_hop_file do tool tong_hop_production_status.py --theo-doi nạp mỗi khi file công trình lưu.
 //   Chưa chạy SQL tạo bảng (backend/sql/2026-11-09_bot_tong_hop.sql) => coBang = false.
 // - ~30k dòng: cộng ở DB còn vài nghìn ô, không cache (dữ liệu đổi theo từng lần lưu file).
 // ============================================================================
 
-const chuoi = (x: unknown) => (x === null || x === undefined ? '' : String(x));
 // Lọc MÃ CÔNG TRÌNH của pivot trong file = chọn tay mọi mã CTxx-xxx, bỏ DM / EM / NB / SP / XK (OEM, hàng lẻ, xuất khẩu)
 const LA_CT = `(COALESCE(ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
 
 app.get('/api/bot-tong-hop', async (_req: Request, res: Response) => {
   try {
-    const [o, f, l] = await Promise.all([
+    const [o, f, l, tk] = await Promise.all([
       timedQuery(`SELECT COALESCE(ten_ct, '') AS ten, COALESCE(ipo, '') AS ipo,
-                         COALESCE(to_char(ngay_can_giao, 'YYYY-MM'), '') AS thang, ${LA_CT} AS ct,
+                         COALESCE(to_char(ngay_can_giao, 'YYYY-MM-DD'), '') AS ngay, ${LA_CT} AS ct,
                          SUM(tt_con_lai) AS tt, COUNT(*)::int AS so
                     FROM bot_tong_hop GROUP BY 1, 2, 3, 4`),
-      timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc
+      timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc,
+                         to_char(mtime AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS mtime
                     FROM bot_tong_hop_file`),
       // Giờ lưu file công trình gần nhất của từng TÊN CÔNG TRÌNH (tô dòng "cập nhật hôm nay")
       timedQuery(`SELECT COALESCE(b.ten_ct, '') AS ten, to_char(MAX(f.mtime) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luu
                     FROM (SELECT DISTINCT nguon, ten_ct FROM bot_tong_hop) b JOIN bot_tong_hop_file f USING (nguon)
                    GROUP BY 1`),
+      // Thống kê theo file: file lỗi (tên công trình + số dòng cũ đang hiện) và file có cột cần trống cả file
+      timedQuery(`SELECT nguon, COUNT(*)::int AS n, COUNT(tt_con_lai)::int AS tt, COUNT(ipo)::int AS ipo, COUNT(ten_ct)::int AS ten,
+                         ARRAY_AGG(DISTINCT COALESCE(ten_ct, '')) AS ds
+                    FROM bot_tong_hop GROUP BY nguon
+                  HAVING COUNT(tt_con_lai) = 0 OR COUNT(ipo) = 0 OR COUNT(ten_ct) = 0
+                      OR nguon IN (SELECT nguon FROM bot_tong_hop_file WHERE loi IS NOT NULL)`),
     ]);
-    const capNhat = f.rows.reduce((m: string, r) => (r.nap_luc > m ? r.nap_luc : m), '');
+    // Giờ dữ liệu = lần nạp tốt gần nhất (tool ghi nap_luc cả khi chỉ ghi lỗi — không tính)
+    const capNhat = f.rows.reduce((m: string, r) => (!r.loi && r.nap_luc > m ? r.nap_luc : m), '');
     res.json({
       coBang: true,
       capNhat: capNhat || null,
       soFile: f.rows.filter(r => !r.loi).length,
-      fileLoi: f.rows.filter(r => r.loi).map(r => ({ nguon: chuoi(r.nguon), loi: chuoi(r.loi) })),
+      fileLoi: fileCanXem(f.rows, tk.rows),
       ipos: [...new Set(o.rows.map(r => chuoi(r.ipo)))].sort(),
-      o: o.rows.map(r => ({ ten: chuoi(r.ten), ipo: chuoi(r.ipo), thang: chuoi(r.thang), ct: !!r.ct, tt: r.tt === null ? null : Number(r.tt), so: r.so })),
+      o: o.rows.map(oTuDong),
       luuFile: Object.fromEntries(l.rows.filter(r => r.luu).map(r => [chuoi(r.ten), chuoi(r.luu)])),
     });
   } catch (e) {
@@ -53,13 +63,13 @@ app.get('/api/bot-tong-hop/chi-tiet', async (req: Request, res: Response) => {
   const ten = String(req.query.ten ?? '');
   const ipos = String(req.query.ipo ?? '').split('|').filter(Boolean).slice(0, 20);
   const thang = String(req.query.thang ?? '');
-  if (thang && !/^(CHUA|\d{4}|\d{4}-\d{2})$/.test(thang)) return res.status(400).json({ error: 'Sai tháng' });
+  if (thang && !KHOA_HOP_LE.test(thang)) return res.status(400).json({ error: 'Sai tháng' });
   const dk: string[] = [`COALESCE(ten_ct, '') = $1`];
   const ts: unknown[] = [ten];
   if (ipos.length) { ts.push(ipos); dk.push(`COALESCE(ipo, '') = ANY($${ts.length}::text[])`); }
   if (req.query.ct === '1') dk.push(LA_CT);
   if (thang === 'CHUA') dk.push('ngay_can_giao IS NULL');
-  else if (thang) { ts.push(thang); dk.push(`to_char(ngay_can_giao, '${thang.length === 4 ? 'YYYY' : 'YYYY-MM'}') = $${ts.length}`); }
+  else if (thang) { ts.push(thang); dk.push(`to_char(ngay_can_giao, '${dinhDang(thang)}') = $${ts.length}`); }
   try {
     const r = await timedQuery(`SELECT ma_ct, hex, ipo, to_char(ngay_can_giao, 'DD/MM/YYYY') AS ngay, tt_con_lai, nguon
                                   FROM bot_tong_hop WHERE ${dk.join(' AND ')}

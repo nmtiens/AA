@@ -3,6 +3,8 @@ import { tinhCayDem, type NutDem } from './core/cayDem';
 import { Chip, NutMoTatCa, type HexInfo } from './ProjectHealthTabs';
 import { fmtInt, fmtTy } from '../../utils/format';
 import { khung as khungB, soBam, soO, table, tdB, tfoot, thB, thead } from '../shared/bangBaoCao';
+import { mauLuong, soSanhThuTu, type ThuTuTra } from './core/thuTuNhom';
+import { useThuTuLuongDo } from './useThuTuLuongDo';
 
 // ============================================================================
 // Bảng kế hoạch nhập kho của tab BOT, cùng kiểu bảng tab BOP: dòng theo công trình / sản phẩm / xưởng, mở dòng ra
@@ -19,9 +21,10 @@ const giaTriChieu: Record<ChieuBot, (h: HexInfo) => string> = {
 const NOI = '\u0000';
 const nhanNgay = (k: string) => `${k.slice(8)}/${k.slice(5, 7)}`;
 
-const sapNut = (b: ChieuBot[]) => (x: NutDem, y: NutDem, bac: number) => {
+// Công trình: trong danh sách Luồng đỏ lên đầu theo STT, còn lại theo tổng giảm dần
+const sapNut = (b: ChieuBot[], thuTu: (ten: unknown) => ThuTuTra | null) => (x: NutDem, y: NutDem, bac: number) => {
   const c = b[bac], cuoi = Number(x.ten === KHONG[c]) - Number(y.ten === KHONG[c]);
-  return cuoi || (c === 'ct' ? y.total - x.total : 0) || x.ten.localeCompare(y.ten, 'vi', { numeric: true });
+  return cuoi || (c === 'ct' ? soSanhThuTu(thuTu(x.ten), thuTu(y.ten)) || y.total - x.total : 0) || x.ten.localeCompare(y.ten, 'vi', { numeric: true });
 };
 
 export type ChonBot = { khoa: string; ten: string; ds: HexInfo[] } | null;
@@ -55,12 +58,13 @@ export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon, theoGia
 
   const bac = useMemo(() => BAC[cheDo].filter(c => tatCa || c !== 'ct'), [cheDo, tatCa]);
   const bacDao = useMemo<ChieuBot[]>(() => [bac[0], bac[2], bac[1]], [bac]);
-  const tinh = (b: ChieuBot[]) => tinhCayDem(ds, h => b.map(c => giaTriChieu[c](h)), cotOf, sapNut(b), theoGiaTri ? h => Math.max(h.total, 0) : undefined);
+  const thuTuNhom = useThuTuLuongDo();
+  const tinh = (b: ChieuBot[]) => tinhCayDem(ds, h => b.map(c => giaTriChieu[c](h)), cotOf, sapNut(b, thuTuNhom), theoGiaTri ? h => Math.max(h.total, 0) : undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const cay = useMemo(() => tinh(bac), [ds, bac, cotOf, theoGiaTri]);
+  const cay = useMemo(() => tinh(bac), [ds, bac, cotOf, theoGiaTri, thuTuNhom]);
   const canDao = tatCa && Object.values(chonCon).includes(bacDao[1]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const cayDao = useMemo(() => (canDao ? new Map(tinh(bacDao).goc.map(n => [n.ten, n])) : null), [canDao, ds, bacDao, cotOf, theoGiaTri]);
+  const cayDao = useMemo(() => (canDao ? new Map(tinh(bacDao).goc.map(n => [n.ten, n])) : null), [canDao, ds, bacDao, cotOf, theoGiaTri, thuTuNhom]);
 
   // Cột gộp theo tháng; chưa có ngày để cuối
   const thang = useMemo(() => {
@@ -96,7 +100,9 @@ export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon, theoGia
   const dong = (n: NutDem, b: ChieuBot[]): React.ReactNode => {
     soDong += 1;
     const sau = n.duong.length - 1, khoa = (sau ? [b[1], ...n.duong] : n.duong).join(NOI), mo = moDong.has(khoa);
-    const nen = sau === 0 ? 'bg-white' : sau === 1 ? 'bg-slate-50' : 'bg-slate-100';
+    const tt = sau === 0 && b[0] === 'ct' ? thuTuNhom(n.ten) : null, mau = mauLuong(tt);
+    const nen = mau ? mau.nen : sau === 0 ? 'bg-white' : sau === 1 ? 'bg-slate-50' : 'bg-slate-100';
+    const sttTag = mau && <span className={`mr-1.5 inline-block min-w-[1.5rem] rounded px-1 text-center text-sm tabular-nums ${mau.stt}`}>{tt!.stt}</span>;
     const coChon = tatCa && sau === 0;
     const cho = coChon ? chonCon[n.ten] : undefined;
     const bacCon = cho === bacDao[1] ? bacDao : b;
@@ -105,10 +111,10 @@ export const BangCayBot = ({ ds, cotOf, cheDo, tatCa, ten, chon, onChon, theoGia
     return (
       <React.Fragment key={khoa}>
         <tr className={`${nen} text-slate-900`}>
-          <td className={`${tdB} sticky left-0 z-[1] truncate text-[0.9375rem] ${nen} ${sau ? 'font-medium' : 'font-bold'}`} style={{ maxWidth: rongTen, paddingLeft: `${0.5 + sau * 1.25}rem` }} title={`${TEN_CHIEU_BOT[b[sau]]}: ${n.ten}`}>
+          <td className={`${tdB} sticky left-0 z-[1] truncate text-[0.9375rem] ${nen} ${sau ? 'font-medium' : 'font-bold'}`} style={{ maxWidth: rongTen, paddingLeft: `${0.5 + sau * 1.25}rem` }} title={`${TEN_CHIEU_BOT[b[sau]]}: ${n.ten}${mau ? ` · ${mau.nhan} STT ${tt!.stt}` : ''}`}>
             {n.con.length > 0
-              ? <button type="button" onClick={() => doi(khoa)} className="text-left hover:underline"><span className="inline-block w-4 text-slate-400">{mo ? '▾' : '▸'}</span>{n.ten}</button>
-              : <span className="pl-4">{n.ten}</span>}
+              ? <button type="button" onClick={() => doi(khoa)} className="text-left hover:underline"><span className="inline-block w-4 text-slate-400">{mo ? '▾' : '▸'}</span>{sttTag}{n.ten}</button>
+              : <span className="pl-4">{sttTag}{n.ten}</span>}
           </td>
           {cot.map(c => <React.Fragment key={c.key}>{o(congCot(n.cells, c.ngay), n.duong, b, c.ngay, c.nhan)}</React.Fragment>)}
           {o(n.total, n.duong, b, null, '', 'font-bold')}

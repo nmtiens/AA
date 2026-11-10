@@ -9,6 +9,7 @@
 import { DataRow } from '../../../types';
 import { fetchViewProjectMapping, saveViewProjectMapping as apiSaveViewProjectMapping } from '../../../services/dataService';
 import { projectMatchKey } from '../../../utils/productionMetrics';
+import { docThuTu, ghepThuTu, taoThuTuNhom, type ThuTuCongTrinh, type ThuTuTra } from '../core/thuTuNhom';
 
 export interface ViewDefinition {
   id: string;
@@ -28,7 +29,13 @@ type ViewMapping = Record<string, string[]>;
 // Cache trong bộ nhớ (module-level) — nạp khi app khởi động (App.tsx) và khi
 // admin lưu setup mới. Các component đọc đồng bộ từ cache này.
 let cachedMapping: ViewMapping = {};
+// STT + luồng đỏ/vàng từng nhóm (dòng '<viewId>:thu-tu' của API)
+let cachedThuTu: Record<string, ThuTuCongTrinh[]> = {};
+const HAU_TO_THU_TU = ':thu-tu';
 let hasLoadedOnce = false;
+// Tăng mỗi lần cache đổi (nạp / lưu) — component dùng làm khoá useMemo để đọc lại thứ tự nhóm
+let phienBan = 0;
+export const phienBanViewMapping = () => phienBan;
 let inFlightLoad: Promise<ViewMapping> | null = null;
 
 /** Nạp mapping mới nhất từ backend, cập nhật cache. Có thể gọi nhiều lần từ
@@ -38,8 +45,17 @@ export async function loadViewMapping(): Promise<ViewMapping> {
   if (inFlightLoad) return inFlightLoad;
   inFlightLoad = fetchViewProjectMapping()
     .then((data) => {
-      cachedMapping = data || {};
+      // Tách 2 loại khoá: nhóm -> string[]; '<nhóm>:thu-tu' -> {ten, stt, luong}[]
+      const map: ViewMapping = {};
+      const thuTu: Record<string, ThuTuCongTrinh[]> = {};
+      for (const [k, v] of Object.entries(data || {})) {
+        if (k.endsWith(HAU_TO_THU_TU)) thuTu[k.slice(0, -HAU_TO_THU_TU.length)] = docThuTu(v);
+        else map[k] = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+      }
+      cachedMapping = map;
+      cachedThuTu = thuTu;
       hasLoadedOnce = true;
+      phienBan++;
       return cachedMapping;
     })
     .finally(() => { inFlightLoad = null; });
@@ -48,12 +64,30 @@ export async function loadViewMapping(): Promise<ViewMapping> {
 
 /** Lưu danh sách công trình cho 1 view (gọi API — chỉ ADMIN thành công),
  * đồng thời cập nhật cache cục bộ ngay để UI phản ánh tức thì. */
-export async function setProjectsForView(viewId: string, projects: string[]): Promise<boolean> {
-  const ok = await apiSaveViewProjectMapping(viewId, projects);
+export async function setProjectsForView(viewId: string, projects: string[], thuTu?: ThuTuCongTrinh[]): Promise<boolean> {
+  const ok = await apiSaveViewProjectMapping(viewId, projects, thuTu);
   if (ok) {
     cachedMapping = { ...cachedMapping, [viewId]: projects };
+    if (thuTu) cachedThuTu = { ...cachedThuTu, [viewId]: thuTu };
+    phienBan++;
   }
   return ok;
+}
+
+/** Dòng thứ tự ĐÃ LƯU của nhóm (nguyên bản, chưa ghép với danh sách) — màn Setup dùng để biết STT nào người dùng đã gõ. */
+export function getThuTuDaLuu(viewId: string): ThuTuCongTrinh[] {
+  return cachedThuTu[viewId] || [];
+}
+
+/** STT + luồng của từng công trình trong nhóm, đúng thứ tự danh sách (chưa lưu thì STT theo vị trí, luồng đỏ). */
+export function getThuTuForView(viewId: string): ThuTuCongTrinh[] {
+  return ghepThuTu(getProjectsForView(viewId), cachedThuTu[viewId] || []);
+}
+
+/** Hàm tra thuTuNhom(tenCongTrinh) → { stt, luong, viTri } | null của 1 nhóm (đọc cache hiện tại).
+ *  Dùng với sapXepTheoThuTu (core/thuTuNhom) để xếp bảng theo danh sách nhóm. */
+export function thuTuNhomCua(viewId: string): (tenCongTrinh: unknown) => ThuTuTra | null {
+  return taoThuTuNhom(getProjectsForView(viewId), cachedThuTu[viewId] || []);
 }
 
 /** Đọc đồng bộ từ cache — dùng ở những nơi cần giá trị ngay lập tức (component

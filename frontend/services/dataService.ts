@@ -787,7 +787,9 @@ export const fetchStockForExport = async (dates?: string[]): Promise<DataRow[]> 
 // Lưu tập trung ở backend (bảng view_project_mapping) thay vì localStorage,
 // để mọi người dùng ở bất kỳ máy nào cũng thấy cùng 1 cấu hình do admin setup.
 
-export type ViewProjectMapping = Record<string, string[]>;
+/** GET /view-project-mapping: khoá nhóm ('luong-do') -> string[]; khoá '<nhóm>:thu-tu' -> {ten, stt, luong}[]
+ *  (xem viewDataConfig.loadViewMapping — tách 2 loại, không đọc thẳng). */
+export type ViewProjectMapping = Record<string, unknown[]>;
 
 // Cấu hình đọc lúc mở app: lỗi (thường 500 do DB tạm hết kết nối khi cả trang bắn nhiều request lúc đăng nhập)
 // thì thử lại 1 lần sau 1 giây — trả {} sớm khiến trang dùng cấu hình rỗng tới lần tải sau.
@@ -812,7 +814,9 @@ export const fetchViewProjectMapping = async (): Promise<ViewProjectMapping> => 
 // đây là lý do POST luôn 401 trước đây dù đã đăng nhập ADMIN.
 export const saveViewProjectMapping = async (
   viewId: string,
-  projects: string[]
+  projects: string[],
+  /** Kèm STT + luồng đỏ/vàng (lưu ở '<viewId>:thu-tu' cùng giao dịch); bỏ trống = giữ thứ tự đã lưu */
+  thuTu?: { ten: string; stt: number; luong: 'do' | 'vang' }[]
 ): Promise<boolean> => {
   try {
     const token = getToken();
@@ -822,7 +826,7 @@ export const saveViewProjectMapping = async (
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ projects }),
+      body: JSON.stringify(thuTu ? { projects, thuTu } : { projects }),
     });
     if (!r.ok) throw new Error('save failed');
     return true;
