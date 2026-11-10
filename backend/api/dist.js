@@ -80018,6 +80018,11 @@ var oTuDong = (r) => {
   const ngay3 = chuoi(r.ngay);
   return { ten: chuoi(r.ten), ipo: chuoi(r.ipo), ngay: ngay3, thang: ngay3.slice(0, 7), ct: !!r.ct, tt: r.tt === null || r.tt === void 0 ? null : Number(r.tt), so: Number(r.so) || 0 };
 };
+var khoaCongTrinh = (nguon) => {
+  const ten = nguon.split(/[\\/]/).pop() ?? nguon;
+  const m = ten.match(/(?:CT|PO)\s?\d{2}-\d{3}/i);
+  return m ? m[0].toUpperCase().replace(/\s/g, "") : `DIR:${nguon.slice(0, nguon.length - ten.length).replace(/\\/g, "/").toLowerCase()}`;
+};
 var COT_CAN = [["tt", "TT \u0110H C\xD2N L\u1EA0I"], ["ipo", "T\xCCNH TR\u1EA0NG IPO FINAL"], ["ten", "T\xCAN C\xD4NG TR\xCCNH"]];
 var fileCanXem = (f, tk) => {
   const theo = new Map(tk.map((r) => [chuoi(r.nguon), r]));
@@ -80036,11 +80041,40 @@ var fileCanXem = (f, tk) => {
     const thieu = COT_CAN.filter(([k]) => !Number(t[k])).map(([, nhan]) => nhan);
     if (thieu.length) out.push({ ...chung, kieu: "cot", loi: `C\u1ED9t ${thieu.join(", ")} tr\u1ED1ng c\u1EA3 file (thi\u1EBFu / \u0111\u1ED5i t\xEAn c\u1ED9t?)`, luuTot: chuoi(r.mtime) || null });
   }
+  const coSo = /* @__PURE__ */ new Map();
+  for (const x of out) if (x.soDong > 0 && !coSo.has(khoaCongTrinh(x.nguon))) coSo.set(khoaCongTrinh(x.nguon), x);
+  for (const x of out) {
+    if (x.soDong > 0) continue;
+    const cu = coSo.get(khoaCongTrinh(x.nguon));
+    if (cu) {
+      x.dungSoCua = cu.nguon;
+      x.luuTot = cu.luuTot;
+      x.ten = cu.ten;
+    }
+  }
   return out.sort((a, b) => a.kieu === b.kieu ? a.nguon.localeCompare(b.nguon) : a.kieu === "doc" ? -1 : 1);
 };
 
 // src/routes/botTongHop.ts
 var LA_CT = `(COALESCE(ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
+var SQL_FILE = `SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc,
+                         to_char(mtime AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS mtime
+                    FROM bot_tong_hop_file`;
+var SQL_THONG_KE = `SELECT nguon, COUNT(*)::int AS n, COUNT(tt_con_lai)::int AS tt, COUNT(ipo)::int AS ipo, COUNT(ten_ct)::int AS ten,
+                         ARRAY_AGG(DISTINCT COALESCE(ten_ct, '')) AS ds
+                    FROM bot_tong_hop GROUP BY nguon
+                  HAVING COUNT(tt_con_lai) = 0 OR COUNT(ipo) = 0 OR COUNT(ten_ct) = 0
+                      OR nguon IN (SELECT nguon FROM bot_tong_hop_file WHERE loi IS NOT NULL)`;
+app.get("/api/bot-tong-hop/loi", authenticateJWT, requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const [f, tk] = await Promise.all([timedQuery(SQL_FILE), timedQuery(SQL_THONG_KE)]);
+    res.json({ coBang: true, fileLoi: fileCanXem(f.rows, tk.rows) });
+  } catch (e) {
+    if (e?.code === "42P01") return res.json({ coBang: false, fileLoi: [] });
+    console.error("[bot-tong-hop/loi]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c danh s\xE1ch file l\u1ED7i" });
+  }
+});
 app.get("/api/bot-tong-hop", async (_req, res) => {
   try {
     const [o, f, l, tk] = await Promise.all([
@@ -80048,19 +80082,12 @@ app.get("/api/bot-tong-hop", async (_req, res) => {
                          COALESCE(to_char(ngay_can_giao, 'YYYY-MM-DD'), '') AS ngay, ${LA_CT} AS ct,
                          SUM(tt_con_lai) AS tt, COUNT(*)::int AS so
                     FROM bot_tong_hop GROUP BY 1, 2, 3, 4`),
-      timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc,
-                         to_char(mtime AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS mtime
-                    FROM bot_tong_hop_file`),
+      timedQuery(SQL_FILE),
       // Giờ lưu file công trình gần nhất của từng TÊN CÔNG TRÌNH (tô dòng "cập nhật hôm nay")
       timedQuery(`SELECT COALESCE(b.ten_ct, '') AS ten, to_char(MAX(f.mtime) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luu
                     FROM (SELECT DISTINCT nguon, ten_ct FROM bot_tong_hop) b JOIN bot_tong_hop_file f USING (nguon)
                    GROUP BY 1`),
-      // Thống kê theo file: file lỗi (tên công trình + số dòng cũ đang hiện) và file có cột cần trống cả file
-      timedQuery(`SELECT nguon, COUNT(*)::int AS n, COUNT(tt_con_lai)::int AS tt, COUNT(ipo)::int AS ipo, COUNT(ten_ct)::int AS ten,
-                         ARRAY_AGG(DISTINCT COALESCE(ten_ct, '')) AS ds
-                    FROM bot_tong_hop GROUP BY nguon
-                  HAVING COUNT(tt_con_lai) = 0 OR COUNT(ipo) = 0 OR COUNT(ten_ct) = 0
-                      OR nguon IN (SELECT nguon FROM bot_tong_hop_file WHERE loi IS NOT NULL)`)
+      timedQuery(SQL_THONG_KE)
     ]);
     const capNhat = f.rows.reduce((m, r) => !r.loi && r.nap_luc > m ? r.nap_luc : m, "");
     res.json({
@@ -90225,17 +90252,17 @@ var canonicalProjectName2 = (name) => {
   const k = normProjectName(t);
   return projectAlias.get(k) ?? serverAlias.get(k) ?? t;
 };
-var khoaCongTrinh = /* @__PURE__ */ new Map();
+var khoaCongTrinh2 = /* @__PURE__ */ new Map();
 var khoaTenDaDoi = () => {
-  khoaCongTrinh = /* @__PURE__ */ new Map();
+  khoaCongTrinh2 = /* @__PURE__ */ new Map();
 };
 var projectMatchKey = (name) => {
   const raw = typeof name === "string" ? name : String(name ?? "");
-  const nho2 = khoaCongTrinh.get(raw);
+  const nho2 = khoaCongTrinh2.get(raw);
   if (nho2 !== void 0) return nho2;
   const k = normProjectName(canonicalProjectName2(raw));
-  if (khoaCongTrinh.size > 2e4) khoaCongTrinh.clear();
-  khoaCongTrinh.set(raw, k);
+  if (khoaCongTrinh2.size > 2e4) khoaCongTrinh2.clear();
+  khoaCongTrinh2.set(raw, k);
   return k;
 };
 function canonicalizeProjectNames(rows, columns) {

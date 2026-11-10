@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { KHOA_HOP_LE, dinhDang, oTuDong, fileCanXem } from '../src/server/botTongHop.js';
+import { KHOA_HOP_LE, dinhDang, oTuDong, fileCanXem, khoaCongTrinh } from '../src/server/botTongHop.js';
 
 // Chạy: npm test. BÁO CÁO BOT — server/botTongHop.ts (phần thuần của routes/botTongHop.ts)
 
@@ -49,5 +49,27 @@ describe('BÁO CÁO BOT — file cần xem', () => {
   it('đọc được nhưng cột TT trống cả file => báo thiếu cột; file bình thường không báo', () => {
     assert.match(kq[2].loi, /TT ĐH CÒN LẠI/);
     assert.ok(!kq.some(x => x.nguon === 'D/d.xlsx'));
+  });
+});
+
+describe('BÁO CÁO BOT — file mới lỗi dùng số file cũ', () => {
+  it('khoá công trình: mã CT trong tên; không mã thì thư mục (không phân biệt hoa / thường)', () => {
+    assert.equal(khoaCongTrinh('NĂM 2026\\A\\X_CT26-001.xlsx'), 'CT26-001');
+    assert.equal(khoaCongTrinh('OEM\\ARHAUS\\ARHAUS.xlsx'), khoaCongTrinh('oem/arhaus/ARHAUS 2026.xlsm'));
+    assert.equal(khoaCongTrinh('OEM\\ARHAUS\\ARHAUS.xlsx'), 'DIR:oem/arhaus/');
+  });
+  it('file mới lỗi chưa có số => ghi đang dùng số của file cũ cùng mã', () => {
+    const f = [
+      { nguon: 'N/O_CT25-070.xlsx', loi: 'File mới hơn cùng mã đang lỗi', nap_luc: '2026-11-10T01:00:00Z', mtime: '2026-11-09T01:00:00Z' },
+      { nguon: 'N/N_CT25-070.xlsx', loi: 'File is not a zip file', nap_luc: '2026-11-10T02:00:00Z', mtime: null },
+      { nguon: 'N/Z_CT25-099.xlsx', loi: 'File is not a zip file', nap_luc: '2026-11-10T02:00:00Z', mtime: null },
+    ];
+    const tk = [{ nguon: 'N/O_CT25-070.xlsx', n: 5, tt: 5, ipo: 5, ten: 5, ds: ['CT A'] }];
+    const kq = fileCanXem(f, tk);
+    const moi = kq.find(x => x.nguon === 'N/N_CT25-070.xlsx')!;
+    assert.equal(moi.dungSoCua, 'N/O_CT25-070.xlsx');
+    assert.equal(moi.luuTot, '2026-11-09T01:00:00Z');
+    assert.deepEqual(moi.ten, ['CT A']);
+    assert.equal(kq.find(x => x.nguon === 'N/Z_CT25-099.xlsx')!.dungSoCua, undefined);
   });
 });

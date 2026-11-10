@@ -42,6 +42,7 @@ const TableColumnSetup = lazyPage(() => import('./components/Construction/TableC
 const WorkshopGroupSetup = lazyPage(() => import('./components/Construction/WorkshopGroupSetup'));
 import type { SetupTab } from './components/Setup/DataSetupPage';
 import { LogoAANgang } from './components/LogoAA';
+import { CanhBaoFileLoi } from './components/shared/CanhBaoFileLoi';
 const DataSetupPage = lazyPage(() => import('./components/Setup/DataSetupPage'));
 // Thẻ Xưởng trong Setup (mục Xưởng: triển khai, tổ, công đoạn, lịch ca, cần xem) — tải riêng khi mở thẻ
 const XuongSetup = React.lazy(() => import('./components/Xuong/XuongSetup'));
@@ -1306,6 +1307,8 @@ const MainLayout: React.FC = () => {
       </aside>
 
       <main className="flex-1 flex flex-col min-h-0 pt-14 md:pt-0 h-full overflow-hidden w-full transition-all duration-300 relative">
+        {/* ADMIN: báo file công trình lỗi (BÁO CÁO BOT đang dùng số cũ của file đó) */}
+        {user?.role === 'ADMIN' && <CanhBaoFileLoi />}
         {error ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4">

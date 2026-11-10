@@ -132,7 +132,7 @@ export function dungBaoCaoBot(o: readonly OBot[], ipo: ReadonlySet<string> | nul
 /** File cần xem (GET /api/bot-tong-hop → fileLoi; xem backend/src/server/botTongHop.fileCanXem). Máy chủ cũ chỉ có nguon + loi.
  *  kieu 'doc': tool đọc file lỗi — số đang hiện là của bản đọc tốt gần nhất (luuTot), null = chưa có số;
  *  kieu 'cot': đọc được nhưng 1 cột cần trống cả file (thiếu / đổi tên cột). */
-export interface FileLoiBot { nguon: string; loi: string; kieu?: 'doc' | 'cot'; luc?: string | null; luuTot?: string | null; soDong?: number; ten?: string[] }
+export interface FileLoiBot { nguon: string; loi: string; kieu?: 'doc' | 'cot'; luc?: string | null; luuTot?: string | null; soDong?: number; ten?: string[]; dungSoCua?: string }
 
 /** Tên file từ đường dẫn tương đối (dấu \ của Windows hoặc /). */
 export const tenFile = (nguon: string) => nguon.split(/[\\/]/).pop() || nguon;
