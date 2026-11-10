@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Play, Pause, Circle, Inbox, PackageCheck, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { xuongSetupApi, taiAnhXuong, type ChiTietHex, type CongDoanHex, type ThoiGianXuong } from '../../services/xuongSetupApi';
 import { hhmm, gioVN, moTaSuKien } from '../../services/xuongModel';
+import { khung, table, thead, thC, tdB, tdSo, trong0 } from '../shared/bangBaoCao';
+import { fmtQty } from '../../utils/format';
 
 // ============================================================================
 // CHI TIẾT MỤC XƯỞNG CỦA MỘT HẠNG MỤC (quyết định 6A — docs/designs/xuong-checkin.md):
@@ -29,7 +31,7 @@ export function khoangThoiGian(ms: number): string {
   if (gio) return p ? `${gio} giờ ${p} phút` : `${gio} giờ`;
   return `${p} phút`;
 }
-const so = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const so = (n: number) => fmtQty(n);
 /** Giờ: 1 chữ số lẻ (như báo cáo) */
 const so1 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 1 });
 const ngayGio = (ms: number) => `${hhmm(ms)} ${gioVN(ms).ngay.split('-').reverse().join('/')}`;
@@ -151,31 +153,24 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
       )}
 
       {/* ≥ xl: bảng */}
-      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white rxl:block">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-600">
+      <div className={`${khung} hidden rxl:block`}>
+        <table className={table}>
+          <thead className={thead}>
             <tr>
-              <th className="px-3 py-2 text-left font-semibold">Công đoạn</th>
-              <th className="px-3 py-2 text-left font-semibold">Trạng thái</th>
-              <th className="px-3 py-2 text-right font-semibold">Giao tới</th>
-              <th className="px-3 py-2 text-right font-semibold">Nhận</th>
-              <th className="px-3 py-2 text-right font-semibold">Hoàn thành</th>
-              <th className="px-3 py-2 text-right font-semibold">Giao</th>
-              <th className="px-3 py-2 text-right font-semibold">Giờ chạy</th>
-              <th className="px-3 py-2 text-right font-semibold">Giờ công sản phẩm</th>
+              {['Công đoạn', 'Trạng thái', 'Giao tới', 'Nhận', 'Hoàn thành', 'Giao', 'Giờ chạy', 'Giờ công sản phẩm'].map(t => <th key={t} className={thC}>{t}</th>)}
             </tr>
           </thead>
           <tbody>
             {ds.map(c => (
-              <tr key={c.congDoanId} className="border-t border-slate-100 align-top">
-                <td className="px-3 py-2 text-slate-800"><span className="font-medium">{c.ten ?? c.congDoanId}</span> <span className="text-slate-500">· {c.xuong}</span></td>
-                <td className="px-3 py-2"><TrangThai t={c.trangThai} />{nhanMra(c)}<span className="text-slate-600">{nguoi(c)}</span><div>{co(c)}</div></td>
-                <td className="px-3 py-2 text-right tabular-nums">{so(c.slGiaoDen)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{so(c.slNhan)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{so(c.slHoanThanh)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{so(c.slGiao)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{chayO(c)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{gioCongO(c)}</td>
+              <tr key={c.congDoanId} className="align-top hover:bg-slate-50">
+                <td className={tdB}>{c.ten ?? c.congDoanId} <span className="font-normal text-slate-500">· {c.xuong}</span></td>
+                <td className={tdB}><TrangThai t={c.trangThai} />{nhanMra(c)}<span className="text-slate-600">{nguoi(c)}</span><div>{co(c)}</div></td>
+                <td className={tdSo}>{trong0(c.slGiaoDen, so)}</td>
+                <td className={tdSo}>{trong0(c.slNhan, so)}</td>
+                <td className={tdSo}>{trong0(c.slHoanThanh, so)}</td>
+                <td className={tdSo}>{trong0(c.slGiao, so)}</td>
+                <td className={tdSo}>{chayO(c)}</td>
+                <td className={tdSo}>{gioCongO(c)}</td>
               </tr>
             ))}
           </tbody>

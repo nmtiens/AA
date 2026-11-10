@@ -42,8 +42,8 @@ const tenCot = (label: string) =>
 
 const formatAggregationValue = (value: number, type: AggregationType): string => {
   if (type === 'COUNT' || type === 'DISTINCT_COUNT') return fmtInt(value);
-  // For Sum/Avg, format with 2 decimals strict
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  // Tổng / Trung bình: cùng kiểu ô số của bảng (tối đa 2 số lẻ)
+  return fmtSoLe.format(value);
 };
 
 // --- Helper Components ---
@@ -609,7 +609,7 @@ const DataGrid: React.FC<DataGridProps> = ({
       </div>
 
       {/* Table Area */}
-      <div className="flex-1 overflow-auto custom-scrollbar">
+      <div className={`${bang.khung} flex-1`}>
         <table className={`${bang.table} text-left min-w-[1000px]`}>
           <thead className={bang.thead}>
             <tr>

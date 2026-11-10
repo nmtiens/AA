@@ -5,7 +5,9 @@ import {
   xuongSetupApi, type SetupXuong, type ToSetup, type NguoiDung, type CongDoanSetup, type LichCaSetup,
 } from '../../services/xuongSetupApi';
 import { TEN_CA, LOAI_CA_TANG_CA, tenCo, moTaSuKien, hhmm, gioVN, type LoaiCa } from '../../services/xuongModel';
-import { INPUT, BTN, BTN_CHINH, KHUNG, TH, TD } from './xuongDesktopUi';
+import { INPUT, BTN, BTN_CHINH, KHUNG } from './xuongDesktopUi';
+import { khung, table, thead, thC as TH, tdB as TD, tdSo, trong0 } from '../shared/bangBaoCao';
+import { fmtInt, fmtQty } from '../../utils/format';
 import { authXuong } from '../../services/xuongClock';
 import { tramQuanLyApi, type TramDs } from '../../services/xuongTramApi';
 import type { CheDoCham } from '../../services/xuongSetupApi';
@@ -213,10 +215,10 @@ export function XuongToSetup({ d, bao, tai }: MucProps) {
       </div>
       {inThe && d.xuong && <InTheQr xuong={d.xuong} dsTo={d.to.filter(t => t.active)} onClose={() => setInThe(false)} />}
       {sua === 'moi' && <SuaTo d={d} to={null} bao={bao} xong={() => { setSua(null); tai(); }} huy={() => setSua(null)} />}
-      <table className="w-full min-w-[36rem] rmd:min-w-0">
-        <thead className="bg-slate-50"><tr>
+      <div className={khung}><table className={`${table} min-w-[36rem] rmd:min-w-0`}>
+        <thead className={thead}><tr>
           <th className={TH}>Tổ</th><th className={TH}>Tổ trưởng</th><th className={TH}>Chấm công</th><th className={TH}>Công đoạn phụ trách</th>
-          <th className={`${TH} text-right`}>Thành viên</th><th className={TH} />
+          <th className={TH}>Thành viên</th><th className={TH} />
         </tr></thead>
         <tbody>
           {ds.map(t => (
@@ -225,7 +227,7 @@ export function XuongToSetup({ d, bao, tai }: MucProps) {
             </FragmentTo>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
@@ -233,8 +235,8 @@ export function XuongToSetup({ d, bao, tai }: MucProps) {
 function FragmentTo({ t, tenCd, mo, onSua, children }: { t: ToSetup; tenCd: (id: string) => string; mo: boolean; onSua: () => void; children: ReactNode }) {
   return (
     <>
-      <tr className={`border-t border-slate-100 ${t.active ? '' : 'text-slate-400'}`}>
-        <td className={`${TD} font-medium text-slate-800`}>{t.ten}{!t.active && <span className="ml-1 text-xs text-slate-500">(ngừng)</span>}</td>
+      <tr className={t.active ? 'hover:bg-slate-50' : 'text-slate-400'}>
+        <td className={TD}>{t.ten}{!t.active && <span className="ml-1 text-xs text-slate-500">(ngừng)</span>}</td>
         <td className={TD}>
           {t.toTruong
             ? <>{t.toTruong.ten}{t.toTruong.msnv ? <span className="text-slate-500"> · {t.toTruong.msnv}</span> : null}
@@ -247,10 +249,10 @@ function FragmentTo({ t, tenCd, mo, onSua, children }: { t: ToSetup; tenCd: (id:
           {(t.soTram ?? 0) > 0 && <span className="ml-1 text-xs text-slate-500">· {t.soTram} trạm</span>}
         </td>
         <td className={TD}>{t.congDoan.map(tenCd).join(', ') || <span className="text-amber-700">Chưa gán</span>}</td>
-        <td className={`${TD} text-right tabular-nums`}>{t.thanhVien.length || '—'}</td>
+        <td className={tdSo}>{trong0(t.thanhVien.length, fmtInt)}</td>
         <td className={`${TD} text-right`}><button type="button" className={BTN} onClick={onSua}><Pencil size={13} /> {mo ? 'Đóng' : 'Sửa'}</button></td>
       </tr>
-      {mo && <tr><td colSpan={6} className="p-0">{children}</td></tr>}
+      {mo && <tr><td colSpan={6} className="border-b border-r border-slate-300 p-0">{children}</td></tr>}
     </>
   );
 }
@@ -291,14 +293,14 @@ export function XuongCongDoanSetup({ d, bao, tai }: MucProps) {
           <button type="button" className={BTN_CHINH} disabled={!doi.size} onClick={luu}><Check size={14} /> Lưu {doi.size || ''}</button>
         </div>
       </div>
-      <table className="w-full min-w-[36rem] rmd:min-w-0">
-        <thead className="bg-slate-50"><tr>
+      <div className={khung}><table className={`${table} min-w-[36rem] rmd:min-w-0`}>
+        <thead className={thead}><tr>
           <th className={`${TH} w-20`}>Thứ tự</th><th className={TH}>Nhóm công đoạn</th><th className={TH}>Công đoạn chi tiết (tổ)</th>
           <th className={TH}>Công đoạn xưởng</th><th className={`${TH} w-20`}>Bao bì</th><th className={`${TH} w-24`}>Đang dùng</th>
         </tr></thead>
         <tbody>
           {ds.map(c => (
-            <tr key={c.id} className={`border-t border-slate-100 ${doi.has(c.id) ? 'bg-amber-50' : ''}`}>
+            <tr key={c.id} className={doi.has(c.id) ? 'bg-amber-50' : ''}>
               <td className={TD}><input type="number" min={0} className={INPUT} value={c.thuTu} onChange={e => sua(c.id, { thuTu: Number(e.target.value) || 0 })} aria-label="Thứ tự" /></td>
               <td className={TD}><input className={INPUT} value={c.cdTachMa ?? ''} onChange={e => sua(c.id, { cdTachMa: e.target.value })} aria-label="Nhóm công đoạn" /></td>
               <td className={TD}><input className={INPUT} value={c.ten} onChange={e => sua(c.id, { ten: e.target.value })} aria-label="Công đoạn chi tiết" /></td>
@@ -308,7 +310,7 @@ export function XuongCongDoanSetup({ d, bao, tai }: MucProps) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
@@ -331,8 +333,8 @@ function DongLichCa({ ca, lich, macDinh, xuong, admin, bao, tai }: {
     if (r.ok) { bao(true, `Đã lưu ${TEN_CA[ca].toLowerCase()} ${dich === '*' ? '(mặc định mọi xưởng)' : `xưởng ${dich}`}`); tai(); } else bao(false, r.message);
   };
   return (
-    <tr className={`border-t border-slate-100 ${doi ? 'bg-amber-50' : ''}`}>
-      <td className={`${TD} font-medium text-slate-800`}>{TEN_CA[ca]}</td>
+    <tr className={doi ? 'bg-amber-50' : ''}>
+      <td className={TD}>{TEN_CA[ca]}</td>
       <td className={TD}><input type="time" className={INPUT} value={bd} onChange={e => setBd(e.target.value)} aria-label={`Giờ bắt đầu ${TEN_CA[ca]}`} /></td>
       <td className={TD}><input type="time" className={INPUT} value={kt} onChange={e => setKt(e.target.value)} aria-label={`Giờ kết thúc ${TEN_CA[ca]}`} /></td>
       <td className={TD}>
@@ -371,8 +373,8 @@ export function XuongLichCaSetup({ d, bao, tai }: MucProps) {
         </p>
       )}
       <div className={KHUNG}>
-        <table className="w-full min-w-[36rem] rmd:min-w-0">
-          <thead className="bg-slate-50"><tr>
+        <div className={khung}><table className={`${table} min-w-[36rem] rmd:min-w-0`}>
+          <thead className={thead}><tr>
             <th className={TH}>Ca</th><th className={`${TH} w-32`}>Bắt đầu</th><th className={`${TH} w-32`}>Kết thúc</th>
             <th className={TH}>Giờ nghỉ (không tính giờ công)</th><th className={TH}>Áp dụng</th><th className={TH} />
           </tr></thead>
@@ -382,7 +384,7 @@ export function XuongLichCaSetup({ d, bao, tai }: MucProps) {
                 lich={d.lichCa.find(l => l.xuong === d.xuong && l.loaiCa === ca)} macDinh={d.lichCa.find(l => l.xuong === '*' && l.loaiCa === ca)} />
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
       <p className="text-xs text-slate-500">Ca kết thúc sớm hơn giờ bắt đầu là ca qua đêm (vd ca 4: 16:15–06:00). Đổi lịch ca thì giờ công các ngày được tính lại khi xem.</p>
     </div>
@@ -470,13 +472,13 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
           {boLoc === 'can_xu_ly' ? `Không có thao tác nào cần xử lý.${soMoiCo ? ` (${soMoiCo} thao tác chỉ để biết — chọn "Mọi cờ" để xem.)` : ''}` : 'Không có thao tác nào cần xem.'}</p> : (
           <>
           {catBot && <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">Hiện {ds.length} thao tác mới nhất.</p>}
-          <table className="w-full min-w-[36rem] rmd:min-w-0">
-            <thead className="bg-slate-50"><tr>
+          <div className={khung}><table className={`${table} min-w-[36rem] rmd:min-w-0`}>
+            <thead className={thead}><tr>
               <th className={TH}>Lúc</th><th className={TH}>Thao tác</th><th className={TH}>Hạng mục · công đoạn · tổ</th><th className={TH}>Cờ</th><th className={TH} />
             </tr></thead>
             <tbody>
               {ds.map(x => (
-                <tr key={String(x.id)} className="border-t border-slate-100">
+                <tr key={String(x.id)} className="hover:bg-slate-50">
                   <td className={`${TD} whitespace-nowrap tabular-nums`}>{ngayGio(x.device_ts_hieu_chinh)}</td>
                   <td className={TD}>{moTaSuKien({ loai: String(x.loai), soLuong: x.so_luong as number | null, soNguoi: x.so_nguoi as number | null,
                     lyDo: x.ly_do_tam_ngung as string | null, duLieu: x.du_lieu as Record<string, unknown> | null })}</td>
@@ -493,26 +495,26 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           </>
         )}
       </div>
       <div className={KHUNG}>
         <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Hạng mục có cờ <span className="text-sm font-normal text-slate-500">· {d.trangThai.length}</span></p>
         {d.trangThai.length === 0 ? <p className="px-4 py-6 text-sm text-slate-500">Không có.</p> : (
-          <table className="w-full min-w-[36rem] rmd:min-w-0">
-            <thead className="bg-slate-50"><tr><th className={TH}>Hạng mục</th><th className={TH}>Công đoạn</th><th className={TH}>Số lượng</th><th className={TH}>Cờ</th></tr></thead>
+          <div className={khung}><table className={`${table} min-w-[36rem] rmd:min-w-0`}>
+            <thead className={thead}><tr><th className={TH}>Hạng mục</th><th className={TH}>Công đoạn</th><th className={TH}>Số lượng</th><th className={TH}>Cờ</th></tr></thead>
             <tbody>
               {d.trangThai.map(x => (
-                <tr key={`${x.hex}|${x.congDoanId}`} className="border-t border-slate-100">
-                  <td className={TD}><span className="font-medium tabular-nums">{String(x.hex)}</span> {String(x.tenHangMuc ?? '')}</td>
+                <tr key={`${x.hex}|${x.congDoanId}`} className="hover:bg-slate-50">
+                  <td className={TD}><span className="tabular-nums">{String(x.hex)}</span> {String(x.tenHangMuc ?? '')}</td>
                   <td className={TD}>{tenCd(x.congDoanId)}</td>
-                  <td className={`${TD} tabular-nums`}>Giao tới {String(x.slGiaoDen)} · Nhận {String(x.slNhan)} · Xong {String(x.slHoanThanh)} · Giao {String(x.slGiao)}</td>
+                  <td className={`${TD} tabular-nums`}>Giao tới {fmtQty(x.slGiaoDen)} · Nhận {fmtQty(x.slNhan)} · Xong {fmtQty(x.slHoanThanh)} · Giao {fmtQty(x.slGiao)}</td>
                   <td className={TD}>{((x.co as string[]) ?? []).map(c => <span key={c} className="mr-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">{tenCo(c)}</span>)}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

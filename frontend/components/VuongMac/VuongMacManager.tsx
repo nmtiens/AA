@@ -391,37 +391,37 @@ export default function VuongMacManager() {
             <button onClick={() => { setF(DEFAULT_LIST); setQInput(''); setLastPick(null); }} className="text-slate-500 underline">Bỏ lọc</button>
           )}
         </div>
-        <div className="overflow-auto rounded-lg border border-slate-200">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <div className={bang.khung}>
+          <table className={`${bang.table} min-w-[1100px]`}>
+            <thead className={bang.thead}>
               <tr>
                 {['Trạng thái', 'HEX · Công trình · Hạng mục', 'Vướng mắc', 'Loại', 'Khu vực · Công đoạn', 'Người xử lý', 'BOT / hạn', 'Người báo'].map(h => (
-                  <th key={h} className="whitespace-nowrap px-3 py-2 text-left font-medium">{h}</th>
+                  <th key={h} className={`${bang.thC} whitespace-nowrap`}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {rows.map(v => {
                 const cd = botCountdown(v);
                 const mine = me && v.handler && v.handler.trim().toLowerCase() === (me.fullName ?? '').trim().toLowerCase();
                 return (
                   <tr key={v.id} onClick={() => setDetail(v)} title="Bấm để mở chi tiết" className="group cursor-pointer align-top hover:bg-blue-50/40">
-                    <td className="px-3 py-2"><div className="flex flex-col items-start gap-1"><StatusPill v={v} /><PriorityPill p={v.priority} />{v.escalatedAt && v.status !== 'closed' && <span className="text-xs text-red-600">🚨 báo QL</span>}</div></td>
-                    <td className="max-w-[260px] px-3 py-2">
+                    <td className={bang.tdB}><div className="flex flex-col items-start gap-1"><StatusPill v={v} /><PriorityPill p={v.priority} />{v.escalatedAt && v.status !== 'closed' && <span className="text-xs text-red-600">🚨 báo QL</span>}</div></td>
+                    <td className={`${bang.tdB} max-w-[260px]`}>
                       <p className="font-semibold text-blue-700 underline-offset-2 group-hover:underline">HEX {v.hex}</p>
                       <p className="truncate text-slate-700" title={v.congTrinh ?? ''}>{v.congTrinh || '—'}</p>
                       <p className="truncate text-xs text-slate-500" title={v.hangMuc ?? ''}>{v.hangMuc || ''}</p>
                     </td>
-                    <td className="max-w-[360px] px-3 py-2"><p className="line-clamp-3 text-slate-800">{v.content}</p>{(v.photos?.length ?? 0) > 0 && <span className="text-xs text-slate-400">📷 {v.photos!.length}</span>}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-slate-700">{CAT_CODE[v.category]}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-slate-700">{v.xuong || '—'}<br /><span className="text-xs text-slate-500">{v.stage || '—'}{v.bop && v.stage && !String(v.bop).toUpperCase().startsWith(v.stage) ? ` → ${String(v.bop).slice(0, 4)}` : ''}</span></td>
-                    <td className="whitespace-nowrap px-3 py-2">{v.handler ? <span className={mine ? 'font-medium text-indigo-700' : 'text-slate-700'}>{v.handler}</span> : <span className="text-amber-700">Chưa giao</span>}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-slate-700">
+                    <td className={`${bang.tdB} max-w-[360px]`}><p className="line-clamp-3 text-slate-800">{v.content}</p>{(v.photos?.length ?? 0) > 0 && <span className="text-xs text-slate-400">📷 {v.photos!.length}</span>}</td>
+                    <td className={bang.tdSo}>{CAT_CODE[v.category]}</td>
+                    <td className={`${bang.tdB} whitespace-nowrap`}>{v.xuong || '—'}<br /><span className="text-xs text-slate-500">{v.stage || '—'}{v.bop && v.stage && !String(v.bop).toUpperCase().startsWith(v.stage) ? ` → ${String(v.bop).slice(0, 4)}` : ''}</span></td>
+                    <td className={`${bang.tdB} whitespace-nowrap`}>{v.handler ? <span className={mine ? 'font-medium text-indigo-700' : 'text-slate-700'}>{v.handler}</span> : <span className="text-amber-700">Chưa giao</span>}</td>
+                    <td className={`${bang.tdB} whitespace-nowrap`}>
                       {v.bot ? <span className="block text-xs">{v.bot.split(' - ')[1] ?? v.bot}</span> : <span className="text-sm text-slate-500">Chưa có hạn</span>}
                       {cd && <span className={`block text-xs font-medium ${cd.cls}`}>{cd.text}</span>}
                       {v.deadline && <span className="block text-xs text-slate-400">NK hạng mục {fmtDay(v.deadline)}</span>}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{v.createdBy}<br />{fmtShort(v.createdAt)}</td>
+                    <td className={`${bang.tdB} whitespace-nowrap`}>{v.createdBy}<br />{fmtShort(v.createdAt)}</td>
                   </tr>
                 );
               })}

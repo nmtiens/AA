@@ -7,6 +7,8 @@ import { RefreshCw, Check, RotateCcw, Search } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { fetchWorkshopGroups, saveWorkshopGroups, WorkshopCodeInfo } from '../../services/dataService';
 import { applyWorkshopMapping, normWorkshop } from '../../utils/workshopGroups';
+import { fmtInt } from '../../utils/format';
+import * as bang from '../shared/bangBaoCao';
 
 interface Props {
   /** Nằm trong trang chung Setup dữ liệu (thẻ): tiêu đề gọn, không icon lớn */
@@ -139,16 +141,16 @@ const WorkshopGroupSetup: React.FC<Props> = ({ onSaved, embedded = false }) => {
             {loading ? (
               <div className="py-16 flex justify-center text-slate-400"><RefreshCw className="animate-spin" size={20} /></div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-slate-200 text-xs text-slate-500">
+              <div className={`${bang.khung} max-h-[calc(100vh-13rem)]`}>
+                <table className={bang.table}>
+                  <thead className={bang.thead}>
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium w-10">#</th>
-                      <th className="px-3 py-2 text-left font-medium">Mã xưởng</th>
+                      <th className={`${bang.thC} w-10`}>#</th>
+                      <th className={`${bang.thC} whitespace-nowrap`}>Mã xưởng</th>
                       {TABLE_ORDER.map(t => (
-                        <th key={t} className="px-3 py-2 text-right font-medium whitespace-nowrap">{TABLE_LABELS[t]}</th>
+                        <th key={t} className={`${bang.thC} whitespace-nowrap`}>{TABLE_LABELS[t]}</th>
                       ))}
-                      <th className="px-3 py-2 text-left font-medium min-w-[180px]">Gộp vào xưởng</th>
+                      <th className={`${bang.thC} min-w-[180px]`}>Gộp vào xưởng</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -156,22 +158,20 @@ const WorkshopGroupSetup: React.FC<Props> = ({ onSaved, embedded = false }) => {
                       const g = draft[c.code] || '';
                       const changed = (saved[c.code] || '') !== g;
                       return (
-                        <tr key={c.code} className={`border-t border-slate-100 ${changed ? 'bg-amber-50' : g ? 'bg-slate-50' : ''}`}>
-                          <td className="px-3 py-1.5 text-slate-400 tabular-nums">{i + 1}</td>
-                          <td className="px-3 py-1.5 font-semibold text-slate-800 whitespace-nowrap">
+                        <tr key={c.code} className={changed ? 'bg-amber-50' : g ? 'bg-slate-50' : ''}>
+                          <td className={bang.tdSo}>{fmtInt(i + 1)}</td>
+                          <td className={`${bang.tdB} whitespace-nowrap font-bold`}>
                             {c.code}
-                            {c.total === 0 && <span className="ml-2 text-[0.6875rem] font-normal text-slate-400">(không còn trong dữ liệu)</span>}
+                            {c.total === 0 && <span className="ml-2 text-sm font-normal text-slate-500">(không còn trong dữ liệu)</span>}
                           </td>
                           {TABLE_ORDER.map(t => (
-                            <td key={t} className="px-3 py-1.5 text-right tabular-nums text-slate-600">
-                              {c.counts[t] ? c.counts[t].toLocaleString('en-US') : <span className="text-slate-300">–</span>}
-                            </td>
+                            <td key={t} className={bang.tdSo}>{bang.trong0(c.counts[t] ?? 0, fmtInt)}</td>
                           ))}
-                          <td className="px-3 py-1.5">
+                          <td className={`${bang.tdB} py-1`}>
                             <select
                               value={g}
                               onChange={e => setGroup(c.code, e.target.value)}
-                              className={`h-8 w-full rounded-md border px-2 text-sm focus:border-slate-500 focus:outline-none ${g ? 'border-slate-400 bg-white font-medium text-slate-900' : 'border-slate-200 bg-white text-slate-400'}`}
+                              className={`h-8 w-full rounded-md border px-2 focus:border-slate-500 focus:outline-none ${g ? 'border-slate-400 bg-white font-medium text-slate-900' : 'border-slate-200 bg-white text-slate-400'}`}
                             >
                               <option value="">{c.code} (giữ nguyên)</option>
                               {groupOptions.filter(o => o !== c.code).map(o => (
@@ -183,6 +183,17 @@ const WorkshopGroupSetup: React.FC<Props> = ({ onSaved, embedded = false }) => {
                       );
                     })}
                   </tbody>
+                  {rows.length > 0 && (
+                    <tfoot className={bang.tfoot}>
+                      <tr>
+                        <td colSpan={2} className={`${bang.tdB} text-center`}>TỔNG</td>
+                        {TABLE_ORDER.map(t => (
+                          <td key={t} className={bang.tdSo}>{bang.trong0(rows.reduce((a, c) => a + (c.counts[t] ?? 0), 0), fmtInt)}</td>
+                        ))}
+                        <td className={bang.tdB} />
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             )}

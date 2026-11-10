@@ -226,9 +226,9 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
     <section className="space-y-4 border-t border-slate-200 pt-5">
       <div className="flex flex-wrap items-center gap-3">
         <h4 className="text-base font-bold text-slate-900">3/ THEO DÕI &amp; PHÂN TÍCH <span className="text-red-600">ĐIỀU PHỐI KẾ HOẠCH THÁNG – TUẦN</span></h4>
-        <div className="flex items-center text-sm">
-          <span className="border border-slate-300 bg-emerald-300 px-4 py-2 font-bold text-slate-900">THÁNG</span>
-          <select value={thangChon} onChange={e => doiThang(e.target.value)} className="border border-l-0 border-slate-300 bg-sky-50 px-3 py-2 text-slate-800">
+        <div className="flex items-center text-[0.9375rem] font-medium text-slate-900">
+          <span className="border border-slate-300 bg-emerald-300 px-3 py-1.5 font-bold">THÁNG</span>
+          <select value={thangChon} onChange={e => doiThang(e.target.value)} className="border border-l-0 border-slate-300 bg-white px-2 py-1.5">
             {dsThang.map(m => <option key={m} value={m}>{nhanThang(m)}{coKhThang.includes(m) ? '' : ' (chưa có KH tháng)'}</option>)}
           </select>
         </div>
@@ -351,7 +351,7 @@ const DieuPhoiKeHoach = ({ loc, cot, onHexClick }: {
                   <th className={bang.thC}>TRỄ</th>
                   <th className={bang.thC}>CHƯA ĐẾN HẠN</th>
                   <th className={`${bang.thC} w-48`}>TỶ LỆ ĐẠT</th>
-                  <th className={bang.thC}>GIÁ TRỊ KH (TỶ)</th>
+                  <th className={bang.thC}>GIÁ TRỊ KH (tỷ)</th>
                 </tr>
               </thead>
               <tbody>

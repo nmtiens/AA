@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { X, RefreshCw, CheckCircle2, XCircle, Plus, Trash2, Loader2 } from 'lucide-react';
+import * as bang from '../../../shared/bangBaoCao';
 import { getToken } from '../../../../services/userService'; // SỬA: dùng chung hàm đọc đúng key 'app_token'
                                                        // thay vì tự đọc sai key 'token' như bản cũ —
                                                        // đây là lý do mọi thao tác lưu/thêm/xóa luôn
@@ -243,18 +244,18 @@ export const DataUpdateLogModal: React.FC<Props> = ({
           </div>
         )}
 
-        <div className="overflow-y-auto p-4">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-slate-500 text-xs uppercase">
-                <th className="text-left px-3 py-2 w-10">STT</th>
-                <th className="text-left px-3 py-2">Nguồn dữ liệu</th>
-                <th className="text-left px-3 py-2">Cập nhật lần cuối</th>
-                <th className="text-left px-3 py-2">Dữ liệu cập nhật đến ngày</th>
-                <th className="text-left px-3 py-2">Trạng thái</th>
-                <th className="text-left px-3 py-2 w-40">Nguồn dữ liệu từ</th>
-                <th className="text-left px-3 py-2 w-48">Ghi chú</th>
-                <th className="text-left px-3 py-2 w-10"></th>
+        <div className={`${bang.khung} m-4 min-h-0`}>
+          <table className={bang.table}>
+            <thead className={bang.thead}>
+              <tr>
+                <th className={`${bang.thC} w-10`}>STT</th>
+                <th className={`${bang.thB} text-left`}>Nguồn dữ liệu</th>
+                <th className={bang.thC}>Cập nhật lần cuối</th>
+                <th className={bang.thC}>Dữ liệu đến ngày</th>
+                <th className={bang.thC}>Trạng thái</th>
+                <th className={`${bang.thB} w-40 text-left`}>Nguồn từ</th>
+                <th className={`${bang.thB} w-48 text-left`}>Ghi chú</th>
+                <th className={`${bang.thB} w-10`}></th>
               </tr>
             </thead>
             <tbody>
@@ -263,30 +264,30 @@ export const DataUpdateLogModal: React.FC<Props> = ({
                 const savingSource = savingKey === `${row.table}:sourceNote`;
                 const savingNote = savingKey === `${row.table}:note`;
                 return (
-                  <tr key={row.table} className={`rounded-lg ${fresh ? 'bg-green-50' : 'bg-red-50'}`}>
-                    <td className="px-3 py-2 text-slate-400 align-top">{i + 1}</td>
-                    <td className="px-3 py-2 font-medium text-slate-700 align-top">
+                  <tr key={row.table} className="hover:bg-slate-50">
+                    <td className={`${bang.tdSo} align-top`}>{i + 1}</td>
+                    <td className={`${bang.tdB} align-top`}>
                       {row.label}
                       {row.isManual && (
                         <span className="ml-1.5 text-[0.625rem] font-normal text-slate-400">(thủ công)</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-600 align-top whitespace-nowrap">
+                    <td className={`${bang.tdSo} align-top`}>
                       <div>{row.lastUpdated ? new Date(row.lastUpdated).toLocaleString('vi-VN') : '—'}</div>
-                      <div className="text-slate-400 text-xs">
+                      <div className="text-sm text-slate-500">
                         {formatRelativeTime(row.hoursAgo)}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-slate-600 align-top whitespace-nowrap">
+                    <td className={`${bang.tdSo} align-top`}>
                       {row.dataAsOfDate ? new Date(row.dataAsOfDate).toLocaleDateString('vi-VN') : '—'}
                     </td>
-                    <td className="px-3 py-2 align-top">
+                    <td className={`${bang.tdB} align-top`}>
                       <span className={`inline-flex items-center gap-1.5 font-semibold ${fresh ? 'text-green-700' : 'text-red-700'}`}>
                         {fresh ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
                         {fresh ? 'Đã cập nhật' : 'Chưa cập nhật'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 align-top">
+                    <td className={`${bang.tdB} align-top`}>
                       <div className="relative">
                         <input
                           value={row.sourceNote}
@@ -297,7 +298,7 @@ export const DataUpdateLogModal: React.FC<Props> = ({
                         {savingSource && <Loader2 size={11} className="animate-spin absolute right-1.5 top-1.5 text-slate-400" />}
                       </div>
                     </td>
-                    <td className="px-3 py-2 align-top">
+                    <td className={`${bang.tdB} align-top`}>
                       <div className="relative">
                         <input
                           value={row.note}
@@ -308,7 +309,7 @@ export const DataUpdateLogModal: React.FC<Props> = ({
                         {savingNote && <Loader2 size={11} className="animate-spin absolute right-1.5 top-1.5 text-slate-400" />}
                       </div>
                     </td>
-                    <td className="px-3 py-2 align-top">
+                    <td className={`${bang.tdB} align-top`}>
                       {row.isManual && (
                         <button
                           onClick={() => handleDelete(row.table)}
@@ -326,7 +327,7 @@ export const DataUpdateLogModal: React.FC<Props> = ({
                 );
               })}
               {!loading && rows.length === 0 && (
-                <tr><td colSpan={8} className="px-3 py-8 text-center text-slate-400">Không có dữ liệu</td></tr>
+                <tr><td colSpan={8} className={`${bang.tdB} py-8 text-center text-slate-400`}>Không có dữ liệu</td></tr>
               )}
             </tbody>
           </table>

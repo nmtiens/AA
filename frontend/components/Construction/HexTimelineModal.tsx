@@ -395,19 +395,22 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                       {nvl.needs.length === 0 ? (
                         <p className="text-xs text-slate-400">Chưa có định mức.</p>
                       ) : (
-                        <table className="w-full text-xs">
-                          <tbody className="divide-y divide-slate-100">
-                            {nvl.needs.map((n, idx) => (
-                              <tr key={idx}>
-                                <td className="py-1 pr-2 text-[0.6875rem] text-slate-400 whitespace-nowrap">{NVL_GROUP_LABEL[n.group]}</td>
-                                <td className="py-1 pr-2 text-slate-800">{n.name}</td>
-                                <td className="py-1 text-right tabular-nums whitespace-nowrap text-slate-700">
-                                  {fmtQty(n.qty)} <span className="text-slate-400">{n.dvt}</span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <div className={`${bang.khung} max-h-72`}>
+                          <table className={bang.table}>
+                            <thead className={bang.thead}>
+                              <tr><th className={bang.thC}>Nhóm</th><th className={bang.thC}>Vật tư</th><th className={bang.thC}>Định mức</th></tr>
+                            </thead>
+                            <tbody>
+                              {nvl.needs.map((n, idx) => (
+                                <tr key={idx}>
+                                  <td className={`${bang.tdB} whitespace-nowrap`}>{NVL_GROUP_LABEL[n.group]}</td>
+                                  <td className={bang.tdB}>{n.name}</td>
+                                  <td className={bang.tdSo}>{fmtQty(n.qty)} {n.dvt}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
                     </div>
                     <div className="p-3">

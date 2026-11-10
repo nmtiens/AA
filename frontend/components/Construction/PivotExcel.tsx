@@ -8,7 +8,7 @@ import * as bang from '../shared/bangBaoCao';
 // chữ đỏ, ô lọc (page field), bấm số => danh sách dòng nguồn ("Show Details" của Excel).
 // ============================================================================
 
-const { tdB, thB } = bang;
+const { tdB } = bang;
 // Bảng Pivot: cùng mẫu bảng tab BOT (BangCayBot)
 export const TAT_CA = '(All)';
 
@@ -22,21 +22,21 @@ export function Pivot({ cotDong, p, chon, onChon, nhanCot = m => m }: {
   /** Chữ hiện trên tiêu đề cột (vd khoá ngày YYYY-MM-DD => dd/mm/yyyy) */
   nhanCot?: (m: string) => string;
 }) {
-  if (p.tong === 0) return <p className="text-xs text-slate-400">Không có dữ liệu.</p>;
+  if (p.tong === 0) return <p className="text-sm text-slate-500">Không có dữ liệu.</p>;
   const so = (n: number | undefined, o: NonNullable<ChonO>, cls = '') => (
     <td onClick={n ? () => onChon(cungO(chon, o) ? null : o) : undefined} title={n ? 'Bấm để xem chi tiết' : undefined}
-      className={`${tdB} whitespace-nowrap text-center tabular-nums ${n ? 'cursor-pointer hover:bg-amber-50' : ''} ${cungO(chon, o) ? '!bg-amber-100 font-semibold' : ''} ${cls}`}>
-      {n ? <span className="underline decoration-slate-300 decoration-dotted underline-offset-2">{fmtInt(n)}</span> : ''}
+      className={`${bang.tdSo} ${n ? 'cursor-pointer hover:bg-amber-50' : ''} ${cungO(chon, o) ? '!bg-amber-100 font-semibold' : ''} ${cls}`}>
+      {n ? <span className={bang.soBam}>{fmtInt(n)}</span> : ''}
     </td>
   );
   return (
-    <div className="max-h-[70vh] overflow-auto border-l border-t border-slate-300 custom-scrollbar">
-      <table className="w-full border-separate border-spacing-0 text-[0.9375rem] font-medium text-slate-900">
-        <thead className="sticky top-0 z-20 bg-emerald-300">
+    <div className={`${bang.khung} max-h-[70vh]`}>
+      <table className={bang.table}>
+        <thead className={bang.thead}>
           <tr>
-            <th className={`${thB} sticky left-0 z-20 w-px whitespace-nowrap bg-emerald-300 text-center`}>{cotDong}</th>
-            {p.cols.map(m => <th key={m} className={`${thB} whitespace-nowrap text-center`}>{nhanCot(m)}</th>)}
-            <th className={`${thB} text-center`}>TỔNG</th>
+            <th className={`${bang.thC} sticky left-0 z-20 w-px whitespace-nowrap bg-emerald-300`}>{cotDong}</th>
+            {p.cols.map(m => <th key={m} className={`${bang.thC} whitespace-nowrap`}>{nhanCot(m)}</th>)}
+            <th className={bang.thC}>TỔNG</th>
           </tr>
         </thead>
         <tbody>
@@ -51,7 +51,7 @@ export function Pivot({ cotDong, p, chon, onChon, nhanCot = m => m }: {
             );
           })}
         </tbody>
-        <tfoot className="font-bold text-red-600 [&_td]:sticky [&_td]:bottom-0 [&_td]:z-[2] [&_td]:bg-yellow-300">
+        <tfoot className={bang.tfoot}>
           <tr>
             <td className={`${tdB} left-0 !z-[3] text-center`}>TỔNG</td>
             {p.cols.map(m => <React.Fragment key={m}>{so(p.colTot[m], { m })}</React.Fragment>)}
@@ -71,8 +71,8 @@ export function ChiTiet<T>({ tieuDe, ds, cot, onDong, onHex }: {
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-2 text-xs">
-        <span className="font-semibold text-slate-700">{tieuDe} · {fmtInt(ds.length)} dòng</span>
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-semibold text-slate-700">{tieuDe}</span>
         <button type="button" onClick={onDong} className="rounded-full border border-slate-300 px-2 py-0.5 text-slate-600 hover:bg-slate-100">Đóng ✕</button>
       </div>
       <div className={`${bang.khung} max-h-[45vh]`}>
@@ -116,9 +116,9 @@ export const tenO = (o: ChonO) => (o ? [o.k ?? 'Tất cả dòng', o.m ?? 'tất
 
 /** Ô lọc (page field) như pivot Excel */
 export const Loc = ({ nhan, gia, ds, onDoi }: { nhan: string; gia: string; ds: string[]; onDoi: (v: string) => void }) => (
-  <div className="flex items-center text-sm">
-    <span className="border border-slate-300 bg-emerald-300 px-4 py-2 font-bold text-slate-900">{nhan}</span>
-    <select value={gia} onChange={e => onDoi(e.target.value)} className="border border-l-0 border-slate-300 bg-sky-50 px-3 py-2 text-slate-800">
+  <div className="flex items-center text-[0.9375rem] font-medium text-slate-900">
+    <span className="border border-slate-300 bg-emerald-300 px-3 py-1.5 font-bold">{nhan}</span>
+    <select value={gia} onChange={e => onDoi(e.target.value)} className="border border-l-0 border-slate-300 bg-white px-2 py-1.5">
       <option value={TAT_CA}>{TAT_CA}</option>
       {ds.map(v => <option key={v} value={v}>{v}</option>)}
     </select>

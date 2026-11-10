@@ -4,7 +4,9 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { parseNumber } from '../../utils/numberParsers';
-import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../../../utils/money';
+import { TY_UNIT_LABEL } from '../../../../utils/money';
+import { fmtQty, fmtTy } from '../../../../utils/format';
+import * as bang from '../../../shared/bangBaoCao';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
@@ -32,8 +34,8 @@ interface ExportDetailModalProps {
 }
 
 // Giá trị gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
-const money = (value: number) => formatTrieuAsTy(value);
-const moneyTotal = (value: number) => formatTrieuAsTy(value);
+const money = (value: number) => bang.trong0(value, fmtTy);
+const soLuong = (value: number) => bang.trong0(value, fmtQty);
 
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
@@ -554,8 +556,7 @@ export const ExportDetailModal = ({
     </colgroup>
   );
 
-  const headerCellClass =
-    'cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 transition-colors hover:bg-emerald-100';
+  const headerCellClass = `${bang.thB} cursor-pointer select-none bg-emerald-300 transition-colors hover:bg-emerald-200`;
 
   const SortableHeader = ({
     sortKey,
@@ -575,9 +576,9 @@ export const ExportDetailModal = ({
     <th
       onClick={() => toggleSort(sortKey)}
       style={style}
-      className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}
+      className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-center' : 'text-left'} ${className}`}
     >
-      <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+      <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-center' : ''}`}>
         {children}
         <SortIcon active={sort?.key === sortKey} dir={sort?.dir} />
       </span>
@@ -647,17 +648,17 @@ export const ExportDetailModal = ({
           {filteredRows.length > 0 ? (
             <>
               {/* Header: không padding ngang -> bảng chạy sát mép modal */}
-              <div className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 pt-5">
+              <div className="shrink-0 overflow-hidden bg-emerald-300">
                 <div className="flex">
                   <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                    <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
+                    <table style={tableStyle} className={bang.table}>
                       <ColGroup />
-                      <thead className="font-bold uppercase tracking-tight text-slate-800">
+                      <thead className="text-slate-900">
                         <tr>
                           <th
                             onClick={() => toggleSort('stt')}
                             style={fzStyle(frozen.get('stt'))}
-                            className={`${fzClass(frozen.get('stt'))} cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100`}
+                            className={`${fzClass(frozen.get('stt'))} ${bang.thC} cursor-pointer select-none bg-emerald-300 transition-colors hover:bg-emerald-200`}
                           >
                             <span className="inline-flex items-center justify-center gap-1">
                               STT
@@ -667,7 +668,7 @@ export const ExportDetailModal = ({
                           <th
                             onClick={() => toggleSort('hex')}
                             style={fzStyle(frozen.get('hex'))}
-                            className={`${fzClass(frozen.get('hex'))} min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100`}
+                            className={`${fzClass(frozen.get('hex'))} ${bang.thB} min-w-[140px] cursor-pointer select-none bg-emerald-300 text-left transition-colors hover:bg-emerald-200`}
                           >
                             <span className="inline-flex items-center gap-1">
                               Mã Hex
@@ -682,7 +683,7 @@ export const ExportDetailModal = ({
                                 {meta.label}
                               </SortableHeader>,
                               frozen.get(key),
-                              '!bg-emerald-50'
+                              '!bg-emerald-300'
                             );
                           })}
                         </tr>
@@ -699,7 +700,7 @@ export const ExportDetailModal = ({
                 onScroll={handleBodyScroll}
                 className="min-h-0 flex-1 overflow-auto custom-scrollbar"
               >
-                <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
+                <table style={tableStyle} className={bang.table}>
                   <ColGroup />
                   <tbody>
                     {sortedRows.map((entry, idx) => {
@@ -736,8 +737,6 @@ export const ExportDetailModal = ({
                         }
                       }
 
-                      const rowTopBorder = isHexGroupStart && idx > 0 ? 'border-t-2 border-t-emerald-200' : '';
-                      const cellBorder = 'border-b border-slate-200';
 
                       const renderCell = (key: OptionalColKey): React.ReactNode => {
                         switch (key) {
@@ -746,7 +745,7 @@ export const ExportDetailModal = ({
                               <td
                                 key="hangMuc"
                                 rowSpan={hexRowSpan}
-                                className={`border-r ${cellBorder} px-3 py-2.5 text-left align-middle text-slate-700`}
+                                className={`${bang.tdB} text-left align-middle`}
                               >
                                 {String(row[hangMucKey] || '—')}
                               </td>
@@ -754,7 +753,7 @@ export const ExportDetailModal = ({
 
                           case 'congTrinh':
                             return showProjectColumn ? (
-                              <td key="congTrinh" className={`px-3 py-2.5 text-left align-top text-slate-700 ${cellBorder}`}>
+                              <td key="congTrinh" className={`${bang.tdB} text-left align-top`}>
                                 {String(row[congTrinhKey] || '—')}
                               </td>
                             ) : null;
@@ -764,7 +763,7 @@ export const ExportDetailModal = ({
                               <td
                                 key="xuong"
                                 rowSpan={xuongRowSpan}
-                                className={`border-r ${cellBorder} bg-slate-50 px-3 py-2.5 text-left align-middle font-medium text-slate-700`}
+                                className={`${bang.tdB} bg-white text-left align-middle`}
                               >
                                 {xuongValue}
                               </td>
@@ -772,21 +771,21 @@ export const ExportDetailModal = ({
 
                           case 'date':
                             return (
-                              <td key="date" className={`px-3 py-2.5 text-left align-top text-slate-600 ${cellBorder}`}>
+                              <td key="date" className={`${bang.tdSo} align-top`}>
                                 {formatDateDisplay(row[dateKey]) || '—'}
                               </td>
                             );
 
                           case 'soLuong':
                             return (
-                              <td key="soLuong" className={`px-3 py-2.5 text-right align-top text-slate-800 ${cellBorder}`}>
-                                {parseNumber(row[soLuongKey]).toLocaleString('en-US')}
+                              <td key="soLuong" className={`${bang.tdSo} align-top`}>
+                                {soLuong(parseNumber(row[soLuongKey]))}
                               </td>
                             );
 
                           case 'thanhTien':
                             return (
-                              <td key="thanhTien" className={`px-3 py-2.5 text-right align-top font-medium text-emerald-700 ${cellBorder}`}>
+                              <td key="thanhTien" className={`${bang.tdSo} align-top`}>
                                 {money(parseNumber(row[thanhTienKey]))}
                               </td>
                             );
@@ -797,7 +796,7 @@ export const ExportDetailModal = ({
                                 key="ghiChuXuatKho"
                                 onClick={(e) => openNoteCell(row, e)}
                                 title="Bấm để xem đầy đủ nội dung"
-                                className={`cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors hover:bg-emerald-50 ${cellBorder}`}
+                                className={`${bang.tdB} cursor-pointer text-left align-top break-words whitespace-normal transition-colors hover:bg-emerald-50`}
                               >
                                 {truncateText(getNotePreview(row)) || '—'}
                               </td>
@@ -809,12 +808,12 @@ export const ExportDetailModal = ({
                       };
 
                       return (
-                        <tr key={idx} className={`group transition-colors hover:bg-emerald-50/40 ${rowTopBorder}`}>
+                        <tr key={idx} className="group transition-colors hover:bg-emerald-50/40">
                           {isHexGroupStart && (
                             <td
                               rowSpan={hexRowSpan}
                               style={fzStyle(frozen.get('stt'))}
-                              className={`${fzClass(frozen.get('stt'))} border-r ${cellBorder} bg-emerald-50 px-2 py-2.5 text-center align-middle font-semibold text-slate-700`}
+                              className={`${fzClass(frozen.get('stt'))} ${bang.tdSo} bg-white align-middle`}
                             >
                               {entry.stt}
                             </td>
@@ -823,7 +822,7 @@ export const ExportDetailModal = ({
                             <td
                               rowSpan={hexRowSpan}
                               style={fzStyle(frozen.get('hex'))}
-                              className={`${fzClass(frozen.get('hex'))} border-r ${cellBorder} bg-emerald-50 px-3 py-2.5 text-left align-middle font-bold text-slate-800`}
+                              className={`${fzClass(frozen.get('hex'))} ${bang.tdB} bg-white text-left align-middle font-bold`}
                             >
                               {hexValue}
                             </td>
@@ -832,7 +831,7 @@ export const ExportDetailModal = ({
                             applyFrozen(
                               renderCell(key),
                               frozen.get(key),
-                              key === 'xuong' ? '!bg-slate-50' : '!bg-white group-hover:!bg-emerald-50'
+                              '!bg-white group-hover:!bg-emerald-50'
                             )
                           )}
                         </tr>
@@ -843,12 +842,12 @@ export const ExportDetailModal = ({
               </div>
 
               {/* Footer: không padding ngang */}
-              <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
+              <div className="shrink-0 overflow-hidden bg-yellow-300">
                 <div className="flex">
                   <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                    <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
+                    <table style={tableStyle} className={bang.table}>
                       <ColGroup />
-                      <tfoot className="font-bold text-slate-900">
+                      <tfoot className={bang.tfoot}>
                         <tr>
                           {(() => {
                             const numericKeys: OptionalColKey[] = ['soLuong', 'thanhTien'];
@@ -860,10 +859,10 @@ export const ExportDetailModal = ({
                               cells.push(
                                 <td
                                   key="label"
-                                  className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} bg-emerald-100 px-3 py-3 text-left`}
+                                  className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} ${bang.tdB} text-left`}
                                   colSpan={pendingSpan}
                                 >
-                                  TỔNG CỘNG ({groupCount} mã Hex)
+                                  TỔNG ({groupCount} mã Hex)
                                 </td>
                               );
                               labelRendered = true;
@@ -883,21 +882,21 @@ export const ExportDetailModal = ({
                               if (isNumeric) {
                                 cells.push(
                                   applyFrozen(
-                                    <td key={key} className="px-3 py-3 text-right">
+                                    <td key={key} className={bang.tdSo}>
                                       {key === 'soLuong'
-                                        ? totals.soLuong.toLocaleString('en-US')
-                                        : moneyTotal(totals.thanhTien)}
+                                        ? soLuong(totals.soLuong)
+                                        : money(totals.thanhTien)}
                                     </td>,
                                     frozen.get(key),
-                                    '!bg-emerald-100'
+                                    '!bg-yellow-300'
                                   )
                                 );
                               } else {
                                 cells.push(
                                   applyFrozen(
-                                    <td key={key} className="px-3 py-3" />,
+                                    <td key={key} className={bang.tdB} />,
                                     frozen.get(key),
-                                    '!bg-emerald-100'
+                                    '!bg-yellow-300'
                                   )
                                 );
                               }

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Check, Send } from 'lucide-react';
 import { xuongSetupApi, type ChoKhaiChiTiet, type CongDoanTk } from '../../services/xuongSetupApi';
-import { BTN, BTN_CHINH, KHUNG, TH, TD } from './xuongDesktopUi';
+import { BTN, BTN_CHINH, KHUNG } from './xuongDesktopUi';
+import { khung, table, thead, thC, tdB, tdSo } from '../shared/bangBaoCao';
 import ChonTuyen, { tenCongDoan } from './ChonTuyen';
+import { fmtQty } from '../../utils/format';
 
 // ============================================================================
 // QT2 — XƯỞNG PHỤ KHAI CĐ CHI TIẾT: thành phần (Gỗ / Sofa / Kim loại / Kính / Đá) mà xưởng chính giao cho xưởng này lúc
@@ -56,32 +58,32 @@ export default function KhaiChiTietXuong({ xuong, bao }: { xuong: string; bao: B
           <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
         </div>
         {loi && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
-        <div className="max-h-[55vh] overflow-y-auto">
-          <table className="w-full min-w-[36rem] rmd:min-w-0">
-            <thead className="sticky top-0 z-[1] bg-slate-50"><tr>
-              <th className={`${TH} w-8`}><input type="checkbox" aria-label="Chọn tất cả" checked={tatCa}
+        <div className={`${khung} max-h-[55vh]`}>
+          <table className={`${table} min-w-[36rem] rmd:min-w-0`}>
+            <thead className={thead}><tr>
+              <th className={`${thC} w-8`}><input type="checkbox" aria-label="Chọn tất cả" checked={tatCa}
                 onChange={() => setChon(tatCa ? new Set() : new Set(ds.map(khoa)))} /></th>
-              <th className={TH}>Hex</th><th className={TH}>Hạng mục · công trình</th><th className={TH}>Thành phần</th>
-              <th className={`${TH} text-right`}>Số bộ</th><th className={TH}>Xưởng chính · lúc triển khai</th><th className={TH}>Tuyến CĐ chi tiết</th>
+              <th className={thC}>Hex</th><th className={thC}>Hạng mục · công trình</th><th className={thC}>Thành phần</th>
+              <th className={thC}>Số bộ</th><th className={thC}>Xưởng chính · lúc triển khai</th><th className={thC}>Tuyến CĐ chi tiết</th>
             </tr></thead>
             <tbody>
               {ds.map(c => {
                 const k = khoa(c);
                 const t = tuyen[k] ?? [];
                 return (
-                  <tr key={k} className={`border-t border-slate-100 ${chon.has(k) ? 'bg-slate-50' : ''}`}>
-                    <td className={TD}><input type="checkbox" aria-label={`Chọn ${c.hex} ${c.thanhPhan}`} checked={chon.has(k)}
+                  <tr key={k} className={chon.has(k) ? 'bg-slate-50' : 'hover:bg-slate-50'}>
+                    <td className={`${tdB} text-center`}><input type="checkbox" aria-label={`Chọn ${c.hex} ${c.thanhPhan}`} checked={chon.has(k)}
                       onChange={() => setChon(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; })} /></td>
-                    <td className={`${TD} font-medium tabular-nums text-slate-800`}>{c.hex}</td>
-                    <td className={TD}><span className="text-slate-800">{c.ten}</span><br /><span className="text-xs text-slate-500">{c.tenCongTrinh}</span></td>
-                    <td className={`${TD} font-semibold`}>{c.thanhPhan}</td>
-                    <td className={`${TD} text-right tabular-nums`}>{c.soLuong} {c.dvt ?? ''}</td>
-                    <td className={`${TD} text-xs`}>{c.xuongChinh} · {c.luc.split(' ')[0].split('-').reverse().join('/')} {c.luc.split(' ')[1]}</td>
-                    <td className={`${TD} text-xs`}>{t.length ? t.map(tenCd).join(' → ') : <span className="text-amber-700">Chưa khai — chọn ở dưới</span>}</td>
+                    <td className={`${tdB} whitespace-nowrap tabular-nums`}>{c.hex}</td>
+                    <td className={tdB}>{c.ten}<br /><span className="text-sm font-normal text-slate-500">{c.tenCongTrinh}</span></td>
+                    <td className={tdB}>{c.thanhPhan}</td>
+                    <td className={tdSo}>{fmtQty(c.soLuong)} {c.dvt ?? ''}</td>
+                    <td className={`${tdB} whitespace-nowrap`}>{c.xuongChinh} · {c.luc.split(' ')[0].split('-').reverse().join('/')} {c.luc.split(' ')[1]}</td>
+                    <td className={tdB}>{t.length ? t.map(tenCd).join(' → ') : <span className="text-amber-700">Chưa khai — chọn ở dưới</span>}</td>
                   </tr>
                 );
               })}
-              {cho && ds.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-sm text-slate-500">Không có thành phần nào đang chờ xưởng {xuong} khai.</td></tr>}
+              {cho && ds.length === 0 && <tr><td colSpan={7} className={`${tdB} py-6 text-center font-normal text-slate-500`}>Không có thành phần nào đang chờ xưởng {xuong} khai.</td></tr>}
             </tbody>
           </table>
         </div>

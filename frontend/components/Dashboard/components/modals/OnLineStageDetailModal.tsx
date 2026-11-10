@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
-import { formatNumber } from '../../utils/numberParsers';
-import { formatTy } from '../../../../utils/money';
+import { fmtInt, fmtSoTy } from '../../../../utils/format';
+import * as bang from '../../../shared/bangBaoCao';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
@@ -142,7 +142,7 @@ export const OnLineStageDetailModal = ({
 
   if (!isOpen) return null;
 
-  const formatter = metric === 'COUNT' ? formatNumber : formatTy; // VALUE đã ở đơn vị Tỷ
+  const formatter = metric === 'COUNT' ? fmtInt : fmtSoTy; // VALUE đã ở đơn vị Tỷ
   const label = metric === 'VALUE' ? 'Giá Trị' : 'Số Lượng';
 
   // Tổng luôn tính trên toàn bộ ON_LINE_STAGES (không phụ thuộc ẩn/hiện cột).
@@ -155,15 +155,15 @@ export const OnLineStageDetailModal = ({
   const renderCell = (
     value: number,
     onClick?: () => void,
-    className = 'font-semibold text-slate-700'
+    className = ''
   ) =>
     value === 0 ? (
-      <span className="text-slate-300">–</span>
+      ''
     ) : onClick ? (
       <button
         type="button"
         onClick={onClick}
-        className={`${className} hover:text-emerald-700 hover:underline`}
+        className={`${className} ${bang.soBam} hover:text-emerald-700`}
       >
         {formatter(value)}
       </button>
@@ -193,8 +193,7 @@ export const OnLineStageDetailModal = ({
     </colgroup>
   );
 
-  const headerCellClass =
-    'cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 transition-colors hover:bg-emerald-100';
+  const headerCellClass = `${bang.thC} cursor-pointer select-none bg-emerald-300 transition-colors hover:bg-emerald-200`;
 
   const exportColumns = [AREA_LABEL, ...orderedStages, 'Tổng'];
   const exportRows = sortedRows.map((row) => {
@@ -228,7 +227,7 @@ export const OnLineStageDetailModal = ({
             </h3>
             <p className="mt-0.5 text-xs text-slate-500">
               {projectName ?? 'Tất cả công trình'} · {label} ·{' '}
-              {metric === 'COUNT' ? 'Hạng mục (Items)' : 'Tỷ đồng'}
+              {metric === 'COUNT' ? 'Hạng mục' : 'tỷ'}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -261,17 +260,17 @@ export const OnLineStageDetailModal = ({
 
         {rows.length > 0 ? (
           <>
-            <div className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 px-5">
+            <div className="shrink-0 overflow-hidden bg-emerald-300">
               <div className="flex">
                 <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                  <table style={tableStyle} className="border-separate border-spacing-0 text-right text-xs">
+                  <table style={tableStyle} className={bang.table}>
                     <ColGroup />
-                    <thead className="font-bold uppercase tracking-tight text-slate-800">
+                    <thead className="text-slate-900">
                       <tr>
                         <th
                           onClick={() => toggleSort('name')}
                           style={fzStyle(frozen.get('name'))}
-                          className={`${fzClass(frozen.get('name'))} cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100`}
+                          className={`${fzClass(frozen.get('name'))} ${bang.thB} cursor-pointer select-none bg-emerald-300 text-left transition-colors hover:bg-emerald-200`}
                         >
                           <span className="inline-flex items-center gap-1">
                             {AREA_LABEL}
@@ -281,20 +280,20 @@ export const OnLineStageDetailModal = ({
                         {orderedStages.map((stage) =>
                           applyFrozen(
                             <th key={stage} onClick={() => toggleSort(stage)} className={headerCellClass}>
-                              <span className="inline-flex items-center justify-end gap-1">
+                              <span className="inline-flex items-center justify-center gap-1">
                                 {stage}
                                 <SortIcon active={sort?.key === stage} dir={sort?.dir} />
                               </span>
                             </th>,
                             frozen.get(stage),
-                            '!bg-emerald-50'
+                            '!bg-emerald-300'
                           )
                         )}
                         <th
                           onClick={() => toggleSort('total')}
-                          className="border-b border-emerald-200 bg-emerald-50 px-3 py-3 font-extrabold text-slate-900 cursor-pointer select-none transition-colors hover:bg-emerald-100"
+                          className={headerCellClass}
                         >
-                          <span className="inline-flex items-center justify-end gap-1">
+                          <span className="inline-flex items-center justify-center gap-1">
                             Tổng
                             <SortIcon active={sort?.key === 'total'} dir={sort?.dir} />
                           </span>
@@ -311,22 +310,22 @@ export const OnLineStageDetailModal = ({
             <div
               ref={bodyScrollRef}
               onScroll={handleBodyScroll}
-              className="min-h-0 overflow-auto custom-scrollbar px-5"
+              className="min-h-0 overflow-auto custom-scrollbar"
             >
-              <table style={tableStyle} className="border-separate border-spacing-0 text-right text-xs">
+              <table style={tableStyle} className={bang.table}>
                 <ColGroup />
-                <tbody className="divide-y divide-emerald-50">
+                <tbody>
                   {sortedRows.map((row) => (
                     <tr key={row.name} className="group transition-colors hover:bg-slate-50">
                       <td
                         style={fzStyle(frozen.get('name'))}
-                        className={`${fzClass(frozen.get('name'))} border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50`}
+                        className={`${fzClass(frozen.get('name'))} ${bang.tdB} bg-white text-left group-hover:bg-slate-50`}
                       >
                         {row.name}
                       </td>
                       {orderedStages.map((stage) =>
                         applyFrozen(
-                          <td key={stage} className="px-3 py-2.5 text-slate-700">
+                          <td key={stage} className={bang.tdSo}>
                             {renderCell(
                               row.values[stage] ?? 0,
                               onValueClick ? () => onValueClick(row.name, stage) : undefined
@@ -336,11 +335,10 @@ export const OnLineStageDetailModal = ({
                           '!bg-white group-hover:!bg-slate-50'
                         )
                       )}
-                      <td className="bg-slate-50/50 px-3 py-2.5">
+                      <td className={`${bang.tdSo} font-bold`}>
                         {renderCell(
                           rowTotal(row),
-                          onValueClick ? () => onValueClick(row.name, TOTAL_STAGE) : undefined,
-                          'font-bold text-slate-900'
+                          onValueClick ? () => onValueClick(row.name, TOTAL_STAGE) : undefined
                         )}
                       </td>
                     </tr>
@@ -350,35 +348,34 @@ export const OnLineStageDetailModal = ({
             </div>
 
             {rows.length > 1 && (
-              <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
+              <div className="shrink-0 overflow-hidden bg-yellow-300">
                 <div className="flex">
                   <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                    <table style={tableStyle} className="border-separate border-spacing-0 text-right text-xs">
+                    <table style={tableStyle} className={bang.table}>
                       <ColGroup />
-                      <tfoot className="font-bold text-slate-900">
+                      <tfoot className={bang.tfoot}>
                         <tr>
                           <td
-                            className={`${frozen.has('name') ? 'sticky left-0 z-10' : ''} bg-emerald-100 px-3 py-3 text-left`}
+                            className={`${frozen.has('name') ? 'sticky left-0 z-10' : ''} ${bang.tdB} text-left`}
                           >
-                            TỔNG CỘNG
+                            TỔNG
                           </td>
                           {orderedStages.map((stage) =>
                             applyFrozen(
-                              <td key={stage} className="px-3 py-3">
+                              <td key={stage} className={bang.tdSo}>
                                 {renderCell(
                                   stageTotal(stage),
                                   onValueClick ? () => onValueClick(null, stage) : undefined
                                 )}
                               </td>,
                               frozen.get(stage),
-                              '!bg-emerald-100'
+                              '!bg-yellow-300'
                             )
                           )}
-                          <td className="px-3 py-3">
+                          <td className={bang.tdSo}>
                             {renderCell(
                               grandTotal,
-                              onValueClick ? () => onValueClick(null, TOTAL_STAGE) : undefined,
-                              'font-bold text-slate-900'
+                              onValueClick ? () => onValueClick(null, TOTAL_STAGE) : undefined
                             )}
                           </td>
                         </tr>

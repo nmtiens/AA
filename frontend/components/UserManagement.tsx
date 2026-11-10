@@ -3,6 +3,7 @@ import { User, PERMISSION_GROUPS, PermissionGroup, ITEM_ACTIONS, ALL_ITEM_IDS, A
 import { userService } from '../services/userService';
 import { Plus, Edit2, Trash2, X, Check, Search, RefreshCw, Loader, Mail, Briefcase, CheckSquare, Square, MinusSquare, Crown, User as UserIcon, CornerDownRight } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { khung, table, thead, thB, thC, tdB, tdSo } from './shared/bangBaoCao';
 
 // Tất cả id quyền (item + action)
 const ALL_PERMISSION_IDS = [...ALL_ITEM_IDS, ...ALL_ACTION_IDS];
@@ -239,33 +240,33 @@ const UserManagement: React.FC = () => {
       </div>
 
       {/* Danh sách */}
-      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="flex-1 overflow-auto custom-scrollbar">
-          <table className="w-full min-w-[1000px] border-collapse text-left text-sm">
-            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-white text-xs text-slate-500">
+      <div className="flex flex-1 flex-col overflow-hidden bg-white">
+        <div className={`${khung} flex-1`}>
+          <table className={`${table} min-w-[1000px]`}>
+            <thead className={thead}>
               <tr>
-                <th className="w-12 py-3 pl-5 pr-2 text-right font-medium">#</th>
-                <th className="px-4 py-3 font-medium">Người dùng</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Phòng ban</th>
-                <th className="px-4 py-3 font-medium">Vai trò</th>
-                <th className="px-4 py-3 font-medium">Quyền</th>
-                <th className="px-4 py-3 font-medium">Trạng thái</th>
-                <th className="px-4 py-3 text-right font-medium" />
+                <th className={`${thC} w-12`}>#</th>
+                <th className={thC}>Người dùng</th>
+                <th className={thC}>Email</th>
+                <th className={thC}>Phòng ban</th>
+                <th className={thC}>Vai trò</th>
+                <th className={thC}>Quyền</th>
+                <th className={thC}>Trạng thái</th>
+                <th className={thB} />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="p-8 text-center text-slate-400">Đang tải dữ liệu...</td></tr>
+                <tr><td colSpan={8} className={`${tdB} p-8 text-center font-normal text-slate-500`}>Đang tải dữ liệu...</td></tr>
               ) : filteredUsers.length === 0 ? (
-                <tr><td colSpan={8} className="p-8 text-center text-slate-400">Không tìm thấy người dùng nào.</td></tr>
+                <tr><td colSpan={8} className={`${tdB} p-8 text-center font-normal text-slate-500`}>Không tìm thấy người dùng nào.</td></tr>
               ) : (
                 filteredUsers.map((user, idx) => {
                   const hoatDong = user.status === 'ACTIVE';
                   return (
                   <tr key={user.id} onClick={() => handleOpenModal(user)} className="group cursor-pointer transition-colors hover:bg-slate-50" title="Bấm để sửa">
-                    <td className="py-3 pl-5 pr-2 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                    <td className="px-4 py-3">
+                    <td className={`${tdSo} text-slate-500`}>{idx + 1}</td>
+                    <td className={tdB}>
                       <div className="flex items-center gap-3">
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${hoatDong ? 'bg-aa-600' : 'bg-slate-300'}`}>
                           {vietTat(user.fullName)}
@@ -276,23 +277,23 @@ const UserManagement: React.FC = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={tdB}>
                       {user.email ? <span className="inline-flex items-center gap-1.5 text-slate-600"><Mail size={13} className="text-slate-400" /> {user.email}</span>
                         : <span className="text-slate-300">–</span>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={tdB}>
                       {user.department ? <span className="inline-flex items-center gap-1.5 text-slate-600"><Briefcase size={13} className="text-slate-400" /> {user.department}</span>
                         : <span className="text-slate-300">–</span>}
                       {user.note && <div className="mt-0.5 max-w-[180px] truncate text-xs text-slate-400" title={user.note}>{user.note}</div>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={tdB}>
                       {user.role === 'ADMIN' ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-medium text-white"><Crown size={12} /> Admin</span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-700"><UserIcon size={12} /> User</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={tdB}>
                       {user.role === 'ADMIN' ? (
                         <span className="text-xs text-slate-500">Toàn quyền</span>
                       ) : (
@@ -312,14 +313,14 @@ const UserManagement: React.FC = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={tdB}>
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${hoatDong ? 'text-emerald-700' : 'text-slate-500'}`}>
                         <span className={`h-2 w-2 rounded-full ${hoatDong ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                         {hoatDong ? 'Đang hoạt động' : 'Đã khoá'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className={`${tdB} text-center`}>
+                      <div className="flex items-center justify-center gap-1">
                         <button onClick={e => { e.stopPropagation(); handleOpenModal(user); }}
                           className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900" title="Sửa">
                           <Edit2 size={16} />

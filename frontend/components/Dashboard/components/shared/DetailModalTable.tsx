@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnalysisItem } from '../../types';
 import { ArrowDown, ArrowUp, ArrowUpDown, Filter, Search, AlertCircle } from 'lucide-react';
-import { tdB, thB } from '../../../shared/bangBaoCao';
+import { table, tdB, tdSo, tfoot, thB, thead } from '../../../shared/bangBaoCao';
+import { fmtInt } from '../../../../utils/format';
 
-const defaultFormatValue = (value: number) => value.toLocaleString('en-US');
+const defaultFormatValue = fmtInt;
 // Ô coi như 0 (dư số thực vd. -1e-12 không được hiện "-0,00" đỏ)
 const isZeroCell = (v: number) => !Number.isFinite(v) || Math.abs(v) < 0.005;
 // Cùng mẫu bảng tab BOT (BangCayBot)
@@ -184,8 +185,8 @@ useEffect(() => {
       </h4>
       <div className="bg-white border-l border-t border-slate-300 overflow-hidden flex flex-col max-h-[500px]">
         <div className="overflow-auto custom-scrollbar flex-1 relative">
-          <table className="w-full relative border-separate border-spacing-0 text-[0.9375rem] font-medium text-slate-900">
-            <thead className="sticky top-0 z-20 bg-emerald-300">
+          <table className={`${table} relative`}>
+            <thead className={thead}>
               <tr>
                 <th className={`${thB} w-12 text-center`}>STT</th>
                 <th className={`${thB} min-w-[200px] z-30 text-left`}>
@@ -269,14 +270,14 @@ useEffect(() => {
             <tbody>
               {sortedData.length > 0 ? sortedData.map((item, idx) => (
                 <tr key={idx} className="transition-colors hover:bg-amber-50">
-                  <td className={`${tdB} text-center tabular-nums`}>{idx + 1}</td>
+                  <td className={tdSo}>{fmtInt(idx + 1)}</td>
                   <td className={`${tdB} text-left font-bold`}>{item.name}</td>
                   {/* Chỉ ô ≈ 0 (dưới 0,005 — dư số thực) để trống; ô âm (vd. nhập kho điều chỉnh) vẫn hiện số vì đã cộng vào tổng */}
-                  <td className={`${tdB} whitespace-nowrap text-center tabular-nums ${!isZeroCell(item.daily) && item.daily < 0 ? 'font-bold text-red-600' : ''}`}>
+                  <td className={`${tdSo} ${!isZeroCell(item.daily) && item.daily < 0 ? 'font-bold text-red-600' : ''}`}>
                     {oSo(item.name, 'daily', item.daily)}
                   </td>
                   {coMtd && (
-                    <td className={`${tdB} whitespace-nowrap text-center tabular-nums ${!isZeroCell(item.mtd) && item.mtd < 0 ? 'font-bold text-red-600' : ''}`}>
+                    <td className={`${tdSo} ${!isZeroCell(item.mtd) && item.mtd < 0 ? 'font-bold text-red-600' : ''}`}>
                       {oSo(item.name, 'mtd', item.mtd)}
                     </td>
                   )}
@@ -285,7 +286,7 @@ useEffect(() => {
                 <tr><td colSpan={coMtd ? 4 : 3} className="p-8 text-center text-slate-400">Không có dòng nào</td></tr>
               )}
             </tbody>
-            <tfoot className="font-bold text-red-600 [&_td]:sticky [&_td]:bottom-0 [&_td]:z-[2] [&_td]:bg-yellow-300">
+            <tfoot className={tfoot}>
               <tr>
                 <td
                   colSpan={2}
@@ -294,11 +295,11 @@ useEffect(() => {
                 >
                   TỔNG
                 </td>
-                <td className={`${tdB} whitespace-nowrap text-center tabular-nums`}>
+                <td className={tdSo}>
                   {isZeroCell(totalDaily) ? '' : formatValue(totalDaily)}
                 </td>
                 {coMtd && (
-                  <td className={`${tdB} whitespace-nowrap text-center tabular-nums`}>
+                  <td className={tdSo}>
                     {isZeroCell(totalMtd) ? '' : formatValue(totalMtd)}
                   </td>
                 )}

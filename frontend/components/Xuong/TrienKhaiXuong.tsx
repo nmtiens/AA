@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, RefreshCw, Rocket, Check } from 'lucide-react';
 import { xuongSetupApi, type DanhSachTrienKhai, type HangMucTrienKhai, type ThanhPhanTrienKhai } from '../../services/xuongSetupApi';
-import { INPUT, BTN, BTN_CHINH, KHUNG, TH, TD } from './xuongDesktopUi';
+import { INPUT, BTN, BTN_CHINH, KHUNG } from './xuongDesktopUi';
+import { khung, table, thead, thC, tdB, tdSo, trong0 } from '../shared/bangBaoCao';
+import { fmtQty } from '../../utils/format';
 import { tenCongDoan } from './ChonTuyen';
 import KhaiThanhPhan, { loiThanhPhan } from './KhaiThanhPhan';
 
@@ -80,14 +82,14 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
           <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
         </div>
         {loi && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
-        <div className="max-h-[55vh] overflow-y-auto">
-          <table className="w-full min-w-[36rem] rmd:min-w-0">
-            <thead className="sticky top-0 z-[1] bg-slate-50"><tr>
-              <th className={`${TH} w-8`}><input type="checkbox" aria-label="Chọn tất cả" checked={tatCa}
+        <div className={`${khung} max-h-[55vh]`}>
+          <table className={`${table} min-w-[36rem] rmd:min-w-0`}>
+            <thead className={thead}><tr>
+              <th className={`${thC} w-8`}><input type="checkbox" aria-label="Chọn tất cả" checked={tatCa}
                 onChange={() => setChon(tatCa ? new Set() : new Set(d?.hangMuc.map(h => h.hex)))} /></th>
-              <th className={TH}>Hex</th><th className={TH}>Hạng mục · công trình</th><th className={TH}>Nhóm sản phẩm</th>
-              <th className={`${TH} text-right`}>Đơn hàng</th><th className={`${TH} text-right`}>Đã triển khai</th>
-              <th className={`${TH} w-28 text-right`}>Triển khai lần này</th><th className={TH}>Thành phần · tuyến công đoạn</th>
+              <th className={thC}>Hex</th><th className={thC}>Hạng mục · công trình</th><th className={thC}>Nhóm sản phẩm</th>
+              <th className={thC}>Đơn hàng</th><th className={thC}>Đã triển khai</th>
+              <th className={`${thC} w-28`}>Triển khai lần này</th><th className={thC}>Thành phần · tuyến công đoạn</th>
             </tr></thead>
             <tbody>
               {(d?.hangMuc ?? []).map(h => {
@@ -95,17 +97,17 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
                 const laGoiY = !!h.goiYThanhPhan && JSON.stringify(h.goiYThanhPhan) === JSON.stringify(t);
                 const loi = loiTp(t);
                 return (
-                  <tr key={h.hex} className={`border-t border-slate-100 ${chon.has(h.hex) ? 'bg-slate-50' : ''}`}>
-                    <td className={TD}><input type="checkbox" aria-label={`Chọn ${h.hex}`} checked={chon.has(h.hex)}
+                  <tr key={h.hex} className={chon.has(h.hex) ? 'bg-slate-50' : 'hover:bg-slate-50'}>
+                    <td className={`${tdB} text-center`}><input type="checkbox" aria-label={`Chọn ${h.hex}`} checked={chon.has(h.hex)}
                       onChange={() => setChon(s => { const n = new Set(s); if (n.has(h.hex)) n.delete(h.hex); else n.add(h.hex); return n; })} /></td>
-                    <td className={`${TD} font-medium tabular-nums text-slate-800`}>{h.hex}</td>
-                    <td className={TD}><span className="text-slate-800">{h.ten}</span><br /><span className="text-xs text-slate-500">{h.tenCongTrinh}</span></td>
-                    <td className={`${TD} text-xs`}>{h.nhom ?? '—'}</td>
-                    <td className={`${TD} text-right tabular-nums`}>{h.soLuongDonHang ?? '—'} {h.dvt ?? ''}</td>
-                    <td className={`${TD} text-right tabular-nums`}>{h.daTrienKhai || '—'}</td>
-                    <td className={TD}><input type="number" min={0} className={`${INPUT} min-w-[4.5rem] text-right tabular-nums`} value={sl[h.hex] ?? 0}
+                    <td className={`${tdB} whitespace-nowrap tabular-nums`}>{h.hex}</td>
+                    <td className={tdB}>{h.ten}<br /><span className="text-sm font-normal text-slate-500">{h.tenCongTrinh}</span></td>
+                    <td className={tdB}>{h.nhom ?? '—'}</td>
+                    <td className={tdSo}>{fmtQty(h.soLuongDonHang)} {h.dvt ?? ''}</td>
+                    <td className={tdSo}>{trong0(h.daTrienKhai, fmtQty)}</td>
+                    <td className={tdB}><input type="number" min={0} className={`${INPUT} min-w-[4.5rem] text-center tabular-nums`} value={sl[h.hex] ?? 0}
                       onChange={e => setSl(s => ({ ...s, [h.hex]: Math.max(0, Number(e.target.value) || 0) }))} aria-label={`Số lượng triển khai ${h.hex}`} /></td>
-                    <td className={`${TD} text-xs`}>
+                    <td className={`${tdB} text-sm`}>
                       {t.map(x => (
                         <div key={x.ten}><b>{x.ten}</b>{x.xuong !== xuong ? ` (${x.xuong})` : ''}: {x.tuyen.length ? x.tuyen.map(tenCd).join(' → ') : <i className="text-slate-500">xưởng {x.xuong} tự khai CĐ chi tiết</i>}</div>
                       ))}
@@ -115,7 +117,7 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
                   </tr>
                 );
               })}
-              {d && d.hangMuc.length === 0 && <tr><td colSpan={8} className="px-4 py-6 text-sm text-slate-500">Không có hạng mục nào{chiChua ? ' chưa triển khai đủ' : ''}.</td></tr>}
+              {d && d.hangMuc.length === 0 && <tr><td colSpan={8} className={`${tdB} py-6 text-center font-normal text-slate-500`}>Không có hạng mục nào{chiChua ? ' chưa triển khai đủ' : ''}.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -12,6 +12,7 @@ import { searchHexBulk } from './hexBulkApi';
 import { FormSheet, StatusPill } from '../VuongMac/sheets';
 import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../utils/money';
 import XuongHexChiTiet from '../Xuong/XuongHexChiTiet';
+import { khung, table, thead, thC, tdB, tdSo } from '../shared/bangBaoCao';
 
 // Các ô ghi chú giống bảng "Chi tiết theo Hex" trên desktop
 const NOTE_LABELS: [string, string][] = [
@@ -350,19 +351,19 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
                 </div>
               ))}
             </div>
-            <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
-              <table className="w-full min-w-[1000px] table-fixed border-collapse text-left">
-                <thead className="bg-slate-100 text-xs font-semibold text-slate-500">
+            <div className={`${khung} hidden md:block`}>
+              <table className={`${table} min-w-[1000px] table-fixed`}>
+                <thead className={thead}>
                   <tr>
                     {NOTE_LABELS.map(([key, label]) => (
-                      <th key={key} className="border-l border-slate-200 px-3 py-2 first:border-l-0">{label}</th>
+                      <th key={key} className={thC}>{label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     {NOTE_LABELS.map(([key]) => (
-                      <td key={key} className="min-w-0 border-l border-slate-200 p-2 align-top first:border-l-0">
+                      <td key={key} className={`${tdB} min-w-0 align-top`}>
                         {d.notes[key]
                           ? <NoteCell text={d.notes[key] as string} />
                           : <span className="text-slate-300">—</span>}
@@ -404,12 +405,12 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
               </div>
 
               {/* Máy tính: bảng 5 cột (mỗi loại 5M một cột) */}
-              <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
-                <table className="w-full min-w-[1000px] table-fixed border-collapse text-left">
-                  <thead className="bg-slate-100 text-xs font-semibold">
+              <div className={`${khung} hidden md:block`}>
+                <table className={`${table} min-w-[1000px] table-fixed`}>
+                  <thead className={thead}>
                     <tr>
                       {FIVE_M_CATEGORIES.map(cat => (
-                        <th key={cat} className={`border-l border-slate-200 px-3 py-2 first:border-l-0 ${VM_TEXT[cat]}`}>
+                        <th key={cat} className={thC}>
                           {FIVE_M_LABELS[cat]} ({d.items.filter(v => v.category === cat).length})
                         </th>
                       ))}
@@ -420,7 +421,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
                       {FIVE_M_CATEGORIES.map(cat => {
                         const list = d.items.filter(v => v.category === cat);
                         return (
-                          <td key={cat} className="min-w-0 border-l border-slate-200 p-2 align-top first:border-l-0">
+                          <td key={cat} className={`${tdB} min-w-0 align-top`}>
                             {list.length === 0
                               ? <span className="text-slate-300">—</span>
                               : <div className="space-y-1.5">{list.map(v => <VmItemCard key={v.id} v={v} />)}</div>}
@@ -561,12 +562,12 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
 
         {/* ===== MÁY TÍNH: bảng ngang, bấm dòng để mở cửa sổ chi tiết ===== */}
         {hits.length > 0 && (
-          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
-            <table className="w-full min-w-[900px] border-collapse text-left text-base">
-              <thead className="bg-slate-100 text-sm font-semibold uppercase text-slate-500">
+          <div className={`${khung} hidden bg-white md:block`}>
+            <table className={`${table} min-w-[900px]`}>
+              <thead className={thead}>
                 <tr>
                   {['STT', 'Hex', 'Mã nhà máy', 'Công trình', 'Hạng mục', 'Xưởng', 'Tình trạng', 'Vướng mắc'].map(t => (
-                    <th key={t} className="whitespace-nowrap px-4 py-2.5">{t}</th>
+                    <th key={t} className={`${thC} whitespace-nowrap`}>{t}</th>
                   ))}
                 </tr>
               </thead>
@@ -575,16 +576,16 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
                   <tr
                     key={h.hex}
                     onClick={() => openDetail(h.hex)}
-                    className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${openHex === h.hex ? 'bg-slate-100' : ''}`}
+                    className={`cursor-pointer hover:bg-slate-50 ${openHex === h.hex ? 'bg-slate-100' : ''}`}
                   >
-                    <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-400">{i + 1}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 font-semibold text-slate-900">{h.hex}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.maNhaMay || '—'}</td>
-                    <td className="px-4 py-2.5 text-slate-800">{h.congTrinh || '—'}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{h.hangMuc || '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.xuong || '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.tinhTrang || '—'}</td>
-                    <td className="px-4 py-2.5">{badges(h.hex) ?? <span className="text-slate-300">—</span>}</td>
+                    <td className={`${tdSo} text-slate-500`}>{i + 1}</td>
+                    <td className={`${tdB} whitespace-nowrap tabular-nums`}>{h.hex}</td>
+                    <td className={`${tdB} whitespace-nowrap tabular-nums`}>{h.maNhaMay || '—'}</td>
+                    <td className={tdB}>{h.congTrinh || '—'}</td>
+                    <td className={tdB}>{h.hangMuc || '—'}</td>
+                    <td className={`${tdB} whitespace-nowrap`}>{h.xuong || '—'}</td>
+                    <td className={`${tdB} whitespace-nowrap`}>{h.tinhTrang || '—'}</td>
+                    <td className={tdB}>{badges(h.hex) ?? <span className="text-slate-300">—</span>}</td>
                   </tr>
                 ))}
               </tbody>

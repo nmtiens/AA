@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, Upload, RefreshCw, AlertTriangle } from 'lucide-react';
 import { xuongSetupApi, type CongNhanXuong, type DongNapNhanSu, type SetupXuong } from '../../services/xuongSetupApi';
-import { BTN, BTN_CHINH, KHUNG, TH, TD, INPUT } from './xuongDesktopUi';
+import { BTN, BTN_CHINH, KHUNG, INPUT } from './xuongDesktopUi';
+import { khung, table, thead, thB, thC, tdB } from '../shared/bangBaoCao';
 
 // ============================================================================
 // NHÂN SỰ XƯỞNG — danh sách công nhân cho chấm công theo người (docs/designs/xuong-cham-cong.md).
@@ -87,18 +88,20 @@ function NapFile({ xuong, bao, xong }: { xuong: string; bao: (ok: boolean, msg: 
             ))}
           </div>
           {ra.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full min-w-[640px]">
-                <thead className="bg-slate-50"><tr>{(Object.keys(TEN_COT) as Cot[]).map(c => <th key={c} className={TH}>{TEN_COT[c]}</th>)}</tr></thead>
+            <div>
+              <div className={khung}>
+              <table className={`${table} min-w-[640px]`}>
+                <thead className={thead}><tr>{(Object.keys(TEN_COT) as Cot[]).map(c => <th key={c} className={thC}>{TEN_COT[c]}</th>)}</tr></thead>
                 <tbody>
                   {ra.slice(0, 5).map((x, i) => (
-                    <tr key={i} className="border-t border-slate-100">
-                      <td className={`${TD} tabular-nums`}>{x.mnv}</td><td className={TD}>{x.hoTen}</td><td className={TD}>{x.xuong}</td>
-                      <td className={TD}>{x.tenTo ?? '—'}</td><td className={TD}>{x.chucVu ?? '—'}</td>
+                    <tr key={i}>
+                      <td className={`${tdB} tabular-nums`}>{x.mnv}</td><td className={tdB}>{x.hoTen}</td><td className={tdB}>{x.xuong}</td>
+                      <td className={tdB}>{x.tenTo ?? '—'}</td><td className={tdB}>{x.chucVu ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
               {ra.length > 5 && <p className="px-3 py-1.5 text-xs text-slate-500">… và {ra.length - 5} dòng nữa</p>}
             </div>
           )}
@@ -169,34 +172,34 @@ export default function NhanSuXuong({ d, bao }: { d: SetupXuong; bao: (ok: boole
             <label className="flex items-center gap-1.5 text-sm text-slate-700"><input type="checkbox" checked={anNghi} onChange={e => setAnNghi(e.target.checked)} /> Ẩn người nghỉ việc</label>
             <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} /> Tải lại</button>
           </div>
-          <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full min-w-[720px]">
-              <thead className="sticky top-0 bg-slate-50"><tr>
-                <th className={TH}>Mã NV</th><th className={TH}>Họ tên</th><th className={TH}>Tổ</th><th className={TH}>Chức vụ</th>
-                <th className={TH}>Nguồn</th><th className={TH} />
+          <div className={`${khung} max-h-[60vh]`}>
+            <table className={`${table} min-w-[720px]`}>
+              <thead className={thead}><tr>
+                <th className={thC}>Mã NV</th><th className={thC}>Họ tên</th><th className={thC}>Tổ</th><th className={thC}>Chức vụ</th>
+                <th className={thC}>Nguồn</th><th className={thB} />
               </tr></thead>
               <tbody>
                 {hien.map(x => (
-                  <tr key={x.mnv} className={`border-t border-slate-100 ${x.active ? '' : 'opacity-50'}`}>
-                    <td className={`${TD} tabular-nums`}>{x.mnv}</td>
-                    <td className={TD}>{x.hoTen}</td>
-                    <td className={TD}>
+                  <tr key={x.mnv} className={x.active ? 'hover:bg-slate-50' : 'opacity-50'}>
+                    <td className={`${tdB} tabular-nums`}>{x.mnv}</td>
+                    <td className={tdB}>{x.hoTen}</td>
+                    <td className={tdB}>
                       <select value={x.toId ?? ''} disabled={!x.active} onChange={e => sua(x, { toId: e.target.value ? Number(e.target.value) : null })}
                         className="rounded-md border border-slate-300 px-2 py-1 text-sm" aria-label={`Tổ của ${x.hoTen}`}>
                         <option value="">— chưa xếp —</option>
                         {d.to.filter(t => t.active).map(t => <option key={t.id} value={t.id}>{t.ten}</option>)}
                       </select>
                     </td>
-                    <td className={TD}>{x.chucVu ?? '—'}</td>
-                    <td className={`${TD} text-xs text-slate-500`}>{x.nguon === 'file' ? 'File nhân sự' : 'Tổ trưởng thêm'}</td>
-                    <td className={`${TD} text-right`}>
+                    <td className={tdB}>{x.chucVu ?? '—'}</td>
+                    <td className={`${tdB} text-slate-600`}>{x.nguon === 'file' ? 'File nhân sự' : 'Tổ trưởng thêm'}</td>
+                    <td className={`${tdB} text-center`}>
                       <button type="button" className="text-sm text-slate-600 underline" onClick={() => sua(x, { active: !x.active })}>
                         {x.active ? 'Nghỉ việc' : 'Khôi phục'}
                       </button>
                     </td>
                   </tr>
                 ))}
-                {!hien.length && <tr><td colSpan={6} className={`${TD} text-slate-500`}>{ds.length ? 'Không có người khớp.' : 'Chưa có công nhân — nạp file nhân sự, hoặc tổ trưởng thêm khi điểm danh.'}</td></tr>}
+                {!hien.length && <tr><td colSpan={6} className={`${tdB} py-6 text-center font-normal text-slate-500`}>{ds.length ? 'Không có người khớp.' : 'Chưa có công nhân — nạp file nhân sự, hoặc tổ trưởng thêm khi điểm danh.'}</td></tr>}
               </tbody>
             </table>
           </div>

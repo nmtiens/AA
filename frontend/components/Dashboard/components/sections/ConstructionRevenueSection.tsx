@@ -5,6 +5,7 @@ import { formatNumber } from '../../utils/numberParsers';
 import { formatTrieuAsTy } from '../../../../utils/money';
 import type { MetricType } from '../../types';
 import { ModalShell } from '../../../shared/ModalShell';
+import * as bang from '../../../shared/bangBaoCao';
 
 export interface CustomFunnelItem {
   id: string;
@@ -68,7 +69,7 @@ export const ConstructionRevenueSection = ({
     if (workshopMetric === 'COUNT_HEX') {
       return formatNumber(value, workshopMetric);
     }
-    return `${formatTrieuAsTy(value)} Tỷ`;
+    return `${formatTrieuAsTy(value)} tỷ`;
   };
 
   const handleOpenOverallDetail = () => {
@@ -95,17 +96,15 @@ export const ConstructionRevenueSection = ({
   const renderPivotValue = (value: number, name: string | null) => {
     const text = formatFunnelValue(value);   // hiển thị làm tròn
     const detail = formatDetailValue(value); // tooltip chi tiết
+    if (value === 0) return '';
     if (!onPivotValueClick) {
       return <span title={detail}>{text}</span>;
-    }
-    if (value === 0) {
-      return <span className="text-slate-300" title={detail}>{text}</span>;
     }
     return (
       <button
         type="button"
         onClick={() => onPivotValueClick(name, selectedFunnelItem)}
-        className="text-slate-800 hover:text-emerald-700 hover:underline font-semibold"
+        className={`${bang.soBam} hover:text-emerald-700`}
         title={`${detail} — bấm để xem chi tiết`}
       >
         {text}
@@ -150,11 +149,6 @@ export const ConstructionRevenueSection = ({
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                {workshopMetric !== 'COUNT_HEX' && (
-                  <span className="text-[0.6875rem] font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
-                    Đơn vị: Tỷ đồng
-                  </span>
-                )}
                 <button
                   type="button"
                   onClick={closeModal}
@@ -165,39 +159,36 @@ export const ConstructionRevenueSection = ({
                 </button>
               </div>
             </div>
-            <div className="p-4 sm:p-6 overflow-y-auto">
+            <div className="flex min-h-0 flex-col p-4 sm:p-6">
               {pivotFunnelData && pivotFunnelData.data && pivotFunnelData.data.length > 0 ? (
-                <div className="overflow-x-auto rounded-lg border border-slate-200">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50">
+                <div className={`${bang.khung} min-h-0`}>
+                  <table className={bang.table}>
+                    <thead className={bang.thead}>
                       <tr>
-                        <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">
+                        <th className={`${bang.thC} w-12`}>TT</th>
+                        <th className={`${bang.thB} w-1/2 text-left`}>
                           {selectedFunnelItem ? 'Công trình' : 'BOP'}
                         </th>
-                        <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">
+                        <th className={bang.thC}>
                           {workshopMetric === 'COUNT_HEX' ? 'Số hạng mục' : 'Giá trị (tỷ)'}
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-slate-100">
+                    <tbody className="bg-white">
                       {pivotFunnelData.data.map((item, index) => (
                         <tr key={item.name} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-left font-medium text-slate-700 flex items-center gap-2">
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">
-                              {index + 1}
-                            </span>
-                            <span className="break-words">{item.name}</span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-slate-800">
+                          <td className={bang.tdSo}>{index + 1}</td>
+                          <td className={`${bang.tdB} break-words`}>{item.name}</td>
+                          <td className={bang.tdSo}>
                             {renderPivotValue(item.value, item.name)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-wood-100 font-bold text-slate-800 border-t border-wood-300">
+                    <tfoot className={bang.tfoot}>
                       <tr>
-                        <td className="px-4 py-3 text-left uppercase text-slate-700">Tổng Cộng</td>
-                        <td className="px-4 py-3 text-right text-slate-800 text-base">
+                        <td colSpan={2} className={bang.tdB}>TỔNG</td>
+                        <td className={bang.tdSo}>
                           {renderPivotValue(pivotFunnelData.total, null)}
                         </td>
                       </tr>

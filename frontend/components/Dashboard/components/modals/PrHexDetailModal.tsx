@@ -171,7 +171,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
 
   if (!isOpen) return null;
 
-  const th = `${bang.thB} text-left`;
+  const th = bang.thC;
   const td = bang.tdB;
 
   return createPortal(
