@@ -44,6 +44,18 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
       .finally(() => setDangTai(false));
   }, []);
   useEffect(() => { tai(); }, [tai]);
+  // Quay lại tab / cửa sổ => lấy số mới (tối đa 30 giây / lần). Không chạy hẹn giờ nền để DB được ngủ.
+  useEffect(() => {
+    let lanCuoi = Date.now();
+    const khiHien = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lanCuoi < 30_000) return;
+      lanCuoi = Date.now();
+      tai();
+    };
+    document.addEventListener('visibilitychange', khiHien);
+    window.addEventListener('focus', khiHien);
+    return () => { document.removeEventListener('visibilitychange', khiHien); window.removeEventListener('focus', khiHien); };
+  }, [tai]);
 
   const bc = useMemo(() => (du ? dungBaoCaoBot(du.o, ipo.size ? ipo : null, namMo, chiCt) : null), [du, ipo, namMo, chiCt]);
   const dong = useMemo(() => {
@@ -79,7 +91,7 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
 
   const tongHien = tongLoc ?? { o: bc.tongCot, tong: bc.tong };
   const oSo = (ten: string, cot: CotBot | null, v: number | undefined, dam = false) => (
-    <td className={`whitespace-nowrap border-b border-slate-200/70 px-2.5 py-1 text-right tabular-nums ${dam ? 'font-bold text-slate-950' : 'text-slate-900'}`}>
+    <td className={`whitespace-nowrap border-b border-l border-slate-200/70 px-3 py-1 text-center tabular-nums 2xl:py-1.5 ${dam ? 'font-bold text-slate-950' : 'text-slate-900'}`}>
       {v === undefined ? '' : (
         <button type="button" onClick={() => setChon({ ten, cot })} title="Bấm để xem các HEX" className="hover:text-blue-700 hover:underline">{fmtO(v)}</button>
       )}
@@ -137,13 +149,13 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
       </div>
 
       <div className="max-h-[calc(100vh-15rem)] min-h-[20rem] overflow-auto rounded-lg border border-slate-300">
-        <table className="w-max border-separate border-spacing-0 text-sm leading-6">
-          <thead className="sticky top-0 z-10 text-[13px]">
+        <table className="w-full border-separate border-spacing-0 text-sm leading-6 2xl:text-base">
+          <thead className="sticky top-0 z-10 text-[13px] 2xl:text-[15px]">
             <tr className="bg-lime-500 text-slate-950">
-              <th className="sticky left-0 z-20 border-b border-lime-600 bg-lime-500 px-2.5 py-1.5 text-left font-bold">TÊN CÔNG TRÌNH</th>
-              <th className="border-b border-l border-lime-600 px-2.5 py-1.5 text-center font-bold" title="Giờ (hôm nay) / ngày lưu file công trình gần nhất">LƯU FILE</th>
+              <th className="sticky left-0 z-20 whitespace-nowrap border-b border-lime-600 bg-lime-500 px-3 py-1.5 text-center font-bold 2xl:py-2">TÊN CÔNG TRÌNH</th>
+              <th className="w-[7%] whitespace-nowrap border-b border-l border-lime-600 px-3 py-1.5 text-center font-bold 2xl:py-2" title="Giờ (hôm nay) / ngày lưu file công trình gần nhất">LƯU FILE</th>
               {bc.cot.map(c => (
-                <th key={c.khoa} className={`min-w-[5.5rem] whitespace-nowrap border-b border-l border-lime-600 px-2.5 py-1.5 text-right font-bold ${c.loai === 'thang' ? 'bg-lime-300 font-semibold' : ''}`}>
+                <th key={c.khoa} className={`w-[9%] min-w-[5.5rem] whitespace-nowrap border-b border-l border-lime-600 px-3 py-1.5 text-center font-bold 2xl:py-2 ${c.loai === 'thang' ? 'bg-lime-300 font-semibold' : ''}`}>
                   {c.loai === 'nam' ? (
                     <button type="button" onClick={() => doiNam(c.nam!)} aria-expanded={!!c.dangMo} title={c.dangMo ? 'Gộp lại theo năm' : 'Bung theo tháng'}
                       className="inline-flex items-center gap-0.5 hover:underline">
@@ -152,7 +164,7 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
                   ) : c.nhan}
                 </th>
               ))}
-              <th className="min-w-[6.5rem] border-b border-l border-lime-600 px-2.5 py-1.5 text-right font-bold">TỔNG</th>
+              <th className="w-[10%] min-w-[6.5rem] border-b border-l border-lime-600 px-3 py-1.5 text-center font-bold 2xl:py-2">TỔNG</th>
             </tr>
           </thead>
           <tbody>
@@ -163,11 +175,11 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
               return (
               <tr key={d.ten} className={`${nen} hover:bg-blue-50`}
                 title={luu ? `File công trình lưu lần cuối: ${fmtLuc(luu)}` : 'Chưa thấy giờ lưu file công trình'}>
-                <td className={`sticky left-0 whitespace-nowrap border-b border-l-4 border-b-slate-200/70 px-2.5 py-1 font-medium text-slate-950 ${nen} ${moi ? 'border-l-green-600' : 'border-l-red-500'}`}>
-                  {d.ten || '(trống)'}
+                <td className={`sticky left-0 border-b border-l-4 border-b-slate-200/70 px-3 py-1 font-medium text-slate-950 2xl:py-1.5 ${nen} ${moi ? 'border-l-green-600' : 'border-l-red-500'}`}>
+                  <div className="mx-auto min-w-[16rem] max-w-[32rem] text-center">{d.ten || '(trống)'}</div>
                 </td>
-                <td className="whitespace-nowrap border-b border-slate-200/70 px-2.5 py-1 text-center">
-                  <span className={`inline-block min-w-[3.5rem] rounded px-1.5 text-sm font-bold tabular-nums text-white ${moi ? 'bg-green-600' : 'bg-red-600'}`}>
+                <td className="whitespace-nowrap border-b border-l border-slate-200/70 px-3 py-1 text-center 2xl:py-1.5">
+                  <span className={`inline-block min-w-[3.5rem] rounded px-1.5 text-sm font-bold tabular-nums text-white 2xl:text-[15px] ${moi ? 'bg-green-600' : 'bg-red-600'}`}>
                     {moi ? new Date(luu!).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : luu ? fmtNgay(luu) : 'chưa có'}
                   </span>
                 </td>
@@ -182,10 +194,10 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
           </tbody>
           <tfoot className="sticky bottom-0">
             <tr className="bg-slate-200 font-bold text-slate-950">
-              <td className="sticky left-0 border-t-2 border-slate-400 bg-slate-200 px-2.5 py-1.5" colSpan={1}>TỔNG{tim ? ' (đang tìm)' : ''} · {fmtInt(dong.length)} công trình</td>
-              <td className="border-t-2 border-slate-400 px-2.5 py-1.5" />
-              {bc.cot.map(c => <td key={c.khoa} className="whitespace-nowrap border-t-2 border-slate-400 px-2.5 py-1.5 text-right tabular-nums">{fmtO(tongHien.o[c.khoa])}</td>)}
-              <td className="whitespace-nowrap border-t-2 border-slate-400 px-2.5 py-1.5 text-right tabular-nums">{fmtInt(tongHien.tong)}</td>
+              <td className="sticky left-0 border-t-2 border-slate-400 bg-slate-200 px-3 py-1.5 text-center 2xl:py-2" colSpan={1}>TỔNG{tim ? ' (đang tìm)' : ''} · {fmtInt(dong.length)} công trình</td>
+              <td className="border-t-2 border-slate-400 px-3 py-1.5 2xl:py-2" />
+              {bc.cot.map(c => <td key={c.khoa} className="whitespace-nowrap border-t-2 border-slate-400 px-3 py-1.5 2xl:py-2 text-center tabular-nums">{fmtO(tongHien.o[c.khoa])}</td>)}
+              <td className="whitespace-nowrap border-t-2 border-slate-400 px-3 py-1.5 2xl:py-2 text-center tabular-nums">{fmtInt(tongHien.tong)}</td>
             </tr>
           </tfoot>
         </table>
@@ -239,12 +251,12 @@ const ChiTietO = ({ chon, ipo, chiCt, onClose, onHexClick }: { chon: ChonO; ipo:
                       <td className="py-1 pr-3">{x.maCt}</td>
                       <td className="py-1 pr-3">{x.ipo}</td>
                       <td className="py-1 pr-3">{x.ngay || NHAN_CHUA}</td>
-                      <td className="py-1 text-right tabular-nums">{x.tt === null ? '' : fmtInt(x.tt)}</td>
+                      <td className="py-1 text-center tabular-nums">{x.tt === null ? '' : fmtInt(x.tt)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-slate-300 font-bold"><td className="py-1" colSpan={4}>{fmtInt(dong.length)} dòng</td><td className="py-1 text-right tabular-nums">{fmtInt(tong)}</td></tr>
+                  <tr className="border-t border-slate-300 font-bold"><td className="py-1" colSpan={4}>{fmtInt(dong.length)} dòng</td><td className="py-1 text-center tabular-nums">{fmtInt(tong)}</td></tr>
                 </tfoot>
               </table>
             )}
