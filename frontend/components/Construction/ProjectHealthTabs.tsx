@@ -760,7 +760,10 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
   });
   const coSoDong = (n: { duong: string[] }, b: ChieuBop[]) => Object.fromEntries(n.duong.map((v, idx) => [b[idx], v])) as Pick<NonNullable<BopSel>, ChieuBop>;
   // Bấm ô kho => lọc danh sách đúng các hạng mục làm nên số đó
-  const khoCells = (k: Kho, base: NonNullable<BopSel>) => KHO_COT.map((f, idx) => (
+  // Chênh, Xuất vượt nhập ẩn mặc định; bấm + ở cột Tồn kho để hiện
+  const [moKho, setMoKho] = useState(false);
+  const khoHien = moKho ? KHO_COT : KHO_COT.filter(f => f !== 'chenh' && f !== 'xv');
+  const khoCells = (k: Kho, base: NonNullable<BopSel>) => khoHien.map((f, idx) => (
     <React.Fragment key={f}>
       {cell(k[f], { ...base, kho: f }, `${idx === 0 ? 'border-l-2 border-l-slate-300' : ''} ${f === 'ton' ? 'font-bold' : f === 'chenh' || f === 'xv' ? 'font-semibold text-orange-700' : ''}`)}
     </React.Fragment>
@@ -839,7 +842,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
       : extraSel.kind === 'qc' ? `QC: ${QC_STATE_META[extraSel.st].label}`
         : extraSel.st === 'pending' ? 'GCN còn chờ NCC' : `GCN: ${extraSel.st}`;
   const selText = [
-    ...(sel ? [sel.ct, sel.nsp, sel.xuong, sel.stages && dayP(sel.stages), sel.donHang && 'Tổng đơn hàng', sel.kho && ({ nk: 'Đã nhập kho', xk: 'Đã xuất kho', ton: 'Tồn theo đơn đang xem', chenh: 'Chênh kho', xv: 'Xuất vượt nhập' })[sel.kho]] : []),
+    ...(sel ? [sel.ct, sel.nsp, sel.xuong, sel.stages && dayP(sel.stages), sel.donHang && 'Tổng đơn hàng', sel.kho && ({ nk: 'Đã nhập kho', xk: 'Đã xuất kho', ton: 'Tồn kho', chenh: 'Chênh kho', xv: 'Xuất vượt nhập' })[sel.kho]] : []),
     ...(dwellSel ? [...(sel?.stages ? [] : [dwellSel.stage]), DWELL.find(d => d.key === dwellSel.dwell)?.label] : []),
     extraText,
   ].filter(Boolean).join(' · ');
@@ -937,7 +940,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
                   {metric === 'count' ? <>Tổng<br />hạng mục</> : <>Tổng giá trị<br />đơn hàng</>}
                 </th>
                 <th colSpan={cot.length + 1} className={`${thB} text-center`}>{tieuDeCot}</th>
-                <th colSpan={KHO_COT.length} rowSpan={2} className={`${thB} border-l-2 border-l-slate-300 bg-emerald-50/60 text-center text-sm text-emerald-900`}
+                <th colSpan={khoHien.length} rowSpan={2} className={`${thB} border-l-2 border-l-slate-300 bg-emerald-50/60 text-center text-sm text-emerald-900`}
                   title={tatCa ? 'Lũy kế các hạng mục đang xem, kể cả đã nhập kho đủ' : 'Lũy kế mọi hạng mục không hủy của công trình, mọi Tình trạng IPO'}>
                   Kho (lũy kế)
                 </th>
@@ -945,14 +948,16 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
               <tr>
                 {pivot.groups.map((g, gi) => {
                   const mo = moNhom.has(gi);
+                  // Chưa triển khai (P001) / Chưa tính phiếu (P002): 1 công đoạn => không bung / gộp
+                  const coTach = g.bucket !== 'notDeployed' && g.bucket !== 'p002';
                   return (
-                    <th key={gi} colSpan={mo ? g.stages.length : 1} rowSpan={mo ? 1 : 2} onClick={() => doiNhom(gi)} style={{ minWidth: rongSo && !mo ? 140 : undefined }}
-                      className={`${thB} cursor-pointer select-none text-center text-sm leading-tight hover:bg-emerald-400`}
-                      title={mo ? 'Bấm để gộp lại 1 cột' : `Bấm để tách từng công đoạn (${g.stages.map(tenCotCongDoan).join(', ')})`}>
+                    <th key={gi} colSpan={mo ? g.stages.length : 1} rowSpan={mo ? 1 : 2} onClick={coTach ? () => doiNhom(gi) : undefined} style={{ minWidth: rongSo && !mo ? 140 : undefined }}
+                      className={`${thB} text-center text-sm leading-tight ${coTach ? 'cursor-pointer select-none hover:bg-emerald-400' : ''}`}
+                      title={!coTach ? undefined : mo ? 'Bấm để gộp lại 1 cột' : `Bấm để tách từng công đoạn (${g.stages.map(tenCotCongDoan).join(', ')})`}>
                       {g.bucket && <span className={`mr-1.5 inline-block h-2 w-2 rounded-sm ${BOP_GROUP[g.bucket].dot}`} />}
                       {tenNhom(g.bucket)}
                       {!mo && <><br /><span className="font-semibold normal-case text-slate-800">{dayP(g.stages)}</span></>}
-                      <span className="ml-1 font-bold text-emerald-700">{mo ? '−' : '+'}</span>
+                      {coTach && <span className="ml-1 font-bold text-emerald-700">{mo ? '−' : '+'}</span>}
                     </th>
                   );
                 })}
@@ -962,13 +967,18 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
                 {pivot.groups.map((g, gi) => (moNhom.has(gi) ? g.stages.map(st => (
                   <th key={st} className={`${thB} whitespace-nowrap text-center font-bold text-slate-900`}>{tenCotCongDoan(st)}</th>
                 )) : null))}
-                {KHO_COT.map((f, idx) => (
+                {khoHien.map((f, idx) => (
                   <th key={f} style={{ minWidth: rongSo }} className={`${thB} whitespace-nowrap bg-emerald-50/60 text-center font-bold text-slate-900 ${idx === 0 ? 'border-l-2 border-l-slate-300' : ''}`}>
                     {{
                       nk: <>Đã nhập<br /><span className="font-semibold text-slate-800">P022</span></>,
                       xk: <>Đã xuất<br /><span className="font-semibold text-slate-800">P025</span></>,
-                      ton: <>Tồn theo đơn<br />đang xem</>, chenh: 'Chênh', xv: <>Xuất vượt<br />nhập</>,
+                      ton: 'Tồn kho', chenh: 'Chênh', xv: <>Xuất vượt<br />nhập</>,
                     }[f]}
+                    {f === 'ton' && (
+                      <button type="button" onClick={() => setMoKho(v => !v)} aria-expanded={moKho}
+                        title={moKho ? 'Ẩn cột Chênh, Xuất vượt nhập' : 'Hiện cột Chênh, Xuất vượt nhập'}
+                        className="ml-1 font-bold text-emerald-700 hover:text-emerald-900">{moKho ? '−' : '+'}</button>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -2367,7 +2377,7 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
 }) => {
   const coCt = rows.some(i => i.congTrinh);
   const tong = useMemo(() => tongHangMuc(rows), [rows]);
-  const COT_KHO: [string, KhoCot][] = [['Đã nhập', 'nk'], ['Đã xuất', 'xk'], ['Tồn theo đơn', 'ton'], ['Chênh', 'chenh'], ['Xuất vượt nhập', 'xv']];
+  const COT_KHO: [string, KhoCot][] = [['Đã nhập', 'nk'], ['Đã xuất', 'xk'], ['Tồn kho', 'ton'], ['Chênh', 'chenh'], ['Xuất vượt nhập', 'xv']];
   return (
   <div className={`${bang.khung} max-h-[78vh]`}>
     <table className={bang.table}>

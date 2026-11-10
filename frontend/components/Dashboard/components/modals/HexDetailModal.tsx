@@ -420,7 +420,7 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
   thanhTienKho: { label: 'Đã nhập (tỷ)', sortKey: 'thanhTienKho', align: 'center' },
   conLai: { label: 'Còn lại (tỷ)', sortKey: 'conLai', align: 'center' },
   daXuat: { label: 'Đã xuất (tỷ)', sortKey: 'daXuat', align: 'center' },
-  tonKho: { label: 'Tồn theo đơn (tỷ)', sortKey: 'tonKho', align: 'center' },
+  tonKho: { label: 'Tồn kho (tỷ)', sortKey: 'tonKho', align: 'center' },
   chenh: { label: 'Chênh (tỷ)', sortKey: 'chenh', align: 'center' },
   xuatVuot: { label: 'Xuất vượt nhập (tỷ)', sortKey: 'xuatVuot', align: 'center' },
   ghiChuDonHangTong: { label: 'Ghi chú đơn hàng tổng', sortKey: 'ghiChuDonHangTong' },

@@ -11,12 +11,12 @@ describe('docThuTu', () => {
 });
 
 describe('ghepThuTu', () => {
-  it('chưa lưu thì STT theo vị trí, luồng đỏ; khớp tên không phân biệt hoa/thường, khoảng trắng', () => {
+  it('chưa lưu thì STT = dòng trên + 1, luồng đỏ; khớp tên không phân biệt hoa/thường, khoảng trắng', () => {
     const daLuu: ThuTuCongTrinh[] = [{ ten: 'villa  bason', stt: 1, luong: 'vang' }];
     expect(ghepThuTu(['A', 'Villa Bason', 'C'], daLuu)).toEqual([
       { ten: 'A', stt: 1, luong: 'do' },
       { ten: 'Villa Bason', stt: 1, luong: 'vang' },
-      { ten: 'C', stt: 3, luong: 'do' },
+      { ten: 'C', stt: 2, luong: 'do' },
     ]);
   });
   it('danhLaiStt đưa về 1..n, giữ luồng', () => {

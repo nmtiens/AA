@@ -123,7 +123,7 @@ const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = fal
 // Cột số của bảng trong cửa sổ chi tiết: cùng tên với các ô phía trên
 const COT_CHI_TIET: { k: DetailFocus; t: string }[] = [
   { k: 'items', t: 'Hạng mục' }, { k: 'total', t: 'Tổng giá trị (Tỷ)' }, { k: 'done', t: 'Đã nhập kho (Tỷ)' }, { k: 'remain', t: 'Chưa nhập kho (Tỷ)' },
-  { k: 'exported', t: 'Đã xuất / giao (Tỷ)' }, { k: 'stock', t: 'Tồn theo đơn đang xem (Tỷ)' }, { k: 'unmatched', t: 'Chênh (Tỷ)' }, { k: 'xuatVuot', t: 'Xuất vượt nhập (Tỷ)' },
+  { k: 'exported', t: 'Đã xuất / giao (Tỷ)' }, { k: 'stock', t: 'Tồn kho (Tỷ)' }, { k: 'unmatched', t: 'Chênh (Tỷ)' }, { k: 'xuatVuot', t: 'Xuất vượt nhập (Tỷ)' },
 ];
 
 // Mô tả 1 cửa sổ chi tiết (cấp 1)
@@ -701,7 +701,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const doneSegs: Seg[] = [
     { key: 'exported', label: 'Đã xuất / giao (P025)', v: shownExported, w: shownExported - shownXuatVuot, bar: 'bg-emerald-600', ink: 'text-white', hint: EXPORT_HINT,
       spec: { pred: r => r.exported > 0, focus: 'exported', note: EXPORT_HINT } },
-    { key: 'stock', label: 'Tồn theo đơn đang xem', v: roundTy(kpi.stock), w: shownStockKhongHuy, bar: 'bg-emerald-300', ink: 'text-emerald-950', hint: STOCK_HINT,
+    { key: 'stock', label: 'Tồn kho', v: roundTy(kpi.stock), w: shownStockKhongHuy, bar: 'bg-emerald-300', ink: 'text-emerald-950', hint: STOCK_HINT,
       spec: { pred: r => r.stock > 0, focus: 'stock', note: STOCK_HINT } },
     ...(shownUnmatched > 0.0005 ? [{ key: 'unmatched', label: 'Chênh', v: shownUnmatched, bar: 'bg-lime-200', ink: 'text-lime-950', hint: UNMATCHED_HINT,
       spec: { pred: (r: Rec) => r.unmatched > 0.0005, focus: 'unmatched' as DetailFocus, note: UNMATCHED_HINT } }] : []),
@@ -894,7 +894,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         <div className={viewCT === 'tong' ? 'space-y-4' : 'hidden'}>
         {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
             Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho
-            Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn theo đơn đang xem
+            Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn kho
             Chưa nhập kho = Chưa triển khai (P001) + Chưa tính phiếu (P002) + Đang trên chuyền (P012→P021)
                             [+ P022–P025 nhập chưa đủ] */}
         <div className={`${cardCls} p-4`}>
@@ -1346,7 +1346,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               />
               <PcStat label="Chưa nhập kho" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} />
               <PcStat label="Đã xuất / giao" value={fmtTy(detailData.exported)} unit="Tỷ" tone="text-sky-700" active={detail.focus === 'exported'} />
-              <PcStat label="Tồn theo đơn đang xem" value={fmtTy(detailData.stock)} unit="Tỷ" tone="text-violet-700" active={detail.focus === 'stock'} />
+              <PcStat label="Tồn kho" value={fmtTy(detailData.stock)} unit="Tỷ" tone="text-violet-700" active={detail.focus === 'stock'} />
               <PcStat label="Chênh" value={fmtTy(detailData.unmatched)} unit="Tỷ" active={detail.focus === 'unmatched'} />
               <PcStat label="Xuất vượt nhập" value={fmtTy(detailData.xuatVuot)} unit="Tỷ" tone="text-rose-700" active={detail.focus === 'xuatVuot'} />
               {detail.focus === 'stockCut' && <PcStat label="Tồn vượt nhập − xuất" value={fmtTy(detailData.stockCut)} unit="Tỷ" tone="text-rose-700" active />}

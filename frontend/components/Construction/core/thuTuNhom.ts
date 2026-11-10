@@ -1,6 +1,6 @@
 // Thứ tự + luồng (đỏ / vàng) của công trình trong 1 nhóm (Luồng đỏ, Căn mẫu) — người dùng setup ở
 // Setup dữ liệu → Nhóm công trình. STT người dùng tự gõ: cho trùng (2 công trình cùng số 1), cho bỏ số
-// (không có số 5); chưa gõ thì mặc định theo vị trí trong danh sách (1, 2, 3...).
+// (không có số 5); chưa gõ thì mặc định = STT dòng trên + 1 (danh sách mới: 1, 2, 3... liền, không thiếu số).
 // Lưu ở view_project_mapping dòng '<viewId>:thu-tu' (xem backend/src/server/viewMapping.ts).
 
 import { projectMatchKey } from '../../../utils/productionMetrics';
@@ -66,12 +66,14 @@ function taoTra<T>(ds: readonly T[], layTen: (x: T) => string): (ten: unknown) =
 }
 
 /** Ghép danh sách công trình (thứ tự = vị trí) với thứ tự đã lưu: mỗi công trình 1 dòng, khớp theo mã / tên chuẩn
- *  (taoTra); công trình chưa có dòng lưu thì STT = vị trí (1-based), luồng đỏ. */
+ *  (taoTra); công trình chưa có dòng lưu thì STT = dòng trên + 1 (dòng đầu = 1), luồng đỏ. */
 export function ghepThuTu(danhSach: string[], daLuu: ThuTuCongTrinh[]): ThuTuCongTrinh[] {
   const tra = taoTra(daLuu, t => t.ten);
-  return danhSach.map((ten, i) => {
+  let truoc = 0;
+  return danhSach.map(ten => {
     const t = tra(ten);
-    return { ten, stt: t && laSttHopLe(t.stt) ? t.stt : i + 1, luong: t?.luong === 'vang' ? 'vang' : 'do' };
+    truoc = t && laSttHopLe(t.stt) ? t.stt : truoc + 1;
+    return { ten, stt: truoc, luong: t?.luong === 'vang' ? 'vang' : 'do' };
   });
 }
 

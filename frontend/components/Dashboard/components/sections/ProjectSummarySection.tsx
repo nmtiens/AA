@@ -19,7 +19,7 @@ interface ProjectSummarySectionProps {
   nguon?: { rows: DataRow[]; khoa: KhoaBangCongTrinh & { hexKey?: string } };
 }
 
-const KHO_TEN: Record<KhoCot, string> = { nk: 'Đã nhập P022', xk: 'Đã xuất P025', ton: 'Tồn theo đơn', chenh: 'Chênh', xv: 'Xuất vượt nhập' };
+const KHO_TEN: Record<KhoCot, string> = { nk: 'Đã nhập P022', xk: 'Đã xuất P025', ton: 'Tồn kho', chenh: 'Chênh', xv: 'Xuất vượt nhập' };
 
 export const ProjectSummarySection = ({
   sectionRef,
@@ -80,7 +80,10 @@ export const ProjectSummarySection = ({
     ? `${nhom} · ${st}: số hạng mục chưa nhập kho đủ đang ở công đoạn này`
     : `${nhom} · ${st}: giá trị CÒN LẠI chưa nhập kho (trị giá − đã nhập) của hạng mục đang ở công đoạn này`);
 
-  const khoCells = (k: Kho | undefined, ct: string | null) => KHO_COT.map((f, idx) => {
+  // Chênh, Xuất vượt nhập ẩn mặc định; bấm + ở cột Tồn kho để hiện
+  const [moKho, setMoKho] = useState(false);
+  const khoHien = moKho ? KHO_COT : KHO_COT.filter(f => f !== 'chenh' && f !== 'xv');
+  const khoCells = (k: Kho | undefined, ct: string | null) => khoHien.map((f, idx) => {
     const v = k?.[f] ?? 0;
     const mau = ct === null ? '' : f === 'chenh' || f === 'xv' ? (isCount || v >= 5 ? 'text-orange-600' : 'text-slate-600') : f === 'ton' ? 'font-semibold' : '';
     return (
@@ -132,7 +135,7 @@ export const ProjectSummarySection = ({
                   title={isCount ? 'Hạng mục chưa nhập kho đủ, theo công đoạn hiện tại' : 'Giá trị còn lại chưa nhập kho (trị giá − đã nhập), theo công đoạn hiện tại'}>
                   {isCount ? 'Tổng hạng mục còn lại' : 'Tổng giá trị đơn hàng còn lại'}
                 </th>
-                <th colSpan={KHO_COT.length} rowSpan={2} className={`${thB} border-l-2 border-l-slate-400 text-center`}
+                <th colSpan={khoHien.length} rowSpan={2} className={`${thB} border-l-2 border-l-slate-400 text-center`}
                   title="Lũy kế các hạng mục không hủy của công trình theo bộ lọc trang, kể cả hạng mục đã nhập kho đủ">
                   Kho (lũy kế)
                 </th>
@@ -140,14 +143,16 @@ export const ProjectSummarySection = ({
               <tr>
                 {groups.map((g, gi) => {
                   const mo = moNhom.has(gi);
+                  // Chưa triển khai (P001) / Chưa tính phiếu (P002): 1 công đoạn => không bung / gộp
+                  const coTach = g.bucket !== 'notDeployed' && g.bucket !== 'p002';
                   return (
                     <th key={gi} colSpan={mo ? g.stages.length : 1} rowSpan={mo ? 1 : 2}
-                      className={`${thB} cursor-pointer select-none text-center text-sm hover:bg-emerald-400`}
-                      onClick={() => doiNhom(gi)} title={mo ? 'Bấm để gộp lại 1 cột' : `Bấm để tách từng công đoạn (${g.stages.map(tenCotCongDoan).join(', ')})`}>
+                      className={`${thB} text-center text-sm ${coTach ? 'cursor-pointer select-none hover:bg-emerald-400' : ''}`}
+                      onClick={coTach ? () => doiNhom(gi) : undefined} title={!coTach ? undefined : mo ? 'Bấm để gộp lại 1 cột' : `Bấm để tách từng công đoạn (${g.stages.map(tenCotCongDoan).join(', ')})`}>
                       {g.bucket && <span className={`mr-1.5 inline-block h-2 w-2 rounded-sm ${BOP_GROUP[g.bucket].dot}`} />}
                       {tenNhom(g.bucket)}
                       {!mo && <><br /><span className="font-semibold text-slate-700">{dayP(g.stages)}</span></>}
-                      <span className="ml-1 font-bold text-emerald-800">{mo ? '−' : '+'}</span>
+                      {coTach && <span className="ml-1 font-bold text-emerald-800">{mo ? '−' : '+'}</span>}
                     </th>
                   );
                 })}
@@ -162,9 +167,14 @@ export const ProjectSummarySection = ({
                     {tenCotCongDoan(st)}
                   </th>
                 )) : null))}
-                {KHO_COT.map((f, idx) => (
+                {khoHien.map((f, idx) => (
                   <th key={f} className={`${thB} text-center leading-tight ${idx === 0 ? 'border-l-2 border-l-slate-400' : ''}`} title={khoTitle[f]}>
                     {KHO_TEN[f]}
+                    {f === 'ton' && (
+                      <button type="button" onClick={() => setMoKho(v => !v)} aria-expanded={moKho}
+                        title={moKho ? 'Ẩn cột Chênh, Xuất vượt nhập' : 'Hiện cột Chênh, Xuất vượt nhập'}
+                        className="ml-1 font-bold text-emerald-800 hover:text-emerald-900">{moKho ? '−' : '+'}</button>
+                    )}
                   </th>
                 ))}
               </tr>
