@@ -578,6 +578,8 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
           const f = (c: number, v: number) => (dem ? c.toLocaleString('en-US') : formatTrieuAsTy(v));
           const dv = dem ? DON_VI : 'tỷ';
           const soLieu = trangThaiSo(khoang?.tu, khoang?.den, n?.maxDates?.[x.k]);
+          // Nguồn mới nạp tới ngày nào: "Nhập đến ngày 09/11", "Xuất đến ngày 08/11", thẻ khác "Dữ liệu đến ngày …"
+          const denNgay = `${x.k === 'inventory' ? 'Nhập' : x.k === 'export' ? 'Xuất' : 'Dữ liệu'} đến ngày ${soLieu.toi}`;
           return (
             <button key={x.k} type="button" onClick={() => p.onMoChiTiet(x.k)} title={`${x.hint}\nBấm để xem chi tiết & xu hướng`}
               className={`group flex flex-col rounded-2xl border p-5 text-left transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${m.nen}`}>
@@ -588,13 +590,13 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </span>
               <span className={`mt-4 text-sm font-semibold uppercase tracking-wider ${m.nhat}`}>{nhanKy}</span>
               <span className={`whitespace-nowrap text-[3.25rem] font-bold leading-tight tabular-nums ${m.chu}`}>
-                {/* Chưa có số của ngày đang xem (nguồn chưa nạp tới) => 0, dòng dưới ghi "Chưa có số tới …"; đang tải => … */}
+                {/* Chưa có số của ngày đang xem (nguồn chưa nạp tới) => 0, dòng dưới ghi "Nhập / Xuất đến ngày …"; đang tải => … */}
                 {soLieu.chuaCo ? f(0, 0) : a ? f(a.count, a.value) : n ? f(0, 0) : '…'}<span className={`ml-2 text-xl font-medium ${m.nhat}`}>{dv}</span>
               </span>
               <span className="text-base text-slate-600">
-                {soLieu.chuaCo ? <b className="font-semibold text-amber-700">Chưa có số tới {soLieu.toi}</b> : <>
+                {soLieu.chuaCo ? <b className="font-semibold text-amber-700">{denNgay}</b> : <>
                   {a && <>{dem ? `${formatTrieuAsTy(a.value)} tỷ` : `${a.count.toLocaleString('en-US')} hạng mục`} · </>}
-                  {soLieu.thieu ? <b className="font-semibold text-amber-700">Số tới {soLieu.toi}</b>
+                  {soLieu.thieu ? <b className="font-semibold text-amber-700">{denNgay}</b>
                     : dem ? chenh(a?.count, b?.count, 'so', khoang?.tenTruoc) : chenh(a?.value, b?.value, 'pt', khoang?.tenTruoc)}
                 </>}
               </span>
