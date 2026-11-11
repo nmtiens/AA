@@ -588,7 +588,8 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </span>
               <span className={`mt-4 text-sm font-semibold uppercase tracking-wider ${m.nhat}`}>{nhanKy}</span>
               <span className={`whitespace-nowrap text-[3.25rem] font-bold leading-tight tabular-nums ${m.chu}`}>
-                {soLieu.chuaCo ? '—' : a ? f(a.count, a.value) : '…'}<span className={`ml-2 text-xl font-medium ${m.nhat}`}>{dv}</span>
+                {/* Chưa có số của ngày đang xem (nguồn chưa nạp tới) => 0, dòng dưới ghi "Chưa có số tới …"; đang tải => … */}
+                {soLieu.chuaCo ? f(0, 0) : a ? f(a.count, a.value) : n ? f(0, 0) : '…'}<span className={`ml-2 text-xl font-medium ${m.nhat}`}>{dv}</span>
               </span>
               <span className="text-base text-slate-600">
                 {soLieu.chuaCo ? <b className="font-semibold text-amber-700">Chưa có số tới {soLieu.toi}</b> : <>
