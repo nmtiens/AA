@@ -127,7 +127,7 @@ export function sttHienThi(ds: readonly (ThuTuTra | null)[]): number[] {
 
 /** Màu theo luồng (Tailwind): nền dòng nhạt, nền khi rê chuột đậm hơn 1 bậc, ô STT nhấn đậm. Ngoài luồng => null (giữ màu cũ). */
 export const MAU_LUONG: Record<Luong, { nen: string; hover: string; stt: string; nhan: string }> = {
-  do: { nen: 'bg-red-100', hover: 'hover:bg-red-200', stt: 'bg-red-200 font-bold text-red-800', nhan: 'Luồng đỏ' },
+  do: { nen: 'bg-red-200', hover: 'hover:bg-red-300', stt: 'bg-red-300 font-bold text-red-900', nhan: 'Luồng đỏ' },
   vang: { nen: 'bg-yellow-100', hover: 'hover:bg-yellow-200', stt: 'bg-yellow-200 font-bold text-yellow-900', nhan: 'Luồng vàng' },
 };
 export const mauLuong = (t: ThuTuTra | null | undefined) => (t ? MAU_LUONG[t.luong] : null);

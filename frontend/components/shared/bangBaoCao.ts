@@ -13,3 +13,7 @@ export const soBam = 'underline decoration-slate-300 decoration-dotted underline
 
 /** Ô số: 0 để trống */
 export const trong0 = (v: number, f: (n: number) => string) => (v ? f(v) : '');
+// Cửa sổ danh sách HEX khi bấm số (BOP / BOM / BOT / BOT x BOP): gần kín màn hình, chữ to như bảng
+export const cuaSoNen = 'fixed inset-0 z-[9993] flex items-center justify-center bg-slate-900/40 p-2 sm:p-4';
+export const cuaSoKhung = 'flex h-[92vh] w-[97vw] max-w-none flex-col gap-3 rounded-xl bg-white p-5 shadow-xl';
+export const cuaSoBang = '!text-[1.0625rem] [&_td]:py-2.5 [&_th]:py-2.5';

@@ -6,7 +6,7 @@ import { app } from '../server/app.js';
 import { invalidateUserAccess } from '../server/permissions.js';
 import { LOAI_CA, pairKey } from '../server/xuong/types.js';
 import {
-  fail, xuongQuanLy, quanLyDuoc, phamViXem, toTruongCua, ghiVaTinhLai, suaChoGiaoCuoiTuyen, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
+  fail, xuongQuanLy, quanLyDuoc, quyenXuongCua, phamViTuQuyen, toTruongCua, ghiVaTinhLai, suaChoGiaoCuoiTuyenXuong, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
   coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc, gioiHanNhan, mocCheDo, nguoiDungTheoId,
   luuTrangThai, tenNguoi,
 } from './xuong.js';
@@ -77,9 +77,10 @@ async function lanTrienKhaiTruoc(xuong: string): Promise<{ rows: Row[] }> {
 // ---------------------------------------------------------------------------
 app.get('/api/xuong/setup', async (req: Request, res: Response) => {
   try {
-    const { ds, admin } = await xuongDuocSua(req);
     // Tổ trưởng (kể cả có quyền quản lý): chỉ xem số liệu tổ mình — danh sách xưởng = xưởng có tổ của mình
-    const toTruong = admin ? [] : await toTruongCua(req.user!.id);
+    // (quyền đọc một lần, 2 câu song song; admin: tổ trưởng rỗng như cũ)
+    const { ds, toTruong } = await quyenXuongCua(req.user!.id);
+    const admin = ds.has('*');
     if (!ds.size && !toTruong.length) return khongQuyen(res, 'Cần quyền quản lý xưởng');
     const tatCa = toTruong.length ? [...new Set(toTruong.map(t => t.xuong))].sort() : (await poolMra.query(
       `SELECT DISTINCT xuong FROM (SELECT xuong FROM xuong_cong_doan UNION SELECT xuong FROM xuong_to) x ORDER BY xuong`)).rows
@@ -165,9 +166,8 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
     const xuong = typeof req.query.xuong === 'string' && req.query.xuong ? req.query.xuong.toUpperCase() : dsXuong[0] ?? null;
     if (!xuong) return res.json({ success: true, available: true, dsXuong, xuong: null, to: [] });
     if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
-    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến (trước khi có quy tắc cuối tuyến = xong): tính lại
-    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong]))
-      .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến (trước khi có quy tắc cuối tuyến = xong): tính lại (≤ 1 lần / phút / xưởng)
+    await suaChoGiaoCuoiTuyenXuong(xuong);
     const r = await poolMra.query(
       `WITH homnay AS (SELECT (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS d)
        SELECT t.id, t.ten_to, t.to_truong_user_id,
@@ -193,7 +193,8 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
        ORDER BY t.ten_to`, [xuong]);
     // Số trên nút "Cần xem (N)": cả xưởng (kể cả thao tác không gắn tổ), cùng phạm vi với danh sách mở ra;
     // null = người này không mở được danh sách của xưởng (vd. tổ trưởng xưởng khác)
-    const pv = await phamViXem(req.user!.id, xuong);
+    // Dùng lại `ds` đã đọc ở đầu request (không hỏi lại xuong_quan_ly); admin không cần đọc tổ trưởng — cùng luật phamViXem
+    const pv = phamViTuQuyen({ ds, toTruong: admin ? [] : await toTruongCua(req.user!.id) }, xuong);
     const canXemXuong = pv ? Number((await poolMra.query(
       `SELECT count(*)::int AS n FROM xuong_su_kien e WHERE e.xuong = $1 AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
          AND ${sqlThaoTacCanXuLy('e')}`, [xuong, pv.chiTo])).rows[0]?.n ?? 0) : null;
@@ -919,11 +920,12 @@ app.post('/api/xuong/khai-chi-tiet', async (req: Request, res: Response) => {
 app.get('/api/xuong/theo-doi-trien-khai', async (req: Request, res: Response) => {
   try {
     const xuong = String(req.query.xuong ?? '').toUpperCase();
-    const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
-    if (!pv) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
-    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại
-    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong]))
-      .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+    // Quyền đọc một lần cho cả request: phạm vi xem ở đây + "huỷ đợt được" (dsQl) bên dưới
+    const quyen = xuong ? await quyenXuongCua(req.user!.id) : null;
+    const pv = quyen ? phamViTuQuyen(quyen, xuong) : null;
+    if (!quyen || !pv) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại (≤ 1 lần / phút / xưởng)
+    await suaChoGiaoCuoiTuyenXuong(xuong);
     const soNgay = Math.min(400, Math.max(1, Number(req.query.ngay) || 90));
     const tatCa = req.query.tatCa === '1';
     // Hạng mục: xưởng này triển khai (xưởng chính) hoặc được giao thành phần (xưởng phụ)
@@ -970,7 +972,8 @@ app.get('/api/xuong/theo-doi-trien-khai', async (req: Request, res: Response) =>
     // Các đợt triển khai còn hiệu lực (danh sách + nút huỷ đợt trên máy tính)
     const conHieuLuc = new Set(suKienConHieuLuc(evts).map(e => e.id));
     const dotRows = evRows.filter(r => r.loai === 'trien_khai' && conHieuLuc.has(String(r.id)));
-    const [nguoiTk, { ds: dsQl }] = await Promise.all([nguoiDungTheoId(dotRows.map(r => r.user_id)), xuongDuocSua(req)]);
+    const nguoiTk = await nguoiDungTheoId(dotRows.map(r => r.user_id));
+    const dsQl = quyen.ds;
     const dotCua = (hex: string) => dotRows.filter(r => String(r.hex) === hex)
       .sort((a, b) => new Date(b.device_ts_hieu_chinh).getTime() - new Date(a.device_ts_hieu_chinh).getTime())
       .map(r => {

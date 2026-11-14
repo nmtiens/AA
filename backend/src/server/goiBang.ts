@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import { getTablesData } from './data.js';
 import { stripMaterialPriceColumns } from './permissions.js';
 import { docSnapshot, luuSnapshot } from './snapshot.js';
+import { pool } from '../db.js';
 
 // ============================================================================
 // BẢN DỰNG SẴN THEO TỪNG BẢNG cho /api/all-data.
@@ -45,6 +46,57 @@ export function tuCot(v: unknown): Record<string, unknown>[] | null {
 
 const manhDang = new Map<string, Promise<string>>();
 
+// Mảnh (đã nén) của từng bảng mà instance này vừa đọc / vừa dựng — để dungGoi biết mảnh nào CÒN THIẾU và đọc gộp
+// các mảnh thiếu trong 1 câu (trước: mỗi bảng 1 truy vấn nối tiếp). An toàn: khoá gồm bảng + cờ giá + định dạng,
+// chỉ dùng khi ver trùng đúng phiên bản bảng đang hỏi (như snapshotNho); buffer dùng chung tham chiếu với
+// snapshotNho nên không tốn thêm bộ nhớ đáng kể.
+const MANH_NHO_MAX = 24;
+const manhNho = new Map<string, { ver: string; buf: Buffer }>();
+const nhoManh = (khoa: string, ver: string, buf: Buffer) => {
+  manhNho.delete(khoa);
+  manhNho.set(khoa, { ver, buf });
+  while (manhNho.size > MANH_NHO_MAX) {
+    const cu = manhNho.keys().next().value;
+    if (cu === undefined) break;
+    manhNho.delete(cu);
+  }
+};
+
+export type ManhCan = { khoa: string; ver: string };
+/** Các mảnh chưa có trong bộ nhớ đúng phiên bản (bỏ khoá trùng) — hàm thuần, có test */
+export function manhThieu<T extends ManhCan>(can: T[], verDaCo: (khoa: string) => string | undefined): T[] {
+  const thay = new Set<string>();
+  return can.filter(m => {
+    if (thay.has(m.khoa) || verDaCo(m.khoa) === m.ver) return false;
+    thay.add(m.khoa);
+    return true;
+  });
+}
+
+/** Đọc 1 câu mọi mảnh thiếu, so luôn ver trong câu (không kéo bản cũ vài MB về rồi bỏ). Lỗi / chưa có bảng =>
+ *  trả rỗng, từng mảnh rơi về manhBang như cũ. Trả các khoá vừa đọc được. */
+async function docNhieuManh(thieu: ManhCan[]): Promise<Set<string>> {
+  const co = new Set<string>();
+  try {
+    const r = await pool.query(
+      `SELECT s.khoa, s.du_lieu FROM all_data_snapshot s
+       JOIN unnest($1::text[], $2::text[]) AS w(khoa, ver) ON s.khoa = w.khoa AND s.ver = w.ver`,
+      [thieu.map(m => m.khoa), thieu.map(m => m.ver)]);
+    const verCua = new Map(thieu.map(m => [m.khoa, m.ver]));
+    for (const row of r.rows) {
+      const khoa = String(row.khoa);
+      const ver = verCua.get(khoa);
+      if (ver === undefined || !row.du_lieu) continue;
+      nhoManh(khoa, ver, row.du_lieu as Buffer);
+      co.add(khoa);
+    }
+  } catch (e) {
+    // Từng mảnh rơi về manhBang (docSnapshot tự tắt khi thiếu bảng). Lỗi khác (quá hạn, DB bận) phải thấy trong log
+    if ((e as { code?: string })?.code !== '42P01') console.error('[all-data] đọc gộp mảnh lỗi', e);
+  }
+  return co;
+}
+
 /** Dữ liệu 1 bảng dạng chuỗi JSON (mảng dòng, hoặc {c,r} khi cot) — lấy bản dựng sẵn hoặc đọc DB rồi lưu lại.
  *  nguon: 'mem' | 'db' | 'dung' */
 export async function manhBang(key: string, gia: boolean, verGoc: unknown, nguon?: { v: string }, cot = false): Promise<string> {
@@ -53,6 +105,7 @@ export async function manhBang(key: string, gia: boolean, verGoc: unknown, nguon
   const n = { v: '' };
   const buf = await docSnapshot(khoa, ver, n);
   if (buf) {
+    nhoManh(khoa, ver, buf);
     if (nguon) nguon.v = n.v;
     return (await gunzip(buf)).toString('utf8');
   }
@@ -64,7 +117,10 @@ export async function manhBang(key: string, gia: boolean, verGoc: unknown, nguon
       const goc = payload[key] ?? [];
       const rows = key === 'material' && !gia ? stripMaterialPriceColumns(goc) : goc;
       const json = JSON.stringify(cot ? sangCot(rows as Record<string, unknown>[]) : rows);
-      await luuSnapshot(khoa, ver, await gzip(json));
+      const gz = await gzip(json);
+      nhoManh(khoa, ver, gz);
+      // Vẫn CHỜ ghi xong (lamNong dựa vào đó để nơi khác thấy bản đã dựng; ghi nền ở đây sẽ chiếm cả 2 kết nối pool)
+      await luuSnapshot(khoa, ver, gz);
       return json;
     })().finally(() => manhDang.delete(k));
     manhDang.set(k, p);
@@ -78,11 +134,21 @@ export async function manhBang(key: string, gia: boolean, verGoc: unknown, nguon
 export async function dungGoi(keys: string[], gia: boolean, versions: Record<string, string>, cot = false, br = false): Promise<{ buf: Buffer; nguon: string }> {
   const nguon: string[] = [];
   const manh: string[] = [];
-  // Lần lượt (không dồn nhiều bảng lớn vào bộ nhớ / DB cùng lúc)
-  for (const key of keys) {
+  const can = keys.map(key => ({ key, khoa: khoaBang(key, gia, cot), ver: verBang(versions[key]) }));
+  // Từ 2 mảnh thiếu trở lên: đọc gộp 1 câu (bản NÉN, tổng dung lượng bằng các lượt đọc riêng trước đây)
+  const thieu = manhThieu(can, k => manhNho.get(k)?.ver);
+  const vuaDoc = thieu.length >= 2 ? await docNhieuManh(thieu) : new Set<string>();
+  // Giải nén / dựng lần lượt (không dồn nhiều bảng lớn đã giải nén vào bộ nhớ / DB cùng lúc)
+  for (const m of can) {
+    const nho = manhNho.get(m.khoa);
+    if (nho && nho.ver === m.ver) {
+      manh.push(`${JSON.stringify(m.key)}:${(await gunzip(nho.buf)).toString('utf8')}`);
+      nguon.push(`${m.key}=${vuaDoc.has(m.khoa) ? 'db' : 'mem'}`);
+      continue;
+    }
     const n = { v: '' };
-    manh.push(`${JSON.stringify(key)}:${await manhBang(key, gia, versions[key], n, cot)}`);
-    nguon.push(`${key}=${n.v}`);
+    manh.push(`${JSON.stringify(m.key)}:${await manhBang(m.key, gia, versions[m.key], n, cot)}`);
+    nguon.push(`${m.key}=${n.v}`);
   }
   const json = `{${manh.join(',')}}`;
   return { buf: br ? await nenBr(json) : await gzip(json), nguon: nguon.join(' ') };

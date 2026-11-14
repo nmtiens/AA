@@ -93,6 +93,7 @@ export interface GioiHanTruyVan {
   workMemMb?: number;
 }
 
+const GOP_LENH = process.env.DB_GOP_LENH !== '0';
 export const lenhMoGiaoDich = ({ timeoutMs, workMemMb }: GioiHanTruyVan = {}) => {
   const lenh = ['BEGIN', IDLE_TX_TIMEOUT_SQL, `SET LOCAL statement_timeout = ${Math.floor(timeoutMs || STATEMENT_TIMEOUT_MS)}`];
   if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
@@ -107,6 +108,19 @@ export async function chayCoGioiHan(
   gioiHan?: GioiHanTruyVan,
 ) {
   try {
+    // Câu KHÔNG tham số: gửi cả giao dịch trong 1 lệnh (giao thức simple-query) => 1 lượt đi-về thay vì 3.
+    // Đã thử trên pooler thật 13/11/2026 (Layerbase PG 18, Supabase PG 17): timeout SET LOCAL có hiệu lực với câu trong
+    // lô, lỗi giữa lô thì ROLLBACK ở catch như cũ, không rò timeout sang lượt mượn khác. Tắt nhanh: DB_GOP_LENH=0.
+    // Câu có tham số phải đi giao thức extended (không gộp được nhiều lệnh) => giữ 3 lượt.
+    if (GOP_LENH && typeof text === 'string' && (params == null || (Array.isArray(params) && params.length === 0))) {
+      const mo = lenhMoGiaoDich(gioiHan);
+      const soMo = mo.split('; ').length;
+      // Bỏ ; và khoảng trắng cuối câu (tránh lệnh rỗng); xuống dòng trước "; COMMIT" để chú thích -- cuối câu không nuốt COMMIT
+      const ds = await client.query(`${mo};\n${text.replace(/[;\s]+$/, '')}\n; COMMIT`);
+      if (!Array.isArray(ds)) return ds;
+      const giua = ds.slice(soMo, ds.length - 1);
+      return giua.length === 1 ? giua[0] : giua;   // câu tự chứa nhiều lệnh: trả mảng như pg vẫn trả
+    }
     await client.query(lenhMoGiaoDich(gioiHan));
     const result = await client.query(text, params);
     await client.query('COMMIT');

@@ -40,6 +40,16 @@ export const laSuKienTram = (e: Pick<SuKien, 'loai' | 'duLieu'>): boolean =>
   e.loai === 'nguoi_vao' || e.loai === 'nguoi_ra'
   || ((e.loai === 'vao_ca' || e.loai === 'ra_ca') && e.duLieu?.tram === true);
 
+/**
+ * Điểm danh tay của tổ trưởng trong một tập sự kiện thô: vao_ca / ra_ca KHÔNG thuộc sổ trạm và chưa bị huỷ.
+ * `idBiHuy` = sua_cho của mọi sự kiện huy trỏ vào các dòng đó — có dòng huy nào trỏ tới là coi như đã huỷ (đúng nghĩa
+ * điều kiện SQL "NOT EXISTS (huy có sua_cho = id)" mà màn trạm dùng trước đây, không xét huỷ-của-huỷ).
+ */
+export function diemDanhTayChuaHuy<T extends Pick<SuKien, 'id' | 'loai' | 'duLieu'>>(evs: T[], idBiHuy: Iterable<string>): T[] {
+  const biHuy = new Set(idBiHuy);
+  return evs.filter(e => (e.loai === 'vao_ca' || e.loai === 'ra_ca') && !laSuKienTram(e) && !biHuy.has(e.id));
+}
+
 /** Thao tác bấm tay mà trạm thay thế (tổ chế độ trạm ẩn các nút này) */
 const LOAI_BAM_TAY = new Set(['bat_dau', 'tiep_tuc', 'tam_ngung', 'chia_nguoi']);
 

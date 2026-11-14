@@ -5,10 +5,12 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 import { allowedOrigins } from './config.js';
-import { authenticateActiveUser } from './auth.js';
+import { authenticateJWT, authenticateActiveUserKichSom } from './auth.js';
 import { isXuongPath } from './xuong/auth.js';
 import { ensureProjectAliases } from './projectAlias.js';
 import { ensureWorkshopGroups } from './workshopGroups.js';
+import { getVersions } from './data.js';
+import { giuHamSong } from './sharedCache.js';
 
 // Instance Express dùng chung. Middleware hạ tầng + bắt buộc đăng nhập được gắn
 // NGAY khi module này được nạp, tức là TRƯỚC mọi route (các module trong src/routes/
@@ -99,6 +101,7 @@ export const PUBLIC_API_PATHS = new Set([
 ]);
 export const PUBLIC_API_PREFIXES = ['/api/cron/'];
 
+const xacThucChung = authenticateActiveUserKichSom(path => kichNapSom(path));
 app.use((req: Request, res: Response, next: NextFunction) => {
   // So khớp không phân biệt hoa thường: /API/..., /Api/... cũng phải qua đăng nhập
   // (router con như express.Router() mặc định vẫn khớp không phân biệt hoa thường).
@@ -106,8 +109,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'OPTIONS' || !path.startsWith('/api/')) return next();
   // Bỏ '/' cuối khi so danh sách công khai ('/api/warmup/' = '/api/warmup', Express cũng khớp như vậy) —
   // trước so khớp chính xác nên có '/' cuối bị đòi JWT
-  if (PUBLIC_API_PATHS.has(path.replace(/\/+$/, '')) || PUBLIC_API_PREFIXES.some(p => path.startsWith(p))) return next();
-  return authenticateActiveUser(req, res, next);
+  const gon = path.replace(/\/+$/, '');
+  if (PUBLIC_API_PATHS.has(gon) || PUBLIC_API_PREFIXES.some(p => path.startsWith(p))) return next();
+  // /api/auth/me: route tự đọc THẲNG dòng users (1 câu, luôn mới) và tự trả 401 khi tài khoản khoá / token Xưởng bị
+  // thu hồi (routes/auth.ts) => ở đây chỉ kiểm token + phạm vi token, khỏi đọc bảng users lần thứ hai.
+  if (gon === '/api/auth/me') return authenticateJWT(req, res, next);
+  return xacThucChung(req, res, next);
 });
 
 // Lọc theo tên công trình: nạp sẵn bảng "mọi cách viết tên của cùng mã" (làm mới 10 phút/lần, chạy nền).
@@ -125,11 +132,32 @@ const PROJECT_ALIAS_WAIT_MS = 0;
 // trên DB chính) 10 phút / lần theo nhịp máy trạm quét => DB chính không bao giờ ngủ được (Layerbase tạm dừng, 20/10/2026)
 const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong)(\/|$)/i;
 // Không nạp setup gộp xưởng (bảng trên DB chính): máy trạm (chỉ dùng Supabase), cron / warmup (route nào cần thì tự nạp)
-const NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram)(\/|$)/i;
+// + các API không dùng gộp xưởng (tải bảng thô, phiên bản, cấu hình cột / nhóm công trình, nhật ký, tên công trình,
+//   đăng nhập, thông báo): instance mới khỏi chờ thêm 1 truy vấn trước khi vào route. KHÔNG thêm workshop-groups.
+const NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push)(\/|$)/i;
+// API số liệu chắc chắn hỏi phiên bản bảng (getVersions) ngay đầu route. Danh sách CHO PHÉP (không phải danh sách
+// loại trừ): đăng nhập / người dùng / thông báo / Xưởng / vướng mắc... không bao giờ bị kích câu table_versions thừa
+// (mục Xưởng không được đánh thức DB chính).
+const DUNG_PHIEN_BAN = /^\/api\/(all-data|check-versions|material|production|overview|trend(-by-[a-z]+)?|filters|detail|revenue|khsx(-nam|-nhapkho)?|stock|ton-kho-vt|tong-quan|cong-trinh|bot-tong-hop)(\/|$)/i;
+/** Đường dẫn (đã viết thường) cần kích sớm những gì. Hàm thuần. */
+export const napSomCho = (path: string): { gopXuong: boolean; phienBan: boolean } => ({
+  gopXuong: path.startsWith('/api/') && !NO_WORKSHOP_GROUPS.test(path),
+  phienBan: DUNG_PHIEN_BAN.test(path),
+});
+// Kích sớm, KHÔNG chờ: trên instance mới 3 câu chuẩn bị (users -> setup gộp xưởng -> table_versions) trước chạy nối
+// tiếp, nay câu gộp xưởng / phiên bản đi song song với câu users (gọi sau khi câu users đã gửi nên users không xếp
+// hàng sau). Chỉ chạy khi token hợp lệ (request không token không đánh thức DB). Không đổi kết quả: hai hàm tự gộp
+// lượt đang chạy (loading / versionsInflight) nên middleware / route phía sau await đúng promise này; đang còn mới
+// thì trả ngay, không truy vấn. Đăng ký waitUntil phòng route trả lời trước khi câu kích sớm xong.
+function kichNapSom(path: string) {
+  const can = napSomCho(path);
+  if (can.gopXuong) giuHamSong(ensureWorkshopGroups(false, true).catch(() => { /* giữ setup cũ */ }));
+  if (can.phienBan) giuHamSong(getVersions().catch(() => { /* route tự báo lỗi khi cần */ }));
+}
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
   const path = req.path.toLowerCase();
   if (path.startsWith('/api/')) {
-    if (!NO_WORKSHOP_GROUPS.test(path)) { try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ } }
+    if (!NO_WORKSHOP_GROUPS.test(path)) { try { await ensureWorkshopGroups(false, true); } catch { /* giữ setup cũ */ } }
     if (NO_WAIT_PROJECT_ALIASES.test(path)) {
       // Route không dùng tên công trình: không kích nạp bảng tên (truy vấn nặng, chiếm thêm 1 kết nối DB tới ~28 giây
       // trên MỖI instance mới — đăng nhập / thông báo / kiểm tra phiên bản... từng làm pooler đầy)

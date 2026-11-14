@@ -53,7 +53,6 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       ${khWhere}
       GROUP BY 1, 2, 3
     `;
-    const khResult = await timedQuery(khQuery, khParams, { workMemMb: 32 });
 
     // ---------- THỰC HIỆN (nhap_kho) ----------
     const thParams: any[] = [nam];
@@ -118,7 +117,11 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       ${thWhere}
       GROUP BY 1, 2, 3, 4
     `;
-    const thResult = await timedQuery(thQuery, thParams, { workMemMb: 32 });
+    // KH và TH không phụ thuộc nhau (thQuery chỉ dùng bộ lọc) => chạy song song trên 2 kết nối; SQL giữ nguyên
+    const [khResult, thResult] = await Promise.all([
+      timedQuery(khQuery, khParams, { workMemMb: 32 }),
+      timedQuery(thQuery, thParams, { workMemMb: 32 }),
+    ]);
 
     // ---------- GỘP THEO XƯỞNG ----------
     const xuongMap = new Map<string, { kh: number; th: number; thPlan: number }>();
@@ -219,7 +222,12 @@ app.get('/api/khsx/cong-trinh', async (req: Request, res: Response) => {
         [`%${loai}%`, nam, thang]
       );
       let loai: 'THÁNG' | 'TUẦN' | null = 'THÁNG';
-      let r = await lay('THÁNG');
+      // Giờ cập nhật bảng khsx hỏi song song với KH tháng (trước nối tiếp, sau cùng); câu và định dạng giữ nguyên
+      const [r0, cn] = await Promise.all([
+        lay('THÁNG'),
+        timedQuery(`SELECT to_char(last_updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS v FROM table_versions WHERE table_name = 'khsx'`),
+      ]);
+      let r = r0;
       if (!r.rows.length) { loai = 'TUẦN'; r = await lay('TUẦN'); }
       if (!r.rows.length) loai = null;
       const m = new Map<string, Set<string>>();
@@ -230,7 +238,6 @@ app.get('/api/khsx/cong-trinh', async (req: Request, res: Response) => {
         if (x.ma) e.add(String(x.ma));
         m.set(k, e);
       }
-      const cn = await timedQuery(`SELECT to_char(last_updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS v FROM table_versions WHERE table_name = 'khsx'`);
       return {
         nam, thang, loai, capNhat: cn.rows[0]?.v ?? null,
         hex: [...new Set(r.rows.map(x => String(x.hex ?? '')).filter(Boolean))],

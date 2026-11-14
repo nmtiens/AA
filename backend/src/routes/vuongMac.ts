@@ -13,6 +13,8 @@ import { expandWorkshops, workshopGroupOf, workshopGroupSql } from '../server/wo
 import { canonicalProjectName, ensureProjectAliases, expandProjectNames, normNameSql } from '../server/projectAlias.js';
 import { app } from '../server/app.js';
 import { userHasPermission, loadUserAccess } from '../server/permissions.js';
+import { giuHamSong } from '../server/sharedCache.js';
+import { taoNhoNgan, taoNhoTheoKhoa } from '../server/nhoNgan.js';
 
 // ============================================================================
 // VƯỚNG MẮC SẢN XUẤT (5M) — QUY TRÌNH XỬ LÝ
@@ -161,16 +163,28 @@ interface VuongMacActor {
   active: boolean;
 }
 
+// Dòng users mà middleware GHI vừa đọc thẳng DB (xem app.use('/api/vuong-mac') bên dưới) — handler dùng lại, khỏi đọc lần 2
+interface VmActorRow { department: string | null; full_name: string | null; is_active: boolean; role: string | null }
+type ReqCoActor = Request & { vmActorRow?: VmActorRow };
+
 const getVuongMacActor = async (req: Request): Promise<VuongMacActor> => {
-  const r = await pool.query('SELECT department, full_name, is_active, role FROM users WHERE id = $1', [req.user!.id]);
-  return {
-    username: req.user!.username,
-    // Role theo DB (token có thể còn role cũ tới 8 giờ sau khi bị hạ quyền)
-    role: String(r.rows[0]?.role ?? ''),
-    department: r.rows[0]?.department ?? null,
-    fullName: r.rows[0]?.full_name ?? null,
-    active: r.rows[0]?.is_active === true,
-  };
+  const row = (req as ReqCoActor).vmActorRow;
+  if (row) {
+    // Đường GHI: đúng dòng vừa đọc từ DB trong chính request này (kiểm chặt như trước, không qua cache)
+    return {
+      username: req.user!.username,
+      // Role theo DB (token có thể còn role cũ tới 8 giờ sau khi bị hạ quyền)
+      role: String(row.role ?? ''),
+      department: row.department ?? null,
+      fullName: row.full_name ?? null,
+      active: row.is_active === true,
+    };
+  }
+  // Đường ĐỌC (GET, POST /list, /hex-bulk): dùng cache quyền 60 giây của middleware chung (cùng dòng users, admin sửa
+  // user thì cache bị xoá ngay ở instance đó) => không thêm câu SELECT users nào. Tài khoản khoá: role = '' và
+  // active = false nên permsOf vẫn trả không quyền như trước.
+  const a = await loadUserAccess(req.user!.id);
+  return { username: req.user!.username, role: a.role, department: a.department, fullName: a.fullName, active: a.active };
 };
 
 const isHandler = (me: VuongMacActor, handler: string | null) =>
@@ -233,9 +247,12 @@ const planDate = (tuan: unknown, thang: unknown, met?: PlanMet): string | null =
 };
 // KH kỳ đã đạt của các HEX — cùng công thức /api/production/plan-met (routes/data.ts) nhưng chỉ tính cho
 // HEX đang trả về (≤ 1 trang). Lỗi => coi như chưa đạt (giữ hạn như trước), không làm hỏng danh sách.
+// Nhớ theo từng HEX 90 giây: kết quả chỉ đổi khi ETL nạp lại bảng sản xuất / nhập kho, không phụ thuộc người dùng.
+// Mở lại trang, /item ngay sau /all, fetchOne sau khi lưu => không chạy lại câu nối nhap_kho. Lỗi thì KHÔNG nhớ.
+const planMetNho = taoNhoTheoKhoa<PlanMet>(90_000, 2000);
 const planMetOf = async (hexes: string[]): Promise<Map<string, PlanMet>> => {
-  const out = new Map<string, PlanMet>();
-  const list = [...new Set(hexes.filter(Boolean))];
+  const tatCa = [...new Set(hexes.filter(Boolean))];
+  const { co: out, thieu: list } = planMetNho.tach(tatCa);
   if (list.length === 0) return out;
   try {
     const r = await timedQuery(
@@ -262,7 +279,14 @@ const planMetOf = async (hexes: string[]): Promise<Map<string, PlanMet>> => {
       [list],
       { timeoutMs: 15000 }
     );
-    for (const row of r.rows) out.set(row.hex, { tuan: row.tuan_met === true, thang: row.thang_met === true });
+    const moi = new Map<string, PlanMet>();
+    for (const row of r.rows) moi.set(row.hex, { tuan: row.tuan_met === true, thang: row.thang_met === true });
+    for (const hex of list) {
+      const v = moi.get(hex);
+      if (v) out.set(hex, v);
+      // HEX không có dòng KH: nhớ "chưa đạt" (nơi gọi coi thiếu = chưa đạt nên kết quả như cũ) để lần sau khỏi hỏi lại
+      planMetNho.ghi(hex, v ?? { tuan: false, thang: false });
+    }
   } catch (error) {
     console.error('Lỗi tính KH kỳ đã đạt (vướng mắc):', error);
   }
@@ -363,8 +387,11 @@ app.use('/api/vuong-mac', (req: Request, res: Response, next: () => void) => {
   if (req.method === 'GET' || req.method === 'OPTIONS' || /^\/(list|hex-bulk)\/?$/i.test(req.path)) return next();
   authenticateJWT(req, res, async () => {
     try {
-      const r = await pool.query('SELECT is_active FROM users WHERE id = $1', [req.user!.id]);
+      // Đọc thẳng DB (không cache) đủ 4 cột rồi gắn vào req: handler (getVuongMacActor) dùng lại đúng dòng này thay vì
+      // đọc bảng users lần nữa — vẫn kiểm chặt từng request, bớt 1 câu
+      const r = await pool.query('SELECT department, full_name, is_active, role FROM users WHERE id = $1', [req.user!.id]);
       if (r.rows[0]?.is_active !== true) { res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' }); return; }
+      (req as ReqCoActor).vmActorRow = r.rows[0];
       next();
     } catch (error) {
       console.error('Lỗi kiểm tra tài khoản vướng mắc:', error);
@@ -447,8 +474,8 @@ app.get('/api/vuong-mac/photo/:photoId', authenticateJWT, async (req: Request, r
     const photoId = Number(req.params.photoId);
     if (!Number.isInteger(photoId) || photoId <= 0) return res.status(400).json({ error: 'Invalid id' });
 
-    const active = await pool.query('SELECT 1 FROM users WHERE id = $1 AND is_active', [req.user!.id]);
-    if (active.rows.length === 0) return res.status(401).json({ error: 'Tài khoản không còn hoạt động' });
+    // Cache quyền 60 giây (như requireActiveUser): mỗi ảnh khỏi tốn 1 câu SELECT users; admin khoá thì cache bị xoá ngay
+    if (!(await loadUserAccess(req.user!.id)).active) return res.status(401).json({ error: 'Tài khoản không còn hoạt động' });
 
     const r = await pool.query(
       `SELECT ph.data
@@ -740,33 +767,62 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
 // ============================================================================
 // SỐ LIỆU MÀN "TỔNG QUAN" (app điện thoại): việc của tôi, theo trạng thái / hạn / loại / xưởng / công trình
 // ============================================================================
+interface VmStatsTho { rows: any[]; day: { created_today: unknown; resolved_today: unknown; closed_today: unknown } }
+const vmStatsNho = taoNhoNgan<VmStatsTho>(20_000, 2);
+// 1 câu thay cho 2 câu chạy song song (trước chiếm cả 2 kết nối của pool): 3 số đếm hôm nay (luôn đúng 1 dòng) nối
+// trái với các vướng mắc chưa đóng => không có dòng mở nào vẫn còn 1 dòng mang 3 số đếm (id NULL, bỏ ở Node).
+const docVmStats = async (ready: boolean): Promise<VmStatsTho> => {
+  const r = await timedQuery(
+    `WITH d AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS start)
+     SELECT c.created_today, c.resolved_today, c.closed_today, o.*
+     FROM (
+       SELECT
+         (SELECT COUNT(*) FROM vuong_mac, d WHERE created_at >= d.start) AS created_today,
+         (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today
+         ${ready ? `, (SELECT COUNT(*) FROM vuong_mac, d WHERE closed_at >= d.start) AS closed_today` : ', 0 AS closed_today'}
+     ) c
+     LEFT JOIN (
+       SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot, vm.is_resolved, vm.created_at,
+              ${ready ? 'vm.status, vm.priority, vm.xuong, vm.escalated_at, vm.ten_cong_trinh,' : `NULL AS status, NULL AS priority, NULL AS xuong, NULL AS escalated_at, NULL AS ten_cong_trinh,`}
+              EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext,
+              p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh
+       FROM vuong_mac vm
+       LEFT JOIN LATERAL (
+         SELECT ten_cong_trinh, xuong_chinh FROM production_status_app
+         WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
+       ) p ON TRUE
+       WHERE ${ready ? `vm.status <> 'closed'` : 'vm.is_resolved = FALSE'}
+     ) o ON TRUE`
+  );
+  return tachVmStats(r.rows);
+};
+/** Tách kết quả câu gộp /stats: 3 số đếm lấy ở dòng đầu, dòng không có vướng mắc (id NULL) bị bỏ. Hàm thuần. */
+const tachVmStats = (rows: any[]): VmStatsTho => ({
+  rows: rows.filter(row => row.id !== null && row.id !== undefined),
+  day: {
+    created_today: rows[0]?.created_today ?? 0,
+    resolved_today: rows[0]?.resolved_today ?? 0,
+    closed_today: rows[0]?.closed_today ?? 0,
+  },
+});
+// Bảng điều khiển: dòng thô theo (cột quy trình, mốc đầu kỳ) nhớ 60 giây — đổi bộ lọc xưởng / kỳ trong cùng 12 tuần
+// là trúng (lọc làm ở Node). Không phụ thuộc người dùng; quyền vẫn kiểm trước khi đọc bản nhớ.
+const vmDashboardNho = taoNhoNgan<any[]>(60_000, 4);
+// Vướng mắc đang mở gộp theo công trình (/by-project bên dưới): vướng mắc đổi bất kỳ lúc nào (không có phiên bản bảng)
+// => giữ 1 phút, dùng chung lượt đang tính
+type VmByProject = { ma: string; ten: string; open: number; overdue: number }[];
+const vmByProjectNho = taoNhoNgan<VmByProject>(60_000, 1);
+/** Gọi ngay sau mỗi thao tác ghi thành công: người vừa thao tác thấy số mới ở instance này */
+const xoaNhoVuongMac = () => { vmStatsNho.xoa(); vmDashboardNho.xoa(); vmByProjectNho.xoa(); };
+
 app.get('/api/vuong-mac/stats', authenticateJWT, requireActiveUser, async (req: Request, res: Response) => {
   try {
     const me = await getVuongMacActor(req);
     const ready = await hasWorkflowSchema();
-    const [openR, dayR] = await Promise.all([
-      // Vướng mắc chưa đóng (ít dòng) — đọc BOT ở Node để biết quá hạn / sắp đến hạn
-      timedQuery(
-        `SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot, vm.is_resolved, vm.created_at,
-                ${ready ? 'vm.status, vm.priority, vm.xuong, vm.escalated_at, vm.ten_cong_trinh,' : `NULL AS status, NULL AS priority, NULL AS xuong, NULL AS escalated_at, NULL AS ten_cong_trinh,`}
-                EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext,
-                p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh
-         FROM vuong_mac vm
-         LEFT JOIN LATERAL (
-           SELECT ten_cong_trinh, xuong_chinh FROM production_status_app
-           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
-         ) p ON TRUE
-         WHERE ${ready ? `vm.status <> 'closed'` : 'vm.is_resolved = FALSE'}`
-      ),
-      // Phát sinh / đã xử lý / đã đóng trong hôm nay (giờ Việt Nam)
-      timedQuery(
-        `WITH d AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS start)
-         SELECT
-           (SELECT COUNT(*) FROM vuong_mac, d WHERE created_at >= d.start) AS created_today,
-           (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today
-           ${ready ? `, (SELECT COUNT(*) FROM vuong_mac, d WHERE closed_at >= d.start) AS closed_today` : ', 0 AS closed_today'}`
-      ),
-    ]);
+    // Dữ liệu thô (dòng chưa đóng + 3 số đếm hôm nay) không phụ thuộc người dùng: nhớ 20 giây, xoá ngay khi có thao tác
+    // ghi ở instance này. Phần "của tôi" + quá hạn / sắp hạn vẫn tính bên dưới theo `me` và giờ hiện tại ở mỗi request.
+    const { rows: openRows, day: dayRow } = await vmStatsNho.lay(String(ready), () => docVmStats(ready));
+    const openR = { rows: openRows }, dayR = { rows: [dayRow] };
 
     const now = Date.now();
     const s = {
@@ -873,7 +929,7 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
     const seriesFrom = addDaysStr(mondayOf(to), -7 * 11);
     const lo = from < seriesFrom ? from : seriesFrom;
 
-    const r = await timedQuery(
+    const r = { rows: await vmDashboardNho.lay(`${ready}|${lo}`, async () => (await timedQuery(
       `SELECT vm.id, vm.hex, vm.category, vm.content, vm.handler, vm.created_by, vm.created_at, vm.bot, vm.is_resolved,
               vm.resolved_at, vm.updated_at,
               ${ready
@@ -892,7 +948,7 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
           ${ready ? `OR vm.closed_at >= ($1::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')` : ''}`,
       [lo],
       { timeoutMs: 20000 }
-    );
+    )).rows) };
 
     const now = Date.now();
     const inPeriod = (ts: unknown) => { const d = ts ? vnDay(new Date(String(ts))) : ''; return !!d && d >= from && d <= to; };
@@ -1002,6 +1058,15 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
   }
 });
 
+// Gửi thông báo (lưu hộp thông báo + đẩy tới máy chủ của Google / Apple) SAU khi đã trả lời: thông báo chỉ tới NGƯỜI
+// KHÁC nên người thao tác không cần chờ. Trên Vercel việc nền được đăng ký waitUntil (instance không bị đóng băng giữa
+// chừng); không đăng ký được thì CHỜ như cũ để không mất thông báo. Chạy ở máy: tiến trình sống, cứ để chạy.
+// Lỗi chỉ ghi log (notify vốn đã nuốt lỗi) — thao tác chính đã lưu xong.
+const guiNen = async (viec: () => Promise<void>): Promise<void> => {
+  const p = viec().catch(e => console.error('[vuong-mac] lỗi gửi thông báo nền', e));
+  if (!giuHamSong(p) && process.env.VERCEL) await p;
+};
+
 // ============================================================================
 // TẠO MỚI
 // ============================================================================
@@ -1015,11 +1080,15 @@ app.post(
       const me = await getVuongMacActor(req);
       const actor = me.username;
 
-      if (!(await canAddToVuongMacThread(me, hex, category))) {
+      const ready = await hasWorkflowSchema(); // đã nhớ trong instance
+      // Kiểm quyền và đọc dòng sản xuất độc lập nhau: chạy song song (2 kết nối của pool). Bị 403 thì chỉ thừa 1 câu đọc.
+      const [duocThem, prod] = await Promise.all([
+        canAddToVuongMacThread(me, hex, category),
+        ready ? productionOfHex(String(hex)) : null,
+      ]);
+      if (!duocThem) {
         return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban mới được thêm vướng mắc vào mục này' });
       }
-      const ready = await hasWorkflowSchema();
-      const prod = ready ? await productionOfHex(String(hex)) : null;
       const hasHandler = !!(handler ?? '').trim();
 
       // Thêm vướng mắc + ghi nhật ký trong 1 transaction (nhật ký lỗi thì không thêm)
@@ -1047,16 +1116,19 @@ app.post(
         return inserted;
       });
 
-      // Thông báo: người được tag > người xử lý > cùng phòng ban (mỗi người 1 thông báo)
-      const who = await displayName(actor);
-      await notify({ id: row.id, hex, category }, [
-        { kind: 'mention', userIds: await findMentionedIds(content, solution, note),
-          title: `${who} đã nhắc đến bạn — HEX ${hex}`, body: content },
-        { kind: 'assigned', userIds: await idsByFullName(handler),
-          title: `Bạn được giao xử lý vướng mắc — HEX ${hex}`, body: content },
-        { kind: 'new_in_dept', userIds: await recipientsFor(actor, me.department),
-          title: `Vướng mắc mới của ${who} — HEX ${hex}`, body: content },
-      ], actor);
+      xoaNhoVuongMac();
+      // Thông báo: người được tag > người xử lý > cùng phòng ban (mỗi người 1 thông báo) — gửi ở NỀN (xem guiNen)
+      await guiNen(async () => {
+        const who = await displayName(actor);
+        await notify({ id: row.id, hex, category }, [
+          { kind: 'mention', userIds: await findMentionedIds(content, solution, note),
+            title: `${who} đã nhắc đến bạn — HEX ${hex}`, body: content },
+          { kind: 'assigned', userIds: await idsByFullName(handler),
+            title: `Bạn được giao xử lý vướng mắc — HEX ${hex}`, body: content },
+          { kind: 'new_in_dept', userIds: await recipientsFor(actor, me.department),
+            title: `Vướng mắc mới của ${who} — HEX ${hex}`, body: content },
+        ], actor);
+      });
 
       res.json({ success: true, data: await fetchOne(row.id, me) });
     } catch (error) {
@@ -1236,17 +1308,20 @@ app.put(
         return updated;
       });
 
-      // Thông báo
-      const oldMentions = await findMentionedIds(old.content, old.solution, old.note, old.resolved_note);
-      const newMentions = await findMentionedIds(row.content, row.solution, row.note, row.resolved_note);
-      const freshMentions = [...newMentions].filter(uid => !oldMentions.has(uid));   // chỉ báo người MỚI được tag
-      const handlerChanged = newHandler !== undefined && !!newHandler && !sameName(newHandler, old.handler);
-      await notify({ id: row.id, hex: row.hex, category: row.category }, [
-        { kind: 'mention', userIds: freshMentions, title: `${who} đã nhắc đến bạn — HEX ${row.hex}`, body: noteClean || row.content },
-        { kind: 'assigned', userIds: handlerChanged ? await idsByFullName(newHandler) : [],
-          title: `Bạn được giao xử lý vướng mắc — HEX ${row.hex}`, body: row.content },
-        ...events,
-      ], actor);
+      xoaNhoVuongMac();
+      // Thông báo — gửi ở NỀN (xem guiNen)
+      await guiNen(async () => {
+        const oldMentions = await findMentionedIds(old.content, old.solution, old.note, old.resolved_note);
+        const newMentions = await findMentionedIds(row.content, row.solution, row.note, row.resolved_note);
+        const freshMentions = [...newMentions].filter(uid => !oldMentions.has(uid));   // chỉ báo người MỚI được tag
+        const handlerChanged = newHandler !== undefined && !!newHandler && !sameName(newHandler, old.handler);
+        await notify({ id: row.id, hex: row.hex, category: row.category }, [
+          { kind: 'mention', userIds: freshMentions, title: `${who} đã nhắc đến bạn — HEX ${row.hex}`, body: noteClean || row.content },
+          { kind: 'assigned', userIds: handlerChanged ? await idsByFullName(newHandler) : [],
+            title: `Bạn được giao xử lý vướng mắc — HEX ${row.hex}`, body: row.content },
+          ...events,
+        ], actor);
+      });
 
       res.json({ success: true, data: await fetchOne(row.id, me) });
     } catch (error) {
@@ -1274,12 +1349,15 @@ app.post('/api/vuong-mac/:id/comment', authenticateJWT, validateBody(commentSche
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, acted_at`,
       [old.id, old.hex, ready ? 'COMMENT' : 'UPDATE', old.category, ready ? content : old.content, ready ? null : `Bình luận: ${content}`, me.username]
     );
-    const who = await displayName(me.username);
-    await notify({ id: old.id, hex: old.hex, category: old.category }, [
-      { kind: 'mention', userIds: await findMentionedIds(content), title: `${who} đã nhắc đến bạn — HEX ${old.hex}`, body: content },
-      { kind: 'comment', userIds: [...(await idsByUsername(old.created_by)), ...(await idsByFullName(old.handler))],
-        title: `${who} bình luận — HEX ${old.hex}`, body: content },
-    ], me.username);
+    // Thông báo — gửi ở NỀN (xem guiNen)
+    await guiNen(async () => {
+      const who = await displayName(me.username);
+      await notify({ id: old.id, hex: old.hex, category: old.category }, [
+        { kind: 'mention', userIds: await findMentionedIds(content), title: `${who} đã nhắc đến bạn — HEX ${old.hex}`, body: content },
+        { kind: 'comment', userIds: [...(await idsByUsername(old.created_by)), ...(await idsByFullName(old.handler))],
+          title: `${who} bình luận — HEX ${old.hex}`, body: content },
+      ], me.username);
+    });
     res.json({ success: true, data: { id: r.rows[0].id, actedAt: r.rows[0].acted_at, actor: me.username, content } });
   } catch (error) {
     console.error('Lỗi bình luận vuong-mac:', error);
@@ -1352,14 +1430,18 @@ app.post(
         );
       });
 
-      const who = await displayName(actor);
-      await notify({ id: old.id, hex: old.hex, category: old.category }, [
-        { kind: 'mention', userIds: await findMentionedIds(content, noteClean),
-          title: `${who} đã nhắc đến bạn — HEX ${old.hex}`, body: content },
-        { kind: 'extend',
-          userIds: [...(await idsByFullName(old.handler)), ...(await recipientsFor(old.created_by, old.created_department))],
-          title: `${who} xin thêm thời gian — HEX ${old.hex}`, body: `${content}\nBOT mới: ${bot}` },
-      ], actor);
+      xoaNhoVuongMac();
+      // Thông báo — gửi ở NỀN (xem guiNen)
+      await guiNen(async () => {
+        const who = await displayName(actor);
+        await notify({ id: old.id, hex: old.hex, category: old.category }, [
+          { kind: 'mention', userIds: await findMentionedIds(content, noteClean),
+            title: `${who} đã nhắc đến bạn — HEX ${old.hex}`, body: content },
+          { kind: 'extend',
+            userIds: [...(await idsByFullName(old.handler)), ...(await recipientsFor(old.created_by, old.created_department))],
+            title: `${who} xin thêm thời gian — HEX ${old.hex}`, body: `${content}\nBOT mới: ${bot}` },
+        ], actor);
+      });
 
       res.json({ success: true, data: await fetchOne(old.id, me) });
     } catch (error) {
@@ -1412,6 +1494,7 @@ app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Resp
       );
     });
 
+    xoaNhoVuongMac();
     res.json({ success: true, message: 'Đã xóa vướng mắc' });
   } catch (error) {
     console.error('Lỗi xóa vuong-mac:', error);
@@ -1453,15 +1536,11 @@ app.get('/api/vuong-mac/log/:hex', authenticateJWT, requireActiveUser, async (re
 // Danh sách xưởng (nhà máy) cho dropdown
 // Vướng mắc đang mở (chưa xử lý xong) gộp theo công trình — cho Báo cáo tiến độ công trình (cột "VM" + ô cảnh báo).
 // Khoá: mã công trình (bảng sản xuất, dòng mới nhất của HEX) + tên chuẩn; máy khách khớp theo mã trước, tên sau.
-type VmByProject = { ma: string; ten: string; open: number; overdue: number }[];
-let vmByProjectMemo: { at: number; value: VmByProject } | null = null;
-let vmByProjectInflight: Promise<VmByProject> | null = null;
-const VM_BY_PROJECT_TTL_MS = 60_000; // vướng mắc đổi bất kỳ lúc nào (không có phiên bản bảng) => giữ 1 phút
+// Bản nhớ 1 phút (vmByProjectNho, khai báo cạnh /stats) — bị xoá ngay khi có thao tác ghi ở instance này
 app.get('/api/vuong-mac/by-project', authenticateJWT, async (_req: Request, res: Response) => {
   try {
-    if (vmByProjectMemo && Date.now() - vmByProjectMemo.at < VM_BY_PROJECT_TTL_MS) return res.json(vmByProjectMemo.value);
-    if (!vmByProjectInflight) {
-      vmByProjectInflight = (async () => {
+    {
+      const value = await vmByProjectNho.lay('', async () => {
         const r = await timedQuery(
           `SELECT COALESCE(NULLIF(TRIM(p.ma_cong_trinh), ''), '') AS ma,
                   COALESCE(NULLIF(TRIM(p.ten_cong_trinh), ''), '') AS ten,
@@ -1477,11 +1556,10 @@ app.get('/api/vuong-mac/by-project', authenticateJWT, async (_req: Request, res:
         const value: VmByProject = r.rows.map(row => ({
           ma: String(row.ma), ten: canonicalProjectName(String(row.ten)), open: Number(row.open), overdue: Number(row.overdue),
         }));
-        vmByProjectMemo = { at: Date.now(), value };
         return value;
-      })().finally(() => { vmByProjectInflight = null; });
+      });
+      res.json(value);
     }
-    res.json(await vmByProjectInflight);
   } catch (error) {
     console.error('Lỗi /api/vuong-mac/by-project:', error);
     res.status(500).json({ error: 'Internal Server Error' });

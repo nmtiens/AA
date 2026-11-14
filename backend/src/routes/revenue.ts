@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
-import { runWithLimit, TRIEU_TO_TY, TARGET_WORKSHOPS, currentVnYear } from '../server/common.js';
+import { TRIEU_TO_TY, TARGET_WORKSHOPS, currentVnYear } from '../server/common.js';
+import { ghepDoanhSoNam, khoaChungDoanhSo, type DongKeHoachNam, type DongThucHienNam } from '../server/doanhSoNam.js';
 import { notCancelledHexCond } from '../server/data.js';
 import { numericCol } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
@@ -14,7 +15,6 @@ const REVENUE_VERSION_KEYS = ['yearlyPlan', 'inventory', 'production'];
 
 // Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
 // Trước đây năm 2026 bị hardcode trong SQL — giờ nhận qua path param ?/:year, mặc định năm hiện tại.
-// [ĐO TIMING] 4 query chạy song song (giới hạn 2) — đổi cả 4 sang timedQuery.
 // Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
 // Đơn vị trả ra: TỶ ĐỒNG.
 
@@ -26,72 +26,45 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
       ? yearParam
       : currentVnYear();
 
+    // Trước 4 câu (2 đợt qua pool 2 kết nối): tổng và theo-xưởng cùng quét 1 bảng với cùng WHERE. Nay 2 câu chạy song
+    // song, mỗi câu GROUPING SETS trả luôn dòng tổng (la_tong = 1) + các dòng theo xưởng => cùng con số, bớt 1 lượt
+    // quét khsx_nam, 1 lượt quét nhap_kho và 1 lần dựng tập HỦY.
+    // Bản dùng chung mọi instance chỉ cho năm hiện tại; kết quả không theo người dùng và không dùng bảng tên công trình
+    // (dungBangTen = false: không tính lại khi bảng tên vừa nạp xong ở nền). Năm nằm trong extraVersion.
     const payload = await cachedByVersions(revenueCache, `revenue|${year}`, REVENUE_VERSION_KEYS, async () => {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
+    const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql('xuong_chinh')}, ''), 'KHÁC')`;
 
-    const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
-      () => timedQuery(`
-        SELECT
-          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS total,
-          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
-            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 3), 0) AS q1,
-          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
-            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
-          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
-            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
-        FROM khsx_nam WHERE nam = $1::bigint
+    const [planQ, actualQ] = await Promise.all([
+      timedQuery<DongKeHoachNam>(`
+        SELECT GROUPING(t.name) AS la_tong, t.name,
+               COALESCE(SUM(t.v), 0) AS plan,
+               COALESCE(SUM(t.v) FILTER (WHERE t.thang BETWEEN 1 AND 3), 0) AS q1,
+               COALESCE(SUM(t.v) FILTER (WHERE t.thang BETWEEN 1 AND 6), 0) AS q2,
+               COALESCE(SUM(t.v) FILTER (WHERE t.thang BETWEEN 1 AND 9), 0) AS q3
+        FROM (
+          SELECT ${xuongExpr} AS name,
+                 ${numericCol('khsx_nam', 'thanh_tien_ke_hoach')} AS v,
+                 NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int AS thang
+          FROM khsx_nam WHERE nam = $1::bigint
+        ) t
+        GROUP BY GROUPING SETS ((), (t.name))
       `, [String(year)]),
 
-      () => timedQuery(`
-        SELECT COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS total
-        FROM nhap_kho
-        WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond('hex')}
+      timedQuery<DongThucHienNam>(`
+        SELECT GROUPING(t.name) AS la_tong, t.name, COALESCE(SUM(t.v), 0) AS actual
+        FROM (
+          SELECT ${xuongExpr} AS name, ${numericCol('nhap_kho', 'thanh_tien_nhap_kho')} AS v
+          FROM nhap_kho
+          WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond('hex')}
+        ) t
+        GROUP BY GROUPING SETS ((), (t.name))
       `, [yearStart, yearEnd]),
+    ]);
 
-      () => timedQuery(`
-        SELECT COALESCE(NULLIF(${workshopGroupSql('xuong_chinh')}, ''), 'KHÁC') AS name,
-               COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS plan
-        FROM khsx_nam WHERE nam = $1::bigint
-        GROUP BY 1
-      `, [String(year)]),
-
-      () => timedQuery(`
-        SELECT COALESCE(NULLIF(${workshopGroupSql('xuong_chinh')}, ''), 'KHÁC') AS name,
-               COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS actual
-        FROM nhap_kho
-        WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond('hex')}
-        GROUP BY 1
-      `, [yearStart, yearEnd]),
-    ], 2);
-
-    const targetTotal = Number(planQ.rows[0].total);
-    const actualTotal = Number(actualQ.rows[0].total) / TRIEU_TO_TY;   // triệu -> tỷ
-
-    const workshopMap: Record<string, { plan: number; actual: number }> = {};
-    byWorkshopPlanQ.rows.forEach(r => { workshopMap[r.name] = { plan: Number(r.plan), actual: 0 }; });
-    byWorkshopActualQ.rows.forEach(r => {
-      if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-      workshopMap[r.name].actual = Number(r.actual) / TRIEU_TO_TY;     // SỬA: trước là / VND_TO_TY
-    });
-
-    const byWorkshop = Object.entries(workshopMap)
-      .map(([name, v]) => ({ name, ...v }))
-      .sort((a, b) => (a.name === 'KHÁC' ? 1 : b.name === 'KHÁC' ? -1 : a.name.localeCompare(b.name)));
-
-    return {
-      year,
-      targetRevenue2026: targetTotal,
-      quarterlyTargets: {
-        q1: Number(planQ.rows[0].q1),
-        q2: Number(planQ.rows[0].q2),
-        q3: Number(planQ.rows[0].q3),
-        q4: targetTotal,
-      },
-      actual: { value: actualTotal, percent: targetTotal > 0 ? (actualTotal / targetTotal) * 100 : 0 },
-      byWorkshop,
-    };
-    }, workshopGroupsVersion());
+    return ghepDoanhSoNam(year, planQ.rows, actualQ.rows);
+    }, `${workshopGroupsVersion()}|${year}`, khoaChungDoanhSo(year, currentVnYear()), false);
     res.json(payload);
   } catch (error) {
     console.error('Lỗi revenue:', error);
@@ -138,7 +111,8 @@ app.get('/api/khsx-nam/plan', async (req: Request, res: Response) => {
       })),
       byXuong: byXuong.rows.map(r => ({ xuong: r.xuong, value: Number(r.value) })),
     };
-    }, workshopGroupsVersion());
+    // Chỉ lọc xưởng, không dùng tên công trình => không gắn phiên bản bảng tên vào khoá (dungBangTen = false)
+    }, workshopGroupsVersion(), '', false);
     res.json(payload);
   } catch (error) {
     console.error('Lỗi khsx-nam/plan:', error);

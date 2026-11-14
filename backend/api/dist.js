@@ -116,41 +116,41 @@ var require_ms = __commonJS({
           return void 0;
       }
     }
-    function fmtShort(ms) {
-      var msAbs = Math.abs(ms);
+    function fmtShort(ms2) {
+      var msAbs = Math.abs(ms2);
       if (msAbs >= d) {
-        return Math.round(ms / d) + "d";
+        return Math.round(ms2 / d) + "d";
       }
       if (msAbs >= h) {
-        return Math.round(ms / h) + "h";
+        return Math.round(ms2 / h) + "h";
       }
       if (msAbs >= m) {
-        return Math.round(ms / m) + "m";
+        return Math.round(ms2 / m) + "m";
       }
       if (msAbs >= s) {
-        return Math.round(ms / s) + "s";
+        return Math.round(ms2 / s) + "s";
       }
-      return ms + "ms";
+      return ms2 + "ms";
     }
-    function fmtLong(ms) {
-      var msAbs = Math.abs(ms);
+    function fmtLong(ms2) {
+      var msAbs = Math.abs(ms2);
       if (msAbs >= d) {
-        return plural(ms, msAbs, d, "day");
+        return plural(ms2, msAbs, d, "day");
       }
       if (msAbs >= h) {
-        return plural(ms, msAbs, h, "hour");
+        return plural(ms2, msAbs, h, "hour");
       }
       if (msAbs >= m) {
-        return plural(ms, msAbs, m, "minute");
+        return plural(ms2, msAbs, m, "minute");
       }
       if (msAbs >= s) {
-        return plural(ms, msAbs, s, "second");
+        return plural(ms2, msAbs, s, "second");
       }
-      return ms + " ms";
+      return ms2 + " ms";
     }
-    function plural(ms, msAbs, n, name) {
+    function plural(ms2, msAbs, n, name) {
       var isPlural = msAbs >= n * 1.5;
-      return Math.round(ms / n) + " " + name + (isPlural ? "s" : "");
+      return Math.round(ms2 / n) + " " + name + (isPlural ? "s" : "");
     }
   }
 });
@@ -193,8 +193,8 @@ var require_common = __commonJS({
           }
           const self = debug;
           const curr = Number(/* @__PURE__ */ new Date());
-          const ms = curr - (prevTime || curr);
-          self.diff = ms;
+          const ms2 = curr - (prevTime || curr);
+          self.diff = ms2;
           self.prev = prevTime;
           self.curr = curr;
           prevTime = curr;
@@ -22991,7 +22991,7 @@ var require_send = __commonJS({
     var fresh = require_fresh();
     var fs = __require("fs");
     var mime = require_mime_types();
-    var ms = require_ms();
+    var ms2 = require_ms();
     var onFinished = require_on_finished();
     var parseRange = require_range_parser();
     var path = __require("path");
@@ -23028,7 +23028,7 @@ var require_send = __commonJS({
       this._index = opts.index !== void 0 ? normalizeList(opts.index, "index option") : ["index.html"];
       this._lastModified = opts.lastModified !== void 0 ? Boolean(opts.lastModified) : true;
       this._maxage = opts.maxAge || opts.maxage;
-      this._maxage = typeof this._maxage === "string" ? ms(this._maxage) : Number(this._maxage);
+      this._maxage = typeof this._maxage === "string" ? ms2(this._maxage) : Number(this._maxage);
       this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
       this._root = opts.root ? resolve(opts.root) : null;
     }
@@ -28722,11 +28722,11 @@ var require_TokenExpiredError = __commonJS({
 // ../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js
 var require_timespan = __commonJS({
   "../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
-    var ms = require_ms();
+    var ms2 = require_ms();
     module.exports = function(time3, iat) {
       var timestamp = iat || Math.floor(Date.now() / 1e3);
       if (typeof time3 === "string") {
-        var milliseconds = ms(time3);
+        var milliseconds = ms2(time3);
         if (typeof milliseconds === "undefined") {
           return;
         }
@@ -31823,12 +31823,12 @@ var require_postgres_date = __commonJS({
       var hour = parseInt(matches[4], 10);
       var minute = parseInt(matches[5], 10);
       var second = parseInt(matches[6], 10);
-      var ms = matches[7];
-      ms = ms ? 1e3 * parseFloat(ms) : 0;
+      var ms2 = matches[7];
+      ms2 = ms2 ? 1e3 * parseFloat(ms2) : 0;
       var date5;
       var offset = timeZoneOffset(isoDate);
       if (offset != null) {
-        date5 = new Date(Date.UTC(year, month, day, hour, minute, second, ms));
+        date5 = new Date(Date.UTC(year, month, day, hour, minute, second, ms2));
         if (is0To99(year)) {
           date5.setUTCFullYear(year);
         }
@@ -31836,7 +31836,7 @@ var require_postgres_date = __commonJS({
           date5.setTime(date5.getTime() - offset);
         }
       } else {
-        date5 = new Date(year, month, day, hour, minute, second, ms);
+        date5 = new Date(year, month, day, hour, minute, second, ms2);
         if (is0To99(year)) {
           date5.setFullYear(year);
         }
@@ -55649,6 +55649,7 @@ var pool = new Pool({
 });
 var STATEMENT_TIMEOUT_MS = 8e3;
 var IDLE_TX_TIMEOUT_SQL = `SET LOCAL idle_in_transaction_session_timeout = 30000`;
+var GOP_LENH = process.env.DB_GOP_LENH !== "0";
 var lenhMoGiaoDich = ({ timeoutMs, workMemMb } = {}) => {
   const lenh = ["BEGIN", IDLE_TX_TIMEOUT_SQL, `SET LOCAL statement_timeout = ${Math.floor(timeoutMs || STATEMENT_TIMEOUT_MS)}`];
   if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
@@ -55656,6 +55657,16 @@ var lenhMoGiaoDich = ({ timeoutMs, workMemMb } = {}) => {
 };
 async function chayCoGioiHan(client, text, params, gioiHan) {
   try {
+    if (GOP_LENH && typeof text === "string" && (params == null || Array.isArray(params) && params.length === 0)) {
+      const mo = lenhMoGiaoDich(gioiHan);
+      const soMo = mo.split("; ").length;
+      const ds2 = await client.query(`${mo};
+${text.replace(/[;\s]+$/, "")}
+; COMMIT`);
+      if (!Array.isArray(ds2)) return ds2;
+      const giua = ds2.slice(soMo, ds2.length - 1);
+      return giua.length === 1 ? giua[0] : giua;
+    }
     await client.query(lenhMoGiaoDich(gioiHan));
     const result = await client.query(text, params);
     await client.query("COMMIT");
@@ -55815,12 +55826,16 @@ process.on("SIGINT", async () => {
 // src/server/permissions.ts
 var ACCESS_CACHE_TTL_MS = 6e4;
 var accessCache = /* @__PURE__ */ new Map();
-var NO_ACCESS = { active: false, role: "", perms: /* @__PURE__ */ new Set(), tokenVersion: null };
+var accessInflight = /* @__PURE__ */ new Map();
+var luotHuy = 0;
+var NO_ACCESS = { active: false, role: "", perms: /* @__PURE__ */ new Set(), tokenVersion: null, department: null, fullName: null };
+var COT_QUYEN = "role, permissions, is_active, department, full_name";
+var COT_DAY_DU = `id, username, email, ${COT_QUYEN}`;
 var hasTokenVersion = null;
-var queryAccessRow = async (id) => {
+var queryUserRow = async (id, cot) => {
   if (hasTokenVersion !== false) {
     try {
-      const r2 = await pool.query(`SELECT role, permissions, is_active, token_version FROM users WHERE id = $1`, [id]);
+      const r2 = await pool.query(`SELECT ${cot}, token_version FROM users WHERE id = $1`, [id]);
       hasTokenVersion = true;
       return r2.rows[0];
     } catch (e) {
@@ -55828,32 +55843,64 @@ var queryAccessRow = async (id) => {
       hasTokenVersion = false;
     }
   }
-  const r = await pool.query(`SELECT role, permissions, is_active FROM users WHERE id = $1`, [id]);
+  const r = await pool.query(`SELECT ${cot} FROM users WHERE id = $1`, [id]);
   return r.rows[0];
 };
 var accessKey = (userId) => String(Number(userId));
-var loadUserAccess = async (userId, ttlMs = ACCESS_CACHE_TTL_MS) => {
-  if (!/^\d+$/.test(String(userId)) || !(Number(userId) > 0) || Number(userId) > 2147483647) return NO_ACCESS;
-  const key = accessKey(userId);
-  const hit = accessCache.get(key);
-  if (hit && Date.now() - hit.at < ttlMs) return hit.access;
-  const row = await queryAccessRow(Number(userId));
+var idHopLe = (userId) => /^\d+$/.test(String(userId)) && Number(userId) > 0 && Number(userId) <= 2147483647;
+var accessTuDong = (row) => {
   const active = !!row && row.is_active === true;
-  const access = {
+  return {
     active,
     role: active ? String(row.role ?? "") : "",
     perms: new Set(active && Array.isArray(row.permissions) ? row.permissions : []),
-    tokenVersion: row && row.token_version !== void 0 && row.token_version !== null ? Number(row.token_version) : null
+    tokenVersion: row && row.token_version !== void 0 && row.token_version !== null ? Number(row.token_version) : null,
+    department: row?.department ?? null,
+    fullName: row?.full_name ?? null
   };
+};
+var ghiCache = (key, access) => {
+  accessCache.delete(key);
   accessCache.set(key, { access, at: Date.now() });
   if (accessCache.size > 1e3) {
     const oldest = accessCache.keys().next().value;
     if (oldest !== void 0) accessCache.delete(oldest);
   }
-  return access;
+};
+var loadUserAccess = async (userId, ttlMs = ACCESS_CACHE_TTL_MS) => {
+  if (!idHopLe(userId)) return NO_ACCESS;
+  const key = accessKey(userId);
+  const hit = accessCache.get(key);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.access;
+  const dangDoc = accessInflight.get(key);
+  if (dangDoc) return dangDoc;
+  const p = queryUserRow(Number(userId), COT_QUYEN).then((row) => {
+    const access = accessTuDong(row);
+    if (accessInflight.get(key) === p) ghiCache(key, access);
+    return access;
+  }).finally(() => {
+    if (accessInflight.get(key) === p) accessInflight.delete(key);
+  });
+  accessInflight.set(key, p);
+  return p;
+};
+var docUserDayDu = async (userId) => {
+  if (!idHopLe(userId)) return { row: void 0, access: NO_ACCESS };
+  const key = accessKey(userId);
+  const truocKhiDoc = luotHuy;
+  const row = await queryUserRow(Number(userId), COT_DAY_DU);
+  const access = accessTuDong(row);
+  if (luotHuy === truocKhiDoc) {
+    accessInflight.delete(key);
+    ghiCache(key, access);
+  }
+  return { row, access };
 };
 var invalidateUserAccess = (userId) => {
-  accessCache.delete(accessKey(userId));
+  const key = accessKey(userId);
+  luotHuy++;
+  accessCache.delete(key);
+  accessInflight.delete(key);
 };
 var userHasPermission = async (req, permission) => {
   if (!req.user) return false;
@@ -55974,8 +56021,15 @@ var isValidUserId = (v) => {
   const s = String(v);
   return /^\d+$/.test(s) && Number(s) > 0 && Number(s) <= 2147483647;
 };
-var authenticateActiveUser = (req, res, next) => authenticateJWT(req, res, () => {
-  loadUserAccess(req.user.id, req.user.scope === "tram" ? 6 * 36e5 : void 0).then((access) => {
+var kiemTaiKhoan = (req, res, next, sauKhiGoi) => authenticateJWT(req, res, () => {
+  const dangKiem = loadUserAccess(req.user.id, req.user.scope === "tram" ? 6 * 36e5 : void 0);
+  if (sauKhiGoi) {
+    try {
+      sauKhiGoi();
+    } catch {
+    }
+  }
+  dangKiem.then((access) => {
     if (!access.active) return res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
     if (!xuongTokenVersionOk(req.user, access.tokenVersion)) {
       return res.status(401).json({ success: false, message: "Phi\xEAn m\u1EE5c X\u01B0\u1EDFng \u0111\xE3 b\u1ECB thu h\u1ED3i, vui l\xF2ng \u0111\u0103ng nh\u1EADp l\u1EA1i" });
@@ -55986,6 +56040,7 @@ var authenticateActiveUser = (req, res, next) => authenticateJWT(req, res, () =>
     next();
   });
 });
+var authenticateActiveUserKichSom = (kich) => (req, res, next) => kiemTaiKhoan(req, res, next, () => kich(req.path.toLowerCase()));
 var withCurrentAccess = (req, res, allowed, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: "Ch\u01B0a x\xE1c th\u1EF1c" });
   loadUserAccess(req.user.id).then((access) => {
@@ -56015,6 +56070,35 @@ var sharedCacheDisabled = false;
 var PHIEN_BAN_TINH = "r3";
 var khoaChung = (key) => `${PHIEN_BAN_TINH}:${key}`;
 var isMissingTable = (e) => e?.code === "42P01";
+var giuHamSong = (p) => {
+  try {
+    const ctx = globalThis[/* @__PURE__ */ Symbol.for("@vercel/request-context")]?.get?.();
+    if (typeof ctx?.waitUntil !== "function") return false;
+    ctx.waitUntil(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
+var sqlChuoi = (s) => `'${s.replace(/'/g, "''")}'`;
+var sqlPhienBanBang = (tables) => `SELECT STRING_AGG(table_name || ':' || last_updated::text, ',' ORDER BY table_name) AS v FROM table_versions
+   WHERE table_name IN (${tables.map(sqlChuoi).join(", ")})`;
+var sqlDocChungTheoBang = (key, tables) => `WITH v AS (${sqlPhienBanBang(tables)})
+   SELECT v.v, c.data FROM v LEFT JOIN api_result_cache c ON c.cache_key = ${sqlChuoi(khoaChung(key))} AND c.versions = v.v`;
+async function docChungTheoBang(key, tables) {
+  if (!sharedCacheDisabled) {
+    try {
+      const r = await timedQuery(sqlDocChungTheoBang(key, tables));
+      return { versions: r.rows[0]?.v ?? "", data: r.rows[0]?.data ?? void 0 };
+    } catch (e) {
+      const v2 = await timedQuery(sqlPhienBanBang(tables));
+      if (isMissingTable(e)) sharedCacheDisabled = true;
+      return { versions: v2.rows[0]?.v ?? "", data: void 0 };
+    }
+  }
+  const v = await timedQuery(sqlPhienBanBang(tables));
+  return { versions: v.rows[0]?.v ?? "", data: void 0 };
+}
 async function readShared(key, versions) {
   if (sharedCacheDisabled) return void 0;
   try {
@@ -56063,7 +56147,8 @@ var loadedAt = 0;
 var aliasVersion = "";
 var projectAliasesVersion = () => aliasVersion;
 var loading = null;
-var ALIAS_SHARED_KEY = "project-aliases";
+var ALIAS_SHARED_KEY = "project-aliases-9b";
+var ALIAS_VERSION_TABLES = ["production_status_app", ...NAME_SOURCES];
 var compute = async () => {
   const exist = await timedQuery(
     `SELECT table_name FROM information_schema.columns
@@ -56112,11 +56197,9 @@ var compute = async () => {
   return { r: r.rows, canon: canon.rows };
 };
 var load = async () => {
-  const v = await timedQuery(
-    `SELECT STRING_AGG(table_name || ':' || last_updated::text, ',' ORDER BY table_name) AS v FROM table_versions`
-  );
-  const versions = v.rows[0]?.v ?? "";
-  let data = versions ? await readShared(ALIAS_SHARED_KEY, versions) : void 0;
+  const doc = await docChungTheoBang(ALIAS_SHARED_KEY, ALIAS_VERSION_TABLES);
+  const versions = doc.versions;
+  let data = versions ? doc.data : void 0;
   if (!data) {
     data = await compute();
     if (versions) await writeShared(ALIAS_SHARED_KEY, versions, data);
@@ -56221,12 +56304,25 @@ var load2 = async () => {
   }
   loadedAt2 = Date.now();
 };
-var ensureWorkshopGroups = async (force = false) => {
-  if (!force && Date.now() - loadedAt2 < REFRESH_MS2) return;
+var CHO_NAP_SAU_MS = 30 * 60 * 1e3;
+var cachLamMoi = (force, daNapLuc, now, nenDuoc = true) => {
+  if (force || daNapLuc === 0) return "cho";
+  const tuoi = now - daNapLuc;
+  if (tuoi < REFRESH_MS2) return "khong";
+  return nenDuoc && tuoi < CHO_NAP_SAU_MS ? "nen" : "cho";
+};
+var ensureWorkshopGroups = async (force = false, nenDuoc = false) => {
+  const cach = cachLamMoi(force, loadedAt2, Date.now(), nenDuoc);
+  if (cach === "khong") return;
+  if (force && loading2) await loading2;
   if (!loading2) loading2 = load2().finally(() => {
     loading2 = null;
   });
-  await loading2;
+  if (cach === "cho") {
+    await loading2;
+    return;
+  }
+  if (!giuHamSong(loading2) && process.env.VERCEL) await loading2;
 };
 var workshopGroupsVersion = () => version;
 var getWorkshopMapping = () => Object.fromEntries(rawToGroup);
@@ -56254,6 +56350,545 @@ var expandWorkshops = (list) => {
     if (want.has(g)) out.add(raw);
   });
   return [...out].sort();
+};
+
+// src/server/common.ts
+async function runWithLimit(tasks, limit) {
+  const results = new Array(tasks.length);
+  let idx = 0;
+  const worker = async () => {
+    while (idx < tasks.length) {
+      const current = idx++;
+      results[current] = await tasks[current]();
+    }
+  };
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+var TRIEU_TO_TY = 1e3;
+var TARGET_WORKSHOPS = ["2A", "3A", "4A", "5A", "8AB", "8C"];
+var currentVnYear = () => Number(vnDayKey(/* @__PURE__ */ new Date()).slice(0, 4));
+var VN_TZ = "Asia/Ho_Chi_Minh";
+var GRACE_UNTIL_HOUR = 0;
+var vnDayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: VN_TZ });
+var vnHourFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: VN_TZ,
+  hour: "2-digit",
+  hourCycle: "h23"
+});
+var vnDayKey = (d) => vnDayFormatter.format(d);
+var vnHour = (d) => Number(vnHourFormatter.format(d));
+var vnTodayUtc = () => /* @__PURE__ */ new Date(`${vnDayKey(/* @__PURE__ */ new Date())}T00:00:00Z`);
+var isoDateStr = (d) => d.toISOString().slice(0, 10);
+var isoWeekRangeInYear = (year, week) => {
+  if (!Number.isInteger(year) || !Number.isInteger(week) || week < 1 || week > 53) return null;
+  const jan4 = Date.UTC(year, 0, 4);
+  const dow = (new Date(jan4).getUTCDay() + 6) % 7;
+  const monday = jan4 - dow * 864e5 + (week - 1) * 7 * 864e5;
+  const sunday = monday + 6 * 864e5;
+  const yStart = Date.UTC(year, 0, 1);
+  const yEnd = Date.UTC(year, 11, 31);
+  const start = Math.max(monday, yStart);
+  const end = Math.min(sunday, yEnd);
+  if (start > end) return null;
+  return { start: isoDateStr(new Date(start)), end: isoDateStr(new Date(end)) };
+};
+
+// src/server/data.ts
+var REPORT_COLUMNS = {
+  production_status_app: [
+    "hex",
+    "tinh_trang",
+    "tinh_trang_ipo",
+    "gia_tri_don_hang_con_lai",
+    "gia_tri_con_lai",
+    "ten_cong_trinh",
+    "xuong_chinh",
+    "ten_hang_muc",
+    "phan_loai_nhom_san_pham",
+    "so_ngay_cd_hien_tai",
+    "bop",
+    "tri_gia_don_hang_tong",
+    "thanh_tien_tinh_phieu",
+    "thanh_tien_nhap_kho_luy_ke",
+    "bot_du_an",
+    "khach_hang",
+    "khu_vuc_du_an",
+    "ma_nha_may",
+    "ma_cong_trinh",
+    // Báo cáo tiến độ công trình
+    "ten_pm",
+    "ten_pc",
+    "ngay_can_giao",
+    "ngay_khnk_thang",
+    "ngay_khnk_tuan",
+    // Hạn tham khảo khi chưa có KH / ngày cần giao (utils/productionMetrics.deadlineOf)
+    "ngay_can",
+    // Tổng quan công trình: giá trị đã xuất kho lũy kế / tồn kho hiện tại theo hạng mục
+    "thanh_tien_xuat_kho_luy_ke",
+    "thanh_tien_ton_kho_hien_tai",
+    // Hạng mục nhập đủ SỐ LƯỢNG coi là đã xong khi đếm / tính hạn (utils/productionMetrics.isQtyComplete)
+    "so_luong_don_hang_tong",
+    "so_luong_nhap_kho_luy_ke",
+    // Báo cáo tiến độ công trình (bộ lọc nhóm CT / tình trạng dự án) + tổng quan 1 công trình
+    // (luồng triển khai BV → phiếu → chuyền → nhập kho, tuổi đơn từ ngày nhận PM). Cột ngắn, thêm ít dung lượng.
+    "nhom_ct",
+    "tinh_trang_du_an",
+    "ngay_nhan_tu_pm",
+    "tinh_trang_trien_khai_ban_ve",
+    "tinh_trang_phieu"
+  ],
+  vat_tu: [
+    "trang_thai",
+    "trang_thai_sap",
+    "nguoi_tao",
+    "nguoi_yeu_cau",
+    "ten_cong_trinh",
+    "so_pr",
+    "pr_line",
+    "ma_vat_tu_sap",
+    "ten_vat_tu",
+    "so_luong_yeu_cau",
+    "dvt",
+    "ngay_pr",
+    "nhom_vt",
+    "so_po",
+    "item_note_pr",
+    "ngay_du_kien_giao_hang_pmh_nhap",
+    "team_pr_note",
+    "so_luong_da_nhan_sap",
+    "so_luong_con_lai",
+    "tinh_trang_po",
+    "ghi_chu_tinh_trang_po",
+    "thanh_tien",
+    "ngay_ve",
+    "sl_hang_ve_thuc_te"
+  ],
+  khsx: [
+    "xuong_chinh",
+    "ten_cong_trinh",
+    "ma_cong_trinh",
+    "thanh_tien_ke_hoach",
+    "phan_loai_kh",
+    "nam",
+    "thang",
+    "ngay",
+    "tuan"
+  ],
+  nhap_kho: [
+    "hex",
+    "thanh_tien_nhap_kho",
+    "so_luong_nhap_kho",
+    "xuong_chinh",
+    "ten_cong_trinh",
+    "ma_cong_trinh",
+    "nam",
+    "thang",
+    "ngay",
+    "date",
+    "tuan",
+    "ghi_chu",
+    "ten_hang_muc"
+  ],
+  xuat_kho: [
+    "hex",
+    "so_luong_xuat_kho",
+    "thanh_tien_xuat_kho",
+    "date",
+    "xuong_chinh",
+    "ten_cong_trinh",
+    "ghi_chu",
+    "tinh_doi_voi_hang_tp",
+    "ten_hang_muc"
+  ],
+  ton_kho: [
+    "hex",
+    "date",
+    "gia_tri",
+    "ma_id_sap",
+    "ten_cong_trinh"
+  ],
+  dht: [
+    "hex",
+    "ngay_nhan_tu_pm",
+    "tri_gia_don_hang_tong",
+    "xuong_chinh",
+    "ten_cong_trinh"
+  ],
+  tkbv_full: [
+    "hex",
+    "ngay_nhan",
+    "tri_gia_don_hang_tong",
+    "xuong_chinh",
+    "ten_cong_trinh"
+  ],
+  pthsp_full: [
+    "hex",
+    "ngay_hoan_thanh",
+    "tri_gia_don_hang_tong",
+    "xuong_chinh",
+    "ten_cong_trinh"
+  ],
+  khsx_nam: [
+    "thanh_tien_ke_hoach",
+    "nam",
+    "thang",
+    "xuong_chinh"
+  ],
+  phan_tich_kh_th: [
+    "xuong_chinh",
+    "ten_cong_trinh",
+    "thanh_tien_ke_hoach",
+    "nhap_kho_tuan",
+    "tuan",
+    // Năm — bảng KH-TH tuần lọc theo năm đang chọn (cùng số tuần ở 2 năm khác nhau không bị cộng lẫn)
+    "nam",
+    "dung_ke_hoach",
+    "thuc_hien_dung_ke_hoach_1_phan",
+    "rot_ke_hoach",
+    "thuc_hien_rot_ke_hoach_1_phan",
+    "nhap_kho_truoc_ke_hoach",
+    "vuot_ke_hoach",
+    "nhap_kho_ngoai_ke_hoach"
+  ],
+  diem_danh: [
+    "xuong_chinh",
+    "so_luong_cong_nhan",
+    "gio_cong_hanh_chinh",
+    "gio_cong_tang_ca",
+    "tuan",
+    "nam",
+    "thang",
+    "ngay",
+    "dinh_bien"
+  ]
+};
+var parseSafeDate = (rawInput) => {
+  if (!rawInput || rawInput === "0" || rawInput === "undefined" || rawInput === "null") {
+    return null;
+  }
+  if (!isNaN(Number(rawInput))) {
+    const num2 = Number(rawInput);
+    const dateVal = new Date(num2 > 1e10 ? num2 : num2 * 1e3);
+    return !isNaN(dateVal.getTime()) ? dateVal : null;
+  }
+  const parsed = new Date(rawInput);
+  return !isNaN(parsed.getTime()) ? parsed : null;
+};
+var parseExplicitDates = (req) => Array.from(new Set(
+  String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10))
+)).sort();
+var applyNonStockDateFilter = (dateColExpr, explicitDates, dateFrom, dateTo, conditions, params) => {
+  if (explicitDates.length > 0) {
+    params.push(explicitDates);
+    conditions.push(`${dateColExpr}::date = ANY($${params.length}::date[])`);
+    return;
+  }
+  if (dateFrom) {
+    params.push(dateFrom.toISOString().slice(0, 10));
+    conditions.push(`${dateColExpr} >= $${params.length}`);
+  }
+  if (dateTo) {
+    params.push(dateTo.toISOString().slice(0, 10));
+    conditions.push(`${dateColExpr} <= $${params.length}`);
+  }
+};
+var getPeriodRangeFromKey = (value, granularity) => {
+  const d = parseSafeDate(value) || new Date(value);
+  if (granularity === "week") {
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }
+  if (granularity === "month") {
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }
+  const iso2 = d.toISOString().slice(0, 10);
+  return { start: iso2, end: iso2 };
+};
+var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, params) => {
+  if (upperBound) {
+    params.push(upperBound.toISOString().slice(0, 10));
+    return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table} WHERE ${rawDateCol} <= $${params.length})`;
+  }
+  return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table})`;
+};
+var CANCELLED_HEX_SQL = `SELECT DISTINCT hex::text AS cx_hex FROM production_status_app
+     WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%H\u1EE6Y%'`;
+var notCancelledHexCond = (hexExpr, cte) => `COALESCE(${hexExpr}::text, '') NOT IN (SELECT cx_hex FROM ${cte ?? `(${CANCELLED_HEX_SQL}) cx0`})`;
+var projectNameCondition = (colExpr, name, params) => {
+  params.push(expandProjectNames([name]));
+  return `${normNameSql(colExpr)} = ANY($${params.length}::text[])`;
+};
+var eqNormalized = (colExpr, paramIdx) => `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
+var hasCtWhitelist = (req) => req.query.ctWhitelist !== void 0;
+var parseCtWhitelist = (req) => expandProjectNames(parseNameList(req.query.ctWhitelist));
+var applyCtWhitelist = (req, congTrinhColExpr, conditions, params) => {
+  if (!hasCtWhitelist(req) || !congTrinhColExpr) return;
+  const wl = parseCtWhitelist(req);
+  params.push(wl);
+  conditions.push(`${normNameSql(congTrinhColExpr)} = ANY($${params.length}::text[])`);
+};
+var sapKeySql = (col) => `(CASE WHEN LENGTH(${col}::text) = 18 AND SUBSTRING(${col}::text FROM 7 FOR 6) = '000000'
+     THEN SUBSTRING(${col}::text FROM 1 FOR 6) || SUBSTRING(${col}::text FROM 13 FOR 6)
+     ELSE ${col}::text END)`;
+var productionKeySql = (col, alias = "") => {
+  const ref = `${alias ? `${alias}.` : ""}"${col}"`;
+  return col === "ma_id_sap" ? sapKeySql(ref) : ref;
+};
+var buildMatchedProductionCTE = (joinKey) => {
+  const key = productionKeySql(joinKey);
+  return `
+  p AS (
+    SELECT DISTINCT ON (${key})
+      ${key} AS "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
+    FROM production_status_app
+    WHERE "${joinKey}" IS NOT NULL
+    ORDER BY ${key}, updated_at DESC NULLS LAST, id DESC
+  )
+`;
+};
+var fetchTableData = async (tableName, updatedAfter, strict = false) => {
+  try {
+    const cols = REPORT_COLUMNS[tableName];
+    const selectClause = cols ? cols.map((c) => `"${c}"`).join(", ") : "*";
+    let query = `SELECT ${selectClause} FROM ${tableName}`;
+    const values = [];
+    const validDate = parseSafeDate(updatedAfter);
+    if (validDate) {
+      query += ` WHERE updated_at >= $1`;
+      values.push(validDate.toISOString());
+    }
+    const result = await timedQuery(query, values, { timeoutMs: 25e3 });
+    return result.rows;
+  } catch (error61) {
+    console.error(`L\u1ED7i truy v\u1EA5n b\u1EA3ng ${tableName}:`, error61);
+    if (strict) throw error61;
+    return [];
+  }
+};
+var TABLES = [
+  "production_status_app",
+  "vat_tu",
+  "khsx",
+  "dht",
+  "nhap_kho",
+  "tkbv_full",
+  "pthsp_full",
+  "phan_tich_kh_th",
+  "khsx_nam",
+  "xuat_kho",
+  "diem_danh",
+  "ton_kho"
+];
+var TABLE_TO_VERSION_KEY = {
+  production_status_app: "production",
+  vat_tu: "material",
+  khsx: "khsx",
+  dht: "order",
+  nhap_kho: "inventory",
+  tkbv_full: "tkbv",
+  pthsp_full: "pthsp",
+  phan_tich_kh_th: "analysis",
+  khsx_nam: "yearlyPlan",
+  xuat_kho: "export",
+  diem_danh: "attendance",
+  ton_kho: "stock"
+};
+var VERSIONS_TTL_MS = 3e4;
+var VERSIONS_MOI_MS = 3e3;
+var versionsMemo = null;
+var versionsInflight = null;
+var getVersions = async (conMoiMs = VERSIONS_TTL_MS) => {
+  if (versionsMemo && Date.now() - versionsMemo.at < conMoiMs) return versionsMemo.value;
+  if (versionsInflight) return versionsInflight;
+  versionsInflight = (async () => {
+    try {
+      const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
+      const out = {};
+      result.rows.forEach((row) => {
+        const key = TABLE_TO_VERSION_KEY[row.table_name];
+        if (key) out[key] = row.last_updated;
+      });
+      versionsMemo = { at: Date.now(), value: out };
+      return out;
+    } finally {
+      versionsInflight = null;
+    }
+  })();
+  return versionsInflight;
+};
+var getRelevantVersions = async (keys) => {
+  const all = await getVersions();
+  const out = {};
+  keys.forEach((k) => {
+    if (all[k] !== void 0) out[k] = all[k];
+  });
+  return out;
+};
+var cachedData = null;
+var cachedVersions = null;
+var allDataInflight = null;
+var fetchLatestStockSnapshot = async () => {
+  try {
+    const cols = REPORT_COLUMNS.ton_kho;
+    const selectClause = cols.map((c) => `"${c}"`).join(", ");
+    const query = `
+      SELECT ${selectClause}
+      FROM ton_kho
+      WHERE date_parsed = (SELECT MAX(date_parsed) FROM ton_kho)
+    `;
+    const result = await timedQuery(query);
+    return result.rows;
+  } catch (error61) {
+    console.error("L\u1ED7i truy v\u1EA5n ton_kho (latest snapshot):", error61);
+    return [];
+  }
+};
+var refreshAllDataCache = async () => {
+  const versions = await getVersions(VERSIONS_MOI_MS);
+  if (cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
+    return { payload: cachedData, versions: cachedVersions, fromCache: true };
+  }
+  if (allDataInflight) return allDataInflight;
+  allDataInflight = (async () => {
+    try {
+      const otherTables = TABLES.filter((t) => t !== "ton_kho");
+      const [
+        production,
+        material,
+        khsx,
+        order,
+        inventory,
+        tkbv,
+        pthsp,
+        analysis,
+        yearlyPlan,
+        exportData,
+        attendance
+      ] = await runWithLimit(
+        otherTables.map((t) => () => fetchTableData(t, void 0, true)),
+        2
+      );
+      const stock = await fetchLatestStockSnapshot();
+      const payload = {
+        production,
+        material,
+        khsx,
+        order,
+        inventory,
+        tkbv,
+        pthsp,
+        analysis,
+        yearlyPlan,
+        export: exportData,
+        attendance,
+        stock
+      };
+      cachedData = payload;
+      cachedVersions = versions;
+      return { payload, versions, fromCache: false };
+    } finally {
+      allDataInflight = null;
+    }
+  })();
+  return allDataInflight;
+};
+var VERSION_KEY_TO_TABLE = Object.fromEntries(
+  Object.entries(TABLE_TO_VERSION_KEY).map(([t, k]) => [k, t])
+);
+var tableCache = /* @__PURE__ */ new Map();
+var tableInflight = /* @__PURE__ */ new Map();
+var getTablesData = async (keys) => {
+  const versions = await getVersions(VERSIONS_MOI_MS);
+  const payload = {};
+  const fullFresh = cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions);
+  await runWithLimit(keys.filter((k) => VERSION_KEY_TO_TABLE[k]).map((key) => async () => {
+    if (fullFresh) {
+      payload[key] = cachedData[key];
+      return;
+    }
+    const ver = versions[key] ?? "";
+    const hit = tableCache.get(key);
+    if (hit && hit.ver === ver) {
+      payload[key] = hit.rows;
+      return;
+    }
+    let p = tableInflight.get(key);
+    if (!p) {
+      const table = VERSION_KEY_TO_TABLE[key];
+      p = (table === "ton_kho" ? fetchLatestStockSnapshot() : fetchTableData(table, void 0, true)).then((rows) => {
+        tableCache.set(key, { ver, rows });
+        return rows;
+      }).finally(() => tableInflight.delete(key));
+      tableInflight.set(key, p);
+    }
+    payload[key] = await p;
+  }), 2);
+  return { payload, versions };
+};
+var STOCK_TREND_CONFIG = {
+  table: "ton_kho",
+  dateCol: "date_parsed",
+  valueCol: "gia_tri",
+  valueDivisor: 1,
+  hexCol: "ma_id_sap",
+  congTrinhCol: "ten_cong_trinh",
+  dvtCol: "dvt",
+  joinProductionForFilters: true,
+  xuongViaProductionJoin: true,
+  productionJoinCol: "ma_id_sap"
+  // ton_kho <-> production_status_app khớp qua ma_id_sap (phía sản xuất chuẩn hoá — sapKeySql)
+};
+var ANALYSIS_TABLES = {
+  order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true, productionJoinCol: "hex" },
+  tkbv: { table: "tkbv_full", dateCol: "ngay_nhan", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
+  pthsp: { table: "pthsp_full", dateCol: "ngay_hoan_thanh", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
+  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
+  // Xuất kho: giá trị (thành tiền, triệu đồng) như các nguồn khác — dòng đơn vị phụ (không "TÍNH") có thành tiền 0 nên không cộng trùng
+  export: { table: "xuat_kho", dateCol: "date", valueCol: "thanh_tien_xuat_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" }
+};
+var ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
+var TREND_SOURCES = /* @__PURE__ */ new Set([...Object.keys(ANALYSIS_TABLES), "stock"]);
+var SCI_NUMBER_RE = `'^\\s*-?[0-9]+(\\.[0-9]+)?[eE][-+]?[0-9]+\\s*$'`;
+var SCI_EXP_OK_RE = `'[eE][-+]?0*[0-9]{1,3}\\s*$'`;
+var numericFromText = (textExpr) => `
+  CASE
+    WHEN REPLACE(${textExpr}, ',', '') ~ ${SCI_NUMBER_RE}
+    THEN CASE WHEN ${textExpr} ~ ${SCI_EXP_OK_RE} THEN TRIM(REPLACE(${textExpr}, ',', ''))::numeric END
+    ELSE NULLIF(
+      CASE
+        WHEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$'
+        THEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g')
+        ELSE NULL
+      END,
+      ''
+    )::numeric
+  END
+`;
+var numericExpr = (col) => numericFromText(`"${col}"::text`);
+var numericExprQualified = (qualifiedCol) => numericFromText(`${qualifiedCol}::text`);
+var NUMERIC_GENERATED_COLUMNS = {
+  "dht.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
+  "tkbv_full.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
+  "pthsp_full.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
+  "nhap_kho.thanh_tien_nhap_kho": "thanh_tien_nhap_kho_num",
+  "xuat_kho.so_luong_xuat_kho": "so_luong_xuat_kho_num",
+  "ton_kho.gia_tri": "gia_tri_num",
+  "khsx.thanh_tien_ke_hoach": "thanh_tien_ke_hoach_num",
+  "khsx_nam.thanh_tien_ke_hoach": "thanh_tien_ke_hoach_num"
+};
+var numericCol = (table, col) => {
+  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
+  return generated ? `"${generated}"` : numericExpr(col);
+};
+var numericColQualified = (table, alias, col) => {
+  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
+  return generated ? `${alias}."${generated}"` : numericExprQualified(`${alias}."${col}"`);
 };
 
 // src/server/app.ts
@@ -56323,21 +56958,36 @@ var PUBLIC_API_PATHS = /* @__PURE__ */ new Set([
   "/api/warmup"
 ]);
 var PUBLIC_API_PREFIXES = ["/api/cron/"];
+var xacThucChung = authenticateActiveUserKichSom((path) => kichNapSom(path));
 app.use((req, res, next) => {
   const path = req.path.toLowerCase();
   if (req.method === "OPTIONS" || !path.startsWith("/api/")) return next();
-  if (PUBLIC_API_PATHS.has(path.replace(/\/+$/, "")) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
-  return authenticateActiveUser(req, res, next);
+  const gon2 = path.replace(/\/+$/, "");
+  if (PUBLIC_API_PATHS.has(gon2) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
+  if (gon2 === "/api/auth/me") return authenticateJWT(req, res, next);
+  return xacThucChung(req, res, next);
 });
 var PROJECT_ALIAS_WAIT_MS = 0;
 var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong)(\/|$)/i;
-var NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram)(\/|$)/i;
+var NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push)(\/|$)/i;
+var DUNG_PHIEN_BAN = /^\/api\/(all-data|check-versions|material|production|overview|trend(-by-[a-z]+)?|filters|detail|revenue|khsx(-nam|-nhapkho)?|stock|ton-kho-vt|tong-quan|cong-trinh|bot-tong-hop)(\/|$)/i;
+var napSomCho = (path) => ({
+  gopXuong: path.startsWith("/api/") && !NO_WORKSHOP_GROUPS.test(path),
+  phienBan: DUNG_PHIEN_BAN.test(path)
+});
+function kichNapSom(path) {
+  const can = napSomCho(path);
+  if (can.gopXuong) giuHamSong(ensureWorkshopGroups(false, true).catch(() => {
+  }));
+  if (can.phienBan) giuHamSong(getVersions().catch(() => {
+  }));
+}
 app.use(async (req, _res, next) => {
   const path = req.path.toLowerCase();
   if (path.startsWith("/api/")) {
     if (!NO_WORKSHOP_GROUPS.test(path)) {
       try {
-        await ensureWorkshopGroups();
+        await ensureWorkshopGroups(false, true);
       } catch {
       }
     }
@@ -75364,6 +76014,7 @@ async function notify(vm, events, actorUsername) {
       if (isMissingSchema(e)) warnMissing();
       else console.error("[notify] l\u01B0u th\xF4ng b\xE1o l\u1ED7i", e);
     }
+    const thietBi = await layThietBiDay(rows.map(([id]) => id));
     for (const ev of events) {
       const ids = rows.filter(([, e]) => e === ev).map(([id]) => id);
       if (ids.length === 0) continue;
@@ -75372,7 +76023,7 @@ async function notify(vm, events, actorUsername) {
         body: clip(ev.body ?? ""),
         tag: `${ev.kind}-${vm.id}`,
         target: { hex: vm.hex, category: vm.category, id: vm.id }
-      });
+      }, thietBiCua(thietBi, ids));
     }
   } catch (e) {
     console.error("[notify] l\u1ED7i", e);
@@ -75425,12 +76076,21 @@ async function runLimited(items, limit, fn) {
   }));
 }
 var isPushEnabled = () => pushEnabled;
-async function sendToUsers(userIds, payload) {
-  if (!pushEnabled || userIds.length === 0) return { sent: 0, failed: 0, devices: 0 };
+async function layThietBiDay(userIds) {
+  if (!pushEnabled || userIds.length === 0) return [];
   const { rows } = await pool.query(
-    "SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY($1::text[])",
+    "SELECT id, user_id::text AS user_id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY($1::text[])",
     [userIds]
   );
+  return rows;
+}
+var thietBiCua = (tatCa, userIds) => {
+  const ids = new Set(userIds.map(String));
+  return tatCa.filter((s) => ids.has(String(s.user_id)));
+};
+async function sendToUsers(userIds, payload, thietBi) {
+  if (!pushEnabled || userIds.length === 0) return { sent: 0, failed: 0, devices: 0 };
+  const rows = thietBi ?? await layThietBiDay(userIds);
   const body = JSON.stringify(payload);
   let sent = 0, failed = 0;
   await runLimited(rows, 5, async (s) => {
@@ -75612,49 +76272,6 @@ function registerVuongMacPush(app2, deps) {
   });
 }
 
-// src/server/common.ts
-async function runWithLimit(tasks, limit) {
-  const results = new Array(tasks.length);
-  let idx = 0;
-  const worker = async () => {
-    while (idx < tasks.length) {
-      const current = idx++;
-      results[current] = await tasks[current]();
-    }
-  };
-  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
-var TRIEU_TO_TY = 1e3;
-var TARGET_WORKSHOPS = ["2A", "3A", "4A", "5A", "8AB", "8C"];
-var currentVnYear = () => Number(vnDayKey(/* @__PURE__ */ new Date()).slice(0, 4));
-var VN_TZ = "Asia/Ho_Chi_Minh";
-var GRACE_UNTIL_HOUR = 0;
-var vnDayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: VN_TZ });
-var vnHourFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: VN_TZ,
-  hour: "2-digit",
-  hourCycle: "h23"
-});
-var vnDayKey = (d) => vnDayFormatter.format(d);
-var vnHour = (d) => Number(vnHourFormatter.format(d));
-var vnTodayUtc = () => /* @__PURE__ */ new Date(`${vnDayKey(/* @__PURE__ */ new Date())}T00:00:00Z`);
-var isoDateStr = (d) => d.toISOString().slice(0, 10);
-var isoWeekRangeInYear = (year, week) => {
-  if (!Number.isInteger(year) || !Number.isInteger(week) || week < 1 || week > 53) return null;
-  const jan4 = Date.UTC(year, 0, 4);
-  const dow = (new Date(jan4).getUTCDay() + 6) % 7;
-  const monday = jan4 - dow * 864e5 + (week - 1) * 7 * 864e5;
-  const sunday = monday + 6 * 864e5;
-  const yStart = Date.UTC(year, 0, 1);
-  const yEnd = Date.UTC(year, 11, 31);
-  const start = Math.max(monday, yStart);
-  const end = Math.min(sunday, yEnd);
-  if (start > end) return null;
-  return { start: isoDateStr(new Date(start)), end: isoDateStr(new Date(end)) };
-};
-
 // src/server/validation.ts
 var validateBody = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body);
@@ -75700,513 +76317,12 @@ var updateUserSchema = external_exports.object({
   status: external_exports.enum(["ACTIVE", "INACTIVE"]).optional()
 });
 
-// src/server/data.ts
-var REPORT_COLUMNS = {
-  production_status_app: [
-    "hex",
-    "tinh_trang",
-    "tinh_trang_ipo",
-    "gia_tri_don_hang_con_lai",
-    "gia_tri_con_lai",
-    "ten_cong_trinh",
-    "xuong_chinh",
-    "ten_hang_muc",
-    "phan_loai_nhom_san_pham",
-    "so_ngay_cd_hien_tai",
-    "bop",
-    "tri_gia_don_hang_tong",
-    "thanh_tien_tinh_phieu",
-    "thanh_tien_nhap_kho_luy_ke",
-    "bot_du_an",
-    "khach_hang",
-    "khu_vuc_du_an",
-    "ma_nha_may",
-    "ma_cong_trinh",
-    // Báo cáo tiến độ công trình
-    "ten_pm",
-    "ten_pc",
-    "ngay_can_giao",
-    "ngay_khnk_thang",
-    "ngay_khnk_tuan",
-    // Hạn tham khảo khi chưa có KH / ngày cần giao (utils/productionMetrics.deadlineOf)
-    "ngay_can",
-    // Tổng quan công trình: giá trị đã xuất kho lũy kế / tồn kho hiện tại theo hạng mục
-    "thanh_tien_xuat_kho_luy_ke",
-    "thanh_tien_ton_kho_hien_tai",
-    // Hạng mục nhập đủ SỐ LƯỢNG coi là đã xong khi đếm / tính hạn (utils/productionMetrics.isQtyComplete)
-    "so_luong_don_hang_tong",
-    "so_luong_nhap_kho_luy_ke",
-    // Báo cáo tiến độ công trình (bộ lọc nhóm CT / tình trạng dự án) + tổng quan 1 công trình
-    // (luồng triển khai BV → phiếu → chuyền → nhập kho, tuổi đơn từ ngày nhận PM). Cột ngắn, thêm ít dung lượng.
-    "nhom_ct",
-    "tinh_trang_du_an",
-    "ngay_nhan_tu_pm",
-    "tinh_trang_trien_khai_ban_ve",
-    "tinh_trang_phieu"
-  ],
-  vat_tu: [
-    "trang_thai",
-    "trang_thai_sap",
-    "nguoi_tao",
-    "nguoi_yeu_cau",
-    "ten_cong_trinh",
-    "so_pr",
-    "pr_line",
-    "ma_vat_tu_sap",
-    "ten_vat_tu",
-    "so_luong_yeu_cau",
-    "dvt",
-    "ngay_pr",
-    "nhom_vt",
-    "so_po",
-    "item_note_pr",
-    "ngay_du_kien_giao_hang_pmh_nhap",
-    "team_pr_note",
-    "so_luong_da_nhan_sap",
-    "so_luong_con_lai",
-    "tinh_trang_po",
-    "ghi_chu_tinh_trang_po",
-    "thanh_tien",
-    "ngay_ve",
-    "sl_hang_ve_thuc_te"
-  ],
-  khsx: [
-    "xuong_chinh",
-    "ten_cong_trinh",
-    "ma_cong_trinh",
-    "thanh_tien_ke_hoach",
-    "phan_loai_kh",
-    "nam",
-    "thang",
-    "ngay",
-    "tuan"
-  ],
-  nhap_kho: [
-    "hex",
-    "thanh_tien_nhap_kho",
-    "so_luong_nhap_kho",
-    "xuong_chinh",
-    "ten_cong_trinh",
-    "ma_cong_trinh",
-    "nam",
-    "thang",
-    "ngay",
-    "date",
-    "tuan",
-    "ghi_chu",
-    "ten_hang_muc"
-  ],
-  xuat_kho: [
-    "hex",
-    "so_luong_xuat_kho",
-    "thanh_tien_xuat_kho",
-    "date",
-    "xuong_chinh",
-    "ten_cong_trinh",
-    "ghi_chu",
-    "tinh_doi_voi_hang_tp",
-    "ten_hang_muc"
-  ],
-  ton_kho: [
-    "hex",
-    "date",
-    "gia_tri",
-    "ma_id_sap",
-    "ten_cong_trinh"
-  ],
-  dht: [
-    "hex",
-    "ngay_nhan_tu_pm",
-    "tri_gia_don_hang_tong",
-    "xuong_chinh",
-    "ten_cong_trinh"
-  ],
-  tkbv_full: [
-    "hex",
-    "ngay_nhan",
-    "tri_gia_don_hang_tong",
-    "xuong_chinh",
-    "ten_cong_trinh"
-  ],
-  pthsp_full: [
-    "hex",
-    "ngay_hoan_thanh",
-    "tri_gia_don_hang_tong",
-    "xuong_chinh",
-    "ten_cong_trinh"
-  ],
-  khsx_nam: [
-    "thanh_tien_ke_hoach",
-    "nam",
-    "thang",
-    "xuong_chinh"
-  ],
-  phan_tich_kh_th: [
-    "xuong_chinh",
-    "ten_cong_trinh",
-    "thanh_tien_ke_hoach",
-    "nhap_kho_tuan",
-    "tuan",
-    // Năm — bảng KH-TH tuần lọc theo năm đang chọn (cùng số tuần ở 2 năm khác nhau không bị cộng lẫn)
-    "nam",
-    "dung_ke_hoach",
-    "thuc_hien_dung_ke_hoach_1_phan",
-    "rot_ke_hoach",
-    "thuc_hien_rot_ke_hoach_1_phan",
-    "nhap_kho_truoc_ke_hoach",
-    "vuot_ke_hoach",
-    "nhap_kho_ngoai_ke_hoach"
-  ],
-  diem_danh: [
-    "xuong_chinh",
-    "so_luong_cong_nhan",
-    "gio_cong_hanh_chinh",
-    "gio_cong_tang_ca",
-    "tuan",
-    "nam",
-    "thang",
-    "ngay",
-    "dinh_bien"
-  ]
-};
-var parseSafeDate = (rawInput) => {
-  if (!rawInput || rawInput === "0" || rawInput === "undefined" || rawInput === "null") {
-    return null;
-  }
-  if (!isNaN(Number(rawInput))) {
-    const num2 = Number(rawInput);
-    const dateVal = new Date(num2 > 1e10 ? num2 : num2 * 1e3);
-    return !isNaN(dateVal.getTime()) ? dateVal : null;
-  }
-  const parsed = new Date(rawInput);
-  return !isNaN(parsed.getTime()) ? parsed : null;
-};
-var parseExplicitDates = (req) => Array.from(new Set(
-  String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10))
-)).sort();
-var applyNonStockDateFilter = (dateColExpr, explicitDates, dateFrom, dateTo, conditions, params) => {
-  if (explicitDates.length > 0) {
-    params.push(explicitDates);
-    conditions.push(`${dateColExpr}::date = ANY($${params.length}::date[])`);
-    return;
-  }
-  if (dateFrom) {
-    params.push(dateFrom.toISOString().slice(0, 10));
-    conditions.push(`${dateColExpr} >= $${params.length}`);
-  }
-  if (dateTo) {
-    params.push(dateTo.toISOString().slice(0, 10));
-    conditions.push(`${dateColExpr} <= $${params.length}`);
-  }
-};
-var getPeriodRangeFromKey = (value, granularity) => {
-  const d = parseSafeDate(value) || new Date(value);
-  if (granularity === "week") {
-    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6);
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
-  }
-  if (granularity === "month") {
-    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
-  }
-  const iso2 = d.toISOString().slice(0, 10);
-  return { start: iso2, end: iso2 };
-};
-var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, params) => {
-  if (upperBound) {
-    params.push(upperBound.toISOString().slice(0, 10));
-    return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table} WHERE ${rawDateCol} <= $${params.length})`;
-  }
-  return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table})`;
-};
-var CANCELLED_HEX_SQL = `SELECT DISTINCT hex::text AS cx_hex FROM production_status_app
-     WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%H\u1EE6Y%'`;
-var notCancelledHexCond = (hexExpr, cte) => `COALESCE(${hexExpr}::text, '') NOT IN (SELECT cx_hex FROM ${cte ?? `(${CANCELLED_HEX_SQL}) cx0`})`;
-var projectNameCondition = (colExpr, name, params) => {
-  params.push(expandProjectNames([name]));
-  return `${normNameSql(colExpr)} = ANY($${params.length}::text[])`;
-};
-var eqNormalized = (colExpr, paramIdx) => `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
-var hasCtWhitelist = (req) => req.query.ctWhitelist !== void 0;
-var parseCtWhitelist = (req) => expandProjectNames(parseNameList(req.query.ctWhitelist));
-var applyCtWhitelist = (req, congTrinhColExpr, conditions, params) => {
-  if (!hasCtWhitelist(req) || !congTrinhColExpr) return;
-  const wl = parseCtWhitelist(req);
-  params.push(wl);
-  conditions.push(`${normNameSql(congTrinhColExpr)} = ANY($${params.length}::text[])`);
-};
-var sapKeySql = (col) => `(CASE WHEN LENGTH(${col}::text) = 18 AND SUBSTRING(${col}::text FROM 7 FOR 6) = '000000'
-     THEN SUBSTRING(${col}::text FROM 1 FOR 6) || SUBSTRING(${col}::text FROM 13 FOR 6)
-     ELSE ${col}::text END)`;
-var productionKeySql = (col, alias = "") => {
-  const ref = `${alias ? `${alias}.` : ""}"${col}"`;
-  return col === "ma_id_sap" ? sapKeySql(ref) : ref;
-};
-var buildMatchedProductionCTE = (joinKey) => {
-  const key = productionKeySql(joinKey);
-  return `
-  p AS (
-    SELECT DISTINCT ON (${key})
-      ${key} AS "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
-    FROM production_status_app
-    WHERE "${joinKey}" IS NOT NULL
-    ORDER BY ${key}, updated_at DESC NULLS LAST, id DESC
-  )
-`;
-};
-var fetchTableData = async (tableName, updatedAfter, strict = false) => {
-  try {
-    const cols = REPORT_COLUMNS[tableName];
-    const selectClause = cols ? cols.map((c) => `"${c}"`).join(", ") : "*";
-    let query = `SELECT ${selectClause} FROM ${tableName}`;
-    const values = [];
-    const validDate = parseSafeDate(updatedAfter);
-    if (validDate) {
-      query += ` WHERE updated_at >= $1`;
-      values.push(validDate.toISOString());
-    }
-    const result = await timedQuery(query, values, { timeoutMs: 25e3 });
-    return result.rows;
-  } catch (error61) {
-    console.error(`L\u1ED7i truy v\u1EA5n b\u1EA3ng ${tableName}:`, error61);
-    if (strict) throw error61;
-    return [];
-  }
-};
-var TABLES = [
-  "production_status_app",
-  "vat_tu",
-  "khsx",
-  "dht",
-  "nhap_kho",
-  "tkbv_full",
-  "pthsp_full",
-  "phan_tich_kh_th",
-  "khsx_nam",
-  "xuat_kho",
-  "diem_danh",
-  "ton_kho"
-];
-var TABLE_TO_VERSION_KEY = {
-  production_status_app: "production",
-  vat_tu: "material",
-  khsx: "khsx",
-  dht: "order",
-  nhap_kho: "inventory",
-  tkbv_full: "tkbv",
-  pthsp_full: "pthsp",
-  phan_tich_kh_th: "analysis",
-  khsx_nam: "yearlyPlan",
-  xuat_kho: "export",
-  diem_danh: "attendance",
-  ton_kho: "stock"
-};
-var VERSIONS_TTL_MS = 3e3;
-var versionsMemo = null;
-var versionsInflight = null;
-var getVersions = async () => {
-  if (versionsMemo && Date.now() - versionsMemo.at < VERSIONS_TTL_MS) return versionsMemo.value;
-  if (versionsInflight) return versionsInflight;
-  versionsInflight = (async () => {
-    try {
-      const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
-      const out = {};
-      result.rows.forEach((row) => {
-        const key = TABLE_TO_VERSION_KEY[row.table_name];
-        if (key) out[key] = row.last_updated;
-      });
-      versionsMemo = { at: Date.now(), value: out };
-      return out;
-    } finally {
-      versionsInflight = null;
-    }
-  })();
-  return versionsInflight;
-};
-var getRelevantVersions = async (keys) => {
-  const all = await getVersions();
-  const out = {};
-  keys.forEach((k) => {
-    if (all[k] !== void 0) out[k] = all[k];
-  });
-  return out;
-};
-var CACHE_MAX_ENTRIES = 50;
-var trimCache = (cache4) => {
-  if (cache4.size <= CACHE_MAX_ENTRIES) return;
-  const oldestKey = cache4.keys().next().value;
-  if (oldestKey !== void 0) cache4.delete(oldestKey);
-};
-var cachedData = null;
-var cachedVersions = null;
-var allDataInflight = null;
-var fetchLatestStockSnapshot = async () => {
-  try {
-    const cols = REPORT_COLUMNS.ton_kho;
-    const selectClause = cols.map((c) => `"${c}"`).join(", ");
-    const query = `
-      SELECT ${selectClause}
-      FROM ton_kho
-      WHERE date_parsed = (SELECT MAX(date_parsed) FROM ton_kho)
-    `;
-    const result = await timedQuery(query);
-    return result.rows;
-  } catch (error61) {
-    console.error("L\u1ED7i truy v\u1EA5n ton_kho (latest snapshot):", error61);
-    return [];
-  }
-};
-var refreshAllDataCache = async () => {
-  const versions = await getVersions();
-  if (cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
-    return { payload: cachedData, versions: cachedVersions, fromCache: true };
-  }
-  if (allDataInflight) return allDataInflight;
-  allDataInflight = (async () => {
-    try {
-      const otherTables = TABLES.filter((t) => t !== "ton_kho");
-      const [
-        production,
-        material,
-        khsx,
-        order,
-        inventory,
-        tkbv,
-        pthsp,
-        analysis,
-        yearlyPlan,
-        exportData,
-        attendance
-      ] = await runWithLimit(
-        otherTables.map((t) => () => fetchTableData(t, void 0, true)),
-        2
-      );
-      const stock = await fetchLatestStockSnapshot();
-      const payload = {
-        production,
-        material,
-        khsx,
-        order,
-        inventory,
-        tkbv,
-        pthsp,
-        analysis,
-        yearlyPlan,
-        export: exportData,
-        attendance,
-        stock
-      };
-      cachedData = payload;
-      cachedVersions = versions;
-      return { payload, versions, fromCache: false };
-    } finally {
-      allDataInflight = null;
-    }
-  })();
-  return allDataInflight;
-};
-var VERSION_KEY_TO_TABLE = Object.fromEntries(
-  Object.entries(TABLE_TO_VERSION_KEY).map(([t, k]) => [k, t])
-);
-var tableCache = /* @__PURE__ */ new Map();
-var tableInflight = /* @__PURE__ */ new Map();
-var getTablesData = async (keys) => {
-  const versions = await getVersions();
-  const payload = {};
-  const fullFresh = cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions);
-  await runWithLimit(keys.filter((k) => VERSION_KEY_TO_TABLE[k]).map((key) => async () => {
-    if (fullFresh) {
-      payload[key] = cachedData[key];
-      return;
-    }
-    const ver = versions[key] ?? "";
-    const hit = tableCache.get(key);
-    if (hit && hit.ver === ver) {
-      payload[key] = hit.rows;
-      return;
-    }
-    let p = tableInflight.get(key);
-    if (!p) {
-      const table = VERSION_KEY_TO_TABLE[key];
-      p = (table === "ton_kho" ? fetchLatestStockSnapshot() : fetchTableData(table, void 0, true)).then((rows) => {
-        tableCache.set(key, { ver, rows });
-        return rows;
-      }).finally(() => tableInflight.delete(key));
-      tableInflight.set(key, p);
-    }
-    payload[key] = await p;
-  }), 2);
-  return { payload, versions };
-};
-var STOCK_TREND_CONFIG = {
-  table: "ton_kho",
-  dateCol: "date_parsed",
-  valueCol: "gia_tri",
-  valueDivisor: 1,
-  hexCol: "ma_id_sap",
-  congTrinhCol: "ten_cong_trinh",
-  dvtCol: "dvt",
-  joinProductionForFilters: true,
-  xuongViaProductionJoin: true,
-  productionJoinCol: "ma_id_sap"
-  // ton_kho <-> production_status_app khớp qua ma_id_sap (phía sản xuất chuẩn hoá — sapKeySql)
-};
-var ANALYSIS_TABLES = {
-  order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true, productionJoinCol: "hex" },
-  tkbv: { table: "tkbv_full", dateCol: "ngay_nhan", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
-  pthsp: { table: "pthsp_full", dateCol: "ngay_hoan_thanh", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
-  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
-  // Xuất kho: giá trị (thành tiền, triệu đồng) như các nguồn khác — dòng đơn vị phụ (không "TÍNH") có thành tiền 0 nên không cộng trùng
-  export: { table: "xuat_kho", dateCol: "date", valueCol: "thanh_tien_xuat_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" }
-};
-var ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
-var TREND_SOURCES = /* @__PURE__ */ new Set([...Object.keys(ANALYSIS_TABLES), "stock"]);
-var SCI_NUMBER_RE = `'^\\s*-?[0-9]+(\\.[0-9]+)?[eE][-+]?[0-9]+\\s*$'`;
-var SCI_EXP_OK_RE = `'[eE][-+]?0*[0-9]{1,3}\\s*$'`;
-var numericFromText = (textExpr) => `
-  CASE
-    WHEN REPLACE(${textExpr}, ',', '') ~ ${SCI_NUMBER_RE}
-    THEN CASE WHEN ${textExpr} ~ ${SCI_EXP_OK_RE} THEN TRIM(REPLACE(${textExpr}, ',', ''))::numeric END
-    ELSE NULLIF(
-      CASE
-        WHEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$'
-        THEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g')
-        ELSE NULL
-      END,
-      ''
-    )::numeric
-  END
-`;
-var numericExpr = (col) => numericFromText(`"${col}"::text`);
-var numericExprQualified = (qualifiedCol) => numericFromText(`${qualifiedCol}::text`);
-var NUMERIC_GENERATED_COLUMNS = {
-  "dht.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
-  "tkbv_full.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
-  "pthsp_full.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
-  "nhap_kho.thanh_tien_nhap_kho": "thanh_tien_nhap_kho_num",
-  "xuat_kho.so_luong_xuat_kho": "so_luong_xuat_kho_num",
-  "ton_kho.gia_tri": "gia_tri_num",
-  "khsx.thanh_tien_ke_hoach": "thanh_tien_ke_hoach_num",
-  "khsx_nam.thanh_tien_ke_hoach": "thanh_tien_ke_hoach_num"
-};
-var numericCol = (table, col) => {
-  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
-  return generated ? `"${generated}"` : numericExpr(col);
-};
-var numericColQualified = (table, alias, col) => {
-  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
-  return generated ? `${alias}."${generated}"` : numericExprQualified(`${alias}."${col}"`);
-};
-
 // src/server/cache.ts
 import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
-async function cachedByVersions(cache4, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
+async function cachedByVersions(cache4, key, versionKeys, compute2, extraVersion = "", sharedKey = "", dungBangTen = true) {
   const versions = await getRelevantVersions(versionKeys);
-  const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
+  const vkey = khoaPhienBan(versions, extraVersion, dungBangTen ? projectAliasesVersion() : "");
   const hit = cache4.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
   const flightKey = `${key}|${vkey}`;
@@ -76218,7 +76334,10 @@ async function cachedByVersions(cache4, key, versionKeys, compute2, extraVersion
       let payload = sharedKey ? await readShared(sharedKey, sharedVersions) : void 0;
       if (payload === void 0) {
         payload = await compute2();
-        if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
+        if (sharedKey) {
+          const ghi = writeShared(sharedKey, sharedVersions, payload);
+          if (!giuHamSong(ghi) && process.env.VERCEL) await ghi;
+        }
       }
       cache4.map.delete(key);
       cache4.map.set(key, { vkey, payload });
@@ -76235,6 +76354,7 @@ async function cachedByVersions(cache4, key, versionKeys, compute2, extraVersion
   cache4.inflight.set(flightKey, p);
   return p;
 }
+var khoaPhienBan = (versions, extraVersion, bangTen) => `${JSON.stringify(versions)}|${extraVersion}|${bangTen}`;
 var hashKey = (value) => createHash3("sha1").update(JSON.stringify(value)).digest("hex");
 var queryKey = (query, names) => {
   const o = {};
@@ -76315,10 +76435,10 @@ var SNAPSHOT_NHO_MAX = 24;
 var snapshotBat = true;
 var snapshotNho = /* @__PURE__ */ new Map();
 var docSnapshot = async (khoa, ver, nguon) => {
-  const nho2 = snapshotNho.get(khoa);
-  if (nho2 && nho2.ver === ver) {
+  const nho4 = snapshotNho.get(khoa);
+  if (nho4 && nho4.ver === ver) {
     nguon.v = "mem";
-    return nho2.buf;
+    return nho4.buf;
   }
   if (!snapshotBat) {
     nguon.v = "off";
@@ -76399,12 +76519,53 @@ function tuCot(v) {
   });
 }
 var manhDang = /* @__PURE__ */ new Map();
+var MANH_NHO_MAX = 24;
+var manhNho = /* @__PURE__ */ new Map();
+var nhoManh = (khoa, ver, buf) => {
+  manhNho.delete(khoa);
+  manhNho.set(khoa, { ver, buf });
+  while (manhNho.size > MANH_NHO_MAX) {
+    const cu = manhNho.keys().next().value;
+    if (cu === void 0) break;
+    manhNho.delete(cu);
+  }
+};
+function manhThieu(can, verDaCo) {
+  const thay = /* @__PURE__ */ new Set();
+  return can.filter((m) => {
+    if (thay.has(m.khoa) || verDaCo(m.khoa) === m.ver) return false;
+    thay.add(m.khoa);
+    return true;
+  });
+}
+async function docNhieuManh(thieu) {
+  const co2 = /* @__PURE__ */ new Set();
+  try {
+    const r = await pool.query(
+      `SELECT s.khoa, s.du_lieu FROM all_data_snapshot s
+       JOIN unnest($1::text[], $2::text[]) AS w(khoa, ver) ON s.khoa = w.khoa AND s.ver = w.ver`,
+      [thieu.map((m) => m.khoa), thieu.map((m) => m.ver)]
+    );
+    const verCua = new Map(thieu.map((m) => [m.khoa, m.ver]));
+    for (const row of r.rows) {
+      const khoa = String(row.khoa);
+      const ver = verCua.get(khoa);
+      if (ver === void 0 || !row.du_lieu) continue;
+      nhoManh(khoa, ver, row.du_lieu);
+      co2.add(khoa);
+    }
+  } catch (e) {
+    if (e?.code !== "42P01") console.error("[all-data] \u0111\u1ECDc g\u1ED9p m\u1EA3nh l\u1ED7i", e);
+  }
+  return co2;
+}
 async function manhBang(key, gia, verGoc, nguon, cot = false) {
   const khoa = khoaBang(key, gia, cot);
   const ver = verBang(verGoc);
   const n = { v: "" };
   const buf = await docSnapshot(khoa, ver, n);
   if (buf) {
+    nhoManh(khoa, ver, buf);
     if (nguon) nguon.v = n.v;
     return (await gunzip(buf)).toString("utf8");
   }
@@ -76416,7 +76577,9 @@ async function manhBang(key, gia, verGoc, nguon, cot = false) {
       const goc2 = payload[key] ?? [];
       const rows = key === "material" && !gia ? stripMaterialPriceColumns(goc2) : goc2;
       const json2 = JSON.stringify(cot ? sangCot(rows) : rows);
-      await luuSnapshot(khoa, ver, await gzip(json2));
+      const gz = await gzip(json2);
+      nhoManh(khoa, ver, gz);
+      await luuSnapshot(khoa, ver, gz);
       return json2;
     })().finally(() => manhDang.delete(k));
     manhDang.set(k, p);
@@ -76427,10 +76590,19 @@ async function manhBang(key, gia, verGoc, nguon, cot = false) {
 async function dungGoi(keys, gia, versions, cot = false, br = false) {
   const nguon = [];
   const manh = [];
-  for (const key of keys) {
+  const can = keys.map((key) => ({ key, khoa: khoaBang(key, gia, cot), ver: verBang(versions[key]) }));
+  const thieu = manhThieu(can, (k) => manhNho.get(k)?.ver);
+  const vuaDoc = thieu.length >= 2 ? await docNhieuManh(thieu) : /* @__PURE__ */ new Set();
+  for (const m of can) {
+    const nho4 = manhNho.get(m.khoa);
+    if (nho4 && nho4.ver === m.ver) {
+      manh.push(`${JSON.stringify(m.key)}:${(await gunzip(nho4.buf)).toString("utf8")}`);
+      nguon.push(`${m.key}=${vuaDoc.has(m.khoa) ? "db" : "mem"}`);
+      continue;
+    }
     const n = { v: "" };
-    manh.push(`${JSON.stringify(key)}:${await manhBang(key, gia, versions[key], n, cot)}`);
-    nguon.push(`${key}=${n.v}`);
+    manh.push(`${JSON.stringify(m.key)}:${await manhBang(m.key, gia, versions[m.key], n, cot)}`);
+    nguon.push(`${m.key}=${n.v}`);
   }
   const json2 = `{${manh.join(",")}}`;
   return { buf: br ? await nenBr(json2) : await gzip(json2), nguon: nguon.join(" ") };
@@ -76490,6 +76662,267 @@ function kichLamNong(versions) {
   ctx?.waitUntil?.(dangLam);
 }
 
+// src/routes/congTrinh.ts
+import { gzipSync } from "zlib";
+
+// src/server/botTongHop.ts
+var KHOA_HOP_LE = /^(CHUA|\d{4}|\d{4}-\d{2}|\d{4}-\d{2}-\d{2})$/;
+var dinhDang = (khoa) => khoa.length === 4 ? "YYYY" : khoa.length === 7 ? "YYYY-MM" : "YYYY-MM-DD";
+var chuoi = (x) => x === null || x === void 0 ? "" : String(x);
+var oTuDong = (r) => {
+  const ngay3 = chuoi(r.ngay);
+  return {
+    ten: chuoi(r.ten),
+    ipo: chuoi(r.ipo),
+    ngay: ngay3,
+    thang: ngay3.slice(0, 7),
+    ct: !!r.ct,
+    tt: r.tt === null || r.tt === void 0 ? null : Number(r.tt),
+    so: Number(r.so) || 0,
+    nsp: chuoi(r.nsp).trim(),
+    xuong: chuoi(r.xuong).trim()
+  };
+};
+var khoaCongTrinh = (nguon) => {
+  const ten = nguon.split(/[\\/]/).pop() ?? nguon;
+  const m = ten.match(/(?:CT|PO)\s?\d{2}-\d{3}/i);
+  return m ? m[0].toUpperCase().replace(/\s/g, "") : `DIR:${nguon.slice(0, nguon.length - ten.length).replace(/\\/g, "/").toLowerCase()}`;
+};
+var COT_CAN = [["tt", "TT \u0110H C\xD2N L\u1EA0I"], ["ipo", "T\xCCNH TR\u1EA0NG IPO FINAL"], ["ten", "T\xCAN C\xD4NG TR\xCCNH"]];
+var fileCanXem = (f, tk) => {
+  const theo = new Map(tk.map((r) => [chuoi(r.nguon), r]));
+  const out = [];
+  for (const r of f) {
+    const nguon = chuoi(r.nguon);
+    const t = theo.get(nguon);
+    const soDong = Number(t?.n) || 0;
+    const ten = Array.isArray(t?.ds) ? t.ds.map(chuoi).filter(Boolean).sort() : [];
+    const chung = { nguon, luc: chuoi(r.nap_luc) || null, soDong, ten };
+    if (r.loi) {
+      out.push({ ...chung, kieu: "doc", loi: chuoi(r.loi), luuTot: soDong ? chuoi(r.mtime) || null : null });
+      continue;
+    }
+    if (!soDong) continue;
+    const thieu = COT_CAN.filter(([k]) => !Number(t[k])).map(([, nhan]) => nhan);
+    if (thieu.length) out.push({ ...chung, kieu: "cot", loi: `C\u1ED9t ${thieu.join(", ")} tr\u1ED1ng c\u1EA3 file (thi\u1EBFu / \u0111\u1ED5i t\xEAn c\u1ED9t?)`, luuTot: chuoi(r.mtime) || null });
+  }
+  const coSo = /* @__PURE__ */ new Map();
+  for (const x of out) if (x.soDong > 0 && !coSo.has(khoaCongTrinh(x.nguon))) coSo.set(khoaCongTrinh(x.nguon), x);
+  for (const x of out) {
+    if (x.soDong > 0) continue;
+    const cu = coSo.get(khoaCongTrinh(x.nguon));
+    if (cu) {
+      x.dungSoCua = cu.nguon;
+      x.luuTot = cu.luuTot;
+      x.ten = cu.ten;
+    }
+  }
+  return out.sort((a, b) => a.kieu === b.kieu ? a.nguon.localeCompare(b.nguon) : a.kieu === "doc" ? -1 : 1);
+};
+
+// src/server/congTrinh.ts
+var COT_CT = [
+  { k: "ma_cong_trinh", kieu: "g" },
+  { k: "ten_cong_trinh", kieu: "g" },
+  { k: "ten_hang_muc", kieu: "g" },
+  { k: "tinh_trang_ipo", kieu: "f" },
+  { k: "tinh_trang", kieu: "f" },
+  { k: "bop", kieu: "f" },
+  { k: "xuong_chinh", kieu: "f" },
+  { k: "phan_loai_nhom_san_pham", kieu: "g" },
+  { k: "khu_vuc", kieu: "g" },
+  { k: "khu_vuc_du_an", kieu: "g" },
+  { k: "dvt", kieu: "g" },
+  { k: "ten_pm", kieu: "g" },
+  { k: "ten_pc", kieu: "g" },
+  ...[
+    "so_luong_don_hang_tong",
+    "tri_gia_don_hang_tong",
+    "so_luong_tinh_phieu",
+    "thanh_tien_tinh_phieu",
+    "so_luong_nhap_kho_luy_ke",
+    "thanh_tien_nhap_kho_luy_ke",
+    "so_luong_xuat_kho_luy_ke",
+    "thanh_tien_xuat_kho_luy_ke",
+    "so_luong_ton_kho_hien_tai",
+    "thanh_tien_ton_kho_hien_tai",
+    "so_luong_con_lai",
+    "gia_tri_con_lai",
+    "so_luong_don_hang_con_lai",
+    "gia_tri_don_hang_con_lai",
+    "sl_khnk_thang",
+    "gt_khnk_thang",
+    "sl_khnk_tuan",
+    "gt_khnk_tuan"
+  ].map((k) => ({ k, kieu: "n" })),
+  ...["ngay_khnk_thang", "ngay_khnk_tuan", "ngay_duyet_phieu"].map((k) => ({ k, kieu: "d" }))
+];
+var TEN_HOP_LE = /^[a-z0-9_]+$/;
+function bieuThucKhac(k, kieu) {
+  if (!TEN_HOP_LE.test(k)) throw new Error(`T\xEAn c\u1ED9t l\u1EA1: ${k}`);
+  const bt = bieuThucKhacGoc(k, kieu);
+  return kieu === "g" ? bt : `CASE WHEN '${k}' = ANY(COALESCE(c.ct_thieu, '{}'::text[])) THEN NULL ELSE ${bt} END`;
+}
+function bieuThucKhacGoc(k, kieu) {
+  const c = `c.${k}`, p = `p.${k}`;
+  switch (kieu) {
+    case "f":
+      return `CASE WHEN ${c} IS DISTINCT FROM ${p}::text THEN jsonb_build_array(${c}) END`;
+    case "g":
+      return `CASE WHEN NULLIF(${c}, '') IS NOT NULL AND ${c} IS DISTINCT FROM ${p}::text THEN jsonb_build_array(${c}) END`;
+    case "n": {
+      const pv = `(CASE WHEN ${p}::text ~ '^\\s*-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\s*$' THEN ${p}::text::float8 END)`;
+      return `CASE WHEN (${c} IS NULL) <> (${pv} IS NULL) OR abs(${c} - ${pv}) > 1e-6 * greatest(1, abs(${c})) THEN jsonb_build_array(${c}) END`;
+    }
+    case "d": {
+      const cd = `to_char(${c}, 'YYYY-MM-DD')`;
+      return `CASE WHEN ${cd} IS DISTINCT FROM left(${p}::text, 10) THEN jsonb_build_array(${cd}) END`;
+    }
+  }
+}
+function sqlHangMuc(cot = COT_CT) {
+  const doi = cot.map(({ k, kieu }) => `'${k}', ${bieuThucKhac(k, kieu)}`).join(",\n      ");
+  return `WITH c AS (
+    SELECT DISTINCT ON (h.hex) h.*, f.ct_thieu
+      FROM cong_trinh_hang_muc h LEFT JOIN bot_tong_hop_file f USING (nguon)
+     WHERE h.hex IS NOT NULL AND h.hex <> ''
+     ORDER BY h.hex, (COALESCE(h.tinh_trang_ipo, '') LIKE '04%'), h.nguon DESC, h.stt
+  )
+  SELECT c.hex, jsonb_strip_nulls(jsonb_build_object(
+      ${doi}
+    )) AS doi
+    FROM c LEFT JOIN LATERAL (SELECT * FROM production_status_app p WHERE p.hex::text = c.hex LIMIT 1) p ON true
+   ORDER BY c.hex`;
+}
+function moDoi(doi) {
+  if (!doi || typeof doi !== "object") return 0;
+  const ra = {};
+  let co2 = false;
+  for (const [k, v] of Object.entries(doi)) {
+    if (Array.isArray(v)) {
+      ra[k] = v[0] ?? null;
+      co2 = true;
+    }
+  }
+  return co2 ? ra : 0;
+}
+function taoNhoCoHan(hanMs, doc, bayGio = Date.now) {
+  let nho4 = null;
+  let dangDoc = null;
+  let luot = 0;
+  const docMoi = () => {
+    if (dangDoc) return dangDoc;
+    const l = luot;
+    const p = doc().then((v) => {
+      if (l === luot) nho4 = { luc: bayGio(), v };
+      return v;
+    }).finally(() => {
+      if (dangDoc === p) dangDoc = null;
+    });
+    dangDoc = p;
+    return p;
+  };
+  return {
+    lay: () => nho4 && bayGio() - nho4.luc < hanMs ? Promise.resolve(nho4.v) : docMoi(),
+    docMoi,
+    dat: (v) => {
+      luot++;
+      dangDoc = null;
+      nho4 = { luc: bayGio(), v };
+    },
+    xoa: () => {
+      luot++;
+      dangDoc = null;
+      nho4 = null;
+    }
+  };
+}
+
+// src/routes/congTrinh.ts
+var SQL = sqlHangMuc();
+var SQL_KHOA = `SELECT COALESCE(max(nap_luc)::text, '') || '/' || count(*) AS khoa,
+                         to_char(max(nap_luc) FILTER (WHERE loi IS NULL) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cap_nhat,
+                         count(*) FILTER (WHERE loi IS NULL)::int AS so_file
+                    FROM bot_tong_hop_file`;
+var RONG = { coBang: false, capNhat: null, soFile: 0, cot: [], dong: [] };
+var MOC_KHONG_BANG = { coBang: false, khoa: "khong-bang", capNhat: null, soFile: 0 };
+var mocFile = taoNhoCoHan(3e3, async () => {
+  try {
+    const k = (await timedQuery(SQL_KHOA)).rows[0] ?? {};
+    return { coBang: true, khoa: chuoi(k.khoa), capNhat: chuoi(k.cap_nhat) || null, soFile: Number(k.so_file) || 0 };
+  } catch (e) {
+    if (e?.code === "42P01") return MOC_KHONG_BANG;
+    throw e;
+  }
+});
+var layMocFile = () => mocFile.lay();
+var nho = null;
+var dangDung = null;
+async function layFileCongTrinh(moc2) {
+  const pVer = getVersions();
+  pVer.catch(() => {
+  });
+  const k = moc2 ?? await layMocFile();
+  if (!k.coBang) {
+    await pVer.catch(() => {
+    });
+    return { khoa: "khong-bang", body: RONG };
+  }
+  const ver = await pVer;
+  const khoaFile = k.khoa;
+  const khoa = `${khoaFile}|${ver.production ?? ""}`;
+  if (nho?.khoa === khoa) return nho.kq;
+  if (dangDung?.khoa === khoa) return dangDung.p;
+  const p = (async () => {
+    try {
+      const r = await timedQuery(SQL, [], { timeoutMs: 6e4, heavy: true });
+      const kq = {
+        khoa: khoaFile,
+        body: {
+          coBang: true,
+          capNhat: k.capNhat,
+          soFile: k.soFile,
+          cot: COT_CT.map((c) => c.k),
+          dong: r.rows.map((x) => [chuoi(x.hex), moDoi(x.doi)])
+        }
+      };
+      nho = { khoa, kq };
+      return kq;
+    } catch (e) {
+      if (e?.code === "42P01") return { khoa: "khong-bang", body: RONG };
+      throw e;
+    }
+  })().finally(() => {
+    if (dangDung?.p === p) dangDung = null;
+  });
+  dangDung = { khoa, p };
+  return p;
+}
+var mocNho = null;
+async function khoaFileNho() {
+  if (mocNho && (Date.now() - mocNho.luc < 3e4 || laGioNghiDb())) return mocNho.khoa;
+  if (laGioNghiDb()) return "";
+  let khoa = "";
+  try {
+    const m = await layMocFile();
+    khoa = m.coBang ? m.khoa : "";
+  } catch {
+  }
+  mocNho = { luc: Date.now(), khoa };
+  return khoa;
+}
+app.get("/api/cong-trinh/hang-muc", async (_req, res) => {
+  try {
+    const kq = await layFileCongTrinh();
+    if (!kq.body.coBang) return res.json(kq.body);
+    kq.gz ??= gzipSync(JSON.stringify(kq.body));
+    guiGzip(res, kq.gz);
+  } catch (e) {
+    console.error("[cong-trinh/hang-muc]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c d\u1EEF li\u1EC7u file c\xF4ng tr\xECnh" });
+  }
+});
+
 // src/routes/data.ts
 var ALL_DATA_GZIP_MAX = 8;
 var allDataGzipVkey = "";
@@ -76543,6 +76976,9 @@ var getAllDataGzip = (vkey, gzKey, out) => {
   }
   return p;
 };
+var luuNen = async (ghi) => {
+  if (!giuHamSong(ghi) && process.env.VERCEL) await ghi;
+};
 app.get("/api/all-data", async (req, res) => {
   try {
     const requested = String(req.query.tables || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -76554,7 +76990,7 @@ app.get("/api/all-data", async (req, res) => {
     const br = cot && req.acceptsEncodings("br") === "br";
     const enc = br ? "br" : "gzip";
     if (requested.length && (br || req.acceptsEncodings("gzip"))) {
-      const all = await getVersions();
+      const all = await getVersions(VERSIONS_MOI_MS);
       const gia = !requested.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
       snap = { khoa: `${requested.join(",")}|${gia ? 1 : 0}${cot ? "|cot" : ""}${br ? "|br" : ""}`, ver: JSON.stringify(requested.map((k) => all[k] ?? "")) };
       const t1 = Date.now();
@@ -76567,11 +77003,11 @@ app.get("/api/all-data", async (req, res) => {
         const goi = await dungGoi(requested, gia, all, cot, br);
         const tGhep = Date.now() - t2;
         const tLuu2 = Date.now();
-        await luuSnapshot(snap.khoa, snap.ver, goi.buf);
+        await luuNen(luuSnapshot(snap.khoa, snap.ver, goi.buf));
         return guiGzip(
           res,
           goi.buf,
-          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu2}, tong;dur=${Date.now() - t0}`,
+          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;desc="nen";dur=${Date.now() - tLuu2}, tong;dur=${Date.now() - t0}`,
           enc
         );
       }
@@ -76587,8 +77023,8 @@ app.get("/api/all-data", async (req, res) => {
     if (!req.acceptsEncodings("gzip")) return res.json(out);
     const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(",")}|${canSeePrice ? 1 : 0}`, out);
     const tLuu = Date.now();
-    if (snap) await luuSnapshot(snap.khoa, JSON.stringify(requested.map((k) => versions[k] ?? "")), buf);
-    guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
+    if (snap && !br) await luuNen(luuSnapshot(snap.khoa, JSON.stringify(requested.map((k) => versions[k] ?? "")), buf));
+    guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, luu;desc="nen";dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
   } catch (error61) {
     console.error("L\u1ED7i khi fetch d\u1EEF li\u1EC7u:", error61);
     if (!res.headersSent) res.status(500).json({ error: "Internal Server Error" });
@@ -77175,12 +77611,12 @@ app.post("/api/material/pr-hexes", async (req, res) => {
 });
 app.get("/api/check-versions", async (_req, res) => {
   try {
-    const versions = await getVersions();
+    const versions = await getVersions(VERSIONS_MOI_MS);
     res.json(versions);
-    kichLamNong(versions);
+    giuHamSong(khoaFileNho().then((fileCongTrinh) => kichLamNong({ ...versions, fileCongTrinh })).catch((e) => console.error("[lam-nong] k\xEDch l\u1ED7i", e)));
   } catch (error61) {
     console.error("L\u1ED7i check version:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
+    if (!res.headersSent) res.status(500).json({ error: "Internal Server Error" });
   }
 });
 var TABLE_DISPLAY_NAMES = {
@@ -77224,7 +77660,25 @@ var DATA_AS_OF_DATE_COLUMN = {
   ton_kho_vt: "date"
 };
 var SNAPSHOT_TABLES = /* @__PURE__ */ new Set(["production_status_app", "vat_tu"]);
-var fetchDataAsOfDates = async () => {
+var ngayDenNho = null;
+var ngayDenDangTinh = null;
+var NGAY_DEN_NHO_MS = 10 * 6e4;
+var layDataAsOfDates = (khoa) => {
+  if (ngayDenNho && ngayDenNho.khoa === khoa && Date.now() - ngayDenNho.luc < NGAY_DEN_NHO_MS) return Promise.resolve(ngayDenNho.kq);
+  if (ngayDenDangTinh?.khoa === khoa) return ngayDenDangTinh.p;
+  let coLoi = false;
+  const p = fetchDataAsOfDates(() => {
+    coLoi = true;
+  }).then((kq) => {
+    if (!coLoi) ngayDenNho = { khoa, luc: Date.now(), kq };
+    return kq;
+  }).finally(() => {
+    if (ngayDenDangTinh?.p === p) ngayDenDangTinh = null;
+  });
+  ngayDenDangTinh = { khoa, p };
+  return p;
+};
+var fetchDataAsOfDates = async (baoLoi) => {
   const entries = Object.entries(DATA_AS_OF_DATE_COLUMN);
   const results = await runWithLimit(
     entries.map(([table, col]) => async () => {
@@ -77234,6 +77688,7 @@ var fetchDataAsOfDates = async () => {
         return [table, maxDate ? maxDate.slice(0, 10) : null];
       } catch (error61) {
         console.error(`L\u1ED7i l\u1EA5y "d\u1EEF li\u1EC7u c\u1EADp nh\u1EADt \u0111\u1EBFn ng\xE0y" cho ${table}:`, error61);
+        baoLoi?.();
         return [table, null];
       }
     }),
@@ -77258,15 +77713,15 @@ var updateLogEntrySchema = external_exports.object({
 });
 app.get("/api/data-update-log", async (_req, res) => {
   try {
-    const [versionsResult, asOfDates] = await Promise.all([
-      timedQuery(`
+    const versionsResult = await timedQuery(`
         SELECT table_name, last_updated, display_label, source_note, note,
                is_manual, manual_data_as_of_date
         FROM table_versions
         ORDER BY table_name
-      `),
-      fetchDataAsOfDates()
-    ]);
+      `);
+    const asOfDates = await layDataAsOfDates(
+      versionsResult.rows.map((r) => `${r.table_name}:${r.last_updated instanceof Date ? r.last_updated.toISOString() : r.last_updated}`).join(",")
+    );
     const nowDate = /* @__PURE__ */ new Date();
     const now = nowDate.getTime();
     const okDayKeys = /* @__PURE__ */ new Set([vnDayKey(nowDate)]);
@@ -77408,6 +77863,17 @@ app.delete(
 var overviewSummaryCache = createCache(50);
 var overviewByGroupCache = createCache(80);
 var OVERVIEW_SUMMARY_VERSION_KEYS = ["order", "tkbv", "pthsp", "inventory", "export", "production"];
+var maxDatesCache = createCache(2);
+var layMaxDates = () => {
+  const homNay = vnTodayUtc().toISOString().slice(0, 10);
+  return cachedByVersions(maxDatesCache, homNay, OVERVIEW_SUMMARY_VERSION_KEYS, async () => {
+    const maxQ = await timedQuery(
+      Object.values(ANALYSIS_TABLES).map((cfg) => `SELECT '${cfg.table}' AS k, to_char(MAX(date_parsed), 'YYYY-MM-DD') AS d FROM ${cfg.table} WHERE date_parsed <= $1`).join(" UNION ALL "),
+      [homNay]
+    );
+    return new Map(maxQ.rows.map((row) => [row.k, row.d]));
+  }, "", "", false);
+};
 var splitUpper = (v) => String(v || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
 var buildRoleFilter = (tinhTrangList, tinhTrangIpoList, params, joinCols) => {
   if (!tinhTrangList.length && !tinhTrangIpoList.length) return null;
@@ -77535,12 +78001,7 @@ app.get("/api/overview/summary", async (req, res) => {
       });
       const finalQuery = `WITH ${ctes.join(",\n")}
 ${subQueries.join("\nUNION ALL\n")}`;
-      const r = await timedQuery(finalQuery, allParams, { workMemMb: 32 });
-      const maxQ = await timedQuery(
-        Object.values(ANALYSIS_TABLES).map((cfg) => `SELECT '${cfg.table}' AS k, to_char(MAX(date_parsed), 'YYYY-MM-DD') AS d FROM ${cfg.table} WHERE date_parsed <= $1`).join(" UNION ALL "),
-        [vnTodayUtc().toISOString().slice(0, 10)]
-      );
-      const maxTheoBang = new Map(maxQ.rows.map((row) => [row.k, row.d]));
+      const [r, maxTheoBang] = await Promise.all([timedQuery(finalQuery, allParams, { workMemMb: 32 }), layMaxDates()]);
       const maxDates = Object.fromEntries(Object.entries(ANALYSIS_TABLES).map(([key, cfg]) => [key, maxTheoBang.get(cfg.table) ?? null]));
       const results = {};
       r.rows.forEach((row) => {
@@ -77679,7 +78140,7 @@ app.get("/api/overview/by-group", async (req, res) => {
 // src/routes/tuyChonThoiGian.ts
 var cache = createCache(1);
 var VERSION_KEYS = ["order", "tkbv", "pthsp", "inventory", "khsx"];
-var SQL = `
+var SQL2 = `
   SELECT 'ngay' AS loai, v::text FROM (
     SELECT ngay_nhan_tu_pm AS v FROM dht
     UNION SELECT ngay_nhan FROM tkbv_full
@@ -77694,10 +78155,10 @@ var SQL = `
 app.get("/api/overview/tuy-chon-thoi-gian", async (_req, res) => {
   try {
     const payload = await cachedByVersions(cache, "tat-ca", VERSION_KEYS, async () => {
-      const r = await timedQuery(SQL, [], { timeoutMs: 15e3, workMemMb: 32 });
+      const r = await timedQuery(SQL2, [], { timeoutMs: 15e3, workMemMb: 32 });
       const lay = (loai) => r.rows.filter((x) => x.loai === loai).map((x) => x.v);
       return { ngay: lay("ngay"), khsx: { nam: lay("nam"), thang: lay("thang"), ngay: lay("ngayKhsx"), tuan: lay("tuan") } };
-    });
+    }, "", "/api/overview/tuy-chon-thoi-gian", false);
     res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i overview/tuy-chon-thoi-gian:", error61);
@@ -79147,12 +79608,12 @@ var banDuHex = (a, ct, tu, den, tonTai, them, moTa) => {
 };
 
 // src/routes/stock.ts
-var stockDatesCache = /* @__PURE__ */ new Map();
 var stockQueryCache = createCache(40);
 var stockItemsCache = createCache(10);
 var STOCK_VERSION_KEYS = ["stock", "production"];
 var stockHealthVersionKeys = [...STOCK_VERSION_KEYS, "inventory", "export"];
 var stockHealthInputCache = createCache(3);
+var stockHealthPayloadCache = createCache(12);
 var stockHealthMoTaCache = createCache(1);
 var stockHealthDetailCache = createCache(20);
 var parseStockFilters = (req) => ({
@@ -79165,26 +79626,24 @@ var parseStockFilters = (req) => ({
 });
 var refreshStockDatesCache = async (filters) => {
   const needsJoin = hasProductionFilter(filters);
-  const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion(), pa: projectAliasesVersion() });
-  const versions = await getRelevantVersions(needsJoin ? ["stock", "production"] : ["stock"]);
-  const cached2 = stockDatesCache.get(cacheKey);
-  if (cached2 && JSON.stringify(cached2.versions) === JSON.stringify(versions)) {
-    return { payload: cached2.payload, fromCache: true };
-  }
-  const conds = ["s.date_parsed IS NOT NULL"];
-  const params = [];
-  if (filters.congTrinh.length) {
-    params.push(filters.congTrinh);
-    conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
-  }
-  let cteClause = "";
-  let joinClause = "";
-  if (needsJoin) {
-    cteClause = `WITH matched_ids AS (${matchedIdsSql(productionConds(filters, params))})`;
-    joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
-  }
-  const giaTri = numericColQualified("ton_kho", "s", "gia_tri");
-  const q = `
+  const khongLoc = !needsJoin && filters.congTrinh.length === 0;
+  let tinhLai = false;
+  const payload = await cachedByVersions(stockQueryCache, `dates|${JSON.stringify(filters)}`, needsJoin ? ["stock", "production"] : ["stock"], async () => {
+    tinhLai = true;
+    const conds = ["s.date_parsed IS NOT NULL"];
+    const params = [];
+    if (filters.congTrinh.length) {
+      params.push(filters.congTrinh);
+      conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
+    }
+    let cteClause = "";
+    let joinClause = "";
+    if (needsJoin) {
+      cteClause = `WITH matched_ids AS (${matchedIdsSql(productionConds(filters, params))})`;
+      joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
+    }
+    const giaTri = numericColQualified("ton_kho", "s", "gia_tri");
+    const q = `
     ${cteClause ? `${cteClause},` : "WITH"}
     moi_ngay AS (SELECT DISTINCT date_parsed AS d FROM ton_kho WHERE date_parsed IS NOT NULL),
     loc AS (
@@ -79201,11 +79660,15 @@ var refreshStockDatesCache = async (filters) => {
     FROM moi_ngay n LEFT JOIN loc l ON l.d = n.d
     ORDER BY 1 DESC
   `;
-  const r = await timedQuery(q, params);
-  const payload = r.rows.map((row) => ({ date: row.d, count: Number(row.count), count0: Number(row.count0), value: Number(row.value) }));
-  stockDatesCache.set(cacheKey, { versions, payload });
-  trimCache(stockDatesCache);
-  return { payload, fromCache: false };
+    const r = await timedQuery(q, params);
+    return r.rows.map((row) => ({
+      date: row.d instanceof Date ? row.d.toISOString() : row.d,
+      count: Number(row.count),
+      count0: Number(row.count0),
+      value: Number(row.value)
+    }));
+  }, workshopGroupsVersion(), khongLoc ? "/api/stock/dates" : "");
+  return { payload, fromCache: !tinhLai };
 };
 var PSA_SAP_KEY = sapKeySql("ma_id_sap");
 var matchedIdsSql = (pConds) => `
@@ -79353,19 +79816,29 @@ var docDauVaoHealth = (date5, filters) => cachedByVersions(stockHealthInputCache
   ]);
   return { ...ghepDauVaoV5(date5, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows }), tenChuan: (t) => normName(canonicalProjectName(t)) };
 }), `${workshopGroupsVersion()}|${projectAliasesVersion()}`);
+var CHO_BANG_TEN_MS = 2e3;
 app.get("/api/stock/health", async (req, res) => {
   try {
     const { date: date5 } = req.query;
     if (!laNgay(date5)) return res.status(400).json({ error: "Invalid date" });
     const filters = parseHealthFilters(req);
-    const payload = await cachedByVersions(
-      stockQueryCache,
+    let khoaChung2 = "";
+    if (!healthCoLoc(filters)) {
+      if (!projectAliasesVersion()) {
+        await Promise.race([ensureProjectAliases().catch(() => {
+        }), new Promise((resolve) => setTimeout(resolve, CHO_BANG_TEN_MS))]);
+      }
+      if (projectAliasesVersion()) khoaChung2 = "stock-health";
+    }
+    const chuoi2 = await cachedByVersions(
+      stockHealthPayloadCache,
       `health5|${date5}|${JSON.stringify(filters)}`,
       stockHealthVersionKeys,
-      async () => tinhTonKhoV5(await docDauVaoHealth(date5, filters)),
-      `${workshopGroupsVersion()}|${projectAliasesVersion()}`
+      async () => JSON.stringify(tinhTonKhoV5(await docDauVaoHealth(date5, filters))),
+      `${workshopGroupsVersion()}|${projectAliasesVersion()}|${date5}`,
+      khoaChung2
     );
-    res.json(payload);
+    res.type("json").send(chuoi2);
   } catch (error61) {
     console.error("L\u1ED7i stock/health:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -79548,8 +80021,6 @@ app.get("/api/stock/export/csv", stockExportLimiter, async (req, res) => {
     else res.end();
   }
 });
-var cachedStockTotalCount = null;
-var cachedStockTotalCountVersion = null;
 app.get("/api/stock/total-count", async (req, res) => {
   try {
     const filters = parseStockFilters(req);
@@ -79562,17 +80033,9 @@ app.get("/api/stock/total-count", async (req, res) => {
       }, workshopGroupsVersion());
       return res.json({ total: total2 });
     }
-    const verResult = await timedQuery(
-      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
-    );
-    const currentVersion = verResult.rows[0]?.last_updated ? String(verResult.rows[0].last_updated) : null;
-    if (cachedStockTotalCount !== null && currentVersion && currentVersion === cachedStockTotalCountVersion) {
-      return res.json({ total: cachedStockTotalCount });
-    }
-    const r = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho`);
-    const total = Number(r.rows[0].total);
-    cachedStockTotalCount = total;
-    cachedStockTotalCountVersion = currentVersion;
+    const demCaBang = async () => Number((await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho`)).rows[0].total);
+    const coPhienBan = !!(await getRelevantVersions(["stock"])).stock;
+    const total = coPhienBan ? await cachedByVersions(stockQueryCache, "total-count|all", ["stock"], demCaBang, "", "/api/stock/total-count") : await demCaBang();
     res.json({ total });
   } catch (error61) {
     console.error("L\u1ED7i stock/total-count:", error61);
@@ -79737,7 +80200,7 @@ app.get("/api/ton-kho-vt/tong-hop", async (req, res) => {
   try {
     if (!await userHasPermission(req, QUYEN_XEM)) return res.status(403).json(LOI_QUYEN);
     const pb = await docPhienBan();
-    const payload = await cachedByVersions(cacheTongHop, "tong-hop", [], () => tinhTongHop(pb.capNhat), pb.khoa);
+    const payload = await cachedByVersions(cacheTongHop, "tong-hop", [], () => tinhTongHop(pb.capNhat), pb.khoa, "", false);
     res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i ton-kho-vt/tong-hop:", error61);
@@ -79759,7 +80222,9 @@ app.post("/api/ton-kho-vt/tong-hop", async (req, res) => {
       `tong-hop-loc|${nhom}|${hashKey(ds2.ten)}`,
       [],
       () => tinhTongHop(pb.capNhat, loc),
-      pb.khoa
+      pb.khoa,
+      "",
+      false
     );
     res.json(payload);
   } catch (error61) {
@@ -79794,7 +80259,7 @@ app.get("/api/ton-kho-vt/ten-vat-tu", async (req, res) => {
     const nhom = docNhom(req.query.nhom);
     if (!nhom) return res.status(400).json({ error: "Thi\u1EBFu ho\u1EB7c sai t\xEAn nh\xF3m v\u1EADt t\u01B0" });
     const pb = await docPhienBan();
-    const payload = await cachedByVersions(cacheTenVatTu, `ten-vat-tu|${nhom}`, [], () => tinhTenVatTu(nhom), pb.khoa);
+    const payload = await cachedByVersions(cacheTenVatTu, `ten-vat-tu|${nhom}`, [], () => tinhTenVatTu(nhom), pb.khoa, "", false);
     res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i ton-kho-vt/ten-vat-tu:", error61);
@@ -79895,7 +80360,9 @@ var xuLyChiTiet = async (req, res, src) => {
       `chi-tiet|${ngay3}|${truoc ?? ""}|${nhom}|${coGia ? 1 : 0}|${ds2.ten.length ? hashKey(ds2.ten) : ""}`,
       [],
       () => tinhChiTiet(ngay3, nhom, coGia, truoc, ds2.ten),
-      pb.khoa
+      pb.khoa,
+      "",
+      false
     );
     res.json(payload);
   } catch (error61) {
@@ -80010,53 +80477,12 @@ app.get("/api/bop-m2", async (req, res) => {
   }
 });
 
-// src/server/botTongHop.ts
-var KHOA_HOP_LE = /^(CHUA|\d{4}|\d{4}-\d{2}|\d{4}-\d{2}-\d{2})$/;
-var dinhDang = (khoa) => khoa.length === 4 ? "YYYY" : khoa.length === 7 ? "YYYY-MM" : "YYYY-MM-DD";
-var chuoi = (x) => x === null || x === void 0 ? "" : String(x);
-var oTuDong = (r) => {
-  const ngay3 = chuoi(r.ngay);
-  return { ten: chuoi(r.ten), ipo: chuoi(r.ipo), ngay: ngay3, thang: ngay3.slice(0, 7), ct: !!r.ct, tt: r.tt === null || r.tt === void 0 ? null : Number(r.tt), so: Number(r.so) || 0 };
-};
-var khoaCongTrinh = (nguon) => {
-  const ten = nguon.split(/[\\/]/).pop() ?? nguon;
-  const m = ten.match(/(?:CT|PO)\s?\d{2}-\d{3}/i);
-  return m ? m[0].toUpperCase().replace(/\s/g, "") : `DIR:${nguon.slice(0, nguon.length - ten.length).replace(/\\/g, "/").toLowerCase()}`;
-};
-var COT_CAN = [["tt", "TT \u0110H C\xD2N L\u1EA0I"], ["ipo", "T\xCCNH TR\u1EA0NG IPO FINAL"], ["ten", "T\xCAN C\xD4NG TR\xCCNH"]];
-var fileCanXem = (f, tk) => {
-  const theo = new Map(tk.map((r) => [chuoi(r.nguon), r]));
-  const out = [];
-  for (const r of f) {
-    const nguon = chuoi(r.nguon);
-    const t = theo.get(nguon);
-    const soDong = Number(t?.n) || 0;
-    const ten = Array.isArray(t?.ds) ? t.ds.map(chuoi).filter(Boolean).sort() : [];
-    const chung = { nguon, luc: chuoi(r.nap_luc) || null, soDong, ten };
-    if (r.loi) {
-      out.push({ ...chung, kieu: "doc", loi: chuoi(r.loi), luuTot: soDong ? chuoi(r.mtime) || null : null });
-      continue;
-    }
-    if (!soDong) continue;
-    const thieu = COT_CAN.filter(([k]) => !Number(t[k])).map(([, nhan]) => nhan);
-    if (thieu.length) out.push({ ...chung, kieu: "cot", loi: `C\u1ED9t ${thieu.join(", ")} tr\u1ED1ng c\u1EA3 file (thi\u1EBFu / \u0111\u1ED5i t\xEAn c\u1ED9t?)`, luuTot: chuoi(r.mtime) || null });
-  }
-  const coSo = /* @__PURE__ */ new Map();
-  for (const x of out) if (x.soDong > 0 && !coSo.has(khoaCongTrinh(x.nguon))) coSo.set(khoaCongTrinh(x.nguon), x);
-  for (const x of out) {
-    if (x.soDong > 0) continue;
-    const cu = coSo.get(khoaCongTrinh(x.nguon));
-    if (cu) {
-      x.dungSoCua = cu.nguon;
-      x.luuTot = cu.luuTot;
-      x.ten = cu.ten;
-    }
-  }
-  return out.sort((a, b) => a.kieu === b.kieu ? a.nguon.localeCompare(b.nguon) : a.kieu === "doc" ? -1 : 1);
-};
-
 // src/routes/botTongHop.ts
-var LA_CT = `(COALESCE(ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
+var LA_CT = `(COALESCE(b.ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
+var NOI_SX = `LEFT JOIN LATERAL (SELECT phan_loai_nhom_san_pham, xuong_chinh FROM production_status_app p
+                                     WHERE p.hex::text = b.hex LIMIT 1) p ON true`;
+var NSP2 = `COALESCE(TRIM(p.phan_loai_nhom_san_pham::text), '')`;
+var XUONG = () => `COALESCE(${workshopGroupSql("p.xuong_chinh")}, '')`;
 var SQL_FILE = `SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc,
                          to_char(mtime AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS mtime
                     FROM bot_tong_hop_file`;
@@ -80065,10 +80491,52 @@ var SQL_THONG_KE = `SELECT nguon, COUNT(*)::int AS n, COUNT(tt_con_lai)::int AS 
                     FROM bot_tong_hop GROUP BY nguon
                   HAVING COUNT(tt_con_lai) = 0 OR COUNT(ipo) = 0 OR COUNT(ten_ct) = 0
                       OR nguon IN (SELECT nguon FROM bot_tong_hop_file WHERE loi IS NOT NULL)`;
+var mocNho2 = null;
+var mocDangHoi = null;
+var layMocFile2 = () => {
+  if (mocNho2 && Date.now() - mocNho2.luc < 3e3) return Promise.resolve(mocNho2.khoa);
+  if (!mocDangHoi) {
+    mocDangHoi = timedQuery(`SELECT COALESCE(to_char(MAX(nap_luc), 'YYYYMMDDHH24MISSUS'), '') || ':' || COUNT(*) AS khoa FROM bot_tong_hop_file`).then((k) => {
+      const khoa = chuoi(k.rows[0]?.khoa);
+      mocNho2 = { luc: Date.now(), khoa };
+      return khoa;
+    }).finally(() => {
+      mocDangHoi = null;
+    });
+  }
+  return mocDangHoi;
+};
+var boNhoNgayHex = null;
+var boNhoLoi = null;
+var boNhoBot = null;
+var guiJson = (res, body) => {
+  res.type("application/json").send(body);
+};
+app.get("/api/bot-tong-hop/ngay-hex", async (_req, res) => {
+  try {
+    const khoa = await layMocFile2();
+    if (boNhoNgayHex?.khoa !== khoa) {
+      const r = await timedQuery(`SELECT DISTINCT ON (b.hex) b.hex, to_char(b.ngay_can_giao, 'YYYY-MM-DD') AS ngay
+                                    FROM bot_tong_hop b LEFT JOIN bot_tong_hop_file f USING (nguon)
+                                   WHERE b.hex IS NOT NULL AND b.hex <> '' AND b.ngay_can_giao IS NOT NULL
+                                   ORDER BY b.hex, f.nap_luc DESC NULLS LAST`);
+      boNhoNgayHex = { khoa, body: { hex: r.rows.map((x) => chuoi(x.hex)), ngay: r.rows.map((x) => chuoi(x.ngay)) } };
+    }
+    res.json(boNhoNgayHex.body);
+  } catch (e) {
+    if (e?.code === "42P01") return res.json({ hex: [], ngay: [] });
+    console.error("[bot-tong-hop/ngay-hex]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c BOT h\u1EA1ng m\u1EE5c" });
+  }
+});
 app.get("/api/bot-tong-hop/loi", authenticateJWT, requireRole("ADMIN"), async (_req, res) => {
   try {
-    const [f, tk] = await Promise.all([timedQuery(SQL_FILE), timedQuery(SQL_THONG_KE)]);
-    res.json({ coBang: true, fileLoi: fileCanXem(f.rows, tk.rows) });
+    const khoa = await layMocFile2();
+    if (boNhoLoi?.khoa !== khoa) {
+      const [f, tk] = await Promise.all([timedQuery(SQL_FILE), timedQuery(SQL_THONG_KE)]);
+      boNhoLoi = { khoa, body: JSON.stringify({ coBang: true, fileLoi: fileCanXem(f.rows, tk.rows) }) };
+    }
+    guiJson(res, boNhoLoi.body);
   } catch (e) {
     if (e?.code === "42P01") return res.json({ coBang: false, fileLoi: [] });
     console.error("[bot-tong-hop/loi]", e);
@@ -80077,11 +80545,16 @@ app.get("/api/bot-tong-hop/loi", authenticateJWT, requireRole("ADMIN"), async (_
 });
 app.get("/api/bot-tong-hop", async (_req, res) => {
   try {
+    await ensureWorkshopGroups();
+    const [moc2, ver] = await Promise.all([layMocFile2(), getVersions()]);
+    const khoa = `${moc2}|${ver.production ?? ""}|${workshopGroupsVersion()}`;
+    if (boNhoBot?.khoa === khoa) return guiJson(res, boNhoBot.body);
     const [o, f, l, tk] = await Promise.all([
-      timedQuery(`SELECT COALESCE(ten_ct, '') AS ten, COALESCE(ipo, '') AS ipo,
-                         COALESCE(to_char(ngay_can_giao, 'YYYY-MM-DD'), '') AS ngay, ${LA_CT} AS ct,
-                         SUM(tt_con_lai) AS tt, COUNT(*)::int AS so
-                    FROM bot_tong_hop GROUP BY 1, 2, 3, 4`),
+      timedQuery(`SELECT COALESCE(b.ten_ct, '') AS ten, COALESCE(b.ipo, '') AS ipo,
+                         COALESCE(to_char(b.ngay_can_giao, 'YYYY-MM-DD'), '') AS ngay, ${LA_CT} AS ct,
+                         ${NSP2} AS nsp, ${XUONG()} AS xuong,
+                         SUM(b.tt_con_lai) AS tt, COUNT(*)::int AS so
+                    FROM bot_tong_hop b ${NOI_SX} GROUP BY 1, 2, 3, 4, 5, 6`),
       timedQuery(SQL_FILE),
       // Giờ lưu file công trình gần nhất của từng TÊN CÔNG TRÌNH (tô dòng "cập nhật hôm nay")
       timedQuery(`SELECT COALESCE(b.ten_ct, '') AS ten, to_char(MAX(f.mtime) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luu
@@ -80090,7 +80563,7 @@ app.get("/api/bot-tong-hop", async (_req, res) => {
       timedQuery(SQL_THONG_KE)
     ]);
     const capNhat = f.rows.reduce((m, r) => !r.loi && r.nap_luc > m ? r.nap_luc : m, "");
-    res.json({
+    boNhoBot = { khoa, body: JSON.stringify({
       coBang: true,
       capNhat: capNhat || null,
       soFile: f.rows.filter((r) => !r.loi).length,
@@ -80098,7 +80571,8 @@ app.get("/api/bot-tong-hop", async (_req, res) => {
       ipos: [...new Set(o.rows.map((r) => chuoi(r.ipo)))].sort(),
       o: o.rows.map(oTuDong),
       luuFile: Object.fromEntries(l.rows.filter((r) => r.luu).map((r) => [chuoi(r.ten), chuoi(r.luu)]))
-    });
+    }) };
+    guiJson(res, boNhoBot.body);
   } catch (e) {
     if (e?.code === "42P01") return res.json({ coBang: false, capNhat: null, soFile: 0, fileLoi: [], ipos: [], o: [], luuFile: {} });
     console.error("[bot-tong-hop]", e);
@@ -80106,32 +80580,53 @@ app.get("/api/bot-tong-hop", async (_req, res) => {
   }
 });
 app.get("/api/bot-tong-hop/chi-tiet", async (req, res) => {
+  const coTen = req.query.ten !== void 0;
   const ten = String(req.query.ten ?? "");
+  const nsp = req.query.nsp === void 0 ? null : String(req.query.nsp).trim();
+  const xuong = req.query.xuong === void 0 ? null : String(req.query.xuong).trim();
   const ipos = String(req.query.ipo ?? "").split("|").filter(Boolean).slice(0, 20);
   const thang2 = String(req.query.thang ?? "");
   if (thang2 && !KHOA_HOP_LE.test(thang2)) return res.status(400).json({ error: "Sai th\xE1ng" });
-  const dk = [`COALESCE(ten_ct, '') = $1`];
-  const ts = [ten];
+  if (!coTen && nsp === null && xuong === null) return res.status(400).json({ error: "Thi\u1EBFu c\xF4ng tr\xECnh / s\u1EA3n ph\u1EA9m / x\u01B0\u1EDFng" });
+  const dk = ["true"];
+  const ts = [];
+  if (coTen) {
+    ts.push(ten);
+    dk.push(`COALESCE(b.ten_ct, '') = $${ts.length}`);
+  }
   if (ipos.length) {
     ts.push(ipos);
-    dk.push(`COALESCE(ipo, '') = ANY($${ts.length}::text[])`);
+    dk.push(`COALESCE(b.ipo, '') = ANY($${ts.length}::text[])`);
   }
   if (req.query.ct === "1") dk.push(LA_CT);
-  if (thang2 === "CHUA") dk.push("ngay_can_giao IS NULL");
+  if (thang2 === "CHUA") dk.push("b.ngay_can_giao IS NULL");
   else if (thang2) {
     ts.push(thang2);
-    dk.push(`to_char(ngay_can_giao, '${dinhDang(thang2)}') = $${ts.length}`);
+    dk.push(`to_char(b.ngay_can_giao, '${dinhDang(thang2)}') = $${ts.length}`);
   }
   try {
-    const r = await timedQuery(`SELECT ma_ct, hex, ipo, to_char(ngay_can_giao, 'DD/MM/YYYY') AS ngay, tt_con_lai, nguon
-                                  FROM bot_tong_hop WHERE ${dk.join(" AND ")}
-                                  ORDER BY ngay_can_giao NULLS FIRST, hex LIMIT 5000`, ts);
+    if (xuong !== null) await ensureWorkshopGroups();
+    if (nsp !== null) {
+      ts.push(nsp);
+      dk.push(`${NSP2} = $${ts.length}`);
+    }
+    if (xuong !== null) {
+      ts.push(xuong);
+      dk.push(`${XUONG()} = $${ts.length}`);
+    }
+    const r = await timedQuery(`SELECT b.ma_ct, b.ten_ct, b.hex, b.ipo, to_char(b.ngay_can_giao, 'DD/MM/YYYY') AS ngay, b.tt_con_lai, b.nguon,
+                                       ${NSP2} AS nsp, ${XUONG()} AS xuong
+                                  FROM bot_tong_hop b ${NOI_SX} WHERE ${dk.join(" AND ")}
+                                  ORDER BY b.ngay_can_giao NULLS FIRST, b.hex LIMIT 5000`, ts);
     res.json({
       dong: r.rows.map((x) => ({
         maCt: chuoi(x.ma_ct),
+        ten: chuoi(x.ten_ct),
         hex: chuoi(x.hex),
         ipo: chuoi(x.ipo),
         ngay: chuoi(x.ngay),
+        nsp: chuoi(x.nsp),
+        xuong: chuoi(x.xuong),
         tt: x.tt_con_lai === null ? null : Number(x.tt_con_lai),
         nguon: chuoi(x.nguon)
       }))
@@ -80141,6 +80636,358 @@ app.get("/api/bot-tong-hop/chi-tiet", async (req, res) => {
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c chi ti\u1EBFt" });
   }
 });
+
+// src/routes/khnkSheet.ts
+import { gzipSync as gzipSync2 } from "zlib";
+var TEN2 = "PRODUCTION STATUS";
+var nho2 = null;
+app.get("/api/khnk-sheet", async (_req, res) => {
+  try {
+    const k = await timedQuery(`SELECT nap_luc::text AS khoa FROM khnk_sheet WHERE ten = '${TEN2}'`);
+    if (!k.rows.length) return res.json({ coBang: true, tieuDe: [], dong: [] });
+    const khoa = String(k.rows[0].khoa);
+    if (nho2?.khoa !== khoa) {
+      const r = await timedQuery(`SELECT sheet, loi, tieu_de, dong,
+             to_char(mtime AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cap_nhat,
+             to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc
+        FROM khnk_sheet WHERE ten = $1`, [TEN2]);
+      const x = r.rows[0];
+      const body = {
+        coBang: true,
+        sheet: x.sheet ?? null,
+        capNhat: x.cap_nhat ?? null,
+        napLuc: x.nap_luc ?? null,
+        loi: x.loi ?? null,
+        tieuDe: x.tieu_de ?? [],
+        dong: x.dong ?? []
+      };
+      nho2 = { khoa, gz: gzipSync2(JSON.stringify(body)) };
+    }
+    guiGzip(res, nho2.gz);
+  } catch (e) {
+    if (e?.code === "42P01") return res.json({ coBang: false, tieuDe: [], dong: [] });
+    console.error("[khnk-sheet]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c k\u1EBF ho\u1EA1ch nh\u1EADp kho" });
+  }
+});
+
+// src/server/botCongDoan.ts
+var CONG_DOAN = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
+var laCongDoan = (x) => typeof x === "string" && CONG_DOAN.includes(x);
+var SETUP_RONG = { congDoan: {}, xuongCua: {} };
+var chuanTen = (s) => String(s ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toUpperCase();
+function docSetup(x) {
+  const ra = { congDoan: {}, xuongCua: {} };
+  if (!x || typeof x !== "object") return ra;
+  const o = x;
+  if (o.congDoan && typeof o.congDoan === "object") {
+    for (const [k, v] of Object.entries(o.congDoan)) {
+      if (laCongDoan(k) && Array.isArray(v)) ra.congDoan[k] = [...new Set(v.map(chuanTen).filter(Boolean))];
+    }
+  }
+  if (o.xuongCua && typeof o.xuongCua === "object") {
+    for (const [k, v] of Object.entries(o.xuongCua)) {
+      const bp = chuanTen(k);
+      if (bp && Array.isArray(v)) ra.xuongCua[bp] = [...new Set(v.map(chuanTen).filter(Boolean))];
+    }
+  }
+  return ra;
+}
+var nguoiTuQuyen = (a) => ({ admin: a.active && a.role === "ADMIN", boPhan: a.department ?? null, active: a.active });
+var khoaNhoHex = (moc2, verSanXuat) => moc2.coBang && verSanXuat != null && String(verSanXuat) !== "" ? `${moc2.khoa}|${String(verSanXuat)}` : null;
+function congDoanDuocNhap(nguoi, setup) {
+  if (nguoi.admin) return [...CONG_DOAN];
+  const bp = chuanTen(nguoi.boPhan);
+  if (!bp) return [];
+  return CONG_DOAN.filter((c) => (setup.congDoan[c] ?? []).includes(bp));
+}
+function xuongDuocNhap(nguoi, setup) {
+  if (nguoi.admin) return null;
+  const ds2 = setup.xuongCua[chuanTen(nguoi.boPhan)];
+  return ds2 && ds2.length ? ds2 : null;
+}
+function lyDoCam(nguoi, setup, congDoan, xuongHex) {
+  if (!laCongDoan(congDoan)) return "C\xF4ng \u0111o\u1EA1n kh\xF4ng c\xF3 c\u1ED9t BOT";
+  if (nguoi.admin) return null;
+  if (!congDoanDuocNhap(nguoi, setup).includes(congDoan)) return `B\u1ED9 ph\u1EADn ${nguoi.boPhan || "(ch\u01B0a c\xF3 b\u1ED9 ph\u1EADn)"} kh\xF4ng \u0111\u01B0\u1EE3c nh\u1EADp ${congDoan}`;
+  const xs = xuongDuocNhap(nguoi, setup);
+  if (xs && !xs.includes(chuanTen(xuongHex))) return `HEX thu\u1ED9c x\u01B0\u1EDFng ${xuongHex || "(tr\u1ED1ng)"} \u2014 b\u1ED9 ph\u1EADn ch\u1EC9 nh\u1EADp x\u01B0\u1EDFng ${xs.join(", ")}`;
+  return null;
+}
+function docNgay(x) {
+  if (x === null || x === "") return null;
+  if (typeof x !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(x)) return void 0;
+  const [y, m, d] = x.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  if (y < 2e3 || y > 2100 || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return void 0;
+  return x;
+}
+
+// src/routes/botCongDoan.ts
+var docSetupDb = async () => {
+  const r = await timedQuery(`SELECT gia_tri FROM bot_cong_doan_setup WHERE khoa = 'phan-cong'`);
+  return r.rows[0] ? docSetup(r.rows[0].gia_tri) : SETUP_RONG;
+};
+var nguoiNhap = async (req) => {
+  const r = await pool.query("SELECT department, role, is_active FROM users WHERE id = $1", [req.user.id]);
+  return { admin: r.rows[0]?.role === "ADMIN", boPhan: r.rows[0]?.department ?? null, active: r.rows[0]?.is_active === true };
+};
+var nguoiNhapNho = async (req) => nguoiTuQuyen(await loadUserAccess(req.user.id));
+var setupNho = taoNhoCoHan(6e4, docSetupDb);
+var boPhanNho = taoNhoCoHan(3e5, async () => {
+  const bp = await timedQuery(`SELECT DISTINCT department FROM users WHERE is_active AND COALESCE(TRIM(department), '') NOT IN ('', '0') ORDER BY 1`);
+  return [...new Set(bp.rows.map((x) => chuanTen(x.department)))];
+});
+var laThieuBang2 = (e) => e?.code === "42P01" && /bot_cong_doan/.test(String(e?.message ?? ""));
+var chuanHex = (h) => /^\d{6,15}$/.test(h) ? BigInt(h).toString() : null;
+app.get("/api/bot-cong-doan", authenticateJWT, async (req, res) => {
+  try {
+    const nguoi = await nguoiNhapNho(req);
+    const [setup, ngay3, boPhanDs] = await Promise.all([
+      nguoi.admin ? setupNho.docMoi() : setupNho.lay(),
+      timedQuery(`SELECT hex, cong_doan, dot, to_char(ngay, 'YYYY-MM-DD') AS ngay FROM bot_cong_doan`),
+      nguoi.admin ? boPhanNho.docMoi() : boPhanNho.lay()
+    ]);
+    const m = {};
+    for (const x of ngay3.rows) (m[x.hex] ??= {})[x.dot === "dau" ? `${x.cong_doan}:dau` : x.cong_doan] = x.ngay;
+    res.json({
+      coBang: true,
+      congDoan: CONG_DOAN,
+      ngay: m,
+      quyen: { admin: nguoi.admin, boPhan: nguoi.boPhan, congDoan: nguoi.active ? congDoanDuocNhap(nguoi, setup) : [], xuong: xuongDuocNhap(nguoi, setup) },
+      setup,
+      boPhanDs
+    });
+  } catch (e) {
+    if (laThieuBang2(e)) return res.json({ coBang: false, congDoan: CONG_DOAN, ngay: {}, quyen: null, setup: SETUP_RONG, boPhanDs: [] });
+    console.error("[bot-cong-doan]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c BOT c\xF4ng \u0111o\u1EA1n" });
+  }
+});
+var ghiSchema = external_exports.object({
+  ds: external_exports.array(external_exports.object({
+    hex: external_exports.string().trim().min(1).max(40),
+    congDoan: external_exports.string().max(10),
+    dot: external_exports.enum(["dau", "cuoi"]).default("cuoi"),
+    ngay: external_exports.string().max(10).nullable()
+  })).min(1).max(2e4)
+});
+app.post("/api/bot-cong-doan", authenticateJWT, async (req, res) => {
+  const p = ghiSchema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "D\u1EEF li\u1EC7u kh\xF4ng h\u1EE3p l\u1EC7" });
+  try {
+    const [setup, nguoi] = await Promise.all([docSetupDb(), nguoiNhap(req)]);
+    if (!nguoi.active) return res.status(403).json({ error: "T\xE0i kho\u1EA3n \u0111\xE3 kho\xE1" });
+    const canXuong = !!xuongDuocNhap(nguoi, setup);
+    if (canXuong) await ensureWorkshopGroups();
+    const hexs = [...new Set(p.data.ds.map((x) => chuanHex(x.hex)).filter((h) => !!h))];
+    const xuongHex = /* @__PURE__ */ new Map();
+    if (hexs.length) {
+      const r = await timedQuery(`SELECT DISTINCT ON (hex::text) hex::text AS hex, xuong_chinh FROM production_status_app
+                                   WHERE hex::text = ANY($1::text[]) ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`, [hexs]);
+      for (const x of r.rows) xuongHex.set(x.hex, canXuong ? workshopGroupOf(x.xuong_chinh) : "");
+    }
+    const bo = [];
+    const ghi = /* @__PURE__ */ new Map();
+    for (const x0 of p.data.ds) {
+      const hex3 = chuanHex(x0.hex);
+      if (!hex3 || !xuongHex.has(hex3)) {
+        bo.push({ hex: x0.hex, congDoan: x0.congDoan, lyDo: `HEX ${x0.hex} kh\xF4ng c\xF3 trong d\u1EEF li\u1EC7u s\u1EA3n xu\u1EA5t` });
+        continue;
+      }
+      const x = { ...x0, hex: hex3 };
+      const ngay3 = docNgay(x.ngay);
+      if (ngay3 === void 0) {
+        bo.push({ hex: x.hex, congDoan: x.congDoan, lyDo: `Ng\xE0y sai: ${x.ngay}` });
+        continue;
+      }
+      const lyDo = lyDoCam(nguoi, setup, x.congDoan, canXuong ? xuongHex.get(x.hex) ?? null : null);
+      if (lyDo) {
+        bo.push({ hex: x.hex, congDoan: x.congDoan, lyDo });
+        continue;
+      }
+      ghi.set(`${x.hex}|${x.congDoan}|${x.dot}`, { hex: x.hex, congDoan: x.congDoan, dot: x.dot, ngay: ngay3 });
+    }
+    const ds2 = [...ghi.values()];
+    let soDoi = 0;
+    if (ds2.length) {
+      soDoi = await withTransaction(async (c) => {
+        await c.query("LOCK TABLE bot_cong_doan IN SHARE ROW EXCLUSIVE MODE");
+        const hexs2 = ds2.map((x) => x.hex), cds = ds2.map((x) => x.congDoan), dots = ds2.map((x) => x.dot), ngays = ds2.map((x) => x.ngay);
+        const r = await c.query(`
+          WITH moi AS (SELECT * FROM unnest($1::text[], $2::text[], $6::text[], $3::date[]) AS m(hex, cong_doan, dot, ngay)),
+          doi AS (
+            SELECT moi.hex, moi.cong_doan, moi.dot, b.ngay AS ngay_cu, moi.ngay AS ngay_moi
+              FROM moi LEFT JOIN bot_cong_doan b USING (hex, cong_doan, dot)
+             WHERE b.ngay IS DISTINCT FROM moi.ngay
+          ),
+          xoa AS (DELETE FROM bot_cong_doan b USING doi
+                   WHERE b.hex = doi.hex AND b.cong_doan = doi.cong_doan AND b.dot = doi.dot AND doi.ngay_moi IS NULL RETURNING 1),
+          sua AS (
+            INSERT INTO bot_cong_doan (hex, cong_doan, dot, ngay, nguoi_sua, sua_luc)
+            SELECT hex, cong_doan, dot, ngay_moi, $4, now() FROM doi WHERE ngay_moi IS NOT NULL
+            ON CONFLICT (hex, cong_doan, dot) DO UPDATE SET ngay = EXCLUDED.ngay, nguoi_sua = EXCLUDED.nguoi_sua, sua_luc = now()
+            RETURNING 1
+          )
+          INSERT INTO bot_cong_doan_lich_su (hex, cong_doan, dot, ngay_cu, ngay_moi, nguoi, bo_phan)
+          SELECT hex, cong_doan, dot, ngay_cu, ngay_moi, $4, $5 FROM doi
+          RETURNING 1`, [hexs2, cds, ngays, req.user.username, nguoi.boPhan, dots]);
+        return r.rowCount ?? 0;
+      });
+    }
+    res.json({ ghi: soDoi, bo });
+  } catch (e) {
+    if (laThieuBang2(e)) return res.status(503).json({ error: "Ch\u01B0a t\u1EA1o b\u1EA3ng BOT c\xF4ng \u0111o\u1EA1n (backend/sql/2026-11-13_bot_cong_doan.sql)" });
+    console.error("[bot-cong-doan POST]", e);
+    res.status(500).json({ error: "Kh\xF4ng l\u01B0u \u0111\u01B0\u1EE3c BOT c\xF4ng \u0111o\u1EA1n" });
+  }
+});
+app.get("/api/bot-cong-doan/quyen", authenticateJWT, async (req, res) => {
+  try {
+    const [setup, nguoi] = await Promise.all([setupNho.lay(), nguoiNhapNho(req)]);
+    res.json({ admin: nguoi.admin, boPhan: nguoi.boPhan, congDoan: nguoi.active ? congDoanDuocNhap(nguoi, setup) : [], xuong: xuongDuocNhap(nguoi, setup) });
+  } catch (e) {
+    if (laThieuBang2(e)) return res.json({ admin: false, boPhan: null, congDoan: [], xuong: null });
+    console.error("[bot-cong-doan/quyen]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c quy\u1EC1n" });
+  }
+});
+var COT_HEX = ["hex", "ct", "nsp", "xuong", "bop", "hm", "total", "inv", "xuat", "remain", "botDuAn"];
+var SQL_HEX = `
+      SELECT DISTINCT ON (c.hex) c.hex, c.ten_cong_trinh, c.phan_loai_nhom_san_pham, c.xuong_chinh, c.bop, c.ten_hang_muc,
+             c.tri_gia_don_hang_tong, c.thanh_tien_nhap_kho_luy_ke, c.thanh_tien_xuat_kho_luy_ke,
+             to_char(p.bot_du_an, 'YYYY-MM-DD') AS bot_du_an
+        FROM cong_trinh_hang_muc c
+        LEFT JOIN LATERAL (SELECT bot_du_an FROM production_status_app p WHERE p.hex::text = c.hex
+                            ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1) p ON true
+       WHERE c.hex IS NOT NULL AND c.hex <> '' AND COALESCE(c.tinh_trang_ipo, '') LIKE '01%'
+       ORDER BY c.hex, c.nguon DESC, c.stt`;
+var nhoHex = null;
+var hexDangDoc = null;
+var docHexTho = async () => (await timedQuery(SQL_HEX, [], { timeoutMs: 6e4, heavy: true })).rows;
+async function layHexTho() {
+  let khoa = null;
+  try {
+    const [moc2, ver] = await Promise.all([layMocFile(), getVersions()]);
+    khoa = khoaNhoHex(moc2, ver.production);
+  } catch {
+  }
+  if (khoa === null) return docHexTho();
+  if (nhoHex?.khoa === khoa) return nhoHex.rows;
+  if (hexDangDoc?.khoa === khoa) return hexDangDoc.p;
+  const k = khoa;
+  const p = docHexTho().then((rows) => {
+    nhoHex = { khoa: k, rows };
+    return rows;
+  }).finally(() => {
+    if (hexDangDoc?.p === p) hexDangDoc = null;
+  });
+  hexDangDoc = { khoa: k, p };
+  return p;
+}
+app.get("/api/bot-cong-doan/hex", authenticateJWT, async (req, res) => {
+  try {
+    const [setup, nguoi] = await Promise.all([setupNho.lay(), nguoiNhapNho(req)]);
+    const cds = nguoi.active ? congDoanDuocNhap(nguoi, setup) : [];
+    if (!cds.length) return res.json({ cot: COT_HEX, ds: COT_HEX.map(() => []) });
+    await ensureWorkshopGroups();
+    const rows = await layHexTho();
+    const xs = xuongDuocNhap(nguoi, setup);
+    const ds2 = COT_HEX.map(() => []);
+    for (const x of rows) {
+      const xuong = workshopGroupOf(x.xuong_chinh);
+      if (xs && !xs.includes(chuanTen(xuong))) continue;
+      const total = Number(x.tri_gia_don_hang_tong) || 0, inv = Math.min(Number(x.thanh_tien_nhap_kho_luy_ke) || 0, total);
+      const dong2 = [
+        x.hex,
+        x.ten_cong_trinh ?? "",
+        x.phan_loai_nhom_san_pham ?? "",
+        xuong,
+        x.bop ?? null,
+        x.ten_hang_muc ?? "",
+        total,
+        inv,
+        Number(x.thanh_tien_xuat_kho_luy_ke) || 0,
+        Math.max(total - inv, 0),
+        x.bot_du_an ?? null
+      ];
+      dong2.forEach((v, i) => ds2[i].push(v));
+    }
+    res.json({ cot: COT_HEX, ds: ds2 });
+  } catch (e) {
+    if (e?.code === "42P01") return res.json({ cot: COT_HEX, ds: COT_HEX.map(() => []) });
+    console.error("[bot-cong-doan/hex]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c danh s\xE1ch HEX" });
+  }
+});
+app.get("/api/bot-cong-doan/lich-su", authenticateJWT, async (req, res) => {
+  const hex3 = String(req.query.hex ?? "").trim();
+  if (!hex3) return res.status(400).json({ error: "Thi\u1EBFu HEX" });
+  try {
+    const r = await timedQuery(`SELECT cong_doan, dot, to_char(ngay_cu, 'YYYY-MM-DD') AS ngay_cu, to_char(ngay_moi, 'YYYY-MM-DD') AS ngay_moi,
+             nguoi, bo_phan, to_char(luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luc
+        FROM bot_cong_doan_lich_su WHERE hex = $1 ORDER BY luc DESC LIMIT 200`, [hex3]);
+    res.json({ ds: r.rows });
+  } catch (e) {
+    if (laThieuBang2(e)) return res.json({ ds: [] });
+    console.error("[bot-cong-doan/lich-su]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c l\u1ECBch s\u1EED" });
+  }
+});
+var setupSchema = external_exports.object({
+  congDoan: external_exports.record(external_exports.string().max(10), external_exports.array(external_exports.string().max(100)).max(50)),
+  xuongCua: external_exports.record(external_exports.string().max(100), external_exports.array(external_exports.string().max(50)).max(50))
+});
+app.post("/api/bot-cong-doan/setup", authenticateJWT, requireRole("ADMIN"), async (req, res) => {
+  const p = setupSchema.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: "Setup kh\xF4ng h\u1EE3p l\u1EC7" });
+  try {
+    const setup = docSetup(p.data);
+    await timedQuery(
+      `INSERT INTO bot_cong_doan_setup (khoa, gia_tri, nguoi_sua, sua_luc) VALUES ('phan-cong', $1::jsonb, $2, now())
+                      ON CONFLICT (khoa) DO UPDATE SET gia_tri = EXCLUDED.gia_tri, nguoi_sua = EXCLUDED.nguoi_sua, sua_luc = now()`,
+      [JSON.stringify(setup), req.user.username]
+    );
+    setupNho.dat(setup);
+    res.json({ ok: true, setup });
+  } catch (e) {
+    if (laThieuBang2(e)) return res.status(503).json({ error: "Ch\u01B0a t\u1EA1o b\u1EA3ng BOT c\xF4ng \u0111o\u1EA1n" });
+    console.error("[bot-cong-doan/setup]", e);
+    res.status(500).json({ error: "Kh\xF4ng l\u01B0u \u0111\u01B0\u1EE3c setup" });
+  }
+});
+
+// src/server/doanhSoNam.ts
+var laTong = (r) => Number(r.la_tong) === 1;
+var ghepDoanhSoNam = (year, keHoach, thucHien) => {
+  const tongKh = keHoach.find(laTong);
+  const tongTh = thucHien.find(laTong);
+  const targetTotal = Number(tongKh?.plan ?? 0);
+  const actualTotal = Number(tongTh?.actual ?? 0) / TRIEU_TO_TY;
+  const workshopMap = {};
+  keHoach.filter((r) => !laTong(r)).forEach((r) => {
+    workshopMap[String(r.name)] = { plan: Number(r.plan), actual: 0 };
+  });
+  thucHien.filter((r) => !laTong(r)).forEach((r) => {
+    const ten = String(r.name);
+    if (!workshopMap[ten]) workshopMap[ten] = { plan: 0, actual: 0 };
+    workshopMap[ten].actual = Number(r.actual) / TRIEU_TO_TY;
+  });
+  const byWorkshop = Object.entries(workshopMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => a.name === "KH\xC1C" ? 1 : b.name === "KH\xC1C" ? -1 : a.name.localeCompare(b.name));
+  return {
+    year,
+    targetRevenue2026: targetTotal,
+    quarterlyTargets: {
+      q1: Number(tongKh?.q1 ?? 0),
+      q2: Number(tongKh?.q2 ?? 0),
+      q3: Number(tongKh?.q3 ?? 0),
+      q4: targetTotal
+    },
+    actual: { value: actualTotal, percent: targetTotal > 0 ? actualTotal / targetTotal * 100 : 0 },
+    byWorkshop
+  };
+};
+var khoaChungDoanhSo = (year, namHienTai) => year === namHienTai ? "revenue-nam-nay" : "";
 
 // src/routes/revenue.ts
 var revenueCache = createCache(20);
@@ -80152,61 +80999,34 @@ app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
     const payload = await cachedByVersions(revenueCache, `revenue|${year}`, REVENUE_VERSION_KEYS, async () => {
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
-      const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
-        () => timedQuery(`
-        SELECT
-          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS total,
-          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
-            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 3), 0) AS q1,
-          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
-            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
-          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
-            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
-        FROM khsx_nam WHERE nam = $1::bigint
+      const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C')`;
+      const [planQ, actualQ] = await Promise.all([
+        timedQuery(`
+        SELECT GROUPING(t.name) AS la_tong, t.name,
+               COALESCE(SUM(t.v), 0) AS plan,
+               COALESCE(SUM(t.v) FILTER (WHERE t.thang BETWEEN 1 AND 3), 0) AS q1,
+               COALESCE(SUM(t.v) FILTER (WHERE t.thang BETWEEN 1 AND 6), 0) AS q2,
+               COALESCE(SUM(t.v) FILTER (WHERE t.thang BETWEEN 1 AND 9), 0) AS q3
+        FROM (
+          SELECT ${xuongExpr} AS name,
+                 ${numericCol("khsx_nam", "thanh_tien_ke_hoach")} AS v,
+                 NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int AS thang
+          FROM khsx_nam WHERE nam = $1::bigint
+        ) t
+        GROUP BY GROUPING SETS ((), (t.name))
       `, [String(year)]),
-        () => timedQuery(`
-        SELECT COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) AS total
-        FROM nhap_kho
-        WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}
-      `, [yearStart, yearEnd]),
-        () => timedQuery(`
-        SELECT COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C') AS name,
-               COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS plan
-        FROM khsx_nam WHERE nam = $1::bigint
-        GROUP BY 1
-      `, [String(year)]),
-        () => timedQuery(`
-        SELECT COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C') AS name,
-               COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) AS actual
-        FROM nhap_kho
-        WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}
-        GROUP BY 1
+        timedQuery(`
+        SELECT GROUPING(t.name) AS la_tong, t.name, COALESCE(SUM(t.v), 0) AS actual
+        FROM (
+          SELECT ${xuongExpr} AS name, ${numericCol("nhap_kho", "thanh_tien_nhap_kho")} AS v
+          FROM nhap_kho
+          WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}
+        ) t
+        GROUP BY GROUPING SETS ((), (t.name))
       `, [yearStart, yearEnd])
-      ], 2);
-      const targetTotal = Number(planQ.rows[0].total);
-      const actualTotal = Number(actualQ.rows[0].total) / TRIEU_TO_TY;
-      const workshopMap = {};
-      byWorkshopPlanQ.rows.forEach((r) => {
-        workshopMap[r.name] = { plan: Number(r.plan), actual: 0 };
-      });
-      byWorkshopActualQ.rows.forEach((r) => {
-        if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-        workshopMap[r.name].actual = Number(r.actual) / TRIEU_TO_TY;
-      });
-      const byWorkshop = Object.entries(workshopMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => a.name === "KH\xC1C" ? 1 : b.name === "KH\xC1C" ? -1 : a.name.localeCompare(b.name));
-      return {
-        year,
-        targetRevenue2026: targetTotal,
-        quarterlyTargets: {
-          q1: Number(planQ.rows[0].q1),
-          q2: Number(planQ.rows[0].q2),
-          q3: Number(planQ.rows[0].q3),
-          q4: targetTotal
-        },
-        actual: { value: actualTotal, percent: targetTotal > 0 ? actualTotal / targetTotal * 100 : 0 },
-        byWorkshop
-      };
-    }, workshopGroupsVersion());
+      ]);
+      return ghepDoanhSoNam(year, planQ.rows, actualQ.rows);
+    }, `${workshopGroupsVersion()}|${year}`, khoaChungDoanhSo(year, currentVnYear()), false);
     res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i revenue:", error61);
@@ -80248,7 +81068,7 @@ app.get("/api/khsx-nam/plan", async (req, res) => {
         })),
         byXuong: byXuong.rows.map((r) => ({ xuong: r.xuong, value: Number(r.value) }))
       };
-    }, workshopGroupsVersion());
+    }, workshopGroupsVersion(), "", false);
     res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i khsx-nam/plan:", error61);
@@ -80674,14 +81494,12 @@ app.post(
 );
 app.get("/api/auth/me", authenticateJWT, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT id, username, full_name, email, role, permissions, is_active
-       FROM users WHERE id = $1`,
-      [req.user.id]
-    );
-    const user = result.rows[0];
+    const { row: user, access } = await docUserDayDu(req.user.id);
     if (!user || !user.is_active) {
       return res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n kh\xF4ng t\u1ED3n t\u1EA1i ho\u1EB7c \u0111\xE3 b\u1ECB kh\xF3a" });
+    }
+    if (!xuongTokenVersionOk(req.user, access.tokenVersion)) {
+      return res.status(401).json({ success: false, message: "Phi\xEAn m\u1EE5c X\u01B0\u1EDFng \u0111\xE3 b\u1ECB thu h\u1ED3i, vui l\xF2ng \u0111\u0103ng nh\u1EADp l\u1EA1i" });
     }
     res.json({
       success: true,
@@ -80936,7 +81754,6 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
       ${khWhere}
       GROUP BY 1, 2, 3
     `;
-      const khResult = await timedQuery(khQuery, khParams, { workMemMb: 32 });
       const thParams = [nam];
       let thWhere = `WHERE nam = $1::bigint AND ${notCancelledHexCond("hex")}`;
       if (useThang) {
@@ -80995,7 +81812,10 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
       ${thWhere}
       GROUP BY 1, 2, 3, 4
     `;
-      const thResult = await timedQuery(thQuery, thParams, { workMemMb: 32 });
+      const [khResult, thResult] = await Promise.all([
+        timedQuery(khQuery, khParams, { workMemMb: 32 }),
+        timedQuery(thQuery, thParams, { workMemMb: 32 })
+      ]);
       const xuongMap = /* @__PURE__ */ new Map();
       khResult.rows.forEach((r) => {
         const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
@@ -81075,7 +81895,11 @@ app.get("/api/khsx/cong-trinh", async (req, res) => {
         [`%${loai2}%`, nam, thang2]
       );
       let loai = "TH\xC1NG";
-      let r = await lay("TH\xC1NG");
+      const [r0, cn] = await Promise.all([
+        lay("TH\xC1NG"),
+        timedQuery(`SELECT to_char(last_updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS v FROM table_versions WHERE table_name = 'khsx'`)
+      ]);
+      let r = r0;
       if (!r.rows.length) {
         loai = "TU\u1EA6N";
         r = await lay("TU\u1EA6N");
@@ -81089,7 +81913,6 @@ app.get("/api/khsx/cong-trinh", async (req, res) => {
         if (x.ma) e.add(String(x.ma));
         m.set(k, e);
       }
-      const cn = await timedQuery(`SELECT to_char(last_updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS v FROM table_versions WHERE table_name = 'khsx'`);
       return {
         nam,
         thang: thang2,
@@ -81892,6 +82715,69 @@ var gopKhac = (ds2, n) => {
   return [...ds2.slice(0, n), khac];
 };
 
+// src/server/nhoNgan.ts
+var taoNhoNgan = (ttlMs, toiDa = 8, now = Date.now) => {
+  const map2 = /* @__PURE__ */ new Map();
+  const dangTinh = /* @__PURE__ */ new Map();
+  let doi = 0;
+  return {
+    lay(khoa, tinh) {
+      const hit = map2.get(khoa);
+      if (hit && now() - hit.at < ttlMs) return Promise.resolve(hit.v);
+      const cho = dangTinh.get(khoa);
+      if (cho) return cho;
+      const doiLucDau = doi;
+      const at = now();
+      const p = Promise.resolve().then(tinh).then((v) => {
+        if (doi === doiLucDau) {
+          map2.delete(khoa);
+          map2.set(khoa, { at, v });
+          while (map2.size > toiDa) {
+            const cu = map2.keys().next().value;
+            if (cu === void 0) break;
+            map2.delete(cu);
+          }
+        }
+        return v;
+      }).finally(() => {
+        if (dangTinh.get(khoa) === p) dangTinh.delete(khoa);
+      });
+      dangTinh.set(khoa, p);
+      return p;
+    },
+    xoa() {
+      doi++;
+      map2.clear();
+      dangTinh.clear();
+    }
+  };
+};
+var taoNhoTheoKhoa = (ttlMs, toiDa = 2e3, now = Date.now) => {
+  const map2 = /* @__PURE__ */ new Map();
+  return {
+    tach(khoa) {
+      const co2 = /* @__PURE__ */ new Map();
+      const thieu = [];
+      const t = now();
+      for (const k of khoa) {
+        const hit = map2.get(k);
+        if (hit && t - hit.at < ttlMs) co2.set(k, hit.v);
+        else thieu.push(k);
+      }
+      return { co: co2, thieu };
+    },
+    ghi(khoa, v) {
+      map2.delete(khoa);
+      map2.set(khoa, { at: now(), v });
+      while (map2.size > toiDa) {
+        const cu = map2.keys().next().value;
+        if (cu === void 0) break;
+        map2.delete(cu);
+      }
+    }
+  };
+};
+
 // src/routes/vuongMac.ts
 var FIVE_M_CATEGORIES = ["man", "machine", "material", "method", "measurement"];
 var VM_STATUSES = ["open", "doing", "done", "closed"];
@@ -82017,15 +82903,19 @@ var isSameDept = (a, b) => {
 };
 var sameName = (a, b) => (a ?? "").trim().toLowerCase() !== "" && (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 var getVuongMacActor = async (req) => {
-  const r = await pool.query("SELECT department, full_name, is_active, role FROM users WHERE id = $1", [req.user.id]);
-  return {
-    username: req.user.username,
-    // Role theo DB (token có thể còn role cũ tới 8 giờ sau khi bị hạ quyền)
-    role: String(r.rows[0]?.role ?? ""),
-    department: r.rows[0]?.department ?? null,
-    fullName: r.rows[0]?.full_name ?? null,
-    active: r.rows[0]?.is_active === true
-  };
+  const row = req.vmActorRow;
+  if (row) {
+    return {
+      username: req.user.username,
+      // Role theo DB (token có thể còn role cũ tới 8 giờ sau khi bị hạ quyền)
+      role: String(row.role ?? ""),
+      department: row.department ?? null,
+      fullName: row.full_name ?? null,
+      active: row.is_active === true
+    };
+  }
+  const a = await loadUserAccess(req.user.id);
+  return { username: req.user.username, role: a.role, department: a.department, fullName: a.fullName, active: a.active };
 };
 var isHandler = (me2, handler) => !!handler && (sameName(handler, me2.fullName) || sameName(handler, me2.username));
 var permsOf = (me2, createdBy, createdDept, handler) => {
@@ -82065,9 +82955,10 @@ var planDate = (tuan, thang2, met) => {
   const m = met?.thang ? null : String(thang2 ?? "").match(/^\d{4}-\d{2}-\d{2}/);
   return m ? m[0] : null;
 };
+var planMetNho = taoNhoTheoKhoa(9e4, 2e3);
 var planMetOf = async (hexes) => {
-  const out = /* @__PURE__ */ new Map();
-  const list = [...new Set(hexes.filter(Boolean))];
+  const tatCa = [...new Set(hexes.filter(Boolean))];
+  const { co: out, thieu: list } = planMetNho.tach(tatCa);
   if (list.length === 0) return out;
   try {
     const r = await timedQuery(
@@ -82094,7 +82985,13 @@ var planMetOf = async (hexes) => {
       [list],
       { timeoutMs: 15e3 }
     );
-    for (const row of r.rows) out.set(row.hex, { tuan: row.tuan_met === true, thang: row.thang_met === true });
+    const moi = /* @__PURE__ */ new Map();
+    for (const row of r.rows) moi.set(row.hex, { tuan: row.tuan_met === true, thang: row.thang_met === true });
+    for (const hex3 of list) {
+      const v = moi.get(hex3);
+      if (v) out.set(hex3, v);
+      planMetNho.ghi(hex3, v ?? { tuan: false, thang: false });
+    }
   } catch (error61) {
     console.error("L\u1ED7i t\xEDnh KH k\u1EF3 \u0111\xE3 \u0111\u1EA1t (v\u01B0\u1EDBng m\u1EAFc):", error61);
   }
@@ -82182,11 +83079,12 @@ app.use("/api/vuong-mac", (req, res, next) => {
   if (req.method === "GET" || req.method === "OPTIONS" || /^\/(list|hex-bulk)\/?$/i.test(req.path)) return next();
   authenticateJWT(req, res, async () => {
     try {
-      const r = await pool.query("SELECT is_active FROM users WHERE id = $1", [req.user.id]);
+      const r = await pool.query("SELECT department, full_name, is_active, role FROM users WHERE id = $1", [req.user.id]);
       if (r.rows[0]?.is_active !== true) {
         res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
         return;
       }
+      req.vmActorRow = r.rows[0];
       next();
     } catch (error61) {
       console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n v\u01B0\u1EDBng m\u1EAFc:", error61);
@@ -82255,8 +83153,7 @@ app.get("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) => {
   try {
     const photoId = Number(req.params.photoId);
     if (!Number.isInteger(photoId) || photoId <= 0) return res.status(400).json({ error: "Invalid id" });
-    const active = await pool.query("SELECT 1 FROM users WHERE id = $1 AND is_active", [req.user.id]);
-    if (active.rows.length === 0) return res.status(401).json({ error: "T\xE0i kho\u1EA3n kh\xF4ng c\xF2n ho\u1EA1t \u0111\u1ED9ng" });
+    if (!(await loadUserAccess(req.user.id)).active) return res.status(401).json({ error: "T\xE0i kho\u1EA3n kh\xF4ng c\xF2n ho\u1EA1t \u0111\u1ED9ng" });
     const r = await pool.query(
       `SELECT ph.data
        FROM vuong_mac_photo ph
@@ -82493,33 +83390,53 @@ app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, re
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
+var vmStatsNho = taoNhoNgan(2e4, 2);
+var docVmStats = async (ready) => {
+  const r = await timedQuery(
+    `WITH d AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS start)
+     SELECT c.created_today, c.resolved_today, c.closed_today, o.*
+     FROM (
+       SELECT
+         (SELECT COUNT(*) FROM vuong_mac, d WHERE created_at >= d.start) AS created_today,
+         (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today
+         ${ready ? `, (SELECT COUNT(*) FROM vuong_mac, d WHERE closed_at >= d.start) AS closed_today` : ", 0 AS closed_today"}
+     ) c
+     LEFT JOIN (
+       SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot, vm.is_resolved, vm.created_at,
+              ${ready ? "vm.status, vm.priority, vm.xuong, vm.escalated_at, vm.ten_cong_trinh," : `NULL AS status, NULL AS priority, NULL AS xuong, NULL AS escalated_at, NULL AS ten_cong_trinh,`}
+              EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext,
+              p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh
+       FROM vuong_mac vm
+       LEFT JOIN LATERAL (
+         SELECT ten_cong_trinh, xuong_chinh FROM production_status_app
+         WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
+       ) p ON TRUE
+       WHERE ${ready ? `vm.status <> 'closed'` : "vm.is_resolved = FALSE"}
+     ) o ON TRUE`
+  );
+  return tachVmStats(r.rows);
+};
+var tachVmStats = (rows) => ({
+  rows: rows.filter((row) => row.id !== null && row.id !== void 0),
+  day: {
+    created_today: rows[0]?.created_today ?? 0,
+    resolved_today: rows[0]?.resolved_today ?? 0,
+    closed_today: rows[0]?.closed_today ?? 0
+  }
+});
+var vmDashboardNho = taoNhoNgan(6e4, 4);
+var vmByProjectNho = taoNhoNgan(6e4, 1);
+var xoaNhoVuongMac = () => {
+  vmStatsNho.xoa();
+  vmDashboardNho.xoa();
+  vmByProjectNho.xoa();
+};
 app.get("/api/vuong-mac/stats", authenticateJWT, requireActiveUser, async (req, res) => {
   try {
     const me2 = await getVuongMacActor(req);
     const ready = await hasWorkflowSchema();
-    const [openR, dayR] = await Promise.all([
-      // Vướng mắc chưa đóng (ít dòng) — đọc BOT ở Node để biết quá hạn / sắp đến hạn
-      timedQuery(
-        `SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot, vm.is_resolved, vm.created_at,
-                ${ready ? "vm.status, vm.priority, vm.xuong, vm.escalated_at, vm.ten_cong_trinh," : `NULL AS status, NULL AS priority, NULL AS xuong, NULL AS escalated_at, NULL AS ten_cong_trinh,`}
-                EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext,
-                p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh
-         FROM vuong_mac vm
-         LEFT JOIN LATERAL (
-           SELECT ten_cong_trinh, xuong_chinh FROM production_status_app
-           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
-         ) p ON TRUE
-         WHERE ${ready ? `vm.status <> 'closed'` : "vm.is_resolved = FALSE"}`
-      ),
-      // Phát sinh / đã xử lý / đã đóng trong hôm nay (giờ Việt Nam)
-      timedQuery(
-        `WITH d AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS start)
-         SELECT
-           (SELECT COUNT(*) FROM vuong_mac, d WHERE created_at >= d.start) AS created_today,
-           (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today
-           ${ready ? `, (SELECT COUNT(*) FROM vuong_mac, d WHERE closed_at >= d.start) AS closed_today` : ", 0 AS closed_today"}`
-      )
-    ]);
+    const { rows: openRows, day: dayRow } = await vmStatsNho.lay(String(ready), () => docVmStats(ready));
+    const openR = { rows: openRows }, dayR = { rows: [dayRow] };
     const now = Date.now();
     const s = {
       open: 0,
@@ -82623,7 +83540,7 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
     const xuongList = expandWorkshops(String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
     const seriesFrom = addDaysStr(mondayOf(to), -7 * 11);
     const lo = from < seriesFrom ? from : seriesFrom;
-    const r = await timedQuery(
+    const r = { rows: await vmDashboardNho.lay(`${ready}|${lo}`, async () => (await timedQuery(
       `SELECT vm.id, vm.hex, vm.category, vm.content, vm.handler, vm.created_by, vm.created_at, vm.bot, vm.is_resolved,
               vm.resolved_at, vm.updated_at,
               ${ready ? "vm.status, vm.priority, vm.stage, vm.xuong, vm.ten_cong_trinh, vm.accepted_at, vm.closed_at, vm.escalated_at," : "NULL AS status, NULL AS priority, NULL AS stage, NULL AS xuong, NULL AS ten_cong_trinh, NULL AS accepted_at, vm.resolved_at AS closed_at, NULL AS escalated_at,"}
@@ -82640,7 +83557,7 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
           ${ready ? `OR vm.closed_at >= ($1::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')` : ""}`,
       [lo],
       { timeoutMs: 2e4 }
-    );
+    )).rows) };
     const now = Date.now();
     const inPeriod = (ts) => {
       const d = ts ? vnDay(new Date(String(ts))) : "";
@@ -82802,6 +83719,10 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
+var guiNen = async (viec) => {
+  const p = viec().catch((e) => console.error("[vuong-mac] l\u1ED7i g\u1EEDi th\xF4ng b\xE1o n\u1EC1n", e));
+  if (!giuHamSong(p) && process.env.VERCEL) await p;
+};
 app.post(
   "/api/vuong-mac",
   authenticateJWT,
@@ -82811,11 +83732,14 @@ app.post(
       const { hex: hex3, category, content, handler, bot, solution, note, priority } = req.body;
       const me2 = await getVuongMacActor(req);
       const actor = me2.username;
-      if (!await canAddToVuongMacThread(me2, hex3, category)) {
+      const ready = await hasWorkflowSchema();
+      const [duocThem, prod] = await Promise.all([
+        canAddToVuongMacThread(me2, hex3, category),
+        ready ? productionOfHex(String(hex3)) : null
+      ]);
+      if (!duocThem) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban m\u1EDBi \u0111\u01B0\u1EE3c th\xEAm v\u01B0\u1EDBng m\u1EAFc v\xE0o m\u1EE5c n\xE0y" });
       }
-      const ready = await hasWorkflowSchema();
-      const prod = ready ? await productionOfHex(String(hex3)) : null;
       const hasHandler = !!(handler ?? "").trim();
       const row = await withTransaction(async (client) => {
         const cols = ["hex", "category", "content", "created_by", "updated_by", "handler", "bot", "bot_end", "solution", "note"];
@@ -82849,27 +83773,30 @@ app.post(
         );
         return inserted;
       });
-      const who = await displayName(actor);
-      await notify({ id: row.id, hex: hex3, category }, [
-        {
-          kind: "mention",
-          userIds: await findMentionedIds(content, solution, note),
-          title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${hex3}`,
-          body: content
-        },
-        {
-          kind: "assigned",
-          userIds: await idsByFullName(handler),
-          title: `B\u1EA1n \u0111\u01B0\u1EE3c giao x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${hex3}`,
-          body: content
-        },
-        {
-          kind: "new_in_dept",
-          userIds: await recipientsFor(actor, me2.department),
-          title: `V\u01B0\u1EDBng m\u1EAFc m\u1EDBi c\u1EE7a ${who} \u2014 HEX ${hex3}`,
-          body: content
-        }
-      ], actor);
+      xoaNhoVuongMac();
+      await guiNen(async () => {
+        const who = await displayName(actor);
+        await notify({ id: row.id, hex: hex3, category }, [
+          {
+            kind: "mention",
+            userIds: await findMentionedIds(content, solution, note),
+            title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${hex3}`,
+            body: content
+          },
+          {
+            kind: "assigned",
+            userIds: await idsByFullName(handler),
+            title: `B\u1EA1n \u0111\u01B0\u1EE3c giao x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${hex3}`,
+            body: content
+          },
+          {
+            kind: "new_in_dept",
+            userIds: await recipientsFor(actor, me2.department),
+            title: `V\u01B0\u1EDBng m\u1EAFc m\u1EDBi c\u1EE7a ${who} \u2014 HEX ${hex3}`,
+            body: content
+          }
+        ], actor);
+      });
       res.json({ success: true, data: await fetchOne(row.id, me2) });
     } catch (error61) {
       console.error("L\u1ED7i t\u1EA1o vuong-mac:", error61);
@@ -83066,20 +83993,23 @@ app.put(
         );
         return updated;
       });
-      const oldMentions = await findMentionedIds(old.content, old.solution, old.note, old.resolved_note);
-      const newMentions = await findMentionedIds(row.content, row.solution, row.note, row.resolved_note);
-      const freshMentions = [...newMentions].filter((uid) => !oldMentions.has(uid));
-      const handlerChanged = newHandler !== void 0 && !!newHandler && !sameName(newHandler, old.handler);
-      await notify({ id: row.id, hex: row.hex, category: row.category }, [
-        { kind: "mention", userIds: freshMentions, title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${row.hex}`, body: noteClean || row.content },
-        {
-          kind: "assigned",
-          userIds: handlerChanged ? await idsByFullName(newHandler) : [],
-          title: `B\u1EA1n \u0111\u01B0\u1EE3c giao x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
-          body: row.content
-        },
-        ...events
-      ], actor);
+      xoaNhoVuongMac();
+      await guiNen(async () => {
+        const oldMentions = await findMentionedIds(old.content, old.solution, old.note, old.resolved_note);
+        const newMentions = await findMentionedIds(row.content, row.solution, row.note, row.resolved_note);
+        const freshMentions = [...newMentions].filter((uid) => !oldMentions.has(uid));
+        const handlerChanged = newHandler !== void 0 && !!newHandler && !sameName(newHandler, old.handler);
+        await notify({ id: row.id, hex: row.hex, category: row.category }, [
+          { kind: "mention", userIds: freshMentions, title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${row.hex}`, body: noteClean || row.content },
+          {
+            kind: "assigned",
+            userIds: handlerChanged ? await idsByFullName(newHandler) : [],
+            title: `B\u1EA1n \u0111\u01B0\u1EE3c giao x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
+            body: row.content
+          },
+          ...events
+        ], actor);
+      });
       res.json({ success: true, data: await fetchOne(row.id, me2) });
     } catch (error61) {
       console.error("L\u1ED7i s\u1EEDa vuong-mac:", error61);
@@ -83101,16 +84031,18 @@ app.post("/api/vuong-mac/:id/comment", authenticateJWT, validateBody(commentSche
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, acted_at`,
       [old.id, old.hex, ready ? "COMMENT" : "UPDATE", old.category, ready ? content : old.content, ready ? null : `B\xECnh lu\u1EADn: ${content}`, me2.username]
     );
-    const who = await displayName(me2.username);
-    await notify({ id: old.id, hex: old.hex, category: old.category }, [
-      { kind: "mention", userIds: await findMentionedIds(content), title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${old.hex}`, body: content },
-      {
-        kind: "comment",
-        userIds: [...await idsByUsername(old.created_by), ...await idsByFullName(old.handler)],
-        title: `${who} b\xECnh lu\u1EADn \u2014 HEX ${old.hex}`,
-        body: content
-      }
-    ], me2.username);
+    await guiNen(async () => {
+      const who = await displayName(me2.username);
+      await notify({ id: old.id, hex: old.hex, category: old.category }, [
+        { kind: "mention", userIds: await findMentionedIds(content), title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${old.hex}`, body: content },
+        {
+          kind: "comment",
+          userIds: [...await idsByUsername(old.created_by), ...await idsByFullName(old.handler)],
+          title: `${who} b\xECnh lu\u1EADn \u2014 HEX ${old.hex}`,
+          body: content
+        }
+      ], me2.username);
+    });
     res.json({ success: true, data: { id: r.rows[0].id, actedAt: r.rows[0].acted_at, actor: me2.username, content } });
   } catch (error61) {
     console.error("L\u1ED7i b\xECnh lu\u1EADn vuong-mac:", error61);
@@ -83173,22 +84105,25 @@ app.post(
           [old.id, old.hex, old.category, old.content, detail, actor]
         );
       });
-      const who = await displayName(actor);
-      await notify({ id: old.id, hex: old.hex, category: old.category }, [
-        {
-          kind: "mention",
-          userIds: await findMentionedIds(content, noteClean),
-          title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${old.hex}`,
-          body: content
-        },
-        {
-          kind: "extend",
-          userIds: [...await idsByFullName(old.handler), ...await recipientsFor(old.created_by, old.created_department)],
-          title: `${who} xin th\xEAm th\u1EDDi gian \u2014 HEX ${old.hex}`,
-          body: `${content}
+      xoaNhoVuongMac();
+      await guiNen(async () => {
+        const who = await displayName(actor);
+        await notify({ id: old.id, hex: old.hex, category: old.category }, [
+          {
+            kind: "mention",
+            userIds: await findMentionedIds(content, noteClean),
+            title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${old.hex}`,
+            body: content
+          },
+          {
+            kind: "extend",
+            userIds: [...await idsByFullName(old.handler), ...await recipientsFor(old.created_by, old.created_department)],
+            title: `${who} xin th\xEAm th\u1EDDi gian \u2014 HEX ${old.hex}`,
+            body: `${content}
 BOT m\u1EDBi: ${bot}`
-        }
-      ], actor);
+          }
+        ], actor);
+      });
       res.json({ success: true, data: await fetchOne(old.id, me2) });
     } catch (error61) {
       console.error("L\u1ED7i extend vuong-mac:", error61);
@@ -83234,6 +84169,7 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
         [old.id, old.hex, old.category, old.content, JSON.stringify(snapshot), actor]
       );
     });
+    xoaNhoVuongMac();
     res.json({ success: true, message: "\u0110\xE3 x\xF3a v\u01B0\u1EDBng m\u1EAFc" });
   } catch (error61) {
     console.error("L\u1ED7i x\xF3a vuong-mac:", error61);
@@ -83269,14 +84205,10 @@ app.get("/api/vuong-mac/log/:hex", authenticateJWT, requireActiveUser, async (re
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-var vmByProjectMemo = null;
-var vmByProjectInflight = null;
-var VM_BY_PROJECT_TTL_MS = 6e4;
 app.get("/api/vuong-mac/by-project", authenticateJWT, async (_req, res) => {
   try {
-    if (vmByProjectMemo && Date.now() - vmByProjectMemo.at < VM_BY_PROJECT_TTL_MS) return res.json(vmByProjectMemo.value);
-    if (!vmByProjectInflight) {
-      vmByProjectInflight = (async () => {
+    {
+      const value = await vmByProjectNho.lay("", async () => {
         const r = await timedQuery(
           `SELECT COALESCE(NULLIF(TRIM(p.ma_cong_trinh), ''), '') AS ma,
                   COALESCE(NULLIF(TRIM(p.ten_cong_trinh), ''), '') AS ten,
@@ -83289,19 +84221,16 @@ app.get("/api/vuong-mac/by-project", authenticateJWT, async (_req, res) => {
           [],
           { timeoutMs: 2e4 }
         );
-        const value = r.rows.map((row) => ({
+        const value2 = r.rows.map((row) => ({
           ma: String(row.ma),
           ten: canonicalProjectName(String(row.ten)),
           open: Number(row.open),
           overdue: Number(row.overdue)
         }));
-        vmByProjectMemo = { at: Date.now(), value };
-        return value;
-      })().finally(() => {
-        vmByProjectInflight = null;
+        return value2;
       });
+      res.json(value);
     }
-    res.json(await vmByProjectInflight);
   } catch (error61) {
     console.error("L\u1ED7i /api/vuong-mac/by-project:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -83459,16 +84388,20 @@ app.get("/api/notifications", async (req, res) => {
   try {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30));
     const before = Number(req.query.before) || null;
-    const [list, unread] = await Promise.all([
-      pool.query(
-        `SELECT id, kind, title, body, vuong_mac_id, hex, actor, created_at, read_at
+    const gop = await pool.query(
+      `SELECT u.n AS unread, l.*
+       FROM (SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}4) u
+       LEFT JOIN LATERAL (
+         SELECT id, kind, title, body, vuong_mac_id, hex, actor, created_at, read_at
          FROM notifications
          WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2) AND ${DK_APP}4
-         ORDER BY id DESC LIMIT $3`,
-        [me(req), before, limit + 1, laXuong(req.query.app)]
-      ),
-      pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}2`, [me(req), laXuong(req.query.app)])
-    ]);
+         ORDER BY id DESC LIMIT $3
+       ) l ON TRUE
+       ORDER BY l.id DESC NULLS LAST`,
+      [me(req), before, limit + 1, laXuong(req.query.app)]
+    );
+    const list = { rows: gop.rows.filter((r) => r.id !== null && r.id !== void 0) };
+    const unread = { rows: [{ n: gop.rows[0]?.unread ?? 0 }] };
     const rows = list.rows.slice(0, limit);
     res.json({
       success: true,
@@ -83833,13 +84766,13 @@ function gioTrongCa(a, b, khung) {
   for (let d = Math.floor((a + VN) / NGAY) * NGAY - VN; d < b; d += NGAY) t += gioTrongCaNgay(a, b, d, khung);
   return t;
 }
-var nho = /* @__PURE__ */ new Map();
+var nho3 = /* @__PURE__ */ new Map();
 async function taiMra(xuong, toSuKien2, cot, moi = false) {
   return taiCap(xuong, "mra", toSuKien2, cot, moi);
 }
 async function taiCap(xuong, nguon, toSuKien2, cot, moi = false) {
   const khoa = `${nguon}|${xuong}`;
-  const n = nho.get(khoa);
+  const n = nho3.get(khoa);
   if (n && !moi && Date.now() - n.luc < (nguon === "mra" ? GIO : 5 * 6e4)) return n.caps;
   let rows = [];
   try {
@@ -83895,7 +84828,7 @@ async function taiCap(xuong, nguon, toSuKien2, cot, moi = false) {
       evs
     });
   }
-  nho.set(khoa, { luc: Date.now(), caps });
+  nho3.set(khoa, { luc: Date.now(), caps });
   return caps;
 }
 function trangThaiMraLuc(cap, luc) {
@@ -84388,6 +85321,19 @@ var sqlChuaHuy = (a = "e") => `NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h
 function sqlThaoTacCanXuLy(a = "e", gio = CAN_XEM_NGAY * 24) {
   return `${sqlCanXuLy(a)} AND ${a}.server_ts > now() - interval '${Math.round(gio)} hours' AND ${sqlChuaHuy(a)}`;
 }
+var sqlTrongKyVN = (cot, tu, den) => {
+  if (!/^\$\d+$/.test(tu) || !/^\$\d+$/.test(den)) throw new Error("sqlTrongKyVN: tu / den ph\u1EA3i l\xE0 tham s\u1ED1 d\u1EA1ng $n");
+  if (!/^[a-z_][a-z0-9_.]*$/i.test(cot)) throw new Error("sqlTrongKyVN: t\xEAn c\u1ED9t kh\xF4ng h\u1EE3p l\u1EC7");
+  return `(${cot} >= (${tu}::date)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh' AND ${cot} < (${den}::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`;
+};
+
+// src/server/xuong/gioCongLuu.ts
+function banLuuDungDuoc(d) {
+  if (!(d.ngay < d.homNay)) return false;
+  if (d.v === null || d.v === void 0 || !d.luu) return false;
+  if (d.luu.v === null || d.luu.v === void 0) return false;
+  return String(d.luu.v) === String(d.v) && typeof d.luu.bam === "string" && d.luu.bam === d.bamHienTai;
+}
 
 // src/server/xuong/tram.ts
 var CHE_DO_CHAM = ["cu", "song_song", "tram"];
@@ -84396,6 +85342,10 @@ var NOI_CA_MS = 60 * 6e4;
 var SOM_TOI_DA_MS = 90 * 6e4;
 var ngayCa = (ts) => new Date(ts + 7 * GIO_MS2 - 6 * GIO_MS2).toISOString().slice(0, 10);
 var laSuKienTram = (e) => e.loai === "nguoi_vao" || e.loai === "nguoi_ra" || (e.loai === "vao_ca" || e.loai === "ra_ca") && e.duLieu?.tram === true;
+function diemDanhTayChuaHuy(evs, idBiHuy) {
+  const biHuy = new Set(idBiHuy);
+  return evs.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && !laSuKienTram(e) && !biHuy.has(e.id));
+}
 var LOAI_BAM_TAY = /* @__PURE__ */ new Set(["bat_dau", "tiep_tuc", "tam_ngung", "chia_nguoi"]);
 var mnvCua = (e) => {
   const m = chuanMnv(e.duLieu?.mnv);
@@ -85023,10 +85973,15 @@ async function toTruongCua(userId) {
   return r.rows.map((x) => ({ id: Number(x.id), xuong: String(x.xuong) }));
 }
 async function phamViXem(userId, xuong) {
-  const ds2 = await xuongQuanLy(userId);
-  if (ds2.has("*")) return { chiTo: null };
-  return phamViTheoQuyen(ds2, await toTruongCua(userId), xuong);
+  return phamViTuQuyen(await quyenXuongCua(userId), xuong);
 }
+async function quyenXuongCua(userId) {
+  const access = await loadUserAccess(userId);
+  if (access.role === "ADMIN") return { ds: /* @__PURE__ */ new Set(["*"]), toTruong: [] };
+  const [ds2, toTruong] = await Promise.all([xuongQuanLy(userId), toTruongCua(userId)]);
+  return { ds: ds2, toTruong };
+}
+var phamViTuQuyen = (q, xuong) => phamViTheoQuyen(q.ds, q.toTruong, xuong);
 var COT_SU_KIEN = `id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id, xuong_nguon,
   so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh, server_ts, user_id,
   user_id_khai, sent_by, device_id, sua_cho, nguon, nguoi_thao_tac_goc, co`;
@@ -85129,11 +86084,11 @@ async function cuaSoCacTo(db, toIds, tu, den) {
   return out;
 }
 var lanSuaTuDong = /* @__PURE__ */ new Map();
-async function suaTramTuDong(toId) {
+async function suaTramTuDong(toId, mocSan) {
   const now = Date.now();
   if (now - (lanSuaTuDong.get(toId) ?? 0) < 6e4) return;
   lanSuaTuDong.set(toId, now);
-  if (cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngayCa(now)) !== "tram") return;
+  if (cheDoTheoNgay(mocSan ?? await mocCheDo(poolMra, [toId]))(toId, ngayCa(now)) !== "tram") return;
   const r = await poolMra.query(
     `SELECT t.hex, t.cong_doan_id FROM xuong_trang_thai t JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = t.cong_doan_id
      WHERE tc.to_id = $1 AND t.trang_thai IN ('dang_lam', 'tam_ngung')`,
@@ -85147,20 +86102,23 @@ async function soTram(db, evs, cach, now) {
   if (!tram.length) return null;
   const mnvs = [...new Set(tram.map((e) => mnvCua(e)))];
   const tu = Math.max(Math.min(...tram.map((e) => e.ts)) - 36 * 36e5, now - 35 * 864e5);
-  const nguoi = (await db.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
-     WHERE loai IN ('nguoi_vao','nguoi_ra','ra_ca') AND du_lieu->>'mnv' = ANY($1::text[]) AND device_ts_hieu_chinh >= $2`,
-    [mnvs, new Date(tu).toISOString()]
-  )).rows;
-  const vao = (await db.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
-     WHERE loai = 'vao_ca' AND device_ts_hieu_chinh >= $2
-       AND (du_lieu->>'mnv' = ANY($1::text[]) OR EXISTS (
-         SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(du_lieu->'nguoi') = 'array' THEN du_lieu->'nguoi' ELSE '[]'::jsonb END) x
-         WHERE upper(COALESCE(x->>'mnv', x #>> '{}')) = ANY($1::text[])))`,
-    [mnvs, new Date(now - 3 * 864e5).toISOString()]
-  )).rows;
-  nguoi.push(...vao);
+  const [nguoiR, vaoR] = await Promise.all([
+    db.query(
+      `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+       WHERE loai IN ('nguoi_vao','nguoi_ra','ra_ca') AND du_lieu->>'mnv' = ANY($1::text[]) AND device_ts_hieu_chinh >= $2`,
+      [mnvs, new Date(tu).toISOString()]
+    ),
+    // Có mặt (vào ca ở trạm hoặc điểm danh tay) của những người đó — phân công / tự gán chỉ tính khi có mặt
+    db.query(
+      `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+       WHERE loai = 'vao_ca' AND device_ts_hieu_chinh >= $2
+         AND (du_lieu->>'mnv' = ANY($1::text[]) OR EXISTS (
+           SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(du_lieu->'nguoi') = 'array' THEN du_lieu->'nguoi' ELSE '[]'::jsonb END) x
+           WHERE upper(COALESCE(x->>'mnv', x #>> '{}')) = ANY($1::text[])))`,
+      [mnvs, new Date(now - 3 * 864e5).toISOString()]
+    )
+  ]);
+  const nguoi = [...nguoiR.rows, ...vaoR.rows];
   const huy = nguoi.length ? (await db.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`,
     [nguoi.map((x) => String(x.id))]
@@ -85174,7 +86132,7 @@ async function soTram(db, evs, cach, now) {
   const cuaSo = await cuaSoCacTo(db, toIds, ngayCa(tu), ngayCa(now));
   return { kq: chuyenDoiTram(conLai, { now, cuaSoTheoTo: cuaSo }), cheDo };
 }
-async function gioiHanNhan(db, pairs) {
+async function gioiHanNhan(db, pairs, san = {}) {
   const out = /* @__PURE__ */ new Map();
   if (!pairs.length) return out;
   const hexes = [...new Set(pairs.map((p) => p[0]))];
@@ -85182,8 +86140,8 @@ async function gioiHanNhan(db, pairs) {
   const [cdRows, nhanRows, evRows, info] = await Promise.all([
     db.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cds]),
     db.query("SELECT hex, cong_doan_id, sl_nhan FROM xuong_trang_thai WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])", [hexes, cds]),
-    suKienTheoHex(db, hexes),
-    thongTinHangMuc(hexes)
+    san.evRows ?? suKienTheoHex(db, hexes),
+    san.info ?? thongTinHangMuc(hexes)
   ]);
   const xuongCd = new Map(cdRows.rows.map((x) => [String(x.id), String(x.xuong)]));
   const daNhan = new Map(nhanRows.rows.map((x) => [`${x.hex}|${x.cong_doan_id}`, num(x.sl_nhan)]));
@@ -85444,6 +86402,8 @@ app.post("/api/xuong/events", async (req, res) => {
         hopLe[i] = a;
       }
     }
+    const [quanLy, dsToTruong, msnvToi] = await Promise.all([xuongQuanLy(sentBy), toTruongCua(sentBy), msnvCua(sentBy)]);
+    const laToTruong = new Set(dsToTruong.map((x) => x.id));
     const ketQua = await withTransactionMra(async (client) => {
       const phien = await client.query(
         "SELECT user_id, thu_hoi FROM xuong_phien_thiet_bi WHERE device_id = $1",
@@ -85462,9 +86422,6 @@ app.post("/api/xuong/events", async (req, res) => {
       const huyIds = hopLe.filter((e) => e.loai === "huy").map((e) => e.suaCho);
       const dichDb = huyIds.length ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai, co FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows : [];
       const dich = new Map(dichDb.map((x) => [String(x.id), x]));
-      const quanLy = await xuongQuanLy(sentBy);
-      const laToTruong = new Set((await toTruongCua(sentBy)).map((x) => x.id));
-      const msnvToi = await msnvCua(sentBy);
       const toCuaToi = new Set((await client.query(
         `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
          UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv
@@ -85655,15 +86612,17 @@ var dongTrangThai = (x, info) => ({
   tenCongTrinh: info?.ten_cong_trinh ?? null,
   dvt: info?.dvt ?? null
 });
-async function goiYCongDoanKe(pairs) {
+var SQL_CD_ACTIVE = "SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active";
+async function goiYCongDoanKe(pairs, san = {}) {
   const out = /* @__PURE__ */ new Map();
   const cuoi = /* @__PURE__ */ new Set();
   if (!pairs.length) return { ke: out, cuoi };
   const hexes = [...new Set(pairs.map((p) => p[0]))];
-  const [evRows, cd] = await Promise.all([
-    suKienTheoHex(poolMra, hexes),
-    poolMra.query("SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active")
+  const [evRows, cdRows] = await Promise.all([
+    san.evRows ?? suKienTheoHex(poolMra, hexes),
+    san.cdRows ?? poolMra.query(SQL_CD_ACTIVE).then((r) => r.rows)
   ]);
+  const cd = { rows: cdRows };
   const evts = evRows.map(toSuKien);
   const tuyen = /* @__PURE__ */ new Map();
   for (const hex3 of hexes) tuyen.set(hex3, tuyenTheoThanhPhan(evts.filter((e) => e.hex === hex3)));
@@ -85695,6 +86654,16 @@ async function suaChoGiaoCuoiTuyen(pairs) {
   if (!can.length) return 0;
   await withTransactionMra((client) => luuTrangThai(client, can));
   return can.length;
+}
+var lanSuaCuoiTuyen = /* @__PURE__ */ new Map();
+async function suaChoGiaoCuoiTuyenXuong(xuong) {
+  const now = Date.now();
+  if (now - (lanSuaCuoiTuyen.get(xuong) ?? 0) < 6e4) return;
+  await suaChoGiaoCuoiTuyen((await poolMra.query(
+    `SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`,
+    [xuong]
+  )).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+  lanSuaCuoiTuyen.set(xuong, now);
 }
 var bangAnh = null;
 var bangCongNhan = null;
@@ -85748,37 +86717,50 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.query.toId);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
-    const cdRows = await poolMra.query(
-      `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
-       WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`,
-      [toId]
-    );
+    const [cdRows, mocTo] = await Promise.all([
+      poolMra.query(
+        `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
+         WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`,
+        [toId]
+      ),
+      // Lịch đổi chế độ chấm của tổ: không đổi trong lúc request chạy (đổi chế độ có hiệu lực từ ngày ca kế tiếp)
+      mocCheDo(poolMra, [toId])
+    ]);
     const cds = cdRows.rows.map((x) => String(x.id));
-    await suaTramTuDong(toId);
-    if (cds.length) {
-      await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai = 'cho_giao'`, [cds])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    await suaTramTuDong(toId, mocTo);
+    const docViec = async () => {
+      const [stR, toR] = await Promise.all([
+        cds.length ? poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds]) : Promise.resolve({ rows: [] }),
+        poolMra.query("SELECT xuong, ten_to FROM xuong_to WHERE id = $1", [toId])
+      ]);
+      const hexes = [...new Set(stR.rows.map((x) => String(x.hex)))];
+      const [evRows, cdAll, info2] = await Promise.all([
+        suKienTheoHex(poolMra, hexes),
+        hexes.length ? poolMra.query(SQL_CD_ACTIVE).then((r) => r.rows) : Promise.resolve([]),
+        thongTinHangMuc(hexes)
+      ]);
+      const goiY2 = await goiYCongDoanKe(stR.rows.map((x) => [String(x.hex), String(x.cong_doan_id)]), { evRows, cdRows: cdAll });
+      return { st: stR.rows, toRow: toR.rows[0], evRows, info: info2, goiY: goiY2 };
+    };
+    let viec = await docViec();
+    const canSua = viec.st.filter((x) => x.trang_thai === "cho_giao" && viec.goiY.cuoi.has(pairKey(String(x.hex), String(x.cong_doan_id)))).map((x) => [String(x.hex), String(x.cong_doan_id)]);
+    if (canSua.length) {
+      await withTransactionMra((client) => luuTrangThai(client, canSua));
+      viec = await docViec();
     }
-    const st = cds.length ? (await poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows : [];
-    const info = await thongTinHangMuc([...new Set(st.map((x) => String(x.hex)))]);
-    const ngay3 = vnDayKey(/* @__PURE__ */ new Date());
-    const hom = await poolMra.query(
-      `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
-       WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
-         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       ORDER BY device_ts_hieu_chinh`,
-      [toId, ngay3]
-    );
-    const quanSo = {};
-    const tangCa = [];
-    for (const x of hom.rows) {
-      const d = x.du_lieu ?? {};
-      if (x.loai === "quan_so" && typeof d.loaiCa === "string") quanSo[d.loaiCa] = Number(d.soNguoi);
-      if (x.loai === "tang_ca" && typeof d.loaiCa === "string" && !tangCa.includes(d.loaiCa)) tangCa.push(d.loaiCa);
-    }
-    const toRow = (await poolMra.query("SELECT xuong, ten_to FROM xuong_to WHERE id = $1", [toId])).rows[0];
+    const { st, toRow, evRows: evSt, info } = viec;
+    const { ke: goiY, cuoi: cuoiTuyen } = viec.goiY;
     const xuongTo = toRow?.xuong ? String(toRow.xuong) : cdRows.rows[0]?.xuong ?? null;
-    const [truoc, tcTruoc, xacNhan, lichCa] = await Promise.all([
+    const ngay3 = vnDayKey(/* @__PURE__ */ new Date());
+    const [hom, truoc, tcTruoc, lichCa] = await Promise.all([
+      poolMra.query(
+        `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai IN ('quan_so','tang_ca','xac_nhan_cuoi_ngay')
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY device_ts_hieu_chinh`,
+        [toId, ngay3]
+      ),
       poolMra.query(
         `SELECT DISTINCT ON (du_lieu->>'loaiCa') du_lieu->>'loaiCa' AS ca, du_lieu->>'soNguoi' AS so
          FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'quan_so'
@@ -85793,24 +86775,36 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
          ORDER BY device_ts_hieu_chinh DESC LIMIT 1`,
         [toId]
       ),
-      poolMra.query(
-        `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
-           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
-           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`,
-        [toId, ngay3]
-      ),
       xuongTo ? lichCaCuaXuong(xuongTo) : Promise.resolve([])
     ]);
+    const quanSo = {};
+    const tangCa = [];
+    let daXacNhanHomNay = false;
+    for (const x of hom.rows) {
+      const d = x.du_lieu ?? {};
+      if (x.loai === "quan_so" && typeof d.loaiCa === "string") quanSo[d.loaiCa] = Number(d.soNguoi);
+      if (x.loai === "tang_ca" && typeof d.loaiCa === "string" && !tangCa.includes(d.loaiCa)) tangCa.push(d.loaiCa);
+      if (x.loai === "xac_nhan_cuoi_ngay") daXacNhanHomNay = true;
+    }
     const quanSoTruoc = {};
     for (const x of truoc.rows) if (x.ca && x.so !== null) quanSoTruoc[x.ca] = Number(x.so);
-    const { ke: goiY, cuoi: cuoiTuyen } = await goiYCongDoanKe(st.map((x) => [String(x.hex), String(x.cong_doan_id)]));
-    const chia = await poolMra.query(
-      `SELECT loai, hex, cong_doan_id, du_lieu->'phanBo' AS pb, du_lieu->'nguoi' AS nguoi, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
-       WHERE to_id = $1 AND loai IN ('chia_nguoi','bat_dau','tiep_tuc') AND device_ts_hieu_chinh > now() - interval '30 days'
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       ORDER BY device_ts_hieu_chinh`,
-      [toId]
-    );
+    const dsNgung = st.filter((x) => x.trang_thai === "tam_ngung");
+    const [chia, ngungR] = await Promise.all([
+      poolMra.query(
+        `SELECT loai, hex, cong_doan_id, du_lieu->'phanBo' AS pb, du_lieu->'nguoi' AS nguoi, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai IN ('chia_nguoi','bat_dau','tiep_tuc') AND device_ts_hieu_chinh > now() - interval '30 days'
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY device_ts_hieu_chinh`,
+        [toId]
+      ),
+      dsNgung.length ? poolMra.query(
+        `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai = 'tam_ngung' AND hex = ANY($2::text[])
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY hex, cong_doan_id, device_ts_hieu_chinh DESC`,
+        [toId, dsNgung.map((x) => String(x.hex))]
+      ) : Promise.resolve({ rows: [] })
+    ]);
     const tenDangLam = (hex3, cd, tu) => {
       if (!tu) return null;
       let ten = null;
@@ -85838,20 +86832,12 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       }
       return n;
     };
-    const dsNgung = st.filter((x) => x.trang_thai === "tam_ngung");
     const ngung = /* @__PURE__ */ new Map();
-    if (dsNgung.length) {
-      const q = await poolMra.query(
-        `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
-         WHERE to_id = $1 AND loai = 'tam_ngung' AND hex = ANY($2::text[])
-           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-         ORDER BY hex, cong_doan_id, device_ts_hieu_chinh DESC`,
-        [toId, dsNgung.map((x) => String(x.hex))]
-      );
-      for (const x of q.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
-    }
-    const cheDoHom = cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngayCa(Date.now()));
-    const kqTram = cheDoHom === "tram" ? (await soTram(poolMra, (await suKienTheoHex(poolMra, [...new Set(st.filter((x) => x.trang_thai === "dang_lam" || x.trang_thai === "tam_ngung").map((x) => String(x.hex)))])).map(toSuKien), "chinh_thuc", Date.now()))?.kq ?? null : null;
+    for (const x of ngungR.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
+    const cheDoTo = cheDoTheoNgay(mocTo);
+    const cheDoHom = cheDoTo(toId, ngayCa(Date.now()));
+    const hexDangLam = new Set(st.filter((x) => x.trang_thai === "dang_lam" || x.trang_thai === "tam_ngung").map((x) => String(x.hex)));
+    const kqTram = cheDoHom === "tram" ? (await soTram(poolMra, evSt.filter((x) => hexDangLam.has(String(x.hex))).map(toSuKien), "chinh_thuc", Date.now()))?.kq ?? null : null;
     const dangOTram = cheDoHom === "tram" ? kqTram?.dangO ?? {} : null;
     const hoTenTram = /* @__PURE__ */ new Map();
     if (kqTram?.doanNguoi.length) {
@@ -85900,18 +86886,24 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         ngung: x.trang_thai === "tam_ngung" ? ngung.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? null : null
       };
     });
-    const ghChoNhan = await gioiHanNhan(poolMra, rows.filter((x) => x.slGiaoDen > x.slNhan).map((x) => [String(x.hex), String(x.congDoanId)]));
     const chamCong = await coBangCongNhan();
-    let congNhan = [];
-    const coMatHomNay = {};
-    if (chamCong) {
-      const dd = (await poolMra.query(
+    const [ghChoNhan, ddR] = await Promise.all([
+      gioiHanNhan(
+        poolMra,
+        rows.filter((x) => x.slGiaoDen > x.slNhan).map((x) => [String(x.hex), String(x.congDoanId)]),
+        { evRows: evSt, info }
+      ),
+      chamCong ? poolMra.query(
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
          WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
            AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`,
         [toId, ngay3]
-      )).rows;
-      const cheDoTo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]));
+      ) : Promise.resolve({ rows: [] })
+    ]);
+    let congNhan = [];
+    const coMatHomNay = {};
+    if (chamCong) {
+      const dd = ddR.rows;
       const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay3 || e.loai === "ra_ca");
       for (const [ca, ds2] of Object.entries(doanCoMat(evs))) {
         coMatHomNay[ca] = (ds2 ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
@@ -85948,7 +86940,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       congNhan,
       coMat: coMatHomNay,
       soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
-      daXacNhanHomNay: xacNhan.rows.length > 0,
+      daXacNhanHomNay,
       anhBat: await coBangAnh(),
       lichCa,
       // Chế độ chấm hôm nay (trạm quét): 'tram' thì app ẩn Bắt đầu / Chia người / Tạm ngưng / điểm danh tay
@@ -85972,14 +86964,15 @@ async function lichCaCuaXuong(xuong, db = poolMra) {
   );
   return r.rows.map((x) => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
 }
-async function gioCongToNgay(toId, ngay3) {
-  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay3]);
-  const toRow = await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
-  const xuong = toRow.rows[0]?.xuong;
+async function gioCongToNgay(toId, ngay3, san = {}) {
+  const [vSo, xuong] = await Promise.all([
+    san.v !== void 0 ? san.v : poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay3]).then((r2) => r2.rows[0]?.v ?? null),
+    san.xuong !== void 0 ? san.xuong : poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]).then((r2) => r2.rows[0]?.xuong ?? null)
+  ]);
   if (!xuong) return null;
-  const lichCa = await lichCaCuaXuong(String(xuong));
+  const lichCa = san.lichCa ?? await lichCaCuaXuong(String(xuong));
   const bamLichCa = dauLichCa(lichCa);
-  const v = `${pb.rows[0]?.v ?? 0}|${bamLichCa}`;
+  const v = `${vSo ?? 0}|${bamLichCa}`;
   const key = `${toId}|${ngay3}`;
   const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay3;
   const hit = gioCongCache.get(key);
@@ -86099,7 +87092,7 @@ async function gioCongToNgay(toId, ngay3) {
     const cuaSo = cuaSoTrongNgay(ngay3, lichCa, caTangCa);
     const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay3) === "tram" : cheDo(toId, ngay3) !== "cu";
     const coMatTinh = dungTram ? noiCoMatTangCa(coMat, cuaSo) : coMat;
-    const pb2 = phanBoGioCong({
+    const pb = phanBoGioCong({
       cuaSo,
       quanSo,
       doanChay,
@@ -86111,7 +87104,7 @@ async function gioCongToNgay(toId, ngay3) {
       chuaXacNhan,
       now
     });
-    return { pb: pb2, coMat: coMatTinh };
+    return { pb, coMat: coMatTinh };
   }
 }
 app.get("/api/xuong/to/:id/gio-cong", async (req, res) => {
@@ -86150,9 +87143,8 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     const p = info.get(hex3);
     if (rows.length || st.rows.length || p) {
       const me2 = req.user.id;
-      const quanLy = await xuongQuanLy(me2);
+      const { ds: quanLy, toTruong } = await quyenXuongCua(me2);
       if (!quanLy.has("*")) {
-        const toTruong = await toTruongCua(me2);
         await ensureWorkshopGroups();
         const lq = lienQuanHex({ xuongChinh: [p?.xuong_chinh ?? null, p?.xuong_chinh ? workshopGroupOf(p.xuong_chinh) : null], trangThai: st.rows, suKien: rows, tuyen: cdTuyen, xuongCuaCd: xuongCua });
         const cdCuaTo = toTruong.length ? new Set((await poolMra.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])", [toTruong.map((t) => t.id)])).rows.map((x) => String(x.cong_doan_id))) : /* @__PURE__ */ new Set();
@@ -86192,8 +87184,13 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         for (const to of toCua) toNgay.add(`${to}|${vnDayKey(new Date(d.end ?? now))}`);
       }
     }
+    const lichCaXuong = /* @__PURE__ */ new Map();
+    const layLichCa = (xg) => {
+      if (!lichCaXuong.has(xg)) lichCaXuong.set(xg, lichCaCuaXuong(xg));
+      return lichCaXuong.get(xg);
+    };
     const khungXuong = /* @__PURE__ */ new Map();
-    for (const xg of [...new Set(st.rows.map((x) => String(x.xuong ?? "")).filter(Boolean))]) khungXuong.set(xg, khungCaChinh(await lichCaCuaXuong(xg)));
+    for (const xg of [...new Set(st.rows.map((x) => String(x.xuong ?? "")).filter(Boolean))]) khungXuong.set(xg, khungCaChinh(await layLichCa(xg)));
     const gioChayCa = /* @__PURE__ */ new Map();
     for (const x of st.rows) {
       const cdId = String(x.cong_doan_id);
@@ -86208,15 +87205,48 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     });
     const capNgay = [...toNgay].sort((a, b) => a.split("|")[1] < b.split("|")[1] ? 1 : -1);
     const gioCong = /* @__PURE__ */ new Map();
-    await runWithLimit(capNgay.slice(0, 20).map((k) => async () => {
-      const [to, ngay3] = k.split("|");
-      const kq = await gioCongToNgay(Number(to), ngay3);
-      if (!kq) return;
+    const congGioCong = (theoHangMuc) => {
       for (const x of st.rows) {
-        const h = kq.theoHangMuc[pairKey(hex3, String(x.cong_doan_id))];
+        const h = theoHangMuc?.[pairKey(hex3, String(x.cong_doan_id))];
         if (h) gioCong.set(String(x.cong_doan_id), (gioCong.get(String(x.cong_doan_id)) ?? 0) + h.gioCongThuong + h.gioCongTangCa);
       }
-    }), 2);
+    };
+    const capTinh = capNgay.slice(0, 20).map((k) => ({ k, to: Number(k.split("|")[0]), ngay: k.split("|")[1] }));
+    if (capTinh.length) {
+      const dsTo = capTinh.map((c) => c.to), dsNgay = capTinh.map((c) => c.ngay);
+      const [pbR, toR, luuR] = await Promise.all([
+        poolMra.query(
+          `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
+           WHERE (to_id, ngay) IN (SELECT * FROM unnest($1::int[], $2::date[]))`,
+          [dsTo, dsNgay]
+        ),
+        poolMra.query("SELECT id, xuong FROM xuong_to WHERE id = ANY($1::int[])", [[...new Set(dsTo)]]),
+        poolMra.query(
+          `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua->>'bamLichCa' AS bam, ket_qua->'theoHangMuc' AS hm
+           FROM xuong_gio_cong_ngay WHERE (to_id, ngay) IN (SELECT * FROM unnest($1::int[], $2::date[]))`,
+          [dsTo, dsNgay]
+        ).catch((e) => {
+          if (!isMissingSchema(e)) throw e;
+          return { rows: [] };
+        })
+      ]);
+      const vCua = new Map(pbR.rows.map((x) => [`${x.to_id}|${x.ngay}`, x.v]));
+      const xuongCuaTo = new Map(toR.rows.map((x) => [Number(x.id), x.xuong ? String(x.xuong) : null]));
+      const luuCua = new Map(luuR.rows.map((x) => [`${x.to_id}|${x.ngay}`, x]));
+      const homNay = vnDayKey(/* @__PURE__ */ new Date());
+      await runWithLimit(capTinh.map((c) => async () => {
+        const xg = xuongCuaTo.get(c.to) ?? null;
+        if (!xg) return;
+        const lichCa = await layLichCa(xg);
+        const v = vCua.has(c.k) ? vCua.get(c.k) : null;
+        if (banLuuDungDuoc({ ngay: c.ngay, homNay, v, luu: luuCua.get(c.k), bamHienTai: dauLichCa(lichCa) })) {
+          congGioCong(luuCua.get(c.k).hm);
+          return;
+        }
+        const kq = await gioCongToNgay(c.to, c.ngay, { v, xuong: xg, lichCa });
+        if (kq) congGioCong(kq.theoHangMuc);
+      }), 2);
+    }
     const lam5 = (n) => Math.round(n * 100) / 100;
     const evtsMra = evts.filter((e) => laMra.has(e.id));
     const cdMra = [...new Set(evtsMra.map((e) => e.congDoanId).filter((x) => !!x))];
@@ -86655,7 +87685,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     if (!pv) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
     await ensureWorkshopGroups();
     const chiTo = pv.chiTo;
-    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    await suaChoGiaoCuoiTuyenXuong(xuong);
     const homNay = vnDayKey(/* @__PURE__ */ new Date());
     const den = typeof req.query.den === "string" && NGAY_RE2.test(req.query.den) ? req.query.den : homNay;
     const tu = typeof req.query.tu === "string" && NGAY_RE2.test(req.query.tu) ? req.query.tu : den;
@@ -86664,19 +87694,27 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     if (soNgay2 < 0 || soNgay2 > 185) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
     const toRows = (await poolMra.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows.filter((t) => !chiTo || chiTo.includes(Number(t.id)));
     const toIds = toRows.map((t) => Number(t.id));
-    const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay, xongNgay] = await Promise.all([
+    const trongKy = (cot) => sqlTrongKyVN(cot, "$2", "$3");
+    const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay, xongNgay, dangChayR, cdR] = await Promise.all([
       poolMra.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
                   WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date ORDER BY ngay`, [toIds, tu, den]),
       // Nhật ký đủ: mỗi công đoạn hoàn thành trong kỳ có ghi lúc bắt đầu (tổ trạm: lượt quét vào hàng thay cho Bắt đầu).
       // Hạng mục đang làm dở chưa xét — chưa tới lúc có Hoàn thành
       poolMra.query(
-        `WITH hl AS (SELECT * FROM xuong_su_kien e WHERE e.xuong = $1 AND e.nguon = 'app' AND e.loai IN ('bat_dau','nguoi_vao','hoan_thanh')
-                       AND ($4::int[] IS NULL OR e.to_id = ANY($4::int[]))
-                       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)),
-              cap AS (SELECT DISTINCT hex, cong_doan_id FROM hl
-                      WHERE loai = 'hoan_thanh' AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date)
+        // Cùng nghĩa bản cũ (CTE gom MỌI bat_dau / nguoi_vao / hoan_thanh của xưởng mọi thời gian rồi mới lọc): cặp có
+        // Hoàn thành trong kỳ lấy trước, rồi mới tra Bắt đầu / vào hàng của đúng cặp đó qua index (hex, cong_doan_id);
+        // giữ nguyên các điều kiện xưởng / nguồn app / tổ / chưa huỷ ở cả hai vế
+        `WITH cap AS (SELECT DISTINCT e.hex, e.cong_doan_id FROM xuong_su_kien e
+                      WHERE e.xuong = $1 AND e.nguon = 'app' AND e.loai = 'hoan_thanh'
+                        AND ($4::int[] IS NULL OR e.to_id = ANY($4::int[]))
+                        AND ${trongKy("e.device_ts_hieu_chinh")}
+                        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))
          SELECT count(*)::int AS tong,
-                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai IN ('bat_dau','nguoi_vao')))::int AS du
+                count(*) FILTER (WHERE EXISTS (
+                  SELECT 1 FROM xuong_su_kien b
+                  WHERE b.hex = cap.hex AND b.cong_doan_id = cap.cong_doan_id AND b.loai IN ('bat_dau','nguoi_vao')
+                    AND b.xuong = $1 AND b.nguon = 'app' AND ($4::int[] IS NULL OR b.to_id = ANY($4::int[]))
+                    AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = b.id)))::int AS du
          FROM cap`,
         [xuong, tu, den, chiTo]
       ),
@@ -86685,7 +87723,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         `SELECT count(*)::int AS tong, count(*) FILTER (WHERE server_ts - device_ts_hieu_chinh <= interval '1 hour')::int AS nhanh
          FROM xuong_su_kien WHERE xuong = $1 AND device_id IS NOT NULL AND COALESCE(du_lieu->>'ghiLui', '') <> 'true'
            AND ($4::int[] IS NULL OR to_id = ANY($4::int[]))
-           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date`,
+           AND ${trongKy("device_ts_hieu_chinh")}`,
         [xuong, tu, den, chiTo]
       ),
       // Hiện tại: hạng mục đang chạy, hàng chờ nhận theo tổ
@@ -86706,7 +87744,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
                 e.du_lieu->>'loaiCa' AS loai_ca, (e.du_lieu->>'soNguoi')::float AS so
          FROM xuong_su_kien e
          WHERE e.to_id = ANY($1::int[]) AND e.loai = 'quan_so'
-           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+           AND ${trongKy("e.device_ts_hieu_chinh")}
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY e.to_id, 2, e.du_lieu->>'loaiCa', e.device_ts_hieu_chinh DESC`,
         [toIds, tu, den]
@@ -86717,7 +87755,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
                 e.hex, e.cong_doan_id, sum(e.so_luong)::float AS sl
          FROM xuong_su_kien e
          WHERE e.to_id = ANY($1::int[]) AND e.loai = 'nhan' AND e.hex IS NOT NULL
-           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+           AND ${trongKy("e.device_ts_hieu_chinh")}
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3`,
         [toIds, tu, den]
@@ -86728,26 +87766,37 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
                 e.hex, e.cong_doan_id, sum(e.so_luong)::float AS sl
          FROM xuong_su_kien e
          WHERE e.to_id = ANY($1::int[]) AND e.loai = 'hoan_thanh' AND e.hex IS NOT NULL
-           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+           AND ${trongKy("e.device_ts_hieu_chinh")}
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3`,
         [toIds, tu, den]
-      )
+      ),
+      // Hạng mục đang chạy lúc này (đánh dấu trong ngày hôm nay) — trước là 1 chặng riêng ở giữa handler
+      poolMra.query(
+        `SELECT DISTINCT t.hex, t.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
+         WHERE tc.to_id = ANY($1::int[]) AND t.trang_thai = 'dang_lam'`,
+        [toIds]
+      ),
+      // Bảng công đoạn của xưởng: đọc MỘT lần, dùng cho cả tên công đoạn phần MRA lẫn thứ tự / tên ở phần hạng mục
+      poolMra.query("SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1", [xuong])
     ]);
+    const cdRows = cdR.rows;
     let banLuu = true;
     const daLuu = /* @__PURE__ */ new Map();
-    try {
-      const r = await poolMra.query(
+    const [luuR, lichCa] = await Promise.all([
+      poolMra.query(
         `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua FROM xuong_gio_cong_ngay
          WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date`,
         [toIds, tu, den]
-      );
-      for (const x of r.rows) daLuu.set(`${x.to_id}|${x.ngay}`, { v: String(x.v), kq: x.ket_qua });
-    } catch (e) {
-      if (!isMissingSchema(e)) throw e;
-      banLuu = false;
-    }
-    const bamHienTai = dauLichCa(await lichCaCuaXuong(xuong));
+      ).catch((e) => {
+        if (!isMissingSchema(e)) throw e;
+        banLuu = false;
+        return { rows: [] };
+      }),
+      lichCaCuaXuong(xuong)
+    ]);
+    for (const x of luuR.rows) daLuu.set(`${x.to_id}|${x.ngay}`, { v: String(x.v), kq: x.ket_qua });
+    const bamHienTai = dauLichCa(lichCa);
     const ketQua = /* @__PURE__ */ new Map();
     const canTinh = [];
     for (const x of pb.rows) {
@@ -86759,7 +87808,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     canTinh.sort((a, b) => a.ngay === homNay ? -1 : b.ngay === homNay ? 1 : b.ngay.localeCompare(a.ngay));
     const lanNay = canTinh.slice(0, TINH_TOI_DA);
     await runWithLimit(lanNay.map((c) => async () => {
-      const kq = await gioCongToNgay(c.toId, c.ngay);
+      const kq = await gioCongToNgay(c.toId, c.ngay, { v: c.v, xuong, lichCa });
       if (!kq) return;
       ketQua.set(`${c.toId}|${c.ngay}`, kq);
       if (banLuu && c.ngay < homNay) {
@@ -86777,7 +87826,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const evCa = await poolMra.query(
       `SELECT ${COT_SU_KIEN}, to_char((device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay_vn
        FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
-         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+         AND ${trongKy("device_ts_hieu_chinh")}
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
       [toIds, tu, den]
     );
@@ -86811,11 +87860,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       xongCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam3(Number(x.sl)) });
       tatCaHex.add(String(x.hex));
     }
-    const dangChayNay = new Set((await poolMra.query(
-      `SELECT DISTINCT t.hex, t.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
-       WHERE tc.to_id = ANY($1::int[]) AND t.trang_thai = 'dang_lam'`,
-      [toIds]
-    )).rows.map((x) => `${x.hex}|${x.cong_doan_id}`));
+    const dangChayNay = new Set(dangChayR.rows.map((x) => `${x.hex}|${x.cong_doan_id}`));
     const mraNgay = /* @__PURE__ */ new Map();
     const toGia = [];
     const mraHex = /* @__PURE__ */ new Map();
@@ -86825,17 +87870,16 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       const t0 = dauNgayVN(tu), t1 = dauNgayVN(den) + NGAY;
       const capsKy = caps.filter((c) => c.doan.some((d) => d.end > t0 && d.start < t1) || c.nhan.some((e) => e.ts >= t0 && e.ts < t1) || c.xong.some((e) => e.ts >= t0 && e.ts < t1));
       if (capsKy.length) {
-        const khung = khungCaChinh(await lichCaCuaXuong(xuong));
-        const [tcR, cdR2, ddR] = await Promise.all([
+        const khung = khungCaChinh(lichCa);
+        const [tcR, ddR] = await Promise.all([
           poolMra.query(`SELECT tc.cong_doan_id, min(tc.to_id) AS to_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id
                       WHERE t.xuong = $1 GROUP BY tc.cong_doan_id`, [xuong]),
-          poolMra.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1", [xuong]),
           pool.query(`SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn,
                              sum(coalesce(gio_cong_hanh_chinh,0) + coalesce(gio_cong_tang_ca,0))::float AS gio
                       FROM diem_danh WHERE upper(trim(xuong_chinh)) = ANY($1::text[]) AND date BETWEEN $2::date AND $3::date GROUP BY date`, [expandWorkshops([xuong]), tu, den]).catch(() => ({ rows: [] }))
         ]);
         const toTheoCd = new Map(tcR.rows.map((x) => [String(x.cong_doan_id), Number(x.to_id)]));
-        const tenCd = new Map(cdR2.rows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+        const tenCd = new Map(cdRows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
         const dd = new Map(ddR.rows.map((x) => [String(x.ngay), { cn: Number(x.cn) || 0, gio: Number(x.gio) || 0 }]));
         const coApp = new Set(pb.rows.map((x) => `${x.to_id}|${x.ngay}`));
         let idGia = -1;
@@ -86927,12 +87971,12 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           if (!theoNgayXuong.has(ng)) theoNgayXuong.set(ng, []);
           theoNgayXuong.get(ng).push(m);
         }
-        for (const [ng, ms] of theoNgayXuong) {
-          const tongGc = ms.reduce((a, m) => a + m.gioCong, 0);
+        for (const [ng, ms2] of theoNgayXuong) {
+          const tongGc = ms2.reduce((a, m) => a + m.gioCong, 0);
           const d = dd.get(ng);
           if (!d || !(d.gio > 0) || tongGc <= 0) continue;
           const he = tongGc > d.gio ? d.gio / tongGc : 1;
-          for (const m of ms) {
+          for (const m of ms2) {
             const ty = m.gioCong / tongGc;
             if (he < 1) {
               m.gioCong *= he;
@@ -87080,7 +88124,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         })).sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa))
       };
     });
-    const info = await thongTinHangMuc([...tatCaHex].slice(0, 2e3));
+    const infoP = thongTinHangMuc([...tatCaHex].slice(0, 2e3));
+    infoP.catch(() => {
+    });
     const hmKy = /* @__PURE__ */ new Map();
     const layCd = (hex3, cd) => {
       if (!hmKy.has(hex3)) hmKy.set(hex3, /* @__PURE__ */ new Map());
@@ -87105,13 +88151,15 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         c.slXong += x.soLuong;
       }
     }
-    const ttHm = hmKy.size ? (await poolMra.query(
-      `SELECT hex, cong_doan_id, trang_thai, sl_giao_den::float AS sl_gd, sl_nhan::float AS sl_nhan, sl_hoan_thanh::float AS sl_ht, sl_giao::float AS sl_gi
-       FROM xuong_trang_thai WHERE hex = ANY($1::text[])`,
-      [[...hmKy.keys()]]
-    )).rows : [];
+    const [ttHm, info] = await Promise.all([
+      hmKy.size ? poolMra.query(
+        `SELECT hex, cong_doan_id, trang_thai, sl_giao_den::float AS sl_gd, sl_nhan::float AS sl_nhan, sl_hoan_thanh::float AS sl_ht, sl_giao::float AS sl_gi
+         FROM xuong_trang_thai WHERE hex = ANY($1::text[])`,
+        [[...hmKy.keys()]]
+      ).then((r) => r.rows) : Promise.resolve([]),
+      infoP
+    ]);
     const ttCua = new Map(ttHm.map((x) => [`${x.hex}|${x.cong_doan_id}`, x]));
-    const cdRows = (await poolMra.query("SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1", [xuong])).rows;
     const cdTen = new Map(cdRows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
     const cdThuTu = new Map(cdRows.map((x) => [String(x.id), Number(x.thu_tu ?? 999)]));
     let chamCong = null;
@@ -87130,7 +88178,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
                     to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay, (e.du_lieu->>'soNguoi')::float AS so
              FROM xuong_su_kien e
              WHERE e.to_id = ANY($1::int[]) AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' IN ('chinh','chu_nhat')
-               AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+               AND ${trongKy("e.device_ts_hieu_chinh")}
                AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
              ORDER BY e.to_id, (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, e.device_ts_hieu_chinh DESC) x
            GROUP BY ngay`,
@@ -87308,7 +88356,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       };
     }).sort((a, b) => b.gioCong - a.gioCong);
     const hexHm = hangMuc.map((h) => h.hex);
-    const [tkRows, khRows, nkRows] = hexHm.length ? await Promise.all([
+    const [tkRows, khRows, nkRows, duSlDon] = hexHm.length ? await Promise.all([
       // Triển khai của xưởng này (xưởng chính) hoặc giao thành phần cho xưởng này (xưởng phụ)
       poolMra.query(
         `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc,
@@ -87335,8 +88383,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         `SELECT hex::text AS hex, sum(thanh_tien_nhap_kho_num) AS tien FROM nhap_kho
          WHERE hex::text = ANY($1::text[]) AND date_parsed <= $2::date AND ${notCancelledHexCond("hex")} GROUP BY hex::text`,
         [hexHm, den]
-      ).catch(() => ({ rows: [] }))
-    ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
+      ).catch(() => ({ rows: [] })),
+      hexDuSoLuong(pool, hexHm).catch(() => /* @__PURE__ */ new Set())
+    ]) : [{ rows: [] }, { rows: [] }, { rows: [] }, /* @__PURE__ */ new Set()];
     const hexTk = tkRows.rows.map((x) => String(x.hex));
     const evTk = hexTk.length ? (await suKienTheoHex(poolMra, hexTk)).map(toSuKien) : [];
     const tkHm = new Map(tkRows.rows.map((x) => {
@@ -87346,7 +88395,6 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       return [String(x.hex), { sl: Number(x.sl) || 0, luc: x.luc, xuongChinh: x.xuong_chinh ?? null, thanhPhan, tuyen }];
     }));
     const nkHm = new Map(nkRows.rows.map((x) => [String(x.hex), Number(x.tien) || 0]));
-    const duSlDon = await hexDuSoLuong(pool, hexHm).catch(() => /* @__PURE__ */ new Set());
     const khHm = new Map(khRows.rows.map((x) => [String(x.hex), {
       nam: Number(x.nam),
       tuan: Number(x.tuan),
@@ -87507,8 +88555,8 @@ async function lanTrienKhaiTruoc(xuong) {
 }
 app.get("/api/xuong/setup", async (req, res) => {
   try {
-    const { ds: ds2, admin } = await xuongDuocSua(req);
-    const toTruong = admin ? [] : await toTruongCua(req.user.id);
+    const { ds: ds2, toTruong } = await quyenXuongCua(req.user.id);
+    const admin = ds2.has("*");
     if (!ds2.size && !toTruong.length) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
     const tatCa = toTruong.length ? [...new Set(toTruong.map((t) => t.xuong))].sort() : (await poolMra.query(
       `SELECT DISTINCT xuong FROM (SELECT xuong FROM xuong_cong_doan UNION SELECT xuong FROM xuong_to) x ORDER BY xuong`
@@ -87604,7 +88652,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
     const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : dsXuong[0] ?? null;
     if (!xuong) return res.json({ success: true, available: true, dsXuong, xuong: null, to: [] });
     if (!quanLyDuoc(ds2, xuong)) return khongQuyen(res);
-    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    await suaChoGiaoCuoiTuyenXuong(xuong);
     const r = await poolMra.query(
       `WITH homnay AS (SELECT (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS d)
        SELECT t.id, t.ten_to, t.to_truong_user_id,
@@ -87630,7 +88678,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
        ORDER BY t.ten_to`,
       [xuong]
     );
-    const pv = await phamViXem(req.user.id, xuong);
+    const pv = phamViTuQuyen({ ds: ds2, toTruong: admin ? [] : await toTruongCua(req.user.id) }, xuong);
     const canXemXuong = pv ? Number((await poolMra.query(
       `SELECT count(*)::int AS n FROM xuong_su_kien e WHERE e.xuong = $1 AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
          AND ${sqlThaoTacCanXuLy("e")}`,
@@ -88412,9 +89460,10 @@ app.post("/api/xuong/khai-chi-tiet", async (req, res) => {
 app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
   try {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
-    const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
-    if (!pv) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
-    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    const quyen = xuong ? await quyenXuongCua(req.user.id) : null;
+    const pv = quyen ? phamViTuQuyen(quyen, xuong) : null;
+    if (!quyen || !pv) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    await suaChoGiaoCuoiTuyenXuong(xuong);
     const soNgay2 = Math.min(400, Math.max(1, Number(req.query.ngay) || 90));
     const tatCa = req.query.tatCa === "1";
     const tk = await poolMra.query(
@@ -88465,7 +89514,8 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
     const evts = evRows.map(toSuKien);
     const conHieuLuc = new Set(suKienConHieuLuc(evts).map((e) => e.id));
     const dotRows = evRows.filter((r) => r.loai === "trien_khai" && conHieuLuc.has(String(r.id)));
-    const [nguoiTk, { ds: dsQl }] = await Promise.all([nguoiDungTheoId(dotRows.map((r) => r.user_id)), xuongDuocSua(req)]);
+    const nguoiTk = await nguoiDungTheoId(dotRows.map((r) => r.user_id));
+    const dsQl = quyen.ds;
     const dotCua = (hex3) => dotRows.filter((r) => String(r.hex) === hex3).sort((a, b) => new Date(b.device_ts_hieu_chinh).getTime() - new Date(a.device_ts_hieu_chinh).getTime()).map((r) => {
       const xc = typeof r.du_lieu?.xuong === "string" ? r.du_lieu.xuong : r.xuong ?? null;
       return {
@@ -89361,32 +90411,33 @@ app.post("/api/xuong/to/:id/che-do", async (req, res) => {
     fail(res, e, "/api/xuong/to/:id/che-do");
   }
 });
-async function diemDanhTayCuaTo(toId, tu, den) {
-  const r = await poolMra.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
-     WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca') AND device_ts_hieu_chinh BETWEEN $2 AND $3
-       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
-    [toId, new Date(tu).toISOString(), new Date(den).toISOString()]
-  );
-  return r.rows.map(toSuKien).filter((e) => !laSuKienTram(e));
-}
-async function soTramCuaTo(toId, tu, den) {
+async function soCuaTo(toId, tu, den, kemTay = false) {
   const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
      WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca','nguoi_vao','nguoi_ra') AND device_ts_hieu_chinh BETWEEN $2 AND $3`,
     [toId, new Date(tu).toISOString(), new Date(den).toISOString()]
   );
   const rows = r.rows.filter((x) => laSuKienTram(toSuKien(x)));
-  const huy = rows.length ? (await poolMra.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`,
-    [rows.map((x) => String(x.id))]
-  )).rows : [];
-  const hexes = [...new Set(rows.filter((x) => x.hex).map((x) => String(x.hex)))];
-  const sl = (await suKienTheoHex(poolMra, hexes)).filter((x) => x.loai === "nhan" || x.loai === "hoan_thanh" || x.loai === "huy");
+  const tay = kemTay ? r.rows.map(toSuKien).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && !laSuKienTram(e)) : [];
+  const canHuy = [...rows.map((x) => String(x.id)), ...tay.map((e) => e.id)];
+  const [huyTatCa, slTho] = await Promise.all([
+    canHuy.length ? poolMra.query(
+      `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`,
+      [canHuy]
+    ).then((q) => q.rows) : Promise.resolve([]),
+    suKienTheoHex(poolMra, [...new Set(rows.filter((x) => x.hex).map((x) => String(x.hex)))])
+  ]);
+  const idTram = new Set(rows.map((x) => String(x.id)));
+  const huy = huyTatCa.filter((h) => idTram.has(String(h.sua_cho)));
+  const sl = slTho.filter((x) => x.loai === "nhan" || x.loai === "hoan_thanh" || x.loai === "huy");
   const theoId = /* @__PURE__ */ new Map();
   for (const x of [...rows, ...huy, ...sl]) theoId.set(String(x.id), x);
-  return [...theoId.values()].map(toSuKien);
+  return {
+    evs: [...theoId.values()].map(toSuKien),
+    ddTay: diemDanhTayChuaHuy(tay, huyTatCa.map((h) => String(h.sua_cho)))
+  };
 }
+var soTramCuaTo = async (toId, tu, den) => (await soCuaTo(toId, tu, den)).evs;
 app.get("/api/xuong/tram/may/bang", async (req, res) => {
   try {
     if (!await coBangTram()) return chuaBat2(res);
@@ -89414,10 +90465,9 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
     ]);
     const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay3);
     const cds = cdRows.rows.map((x) => String(x.id));
-    const evs = await soTramCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
+    const { evs, ddTay } = await soCuaTo(t.toId, now - 36 * 36e5, now + 6e4, true);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some((c) => k.endsWith(`|${c}`)));
-    const ddTay = await diemDanhTayCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
     const ddHom = [...suKienConHieuLuc(evs), ...ddTay].filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && ngayCa(e.ts) === ngay3).sort((a, b) => a.ts - b.ts);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter((d) => d && d.end === null).map((d) => d.mnv);
     const oHang = new Set(dangO.flatMap(([, ds2]) => ds2));
@@ -89678,7 +90728,8 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
     const toRow = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
-    const pv = await phamViXem(req.user.id, String(toRow.xuong));
+    const quyen = await quyenXuongCua(req.user.id);
+    const pv = phamViTuQuyen(quyen, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
     const now = Date.now();
     const ngay3 = ngayCa(now);
@@ -89714,8 +90765,8 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     const hoTen = new Map(cn.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
     if (tenThem.length) for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [tenThem])).rows) hoTen.set(String(x.mnv), String(x.ho_ten));
     const info = await thongTinHangMuc([.../* @__PURE__ */ new Set([...hm.rows.map((x) => String(x.hex)), ...doan.map((d) => d.hex)])]);
-    const quanLy = quanLyDuoc(await xuongQuanLy(req.user.id), String(toRow.xuong));
-    const laToTruong = (await toTruongCua(req.user.id)).some((x) => x.id === toId);
+    const quanLy = quanLyDuoc(quyen.ds, String(toRow.xuong));
+    const laToTruong = quyen.toTruong.some((x) => x.id === toId);
     res.json({
       success: true,
       available: true,
@@ -89760,7 +90811,8 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
     const toRow = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
-    const pv = await phamViXem(req.user.id, String(toRow.xuong));
+    const quyen = await quyenXuongCua(req.user.id);
+    const pv = phamViTuQuyen(quyen, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
     const dau = Date.parse(`${ngay3}T05:00:00+07:00`);
     const cuoi = dau + 25 * 36e5;
@@ -89776,8 +90828,8 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
       thongTinHangMuc([...new Set(doan.map((d) => d.hex))])
     ]);
     const hoTen = new Map(ten.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
-    const quanLy = quanLyDuoc(await xuongQuanLy(req.user.id), String(toRow.xuong));
-    const laToTruong = (await toTruongCua(req.user.id)).some((x) => x.id === toId);
+    const quanLy = quanLyDuoc(quyen.ds, String(toRow.xuong));
+    const laToTruong = quyen.toTruong.some((x) => x.id === toId);
     const gioTheoNguon = { quet: 0, phan_cong: 0, tu_gan: 0, ghi_ho: 0 };
     for (const d of doan) gioTheoNguon[d.nguon] += Math.max(0, ((d.end ?? now) - d.start) / 36e5);
     for (const k of Object.keys(gioTheoNguon)) gioTheoNguon[k] = Math.round(gioTheoNguon[k] * 100) / 100;
@@ -89811,7 +90863,7 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
 
 // src/routes/tongQuan.ts
 import { createHash as createHash5 } from "crypto";
-import { gzipSync, gunzipSync } from "zlib";
+import { gzipSync as gzipSync3, gunzipSync } from "zlib";
 
 // ../frontend/types.ts
 var TARGET_COLUMN_NAMES = {
@@ -90178,8 +91230,8 @@ var ngayDaDoc = /* @__PURE__ */ new Map();
 var parsePlanDate = (v) => {
   const s = String(v ?? "").trim();
   if (!s) return null;
-  const nho2 = ngayDaDoc.get(s);
-  if (nho2 !== void 0) return nho2 === null ? null : new Date(nho2);
+  const nho4 = ngayDaDoc.get(s);
+  if (nho4 !== void 0) return nho4 === null ? null : new Date(nho4);
   const d = docNgayKeHoach(s);
   if (ngayDaDoc.size > 5e4) ngayDaDoc.clear();
   ngayDaDoc.set(s, d ? d.getTime() : null);
@@ -90258,8 +91310,8 @@ var khoaTenDaDoi = () => {
 };
 var projectMatchKey = (name) => {
   const raw = typeof name === "string" ? name : String(name ?? "");
-  const nho2 = khoaCongTrinh2.get(raw);
-  if (nho2 !== void 0) return nho2;
+  const nho4 = khoaCongTrinh2.get(raw);
+  if (nho4 !== void 0) return nho4;
   const k = normProjectName(canonicalProjectName2(raw));
   if (khoaCongTrinh2.size > 2e4) khoaCongTrinh2.clear();
   khoaCongTrinh2.set(raw, k);
@@ -91311,6 +92363,10 @@ var setMapping = (mapping) => {
   rawToGroup2 = m;
 };
 var applyWorkshopMapping = (mapping) => setMapping(mapping);
+var workshopGroupOf2 = (raw) => {
+  const n = normWorkshop2(raw);
+  return rawToGroup2.get(n) ?? n;
+};
 function canonicalizeWorkshops(rows, columns) {
   if (rows.length === 0) return rows;
   const key = findColumnKey(columns, "xuong_chinh");
@@ -91331,6 +92387,36 @@ function canonicalizeWorkshops(rows, columns) {
     return { ...row, [key]: g };
   });
   return changed ? out : rows;
+}
+
+// ../frontend/components/Construction/core/ghepFileCongTrinh.ts
+var coSoFile = (d) => !!d && d.coBang && d.dong.length > 0;
+function ghepDongFile(app2, columns, hexKey, d) {
+  const theoHex = /* @__PURE__ */ new Map();
+  for (const r of app2) {
+    const h = String(r[hexKey] ?? "").trim();
+    if (h && !theoHex.has(h)) theoHex.set(h, r);
+  }
+  let doiNguoi = false, doiTen = false;
+  const ra = d.dong.map(([hex3, doi]) => {
+    const goc2 = theoHex.get(hex3);
+    if (!doi) return goc2 ?? { [hexKey]: hex3 };
+    const dong2 = goc2 ? { ...goc2 } : { [hexKey]: hex3 };
+    for (const [k, v] of Object.entries(doi)) {
+      if (k === "xuong_chinh") dong2[k] = v == null || v === "" ? v : workshopGroupOf2(v);
+      else if (k === "ten_cong_trinh") {
+        dong2[k] = v == null ? null : canonicalProjectName2(v);
+        doiTen = true;
+      } else {
+        if (k === "ma_cong_trinh") doiTen = true;
+        if (k === "ten_pm" || k === "ten_pc") doiNguoi = true;
+        dong2[k] = v;
+      }
+    }
+    return dong2;
+  });
+  const raTen = doiTen ? canonicalizeProjectNames(ra, columns) : ra;
+  return doiNguoi ? canonicalizePersonNames(raTen, columns) : raTen;
 }
 
 // ../frontend/components/Dashboard/core/mayChu.ts
@@ -91406,7 +92492,7 @@ async function sanXuatChuan(ver, verSanXuat) {
   chuanDang = { ver, p };
   return p;
 }
-var dangDung = /* @__PURE__ */ new Map();
+var dangDung2 = /* @__PURE__ */ new Map();
 async function phienBanChuan() {
   await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
   const versions = await getVersions();
@@ -91426,9 +92512,9 @@ var PHIEN_BAN_TINH3 = "r3";
 function layHoacDung(khoa, ver, luuDb, dung2) {
   khoa = `${PHIEN_BAN_TINH3}:${khoa}`;
   const k = `${khoa}|${ver}`;
-  const nho2 = ketQuaNho.get(k);
-  if (nho2) return Promise.resolve({ buf: nho2, nguon: "mem", timing: "" });
-  let p = dangDung.get(k);
+  const nho4 = ketQuaNho.get(k);
+  if (nho4) return Promise.resolve({ buf: nho4, nguon: "mem", timing: "" });
+  let p = dangDung2.get(k);
   if (!p) {
     p = (async () => {
       if (luuDb) {
@@ -91443,8 +92529,8 @@ function layHoacDung(khoa, ver, luuDb, dung2) {
       nhoKetQua(k, buf);
       if (luuDb) await luuSnapshot(khoa, ver, buf);
       return { buf, nguon: "tinh", timing };
-    })().finally(() => dangDung.delete(k));
-    dangDung.set(k, p);
+    })().finally(() => dangDung2.delete(k));
+    dangDung2.set(k, p);
   }
   return p;
 }
@@ -91457,20 +92543,23 @@ async function tongQuanSanXuat(filters, tuy) {
     const { rows, cols } = await sanXuatChuan(verChuan, verSanXuat);
     const tTinh = Date.now();
     const kq = tinhTongQuanSanXuat(rows, cols, filters, tuy);
-    const buf = gzipSync(JSON.stringify({ success: true, ver: verChuan, ...kq }));
+    const buf = gzipSync3(JSON.stringify({ success: true, ver: verChuan, ...kq }));
     return { buf, timing: `bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}` };
   });
 }
 async function tongQuanCongTrinh() {
-  const { versions, verSanXuat, verChuan } = await phienBanChuan();
-  const ver = JSON.stringify([verChuan, versions.inventory ?? ""]);
+  const [{ versions, verSanXuat, verChuan }, moc2] = await Promise.all([phienBanChuan(), layMocFile()]);
+  const ver = JSON.stringify([verChuan, versions.inventory ?? "", moc2.khoa]);
   return layHoacDung("tongquan-congtrinh", ver, true, async () => {
     const tDoc = Date.now();
-    const [{ rows, cols }, planMet2] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet()]);
+    const [{ rows, cols }, planMet2, file2] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet(), layFileCongTrinh(moc2)]);
+    const theoFile = coSoFile(file2.body);
     const tTinh = Date.now();
     setPlanMet(planMet2);
-    const banGhi = nenBanGhi(taoBanGhi(rows, cols, Date.now()));
-    const buf = gzipSync(JSON.stringify({ success: true, ver, banGhi }));
+    const dong2 = theoFile ? ghepDongFile(rows, cols, "hex", file2.body) : rows;
+    const banGhi = nenBanGhi(taoBanGhi(dong2, cols, Date.now()));
+    const nguon = theoFile ? { theoFile: true, capNhat: file2.body.capNhat, soFile: file2.body.soFile } : { theoFile: false };
+    const buf = gzipSync3(JSON.stringify({ success: true, ver, banGhi, nguon }));
     return { buf, timing: `bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}` };
   });
 }
@@ -91521,9 +92610,54 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
   res.json({ ok: true, ketQua, ms: Date.now() - t0 });
 });
 
+// src/routes/doDb.ts
+var tron = (v) => Math.round(v * 10) / 10;
+var ms = (t0) => Number(process.hrtime.bigint() - t0) / 1e6;
+async function doMot(p) {
+  let t = process.hrtime.bigint();
+  const c = await p.connect();
+  const moKetNoiMs = tron(ms(t));
+  try {
+    const luot = [];
+    for (let i = 0; i < 7; i++) {
+      t = process.hrtime.bigint();
+      await c.query("SELECT 1");
+      luot.push(tron(ms(t)));
+    }
+    luot.sort((a, b) => a - b);
+    const ba = [];
+    for (let i = 0; i < 3; i++) {
+      t = process.hrtime.bigint();
+      await chayCoGioiHan(c, "SELECT $1::int AS x", [1]);
+      ba.push(tron(ms(t)));
+    }
+    const baLuotMs = ba.sort((x, y) => x - y)[1];
+    const motLuotMs = luot[3];
+    return { moKetNoiMs, luotMs: luot, motLuotMs, baLuotMs, tietKiemMoiTruyVanMs: tron(Math.max(baLuotMs - motLuotMs, 0)) };
+  } finally {
+    c.release();
+  }
+}
+app.get("/api/do-db", authenticateJWT, requireRole("ADMIN"), async (_req, res) => {
+  try {
+    const chinh = await doMot(pool);
+    const xuong = poolMra === pool ? null : await doMot(poolMra);
+    res.set("Cache-Control", "no-store").json({
+      vung: process.env.VERCEL_REGION ?? null,
+      // vùng của máy chủ (vd. iad1); null = chạy ở máy
+      luc: (/* @__PURE__ */ new Date()).toISOString(),
+      chinh,
+      xuong
+    });
+  } catch (e) {
+    console.error("[do-db]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111o \u0111\u01B0\u1EE3c \u0111\u1ED9 tr\u1EC5 DB" });
+  }
+});
+
 // src/server/hoiDapDanhMuc.ts
 var so6 = (col) => numericExprQualified(`t."${col}"`);
-var XUONG = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
+var XUONG2 = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
 var CT2 = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
 var MA_CT2 = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
 var KT = `(CASE WHEN t.ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(t.ngay_khnk_tuan, 10)::date END)`;
@@ -91576,7 +92710,7 @@ var DANH_MUC = [
     hien: ["date", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "so_luong_nhap_kho", "thanh_tien_nhap_kho"],
     cot: [
       { id: "date", ten: "Ng\xE0y nh\u1EADp kho", dn: ["ng\xE0y nh\u1EADp", "ng\xE0y"], kieu: "ngay" },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91602,7 +92736,7 @@ var DANH_MUC = [
     hien: ["date", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "so_luong_xuat_kho", "thanh_tien_xuat_kho"],
     cot: [
       { id: "date", ten: "Ng\xE0y xu\u1EA5t kho", dn: ["ng\xE0y xu\u1EA5t", "ng\xE0y"], kieu: "ngay" },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91660,7 +92794,7 @@ var DANH_MUC = [
     cot: [
       { id: "ngay_nhan_tu_pm", ten: "Ng\xE0y nh\u1EADn t\u1EEB PM", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
       { id: "ngay_can", ten: "Ng\xE0y c\u1EA7n", kieu: "ngay" },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91689,7 +92823,7 @@ var DANH_MUC = [
     hien: ["ngay_nhan", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "nguoi_trien_khai", "tri_gia_don_hang_tong"],
     cot: [
       { id: "ngay_nhan", ten: "Ng\xE0y tri\u1EC3n khai", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91716,7 +92850,7 @@ var DANH_MUC = [
       { id: "ngay_hoan_thanh", ten: "Ng\xE0y t\xEDnh phi\u1EBFu xong", dn: ["ng\xE0y ho\xE0n th\xE0nh", "ng\xE0y"], kieu: "ngay" },
       { id: "ngay_duyet", ten: "Ng\xE0y duy\u1EC7t phi\u1EBFu", dn: ["ng\xE0y duy\u1EC7t"], kieu: "ngay" },
       { id: "tinh_trang_phieu", ten: "T\xECnh tr\u1EA1ng phi\u1EBFu", dn: ["tr\u1EA1ng th\xE1i phi\u1EBFu", "t\xECnh tr\u1EA1ng"], kieu: "chu", tuDien: true },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91741,7 +92875,7 @@ var DANH_MUC = [
       { id: "tinh_trang", ten: "C\xF4ng \u0111o\u1EA1n hi\u1EC7n t\u1EA1i", tuDien: true, dn: ["c\xF4ng \u0111o\u1EA1n", "t\xECnh tr\u1EA1ng", "tr\u1EA1ng th\xE1i", "\u0111ang \u1EDF"], kieu: "chu" },
       { id: "tinh_trang_ipo", ten: "T\xECnh tr\u1EA1ng IPO", dn: ["ipo"], kieu: "chu" },
       { id: "tinh_trang_du_an", ten: "T\xECnh tr\u1EA1ng d\u1EF1 \xE1n", tuDien: true, kieu: "chu" },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91836,7 +92970,7 @@ var DANH_MUC = [
       { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
       { id: "thang", ten: "Th\xE1ng", kieu: "ma", sql: "t.thang::text" },
       { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::int::text" },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91860,7 +92994,7 @@ var DANH_MUC = [
       { id: "thoi_gian", ten: "Th\xE1ng k\u1EBF ho\u1EA1ch", kieu: "ngay", sql: "make_date(t.nam::int, GREATEST(LEAST(t.thang::int, 12), 1), 1)" },
       { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
       { id: "thang", ten: "Th\xE1ng", kieu: "ma", sql: "t.thang::text" },
-      XUONG,
+      XUONG2,
       { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch", "m\u1EE5c ti\xEAu"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true }
     ]
   },
@@ -91880,7 +93014,7 @@ var DANH_MUC = [
       { id: "thoi_gian", ten: "Tu\u1EA7n k\u1EBF ho\u1EA1ch", kieu: "ngay", sql: `to_date(t.nam::text || '-' || lpad(t.tuan::text, 2, '0'), 'IYYY-IW')` },
       { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
       { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::text" },
-      XUONG,
+      XUONG2,
       CT2,
       MA_CT2,
       HM2,
@@ -91909,7 +93043,7 @@ var DANH_MUC = [
     hien: ["date", "xuong_chinh", "so_luong_cong_nhan", "dinh_bien", "gio_cong_hanh_chinh", "gio_cong_tang_ca"],
     cot: [
       { id: "date", ten: "Ng\xE0y", kieu: "ngay" },
-      XUONG,
+      XUONG2,
       { id: "so_luong_cong_nhan", ten: "S\u1ED1 c\xF4ng nh\xE2n", dn: ["c\xF4ng nh\xE2n", "s\u1ED1 ng\u01B0\u1EDDi", "nh\xE2n s\u1EF1", "ng\u01B0\u1EDDi \u0111i l\xE0m", "\u0111i l\xE0m"], kieu: "so" },
       { id: "dinh_bien", ten: "\u0110\u1ECBnh bi\xEAn", kieu: "so" },
       { id: "gio_cong_hanh_chinh", ten: "Gi\u1EDD c\xF4ng h\xE0nh ch\xEDnh", dn: ["gi\u1EDD h\xE0nh ch\xEDnh", "gi\u1EDD c\xF4ng"], kieu: "so" },
@@ -91950,7 +93084,7 @@ var DANH_MUC = [
       { id: "priority", ten: "M\u1EE9c \u01B0u ti\xEAn", tuDien: true, dn: ["\u01B0u ti\xEAn"], kieu: "chu" },
       { id: "stage", ten: "C\xF4ng \u0111o\u1EA1n", tuDien: true, kieu: "chu" },
       // "tổ 4A có bao nhiêu vướng mắc": tổ = xưởng. Chỉ thêm ở bảng này — ở bảng sản xuất "tổ đá / tổ sơn" là tổ nhỏ trong xưởng
-      { ...XUONG, id: "xuong", dn: [...XUONG.dn ?? [], "t\u1ED5"], sql: "t.xuong" },
+      { ...XUONG2, id: "xuong", dn: [...XUONG2.dn ?? [], "t\u1ED5"], sql: "t.xuong" },
       CT2,
       MA_CT2,
       HM2,
@@ -92569,8 +93703,8 @@ var MOC = {
 };
 var SX = "production_status_app";
 var laSx = (id) => id.startsWith("sx:");
-var NOI_SX = `LEFT JOIN ${SX} p ON p.hex::text = t.hex::text`;
-var tuBang = (b, ids) => `${b.id} t${ids.some(laSx) ? ` ${NOI_SX}` : ""}`;
+var NOI_SX2 = `LEFT JOIN ${SX} p ON p.hex::text = t.hex::text`;
+var tuBang = (b, ids) => `${b.id} t${ids.some(laSx) ? ` ${NOI_SX2}` : ""}`;
 function timCot(b, id, co2) {
   if (laSx(id)) {
     const sx = bangTheoId.get(SX);
@@ -92880,6 +94014,7 @@ app.get("/api/hoi-dap/danh-muc", limiter, async (req, res) => {
   }
 });
 var cacheTd = createCache(40);
+var ctNho = null;
 async function layTuDien(co2, coTenCt = true) {
   const gt = {};
   for (const b of DANH_MUC.filter((x) => xemBang(x, co2))) {
@@ -92902,15 +94037,21 @@ async function layTuDien(co2, coTenCt = true) {
       }
       return out;
     };
-    gt[b.id] = b.phienBan ? await cachedByVersions(cacheTd, `${b.id}|${cots.map((c) => c.id).join(",")}`, [b.phienBan], tinh) : await tinh();
+    const khoaTd = `${b.id}|${cots.map((c) => c.id).join(",")}`;
+    const coPhienBan = !!b.phienBan && (await getRelevantVersions([b.phienBan]))[b.phienBan] !== void 0;
+    gt[b.id] = b.phienBan ? await cachedByVersions(cacheTd, khoaTd, [b.phienBan], tinh, "", coPhienBan ? `hoi-dap-td:${khoaTd}` : "") : await tinh();
   }
   let ct = [];
   if (coTenCt && DANH_MUC.some((b) => xemBang(b, co2) && b.cot.some((c) => c.kieu === "ct"))) {
-    const r = await cachedByVersions(cacheTd, "ct", ["production"], async () => {
+    const r = await cachedByVersions(cacheTd, "ct-tho", ["production"], async () => {
       const x = await timedQuery(`SELECT DISTINCT ${gonTen("t.ten_cong_trinh")} AS v FROM ${SX} t`, [], { timeoutMs: 15e3 });
-      return { ct: [...new Set(x.rows.map((y) => canonicalProjectName(y.v)).filter(Boolean))] };
-    });
-    ct = r.ct;
+      return { tho: x.rows.map((y) => y.v) };
+    }, "", "hoi-dap-td:ct-tho", false);
+    const bangTen = projectAliasesVersion();
+    if (!ctNho || ctNho.tho !== r.tho || ctNho.bangTen !== bangTen) {
+      ctNho = { tho: r.tho, bangTen, ct: [...new Set(r.tho.map((v) => canonicalProjectName(v)).filter(Boolean))] };
+    }
+    ct = ctNho.ct;
   }
   return { gt, ct };
 }

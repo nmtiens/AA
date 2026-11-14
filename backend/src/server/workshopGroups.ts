@@ -1,4 +1,5 @@
 import { timedQuery } from '../db.js';
+import { giuHamSong } from './sharedCache.js';
 
 // ============================================================================
 // GỘP XƯỞNG (khu vực sản xuất)
@@ -47,11 +48,35 @@ const load = async () => {
   loadedAt = Date.now();
 };
 
-/** Nạp / làm mới setup (tối đa 5 phút 1 lần; force = ngay sau khi lưu). */
-export const ensureWorkshopGroups = async (force = false): Promise<void> => {
-  if (!force && Date.now() - loadedAt < REFRESH_MS) return;
+// Bản đang có cũ hơn mức này thì CHỜ nạp lại như trước (instance Vercel ngủ lâu rồi thức dậy không dùng setup quá cũ)
+const CHO_NAP_SAU_MS = 30 * 60 * 1000;
+/** 'khong' = còn mới; 'nen' = dùng bản đang có, nạp lại ở nền; 'cho' = phải chờ nạp xong. Hàm thuần. */
+export const cachLamMoi = (force: boolean, daNapLuc: number, now: number, nenDuoc = true): 'khong' | 'nen' | 'cho' => {
+  if (force || daNapLuc === 0) return 'cho';
+  const tuoi = now - daNapLuc;
+  if (tuoi < REFRESH_MS) return 'khong';
+  return nenDuoc && tuoi < CHO_NAP_SAU_MS ? 'nen' : 'cho';
+};
+
+/**
+ * Nạp / làm mới setup (tối đa 5 phút 1 lần; force = ngay sau khi lưu).
+ * Chưa nạp lần nào, force, hoặc bản đang có quá 30 phút: CHỜ nạp xong. Còn lại (5–30 phút) làm mới ở NỀN, request dùng
+ * ngay bản đang có — trước cứ 5 phút lại có 1 request phải chờ 1 truy vấn trước khi vào route. An toàn: setup đổi ở
+ * instance khác chỉ trễ thêm 1 request (vốn đã trễ tới 5 phút), khoá cache có workshopGroupsVersion nên kết quả tính
+ * theo bản cũ không bị giữ; lưu setup ở chính instance này vẫn force nạp ngay. Lượt nạp nền được đăng ký waitUntil
+ * (Vercel không đóng băng giữa truy vấn); trên Vercel mà không đăng ký được thì chờ như cũ.
+ * `nenDuoc` (mặc định false): CHỈ middleware chung truyền true. Route tự gọi `await ensureWorkshopGroups()` (vd. kiểm
+ * xưởng được nhập ở đường GHI BOT công đoạn, báo cáo Xưởng) vẫn CHỜ bản mới khi quá 5 phút, đúng như trước.
+ */
+export const ensureWorkshopGroups = async (force = false, nenDuoc = false): Promise<void> => {
+  const cach = cachLamMoi(force, loadedAt, Date.now(), nenDuoc);
+  if (cach === 'khong') return;
+  // Vừa lưu setup (force): lượt nạp đang chạy có thể đã đọc TRƯỚC khi lưu (nay middleware kích nạp nền ngay đầu chính
+  // request lưu) => chờ nó xong rồi nạp lượt MỚI, không nhận bản cũ rồi giữ thêm 5 phút. load() không ném lỗi.
+  if (force && loading) await loading;
   if (!loading) loading = load().finally(() => { loading = null; });
-  await loading;
+  if (cach === 'cho') { await loading; return; }
+  if (!giuHamSong(loading) && process.env.VERCEL) await loading;
 };
 
 /** Khoá phiên bản setup — đưa vào khoá cache của các API có chia / lọc theo xưởng. */

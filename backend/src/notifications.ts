@@ -1,5 +1,5 @@
 import { pool } from './db.js';
-import { sendToUsers, recipientsFor } from './vuongMacPush.js';
+import { sendToUsers, recipientsFor, layThietBiDay, thietBiCua } from './vuongMacPush.js';
 
 // ============================================================================
 // THÔNG BÁO VƯỚNG MẮC: mỗi sự kiện vừa LƯU vào hộp thông báo (bảng notifications) vừa GỬI
@@ -185,7 +185,8 @@ export async function notify(vm: VMRef, events: NotifyEvent[], actorUsername?: s
       else console.error('[notify] lưu thông báo lỗi', e);
     }
 
-    // 2) Gửi đẩy — gom theo từng sự kiện
+    // 2) Gửi đẩy — gom theo từng sự kiện. Thiết bị của MỌI người nhận đọc 1 lần (trước: mỗi sự kiện 1 câu SELECT)
+    const thietBi = await layThietBiDay(rows.map(([id]) => id));
     for (const ev of events) {
       const ids = rows.filter(([, e]) => e === ev).map(([id]) => id);
       if (ids.length === 0) continue;
@@ -194,7 +195,7 @@ export async function notify(vm: VMRef, events: NotifyEvent[], actorUsername?: s
         body: clip(ev.body ?? ''),
         tag: `${ev.kind}-${vm.id}`,
         target: { hex: vm.hex, category: vm.category, id: vm.id },
-      });
+      }, thietBiCua(thietBi, ids));
     }
   } catch (e) {
     console.error('[notify] lỗi', e);

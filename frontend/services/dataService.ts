@@ -720,18 +720,21 @@ export const fetchTongQuanSanXuat = async (
   }
 };
 
-/** Bản ghi gọn "Tổng quan công trình" máy chủ dựng sẵn (nén cột) — dùng khi chưa có bảng sản xuất. null = lỗi. */
-export const fetchTongQuanCongTrinh = async (): Promise<BanGhiNen | null> => {
+/** Nguồn số của bản ghi dựng sẵn: theo file công trình (máy chủ đã ghép như ghepFileCongTrinh) hay dữ liệu app */
+export interface NguonBanGhiCongTrinh { theoFile: boolean; capNhat?: string | null; soFile?: number }
+/** Bản ghi gọn "Tổng quan công trình" máy chủ dựng sẵn (nén cột) + nguồn số — dùng khi chưa có bảng sản xuất. null = lỗi. */
+export const fetchTongQuanCongTrinhDu = async (): Promise<{ banGhi: BanGhiNen; nguon: NguonBanGhiCongTrinh } | null> => {
   try {
     const r = await fetch(`${API_BASE_URL}/tong-quan/cong-trinh`);
     if (!r.ok) return null;
     const d = await r.json();
-    return d?.success ? d.banGhi as BanGhiNen : null;
+    return d?.success ? { banGhi: d.banGhi as BanGhiNen, nguon: (d.nguon as NguonBanGhiCongTrinh) ?? { theoFile: false } } : null;
   } catch (e) {
     console.error('fetchTongQuanCongTrinh error:', e);
     return null;
   }
 };
+export const fetchTongQuanCongTrinh = async (): Promise<BanGhiNen | null> => (await fetchTongQuanCongTrinhDu())?.banGhi ?? null;
 
 export interface KhsxNhapKhoSummary {
   totalKh: number;

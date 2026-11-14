@@ -7,11 +7,16 @@ import { KHOA_HOP_LE, dinhDang, oTuDong, fileCanXem, khoaCongTrinh } from '../sr
 describe('BÁO CÁO BOT — ô theo ngày', () => {
   it('trả ngày + tháng (giữ tương thích bản giao diện cũ chỉ đọc thang)', () => {
     assert.deepEqual(oTuDong({ ten: 'A', ipo: 'x', ngay: '2026-03-05', ct: true, tt: '1.5', so: 2 }),
-      { ten: 'A', ipo: 'x', ngay: '2026-03-05', thang: '2026-03', ct: true, tt: 1.5, so: 2 });
+      { ten: 'A', ipo: 'x', ngay: '2026-03-05', thang: '2026-03', ct: true, tt: 1.5, so: 2, nsp: '', xuong: '' });
   });
   it('CHƯA BOT: ngày rỗng, tháng rỗng; TT trống giữ null', () => {
     assert.deepEqual(oTuDong({ ten: null, ipo: null, ngay: '', ct: false, tt: null, so: 1 }),
-      { ten: '', ipo: '', ngay: '', thang: '', ct: false, tt: null, so: 1 });
+      { ten: '', ipo: '', ngay: '', thang: '', ct: false, tt: null, so: 1, nsp: '', xuong: '' });
+  });
+  it('nhóm sản phẩm / xưởng: bỏ khoảng trắng thừa, null => rỗng', () => {
+    const o = oTuDong({ ten: 'A', ipo: 'x', ngay: '', ct: true, tt: 1, so: 1, nsp: ' TỦ BẾP ', xuong: null });
+    assert.equal(o.nsp, 'TỦ BẾP');
+    assert.equal(o.xuong, '');
   });
 });
 

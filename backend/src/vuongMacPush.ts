@@ -50,11 +50,27 @@ async function runLimited<T>(items: T[], limit: number, fn: (x: T) => Promise<vo
 /** Đủ khoá VAPID để gửi thông báo đẩy chưa (dùng cho màn "Kiểm tra thông báo") */
 export const isPushEnabled = () => pushEnabled;
 
-/** Gửi đẩy tới mọi thiết bị đã đăng ký của các user. Trả về số thiết bị gửi được / lỗi. */
-export async function sendToUsers(userIds: string[], payload: PushPayload): Promise<{ sent: number; failed: number; devices: number }> {
-  if (!pushEnabled || userIds.length === 0) return { sent: 0, failed: 0, devices: 0 };
+export interface ThietBiDay { id: unknown; user_id: string; endpoint: string; p256dh: string; auth: string }
+/** Thiết bị đã đăng ký nhận đẩy của các user (1 câu cho mọi user). Đẩy đang tắt / không có ai => [] không truy vấn. */
+export async function layThietBiDay(userIds: string[]): Promise<ThietBiDay[]> {
+  if (!pushEnabled || userIds.length === 0) return [];
   const { rows } = await pool.query(
-    'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY($1::text[])', [userIds]);
+    'SELECT id, user_id::text AS user_id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY($1::text[])', [userIds]);
+  return rows;
+}
+/** Chọn trong danh sách đã đọc sẵn các thiết bị của nhóm user `userIds`. Hàm thuần. */
+export const thietBiCua = (tatCa: ThietBiDay[], userIds: string[]): ThietBiDay[] => {
+  const ids = new Set(userIds.map(String));
+  return tatCa.filter(s => ids.has(String(s.user_id)));
+};
+
+/**
+ * Gửi đẩy tới mọi thiết bị đã đăng ký của các user. Trả về số thiết bị gửi được / lỗi.
+ * `thietBi`: danh sách thiết bị của ĐÚNG các user này đã đọc sẵn (notify đọc 1 lần cho mọi sự kiện) — không truyền thì tự đọc.
+ */
+export async function sendToUsers(userIds: string[], payload: PushPayload, thietBi?: ThietBiDay[]): Promise<{ sent: number; failed: number; devices: number }> {
+  if (!pushEnabled || userIds.length === 0) return { sent: 0, failed: 0, devices: 0 };
+  const rows = thietBi ?? await layThietBiDay(userIds);
   const body = JSON.stringify(payload);
   let sent = 0, failed = 0;
   await runLimited(rows, 5, async (s: any) => {

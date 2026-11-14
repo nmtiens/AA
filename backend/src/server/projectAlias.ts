@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { timedQuery } from '../db.js';
-import { readShared, writeShared } from './sharedCache.js';
+import { docChungTheoBang, writeShared } from './sharedCache.js';
 
 // ============================================================================
 // TÊN CÔNG TRÌNH GIỮA CÁC BẢNG
@@ -51,7 +51,11 @@ export const projectAliasesVersion = (): string => aliasVersion;
 let loading: Promise<void> | null = null;
 
 type AliasRows = { r: { code: string; names: string[] }[]; canon: { code: string; name: string }[] };
-const ALIAS_SHARED_KEY = 'project-aliases';
+// Khoá MỚI ('-9b' = phiên bản theo 9 bảng): bản code cũ (đang chạy lúc chuyển bản / bản xem trước) lưu 'project-aliases'
+// kèm phiên bản MỌI bảng — dùng chung 1 dòng thì hai bản ghi đè nhau, bên nào cũng tính lại ~28 giây mỗi lần làm mới.
+const ALIAS_SHARED_KEY = 'project-aliases-9b';
+/** Các bảng quyết định nội dung bảng tên = đúng các bảng compute() đọc */
+const ALIAS_VERSION_TABLES = ['production_status_app', ...NAME_SOURCES];
 
 // Tính bảng tên từ DB (nặng: nối 8 bảng qua HEX, có lúc ~28 giây trên prod)
 const compute = async (): Promise<AliasRows> => {
@@ -106,12 +110,14 @@ const compute = async (): Promise<AliasRows> => {
 };
 
 const load = async () => {
-  // Bảng tên dùng chung mọi instance (api_result_cache) theo phiên bản mọi bảng dữ liệu: instance Vercel mới đọc
-  // 1 dòng nhỏ thay vì tính lại ~28 giây (trước mỗi instance mới tự tính, chiếm 1 kết nối DB suốt thời gian đó)
-  const v = await timedQuery<{ v: string | null }>(
-    `SELECT STRING_AGG(table_name || ':' || last_updated::text, ',' ORDER BY table_name) AS v FROM table_versions`);
-  const versions = v.rows[0]?.v ?? '';
-  let data = versions ? await readShared<AliasRows>(ALIAS_SHARED_KEY, versions) : undefined;
+  // Bảng tên dùng chung mọi instance (api_result_cache): instance Vercel mới đọc 1 dòng nhỏ thay vì tính lại
+  // ~28 giây (trước mỗi instance mới tự tính, chiếm 1 kết nối DB suốt thời gian đó).
+  // Khoá phiên bản CHỈ gồm các bảng compute() đọc (production_status_app + NAME_SOURCES): ETL của bảng không liên
+  // quan (vat_tu, diem_danh, khsx_nam...) không còn làm tính lại. An toàn vì compute() không đọc bảng nào khác.
+  // Phiên bản + bản lưu đọc chung 1 câu (trước là 2 câu nối tiếp).
+  const doc = await docChungTheoBang<AliasRows>(ALIAS_SHARED_KEY, ALIAS_VERSION_TABLES);
+  const versions = doc.versions;
+  let data = versions ? doc.data : undefined;
   if (!data) {
     data = await compute();
     if (versions) await writeShared(ALIAS_SHARED_KEY, versions, data);

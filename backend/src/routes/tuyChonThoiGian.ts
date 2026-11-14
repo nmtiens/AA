@@ -23,11 +23,13 @@ const SQL = `
 
 app.get('/api/overview/tuy-chon-thoi-gian', async (_req: Request, res: Response) => {
   try {
+    // Không tham số, không theo người dùng / quyền, không dùng bảng tên công trình => lưu thêm bản dùng chung mọi
+    // instance (khoá = đường dẫn, hợp lệ theo phiên bản 5 bảng nguồn) và không gắn phiên bản bảng tên vào khoá.
     const payload = await cachedByVersions(cache, 'tat-ca', VERSION_KEYS, async () => {
       const r = await timedQuery<{ loai: string; v: string }>(SQL, [], { timeoutMs: 15000, workMemMb: 32 });
       const lay = (loai: string) => r.rows.filter(x => x.loai === loai).map(x => x.v);
       return { ngay: lay('ngay'), khsx: { nam: lay('nam'), thang: lay('thang'), ngay: lay('ngayKhsx'), tuan: lay('tuan') } };
-    });
+    }, '', '/api/overview/tuy-chon-thoi-gian', false);
     res.json(payload);
   } catch (error) {
     console.error('Lỗi overview/tuy-chon-thoi-gian:', error);

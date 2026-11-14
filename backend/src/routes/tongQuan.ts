@@ -12,9 +12,11 @@ import { verBang, tuCot } from '../server/goiBang.js';
 import { ensureProjectAliases, listProjectAliases, projectAliasesVersion } from '../server/projectAlias.js';
 import { ensureWorkshopGroups, getWorkshopMapping, workshopGroupsVersion } from '../server/workshopGroups.js';
 import { laGioNghiDb } from '../server/gioNghi.js';
+import { layFileCongTrinh, layMocFile } from './congTrinh.js';
 import {
   tinhTongQuanSanXuat, DEFAULT_FILTERS, TUY_CHON_MAC_DINH, canonicalizeProjectNames, canonicalizePersonNames,
   setServerProjectAliases, canonicalizeWorkshops, applyWorkshopMapping, cotTuDuLieu, setPlanMet, taoBanGhi, nenBanGhi,
+  ghepDongFile, coSoFile,
   type DashboardFiltersState, type TuyChonTongQuan,
 } from '@tong-quan/core';
 
@@ -156,18 +158,26 @@ async function tongQuanSanXuat(filters: DashboardFiltersState, tuy: TuyChonTongQ
   });
 }
 
-/** Bản ghi gọn Tổng quan công trình (không phụ thuộc bộ lọc — 1 bản / phiên bản dữ liệu, luôn lưu DB) */
+/** Bản ghi gọn Tổng quan công trình (không phụ thuộc bộ lọc — 1 bản / phiên bản dữ liệu, luôn lưu DB).
+ *  Số theo FILE CÔNG TRÌNH (routes/congTrinh.ts): ghép đúng như trình duyệt (ghepDongFile) => máy chưa có bảng sản xuất
+ *  hiện ngay số theo file, bảng tải xong trình duyệt ghép lại ra cùng số (không nhảy số). Mốc file vào phiên bản. */
 async function tongQuanCongTrinh() {
-  const { versions, verSanXuat, verChuan } = await phienBanChuan();
-  const ver = JSON.stringify([verChuan, versions.inventory ?? '']);
+  // Chỉ hỏi MỐC file (1 câu nhẹ) để lập khoá; câu nặng cong_trinh_hang_muc (layFileCongTrinh) dời vào hàm dựng =>
+  // trúng bộ nhớ / all_data_snapshot thì instance mới KHÔNG phải chạy câu nặng trước khi trả bản dựng sẵn.
+  // An toàn: khoá LUÔN gồm mốc file + phiên bản sản xuất / bảng tên / gộp xưởng + nhập kho; số file đổi là khoá đổi.
+  const [{ versions, verSanXuat, verChuan }, moc] = await Promise.all([phienBanChuan(), layMocFile()]);
+  const ver = JSON.stringify([verChuan, versions.inventory ?? '', moc.khoa]);
   return layHoacDung('tongquan-congtrinh', ver, true, async () => {
     const tDoc = Date.now();
-    const [{ rows, cols }, planMet] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet()]);
+    const [{ rows, cols }, planMet, file] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet(), layFileCongTrinh(moc)]);
+    const theoFile = coSoFile(file.body);
     const tTinh = Date.now();
     // Hạn bỏ qua KH tuần / tháng đã đạt — như trình duyệt (setPlanMet từ /api/production/plan-met)
     setPlanMet(planMet);
-    const banGhi = nenBanGhi(taoBanGhi(rows, cols, Date.now()));
-    const buf = gzipSync(JSON.stringify({ success: true, ver, banGhi }));
+    const dong = theoFile ? ghepDongFile(rows, cols, 'hex', file.body) : rows;
+    const banGhi = nenBanGhi(taoBanGhi(dong, cols, Date.now()));
+    const nguon = theoFile ? { theoFile: true, capNhat: file.body.capNhat, soFile: file.body.soFile } : { theoFile: false };
+    const buf = gzipSync(JSON.stringify({ success: true, ver, banGhi, nguon }));
     return { buf, timing: `bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}` };
   });
 }

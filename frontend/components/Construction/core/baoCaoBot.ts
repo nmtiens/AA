@@ -10,7 +10,8 @@
 
 /** ct: MÃ CÔNG TRÌNH dạng CTxx-xxx (lọc mã của pivot trong file chỉ chọn các mã này, bỏ OEM / hàng lẻ / xuất khẩu) */
 /** ngay: 'YYYY-MM-DD' (máy chủ cũ không có => chỉ bung tới tháng); thang: 'YYYY-MM'; cả 2 rỗng = CHƯA BOT */
-export interface OBot { ten: string; ipo: string; thang: string; ngay?: string; ct: boolean; tt: number | null; so: number }
+/** nsp / xuong: nhóm sản phẩm / xưởng (đã gộp) của HEX theo dữ liệu sản xuất ('' = không có; máy chủ cũ không gửi) */
+export interface OBot { ten: string; ipo: string; thang: string; ngay?: string; ct: boolean; tt: number | null; so: number; nsp?: string; xuong?: string }
 
 export const CHUA_BOT = 'CHUA';
 export const IPO_MAC_DINH = '01. ĐANG SẢN XUẤT';
@@ -126,6 +127,49 @@ export function dungBaoCaoBot(o: readonly OBot[], ipo: ReadonlySet<string> | nul
   for (const n of goc) duyet(n, 0);
   const dong = [...theoTen.values()].sort((a, b) => b.tong - a.tong || a.ten.localeCompare(b.ten, 'vi'));
   return { cot, tieuDe, dong, tongCot, tong, so };
+}
+
+// ---------------------------------------------------------------------------- dòng theo công trình / sản phẩm / xưởng
+// Như tab BOP: chọn chiều của dòng gốc; mở dòng ra chọn chiều con, dòng con mở tiếp theo chiều còn lại.
+export type ChieuBot = 'ct' | 'nsp' | 'xuong';
+export const TEN_CHIEU_BOT: Record<ChieuBot, string> = { ct: 'Công trình', nsp: 'Sản phẩm', xuong: 'Xưởng' };
+/** Thứ tự chiều khi dòng gốc theo 1 chiều (bậc 2, 3 đảo được bằng nút chọn ở dòng gốc) */
+export const BAC_BOT: Record<ChieuBot, ChieuBot[]> = { ct: ['ct', 'nsp', 'xuong'], nsp: ['nsp', 'ct', 'xuong'], xuong: ['xuong', 'ct', 'nsp'] };
+export const KHONG_CO: Record<ChieuBot, string> = { ct: '(trống)', nsp: '(Chưa có nhóm)', xuong: '(Chưa có xưởng)' };
+export const giaTriChieu = (x: OBot, c: ChieuBot) => (c === 'ct' ? x.ten : c === 'nsp' ? x.nsp ?? '' : x.xuong ?? '');
+export const nhanChieu = (v: string, c: ChieuBot) => v || KHONG_CO[c];
+
+/** 1 dòng của cây: duong = giá trị từng bậc từ gốc tới dòng này ('' = trống) */
+export interface NutBot extends DongBot { duong: string[]; con: NutBot[] }
+
+/** Cây dòng theo các bậc `bac` (cùng lọc IPO / mã CT / khoá cột như dungBaoCaoBot). `loc`: chỉ các ô thoả (vd. tìm theo tên công trình).
+ *  Dòng mỗi bậc chưa xếp (giao diện xếp theo chiều). */
+export function cayBaoCaoBot(o: readonly OBot[], ipo: ReadonlySet<string> | null, bac: readonly ChieuBot[], namMo: ReadonlySet<string> = new Set(),
+  chiCt = false, thangMo: ReadonlySet<string> = new Set(), loc?: (x: OBot) => boolean): NutBot[] {
+  // Lúc cộng: mỗi nút giữ Map con theo giá trị; xong thì đổi sang mảng
+  interface Tam { n: NutBot; con: Map<string, Tam> }
+  const goc = new Map<string, Tam>();
+  for (const x of o) {
+    if (ipo && !ipo.has(x.ipo)) continue;
+    if (chiCt && !x.ct) continue;
+    if (loc && !loc(x)) continue;
+    const v = x.tt ?? 0;
+    const ngay = x.ngay ?? '';
+    const khoa = khoaCot(x.thang || ngay.slice(0, 7), namMo, ngay, thangMo);
+    let ds = goc;
+    const duong: string[] = [];
+    for (const c of bac) {
+      const g = giaTriChieu(x, c);
+      duong.push(g);
+      let t = ds.get(g);
+      if (!t) { t = { n: { ten: g, duong: [...duong], o: {}, tong: 0, so: 0, con: [] }, con: new Map() }; ds.set(g, t); }
+      for (const k of khoa) cong(t.n.o, k, v);
+      t.n.tong += v; t.n.so += x.so;
+      ds = t.con;
+    }
+  }
+  const raMang = (m: Map<string, Tam>): NutBot[] => [...m.values()].map(t => ({ ...t.n, con: raMang(t.con) }));
+  return raMang(goc);
 }
 
 // ---------------------------------------------------------------------------- file công trình lỗi

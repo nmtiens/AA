@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { getRelevantVersions } from './data.js';
 import { projectAliasesVersion } from './projectAlias.js';
-import { readShared, writeShared } from './sharedCache.js';
+import { readShared, writeShared, giuHamSong } from './sharedCache.js';
 
 // ============================================================================
 // CACHE KẾT QUẢ API THEO PHIÊN BẢN BẢNG (table_versions)
@@ -28,6 +28,9 @@ export const createCache = <T = unknown>(max = 50): VersionedCache<T> => ({ max,
  * quả không phụ thuộc người dùng và bảng tên công trình (phiên bản dùng chung không gồm projectAliasesVersion vì
  * instance mới chưa nạp bảng tên). Khoá do nơi gọi chọn (vd. chỉ đường dẫn API): không lấy từ tham số request
  * => tham số tuỳ ý không đẻ thêm dòng trong bảng cache.
+ * `dungBangTen` (mặc định true = như cũ): false => KHÔNG đưa phiên bản bảng tên công trình vào khoá. CHỈ truyền false
+ * khi compute không hề dùng bảng tên (expandProjectNames / canonicalProjectName / lọc congTrinh / ctWhitelist): kết quả
+ * khi đó không phụ thuộc bảng tên nên giữ lại được lúc bảng tên vừa nạp xong ở nền (instance mới khỏi tính lại 1 lượt).
  */
 export async function cachedByVersions<T>(
   cache: VersionedCache<T>,
@@ -36,10 +39,11 @@ export async function cachedByVersions<T>(
   compute: () => Promise<T>,
   extraVersion = '',
   sharedKey = '',
+  dungBangTen = true,
 ): Promise<T> {
   const versions = await getRelevantVersions(versionKeys);
   // Gắn cả phiên bản bảng tên công trình: các API gộp / mở rộng tên công trình phải tính lại khi bảng tên đổi
-  const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
+  const vkey = khoaPhienBan(versions, extraVersion, dungBangTen ? projectAliasesVersion() : '');
   const hit = cache.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
 
@@ -53,7 +57,13 @@ export async function cachedByVersions<T>(
       let payload = sharedKey ? await readShared<T>(sharedKey, sharedVersions) : undefined;
       if (payload === undefined) {
         payload = await compute();
-        if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
+        if (sharedKey) {
+          // Kết quả đã có: không bắt người dùng chờ ghi bản dùng chung (3 lượt đi-về + tải payload lên DB).
+          // An toàn vì lệnh ghi được đăng ký waitUntil (Vercel giữ hàm sống tới khi ghi xong); trên Vercel mà
+          // không đăng ký được thì CHỜ như cũ — không để lệnh ghi bị đóng băng giữa giao dịch.
+          const ghi = writeShared(sharedKey, sharedVersions, payload);
+          if (!giuHamSong(ghi) && process.env.VERCEL) await ghi;
+        }
       }
       cache.map.delete(key); // Map giữ thứ tự chèn: xoá rồi chèn lại để entry vừa dùng nằm cuối
       cache.map.set(key, { vkey, payload });
@@ -70,6 +80,10 @@ export async function cachedByVersions<T>(
   cache.inflight.set(flightKey, p);
   return p;
 }
+
+/** Khoá phiên bản của 1 entry: phiên bản các bảng | phiên bản phụ (vd. gộp xưởng) | phiên bản bảng tên ('' = không dùng) */
+export const khoaPhienBan = (versions: Record<string, string>, extraVersion: string, bangTen: string): string =>
+  `${JSON.stringify(versions)}|${extraVersion}|${bangTen}`;
 
 /** Khoá cache ngắn cho tham số lớn (vd. danh sách hàng chục nghìn HEX). */
 export const hashKey = (value: unknown): string =>

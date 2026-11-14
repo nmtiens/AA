@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
-import { Search, X, Filter, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Search, X, Filter, ChevronRight, AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter';
 import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
@@ -24,9 +24,10 @@ import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/component
 import { hexColumnKeysOf } from '../Dashboard/components/Dashboards/DanhSachHex';
 import { ProjectHealthModal, dungHangMucCongTrinh, type ProjectHealthKeys } from './ProjectHealthModal';
 import { BopTab } from './ProjectHealthTabs';
-import { BotKhnk } from './BotKhnk';
 import { BomTatCa, taiTruocBomTatCa } from './BopM2Section';
-import { BaoCaoBot } from './BaoCaoBot';
+import { BaoCaoBot, taiTruocBaoCaoBot } from './BaoCaoBot';
+import { KhnkSheet, taiTruocKhnk } from './KhnkSheet';
+import { BotCongDoan } from './BotCongDoan';
 import { maIpo } from './core/baoCaoBot';
 import { HexTimelineModal } from './HexTimelineModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
@@ -159,9 +160,30 @@ interface Props {
    * trang hiện và lọc được ngay; danh sách HEX / cửa sổ công trình / xuất Excel chờ bảng tải xong.
    */
   banGhiSan?: Rec[] | null;
+  /** Nguồn số liệu, ghi dưới tiêu đề trang (vd. "Số theo file công trình · cập nhật 14:05 12/11") */
+  nguonSo?: React.ReactNode;
 }
 
-const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory, banGhiSan = null }) => {
+// Sắp xếp bảng theo cột: bấm 1 lần theo chiều mặc định của cột (số: lớn trước; chữ: A→Z), lần 2 đảo chiều, lần 3 về thứ tự gốc
+type SapCot = { k: string; giam: boolean } | null;
+const doiSapCot = (k: string, chuGiam = true) => (s: SapCot): SapCot => {
+  if (!s || s.k !== k) return { k, giam: chuGiam };
+  return s.giam === chuGiam ? { k, giam: !chuGiam } : null;
+};
+function sapTheo<T>(ds: T[], sap: SapCot, gt: (r: T, k: string) => number | string): T[] {
+  if (!sap) return ds;
+  const so = (a: number | string, b: number | string) =>
+    (typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), 'vi', { numeric: true }));
+  return [...ds].sort((x, y) => (sap.giam ? so(gt(y, sap.k), gt(x, sap.k)) : so(gt(x, sap.k), gt(y, sap.k))));
+}
+const NutSapCot = ({ k, sap, onSap, chuGiam = true }: { k: string; sap: SapCot; onSap: (f: (s: SapCot) => SapCot) => void; chuGiam?: boolean }) => (
+  <button type="button" onClick={e => { e.stopPropagation(); onSap(doiSapCot(k, chuGiam)); }} title="Sắp xếp (bấm lần 3 về thứ tự mặc định)" aria-label="Sắp xếp"
+    className={`ml-0.5 inline-flex align-middle ${sap?.k === k ? 'text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
+    {sap?.k === k ? (sap.giam ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />) : <ArrowUpDown className="h-3.5 w-3.5" />}
+  </button>
+);
+
+const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory, banGhiSan = null, nguonSo }) => {
   // Nhóm công trình (Luồng đỏ / Căn mẫu = danh sách setup ở Công trình → Setup); null = mọi công trình
   const [group, setGroup] = useState<ProjectGroupId | null>(null);
   // Nút "KHSX tháng này": chỉ công trình có trong kế hoạch sản xuất của tháng hiện tại (KH tháng; chưa có thì KH tuần)
@@ -179,6 +201,23 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       .catch(() => { if (!ac.signal.aborted) setKhsxLoi(true); });
     return () => ac.abort();
   }, [locKhsx, khsxCt]);
+  // Tháng chưa có KHSX (bảng KHSX chưa nạp kỳ mới): lấy theo các công trình có trong Bảng KHNK (file PRODUCTION STATUS)
+  const [khnkCt, setKhnkCt] = useState<{ ma: Set<string>; ten: Set<string> } | null>(null);
+  const khsxTrong = locKhsx && khsxCt?.loai === null;
+  useEffect(() => {
+    if (!khsxTrong || khnkCt) return;
+    let bo = false;
+    taiTruocKhnk().then(d => {
+      if (bo) return;
+      const iMa = d.tieuDe.findIndex(t => t.nhan === 'MÃ CT'), iTen = d.tieuDe.findIndex(t => t.nhan === 'TÊN CÔNG TRÌNH');
+      const chu = (v: unknown) => String(v ?? '').trim();
+      setKhnkCt({
+        ma: new Set(d.dong.map(x => chu(x.o[iMa]).toUpperCase()).filter(Boolean)),
+        ten: new Set(d.dong.map(x => chu(x.o[iTen])).filter(Boolean).map(projectMatchKey)),
+      });
+    }).catch(() => { if (!bo) setKhnkCt({ ma: new Set(), ten: new Set() }); });
+    return () => { bo = true; };
+  }, [khsxTrong, khnkCt]);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Vướng mắc đang mở theo công trình (API nhẹ, 1 lần khi mở trang)
   const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(null);
@@ -211,7 +250,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // inDetail = mở từ cửa sổ chi tiết (vd PC): chỉ tính các dòng trong phạm vi cửa sổ đó
   const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(null);
   // View cho TẤT CẢ công trình đang xem (cùng bộ lọc trang): tổng quan / BOP / BOT / BOM (như tab trong cửa sổ 1 công trình)
-  const [viewCT, setViewCT] = useState<'tong' | 'bop' | 'bot' | 'bom' | 'bcbot'>('tong');
+  const [viewCT, setViewCT] = useState<'tong' | 'bop' | 'bom' | 'bcbot' | 'botcd'>('tong');
   const [hexXem, setHexXem] = useState<string | null>(null);
   const healthCt = health?.ct ?? null;
   const [f, setF] = useState<Filters>({});
@@ -246,6 +285,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const groupRecords = useMemo(() => {
     if (locKhsx) {
       if (!khsxCt) return [];
+      if (khsxCt.loai === null) {
+        if (!khnkCt) return [];
+        return allRecords.filter(r => khnkCt.ma.has(String(r.ma ?? '').trim().toUpperCase()) || khnkCt.ten.has(r.mk));
+      }
       // Đúng các HEX có trong KH của tháng (không lấy cả công trình — công trình còn nhiều hạng mục ngoài KH)
       const hex = new Set(khsxCt.hex);
       return allRecords.filter(r => hex.has(String(r.row?.['hex'] ?? '').trim()));
@@ -253,7 +296,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     if (!group) return allRecords;
     const allowed = new Set(getProjectsForView(group).map(projectMatchKey));
     return allRecords.filter(r => allowed.has(r.mk));
-  }, [allRecords, group, locKhsx, khsxCt]);
+  }, [allRecords, group, locKhsx, khsxCt, khnkCt]);
   const groupSize = useMemo(() => (group ? getProjectsForView(group).length : 0), [group]);
 
   const ipoOptions = useMemo(
@@ -399,7 +442,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey), thuTu: thuTuNhom(e.name) };
     }).sort((a, b) => soSanhThuTu(a.thuTu, b.thuTu) || b.total - a.total || b.items - a.items);
   }, [records, f, ctSearch, vmIndex, thuTuNhom]); // eslint-disable-line react-hooks/exhaustive-deps
+  // STT theo thứ tự mặc định (luồng trước) — không đổi khi bấm sắp xếp cột
   const ctStt = useMemo(() => sttHienThi(ctTable.map(r => r.thuTu)), [ctTable]);
+  const sttTheoTen = useMemo(() => new Map(ctTable.map((r, i) => [r.name, ctStt[i]])), [ctTable, ctStt]);
+  const [sapCt, setSapCt] = useState<SapCot>(null);
+  const [sapPc, setSapPc] = useState<SapCot>(null);
+  // Cột Vướng mắc mặc định ẩn (bấm + ở cột Quá hạn để hiện)
+  const [moVm, setMoVm] = useState(false);
+  const ctHien = useMemo(() => sapTheo(ctTable, sapCt, (r, k) => (
+    k === 'name' ? r.name : k === 'pm' ? [...r.pms].join(', ') : k === 'items' ? r.items : k === 'total' ? r.total
+      : k === 'pct' ? pctHoanThanh(r.name) : k === 'bot' ? (r.botDuAn?.getTime() ?? Number.MAX_SAFE_INTEGER)
+        : k === 'overdue' ? r.overdue : k === 'vm' ? r.vm.open : 0)), [ctTable, sapCt, hoanThanhCt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pcHien = useMemo(() => sapTheo(pcTable, sapPc, (r, k) => (
+    k === 'name' ? r.name : k === 'ct' ? r.cts.size : k === 'items' ? r.items : r.total)), [pcTable, sapPc]);
   // Dòng TỔNG bảng công trình: cộng các dòng đang hiện; % hoàn thành mọi IPO trừ HỦY như từng dòng;
   // vướng mắc mỗi mã chỉ cộng 1 lần như ô "Vướng mắc đang mở"
   const ctTong = useMemo(() => {
@@ -559,7 +614,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => hexColumnKeysOf(columns), [columns]);
 
-  // View BOP / BOT / BOM cho tất cả công trình: hạng mục theo mọi bộ lọc trang (như bảng công trình);
+  // View BOP / BOM cho tất cả công trình: hạng mục theo mọi bộ lọc trang (như bảng công trình);
   // bảng BOP lấy cả phần Kho từ chính các hạng mục này, cùng số với bảng công trình ở trang Tổng quan
   const homNay = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Gắn tên công trình (tên chuẩn của trang) vào từng hạng mục => bảng chi tiết có cột Công trình
@@ -568,13 +623,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     return dungHangMucCongTrinh(recs.map(r => r.row), healthKeys, homNay).map(i => ({ ...i, congTrinh: ctTheoHex.get(i.hex) ?? '' }));
   };
   const hangMucTatCa = useMemo(
-    () => (viewCT === 'bop' || viewCT === 'bot' ? ganCt(rowsAll) : []),
+    () => (viewCT === 'bop' || viewCT === 'botcd' ? ganCt(rowsAll) : []),
     [viewCT, rowsAll, healthKeys, homNay] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-  // Báo cáo điều phối KH tháng – tuần (tab BOT): mọi bộ lọc trang TRỪ Tình trạng IPO (cần cả hạng mục đã hoàn thành)
-  const dieuPhoiTatCa = useMemo(
-    () => (viewCT === 'bot' ? ganCt(groupRecords.filter(r => r.status !== 'HỦY' && activeKeys.every(k => r[k] === f[k]))) : []),
-    [viewCT, groupRecords, f, healthKeys, homNay] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const tenCtTatCa = useMemo(() => [...new Set(rowsAll.map(r => r.ct))], [rowsAll]);
   // Tải sẵn BOM (BOP-M2) của các công trình đang xem khi trang rảnh => bấm tab BOM có số ngay
@@ -583,6 +633,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const t = setTimeout(() => { taiTruocBomTatCa(tenCtTatCa)?.catch(() => { /* lỗi: tab BOM tự tải lại và báo */ }); }, 1500);
     return () => clearTimeout(t);
   }, [tenCtTatCa]);
+  // Tải sẵn số BOT (không theo bộ lọc trang) 1 lần khi mở trang => bấm tab BOT có bảng ngay
+  useEffect(() => {
+    const t = setTimeout(() => {
+      taiTruocBaoCaoBot().catch(() => { /* lỗi: tab BOT tự tải lại và báo */ });
+      taiTruocKhnk().catch(() => { /* lỗi: bảng Kế hoạch nhập kho tự tải lại và báo */ });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
   const tenHexXem = useMemo(() => {
     if (!hexXem) return undefined;
     const r = allRecords.find(x => String(x.row[healthKeys.hexKey] ?? '') === hexXem);
@@ -739,7 +797,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <h2 className="text-lg font-semibold tracking-tight text-slate-900">
               Báo cáo tiến độ công trình{group && <span className="text-red-700"> · {GROUP_SHORT[group]}</span>}
             </h2>
-            <p className="text-xs text-slate-500" title="Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết">Đơn vị: tỷ đồng · bấm số để xem chi tiết</p>
+            <p className="text-xs text-slate-500" title="Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết">Đơn vị: tỷ đồng · bấm số để xem chi tiết{nguonSo && <> · {nguonSo}</>}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định tất cả */}
@@ -834,7 +892,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <button
               key={g ?? 'all'}
               type="button"
-              onClick={() => { setGroup(g); setLocKhsx(false); setF({}); }}
+              onClick={() => { setGroup(g); setLocKhsx(false); setF({}); setViewCT(v => (v === 'botcd' ? 'tong' : v)); }}
               title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}
               className={`h-full rounded-md px-2.5 font-medium transition ${group === g && !locKhsx ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : g === 'luong-do' ? 'font-semibold text-red-600 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-100'}`}
             >
@@ -843,17 +901,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           ))}
           <button
             type="button"
-            onClick={() => { setLocKhsx(true); setGroup(null); setF({}); }}
+            onClick={() => { setLocKhsx(true); setGroup(null); setF({}); setViewCT(v => (v === 'botcd' ? v : 'tong')); }}
             title="Chỉ các công trình có trong kế hoạch sản xuất tháng hiện tại (KH tháng; tháng chưa có KH tháng thì theo KH tuần)"
             className={`h-full rounded-md px-2.5 font-medium transition ${locKhsx ? 'bg-blue-700 text-white' : 'font-semibold text-blue-700 hover:bg-blue-50'}`}
           >
-            KHSX tháng {new Date().getMonth() + 1}
+            Kế Hoạch Nhập Kho
           </button>
         </div>
         <div className="flex h-9 w-fit items-center rounded-lg border border-slate-300 bg-white p-0.5 text-sm" role="group" aria-label="Xem theo">
-          {([['tong', 'Tổng quan'], ['bop', 'BOP · Công đoạn'], ['bot', 'BOT · Kế hoạch nhập kho'], ['bom', 'BOM · Vật tư'], ['bcbot', 'BÁO CÁO BOT']] as const).map(([k, nhan]) => (
+          {/* Kế Hoạch Nhập Kho: chỉ 2 view (bảng KHNK theo file · BOT x BOP); các nhóm công trình khác không có BOT x BOP */}
+          {((locKhsx ? [['tong', 'Bảng KHNK'], ['botcd', 'BOT x BOP']] : [['tong', 'Tổng quan'], ['bop', 'BOP'], ['bom', 'BOM'], ['bcbot', 'BOT']]) as [typeof viewCT, string][]).map(([k, nhan]) => (
             <button key={k} type="button" onClick={() => setViewCT(k)} aria-pressed={viewCT === k}
-              title={k === 'tong' ? 'Báo cáo tổng quan'
+              title={k === 'tong' ? (locKhsx ? 'Bảng kế hoạch nhập kho theo file PRODUCTION STATUS' : 'Báo cáo tổng quan')
+                : k === 'botcd' ? 'Các bộ phận nhập ngày BOT cho từng HEX × công đoạn (theo phân công ở Setup)'
                 : k === 'bcbot' ? 'Giá trị đơn hàng còn lại theo dự án (như sheet BÁO CÁO BOT của file MASTER_PROJECT_COORDINATION) — cập nhật khi file công trình được lưu'
                   : `${nhan} của tất cả công trình đang xem (theo bộ lọc trang)`}
               className={`h-full rounded-md px-3 font-semibold transition ${viewCT === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
@@ -862,11 +922,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           ))}
         </div>
         </div>
-        {locKhsx && (
+        {locKhsx && viewCT !== 'tong' && (
           <p className={`rounded-lg border px-4 py-2 text-xs ${khsxLoi || khsxCt?.loai === null ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
             {khsxLoi ? 'Không tải được danh sách công trình trong KHSX — thử tải lại trang.'
               : !khsxCt ? 'Đang tải danh sách công trình trong KHSX…'
-                : khsxCt.loai === null ? `Tháng ${khsxCt.thang}/${khsxCt.nam} chưa có kế hoạch sản xuất (KH tháng / tuần).`
+                : khsxCt.loai === null ? (!khnkCt ? 'Đang tải danh sách công trình trong Bảng KHNK…'
+                  : `Tháng ${khsxCt.thang}/${khsxCt.nam} chưa có KHSX (bảng KHSX cập nhật lần cuối ${khsxCt.capNhat ? new Date(khsxCt.capNhat).toLocaleDateString('vi-VN') : '—'}) — đang xem ${fmtInt(groupRecords.length)} hạng mục / ${fmtInt(new Set(groupRecords.map(r => r.mk)).size)} công trình có trong Bảng KHNK.`)
                   : `Đang xem ${fmtInt(groupRecords.length)} hạng mục / ${fmtInt(new Set(groupRecords.map(r => r.mk)).size)} công trình có trong KH ${khsxCt.loai === 'THÁNG' ? 'tháng' : 'tuần (KHSX chưa có KH tháng)'} ${khsxCt.thang}/${khsxCt.nam} — KHSX có ${fmtInt(khsxCt.hex.length)} HEX${khsxCt.capNhat ? `, bảng KHSX cập nhật lần cuối ${new Date(khsxCt.capNhat).toLocaleDateString('vi-VN')}` : ''}.`}
           </p>
         )}
@@ -878,20 +939,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
         {viewCT !== 'tong' && (
           <div className={`${cardCls} p-4 sm:p-5`}>
-            {viewCT !== 'bcbot' && (
-              <p className="mb-4 text-sm text-slate-500">
-                Tất cả công trình đang xem: <b className="text-slate-800">{fmtInt(tenCtTatCa.length)}</b> công trình · <b className="text-slate-800">{fmtInt(rowsAll.length)}</b> hạng mục (theo nhóm / bộ lọc phía trên). Bấm HEX để xem chi tiết hạng mục.
-              </p>
-            )}
             {viewCT === 'bcbot' && <BaoCaoBot onHexClick={setHexXem} ipoChon={ipoSel} onIpos={setIpoBot} />}
             {viewCT === 'bop' && (coBang
               ? <BopTab items={hangMucTatCa} onHexClick={setHexXem} extra={null} today={homNay} tatCa />
               : <p className="py-10 text-center text-sm font-semibold text-slate-500">Đang tải chi tiết hạng mục…</p>)}
-            {viewCT === 'bot' && <BotKhnk items={hangMucTatCa} dieuPhoiItems={dieuPhoiTatCa} onHexClick={setHexXem} />}
+            {viewCT === 'botcd' && (coBang
+              ? <BotCongDoan items={hangMucTatCa} onHexClick={setHexXem} />
+              : <p className="py-10 text-center text-sm font-semibold text-slate-500">Đang tải chi tiết hạng mục…</p>)}
             {viewCT === 'bom' && <BomTatCa tenCongTrinh={tenCtTatCa} onHexClick={setHexXem} />}
           </div>
         )}
-        <div className={viewCT === 'tong' ? 'space-y-4' : 'hidden'}>
+        {/* Nút "Kế Hoạch Nhập Kho" + Tổng quan: bảng kế hoạch nhập kho theo tháng của file PRODUCTION STATUS.xlsx
+            (thay khung tổng quan — số đơn vị triệu như file) */}
+        {locKhsx && viewCT === 'tong' && <div className={`${cardCls} p-4 sm:p-5`}><KhnkSheet /></div>}
+        <div className={viewCT === 'tong' && !locKhsx ? 'space-y-4' : 'hidden'}>
         {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
             Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho
             Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn kho
@@ -983,13 +1044,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </div>
         </div>
 
-        {/* HẠNG MỤC + CẢNH BÁO (cảnh báo đếm hạng mục còn theo dõi: chưa nhập đủ, không hủy) */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9">
-          <Kpi label="Công trình" value={fmtInt(kpi.cts)}
-               spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm công trình theo tên chuẩn — gộp các cách viết của cùng công trình).' }} />
-          <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
-               sub={kpi.cancelled > 0 ? `ngoài tổng ${fmtInt(kpi.cancelled)} hủy` : undefined}
-               spec={{ pred: r => r.status !== 'HỦY', focus: 'items', note: 'Mọi hạng mục, không tính đơn hủy.' }} />
+        {/* HẠNG MỤC + CẢNH BÁO (cảnh báo đếm hạng mục còn theo dõi: chưa nhập đủ, không hủy).
+            Số công trình / tổng số mục đã có ở dòng dưới "Tổng giá trị đơn hàng" — không lặp thành thẻ */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
           <Kpi label="Đã nhập kho đủ" value={fmtInt(kpi.stocked)} unit="mục" tone="text-emerald-600"
                sub={`${fmtTy(kpi.stockedDone)} tỷ`}
                hint={`Đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng — ${fmtTy(kpi.stockedDone)} tỷ. Ô "Đã nhập kho (P022)" ${fmtTy(roundTy(kpi.done))} tỷ còn gồm ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần.`}
@@ -1103,14 +1160,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   <thead className={theadB}>
                     <tr>
                       <th className={`${thB} w-px`}>STT</th>
-                      <th className={thB}>Tên PC</th>
-                      <th className={`${thB} w-px`} title="Số công trình">CT</th>
-                      <th className={`${thB} w-px`} title="Số hạng mục">Mục</th>
-                      <th className={`${thB} w-px whitespace-nowrap`} title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
+                      <th className={`${thB} whitespace-nowrap`}>Tên PC<NutSapCot k="name" sap={sapPc} onSap={setSapPc} chuGiam={false} /></th>
+                      <th className={`${thB} w-px whitespace-nowrap`} title="Số công trình">CT<NutSapCot k="ct" sap={sapPc} onSap={setSapPc} /></th>
+                      <th className={`${thB} w-px whitespace-nowrap`} title="Số hạng mục">Mục<NutSapCot k="items" sap={sapPc} onSap={setSapPc} /></th>
+                      <th className={`${thB} w-px whitespace-nowrap`} title="Tổng giá trị (tỷ)">GT (Tỷ)<NutSapCot k="total" sap={sapPc} onSap={setSapPc} /></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pcTable.map((r, idx) => (
+                    {pcHien.map((r, idx) => (
                       <tr key={r.name} onClick={() => openDetail({
                             eyebrow: 'Người phụ trách (PC)', title: r.name, exclude: 'pc',
                             pred: rec => rec.pc === r.name, focus: 'total', filter: { key: 'pc', value: r.name },
@@ -1169,21 +1226,26 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 <thead className={theadB}>
                   <tr>
                     <th className={`${thB} w-px`}>STT</th>
-                    <th className={thB}>Tên công trình</th>
-                    <th className={thB}>PM</th>
-                    <th className={thB}>Hạng mục</th>
+                    <th className={thB}>Tên công trình<NutSapCot k="name" sap={sapCt} onSap={setSapCt} chuGiam={false} /></th>
+                    <th className={thB}>PM<NutSapCot k="pm" sap={sapCt} onSap={setSapCt} chuGiam={false} /></th>
+                    <th className={thB}>Hạng mục<NutSapCot k="items" sap={sapCt} onSap={setSapCt} /></th>
                     <th className={thB}
                         title={ctHasCancel ? 'Tổng trị giá đơn hàng, không tính đơn hủy (dòng phụ "hủy …" = trị giá đơn hủy)' : undefined}>
-                      Tổng giá trị (Tỷ){ctHasCancel && <span className="text-rose-500">*</span>}
+                      Tổng giá trị (Tỷ){ctHasCancel && <span className="text-rose-500">*</span>}<NutSapCot k="total" sap={sapCt} onSap={setSapCt} />
                     </th>
-                    <th className={`${thB} min-w-[5.5rem]`}>Hoàn thành</th>
-                    <th className={thB} title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT dự án</th>
-                    <th className={thB} title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
-                    <th className={thB} title="Vướng mắc chưa xử lý xong (theo mã công trình)">Vướng mắc</th>
+                    <th className={`${thB} min-w-[5.5rem]`}>Hoàn thành<NutSapCot k="pct" sap={sapCt} onSap={setSapCt} /></th>
+                    <th className={thB} title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT dự án<NutSapCot k="bot" sap={sapCt} onSap={setSapCt} chuGiam={false} /></th>
+                    <th className={`${thB} whitespace-nowrap`} title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">
+                      Quá hạn<NutSapCot k="overdue" sap={sapCt} onSap={setSapCt} />
+                      <button type="button" onClick={() => setMoVm(v => !v)} aria-expanded={moVm}
+                        title={moVm ? 'Ẩn cột Vướng mắc' : 'Hiện cột Vướng mắc'}
+                        className="ml-1 font-bold text-emerald-800 hover:text-emerald-950">{moVm ? '−' : '+'}</button>
+                    </th>
+                    {moVm && <th className={thB} title="Vướng mắc chưa xử lý xong (theo mã công trình)">Vướng mắc<NutSapCot k="vm" sap={sapCt} onSap={setSapCt} /></th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {ctTable.map((r, idx) => {
+                  {ctHien.map(r => {
                     const pct = pctHoanThanh(r.name);
                     const pms = [...r.pms];
                     const botLeft = r.botDuAn ? Math.floor((r.botDuAn.getTime() - today) / 86_400_000) : null;
@@ -1193,7 +1255,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                       <tr key={r.name} onClick={() => { if (canBang()) setHealth({ ct: r.name, inDetail: false }); }}
                           title={`${mau ? `${mau.nhan} · ` : ''}Bấm để xem tổng quan công trình (BOT · BOP · BOM)`}
                           className={`group cursor-pointer ${mau ? `${dangChon ? 'bg-amber-200 font-semibold' : mau.nen} ${mau.hover}` : `hover:bg-amber-50 ${dangChon ? 'bg-amber-100 font-semibold' : ''}`}`}>
-                        <td className={`${soB} ${mau?.stt ?? ''}`}>{ctStt[idx]}</td>
+                        <td className={`${soB} ${mau?.stt ?? ''}`}>{sttTheoTen.get(r.name)}</td>
                         <td className={`${tdB} min-w-[140px] font-bold`}>
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="break-words group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
@@ -1232,15 +1294,17 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                           {r.botDuAn ? r.botDuAn.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' }) : ''}
                         </td>
                         <td className={`${soB} ${r.overdue ? 'font-bold text-red-600' : ''}`}>{r.overdue || ''}</td>
-                        <td className={`${soB} ${r.vm.open ? 'font-bold text-red-600' : ''}`}
-                            title={r.vm.open ? `${r.vm.open} vướng mắc đang mở · ${r.vm.overdue} quá hạn BOT` : undefined}>
-                          {vmRows === null ? '…' : r.vm.open || ''}
-                        </td>
+                        {moVm && (
+                          <td className={`${soB} ${r.vm.open ? 'font-bold text-red-600' : ''}`}
+                              title={r.vm.open ? `${r.vm.open} vướng mắc đang mở · ${r.vm.overdue} quá hạn BOT` : undefined}>
+                            {vmRows === null ? '…' : r.vm.open || ''}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
                   {ctTable.length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
+                    <tr><td colSpan={moVm ? 9 : 8} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
                   )}
                 </tbody>
                 {ctTable.length > 0 && (
@@ -1255,7 +1319,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                       <td className={soB}>{fmtPt(ctTong.pct)}</td>
                       <td className={tdB} />
                       <td className={soB}>{ctTong.overdue ? fmtInt(ctTong.overdue) : ''}</td>
-                      <td className={soB}>{vmRows === null ? '…' : ctTong.vm ? fmtInt(ctTong.vm) : ''}</td>
+                      {moVm && <td className={soB}>{vmRows === null ? '…' : ctTong.vm ? fmtInt(ctTong.vm) : ''}</td>}
                     </tr>
                   </tfoot>
                 )}

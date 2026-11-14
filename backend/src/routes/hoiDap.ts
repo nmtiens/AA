@@ -4,10 +4,10 @@ import { z } from 'zod';
 import { timedQuery } from '../db.js';
 import { app } from '../server/app.js';
 import { loadUserAccess } from '../server/permissions.js';
-import { notCancelledHexCond } from '../server/data.js';
+import { notCancelledHexCond, getRelevantVersions } from '../server/data.js';
 import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
 import { expandWorkshops, workshopGroupSql, workshopGroupsVersion } from '../server/workshopGroups.js';
-import { canonicalProjectName, expandProjectNames, normNameSql } from '../server/projectAlias.js';
+import { canonicalProjectName, expandProjectNames, normNameSql, projectAliasesVersion } from '../server/projectAlias.js';
 import { DANH_MUC, bangTheoId, sqlCot, loaiKhsx, type Bang, type Cot, type LoaiKh } from '../server/hoiDapDanhMuc.js';
 import { aiBat, hoiAI, taoLoiDan, LoiAI } from '../server/hoiDapAi.js';
 import { layPlanMet } from './data.js';
@@ -425,6 +425,8 @@ app.get('/api/hoi-dap/danh-muc', limiter, async (req: Request, res: Response) =>
 // Từ điển giá trị: cột đánh dấu tuDien (ít giá trị) + tên công trình — giao diện nhận ra câu chỉ nói giá trị
 // ("ghế", "sun group", "chưa mua", "tây hồ view"). Mỗi cột tối đa 80 giá trị hay gặp; cache theo phiên bản bảng.
 const cacheTd = createCache<Record<string, string[]>>(40);
+// Tên công trình đã chuẩn hoá, nhớ theo (mảng tên thô đang cache, phiên bản bảng tên): khỏi chuẩn hoá lại mỗi request
+let ctNho: { tho: string[]; bangTen: string; ct: string[] } | null = null;
 async function layTuDien(co: Co, coTenCt = true): Promise<{ gt: Record<string, Record<string, string[]>>; ct: string[] }> {
     const gt: Record<string, Record<string, string[]>> = {};
     for (const b of DANH_MUC.filter(x => xemBang(x, co))) {
@@ -442,16 +444,31 @@ async function layTuDien(co: Co, coTenCt = true): Promise<{ gt: Record<string, R
         }
         return out;
       };
-      gt[b.id] = b.phienBan ? await cachedByVersions(cacheTd, `${b.id}|${cots.map(c => c.id).join(',')}`, [b.phienBan], tinh) : await tinh();
+      // Bản dùng chung mọi instance (api_result_cache): giá trị cột lấy thẳng từ SQL, không phụ thuộc người dùng hay bảng
+      // tên công trình; khoá gồm bảng + đúng tập cột người hỏi được xem nên không lẫn quyền. Instance mới đọc 1 dòng thay
+      // vì quét lại từng cột. Chưa có bảng api_result_cache => tự bỏ qua, như cũ.
+      const khoaTd = `${b.id}|${cots.map(c => c.id).join(',')}`;
+      // Bảng CHƯA có dòng trong table_versions => chuỗi phiên bản rỗng, không bao giờ đổi: bản dùng chung trong DB sẽ
+      // sống mãi qua mọi instance / lần deploy. Khi đó chỉ nhớ trong instance như cũ (getRelevantVersions đã nhớ, 0 lượt DB).
+      const coPhienBan = !!b.phienBan && (await getRelevantVersions([b.phienBan]))[b.phienBan] !== undefined;
+      gt[b.id] = b.phienBan
+        ? await cachedByVersions(cacheTd, khoaTd, [b.phienBan], tinh, '', coPhienBan ? `hoi-dap-td:${khoaTd}` : '')
+        : await tinh();
     }
     // Tên công trình chuẩn (gộp cách viết) từ bảng sản xuất — người có quyền xem bất kỳ bảng nào có cột công trình
     let ct: string[] = [];
     if (coTenCt && DANH_MUC.some(b => xemBang(b, co) && b.cot.some(c => c.kieu === 'ct'))) {
-      const r = await cachedByVersions(cacheTd, 'ct', ['production'], async () => {
+      // Bản dùng chung chỉ lưu tên THÔ (không phụ thuộc bảng tên công trình — phiên bản dùng chung không gồm bảng tên);
+      // chuẩn hoá ở Node, nhớ lại theo phiên bản bảng tên nên bảng tên đổi là tính lại như trước.
+      const r = await cachedByVersions(cacheTd, 'ct-tho', ['production'], async () => {
         const x = await timedQuery<{ v: string }>(`SELECT DISTINCT ${gonTen('t.ten_cong_trinh')} AS v FROM ${SX} t`, [], { timeoutMs: 15000 });
-        return { ct: [...new Set(x.rows.map(y => canonicalProjectName(y.v)).filter(Boolean))] };
-      });
-      ct = r.ct;
+        return { tho: x.rows.map(y => y.v) };
+      }, '', 'hoi-dap-td:ct-tho', false);
+      const bangTen = projectAliasesVersion();
+      if (!ctNho || ctNho.tho !== r.tho || ctNho.bangTen !== bangTen) {
+        ctNho = { tho: r.tho, bangTen, ct: [...new Set(r.tho.map(v => canonicalProjectName(v)).filter(Boolean))] };
+      }
+      ct = ctNho.ct;
     }
     return { gt, ct };
 }

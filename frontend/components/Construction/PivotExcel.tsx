@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { Search, X } from 'lucide-react';
+import { ModalShell } from '../shared/ModalShell';
 import { pivotM2, TRONG_M2 } from './core/bopM2';
 import { fmtInt } from '../../utils/format';
 import * as bang from '../shared/bangBaoCao';
@@ -63,20 +65,34 @@ export function Pivot({ cotDong, p, chon, onChon, nhanCot = m => m }: {
   );
 }
 
-/** Bảng chi tiết (dòng nguồn) của ô đang chọn */
+/** Cửa sổ chi tiết (dòng nguồn) của ô vừa bấm — cùng kiểu cửa sổ HEX của BOT x BOP */
 export function ChiTiet<T>({ tieuDe, ds, cot, onDong, onHex }: {
   tieuDe: string; ds: T[]; cot: [string, (x: T) => string][]; onDong: () => void;
   /** Có => ô cột "HEX" bấm được, mở cửa sổ chi tiết hạng mục */
   onHex?: (hex: string) => void;
 }) {
+  const [tim, setTim] = useState('');
+  const loc = useMemo(() => {
+    const t = tim.trim().toUpperCase();
+    return t ? ds.filter(x => cot.some(([, f]) => String(f(x) ?? '').toUpperCase().includes(t))) : ds;
+  }, [ds, cot, tim]);
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2 text-sm">
-        <span className="font-semibold text-slate-700">{tieuDe}</span>
-        <button type="button" onClick={onDong} className="rounded-full border border-slate-300 px-2 py-0.5 text-slate-600 hover:bg-slate-100">Đóng ✕</button>
+    <ModalShell open onClose={onDong} labelledBy="pivot-ct" closeOnEsc closeOnBackdrop overlayClassName={bang.cuaSoNen} panelClassName={bang.cuaSoKhung}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 id="pivot-ct" className="text-xl font-bold text-slate-900">{tieuDe}</h3>
+          <p className="text-base text-slate-600"><b>{fmtInt(loc.length)}</b> dòng{loc.length !== ds.length ? ` / ${fmtInt(ds.length)}` : ''}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5">
+            <Search className="h-4 w-4 text-slate-400" aria-hidden />
+            <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm trong danh sách" className="w-52 outline-none" />
+          </label>
+          <button type="button" onClick={onDong} aria-label="Đóng" className="rounded p-1 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+        </div>
       </div>
-      <div className={`${bang.khung} max-h-[45vh]`}>
-        <table className={bang.table}>
+      <div className={`${bang.khung} min-h-0 flex-1`}>
+        <table className={`${bang.table} ${bang.cuaSoBang}`}>
           <thead className={bang.thead}>
             <tr>
               <th className={`${bang.thC} w-14`}>STT</th>
@@ -84,30 +100,31 @@ export function ChiTiet<T>({ tieuDe, ds, cot, onDong, onHex }: {
             </tr>
           </thead>
           <tbody>
-            {ds.map((x, i) => (
+            {loc.map((x, i) => (
               <tr key={i} className="align-top hover:bg-slate-50">
                 <td className={bang.tdSo}>{fmtInt(i + 1)}</td>
                 {cot.map(([t, f]) => (
-                  <td key={t} className={`${tdB} max-w-[22rem] whitespace-pre-line`}>
+                  <td key={t} className={`${tdB} max-w-[26rem] whitespace-pre-line`}>
                     {t === 'HEX' && onHex && f(x)
-                      ? <button type="button" onClick={() => onHex(f(x))} title="Xem chi tiết hạng mục" className="font-medium text-blue-700 hover:underline">{f(x)}</button>
+                      ? <button type="button" onClick={() => onHex(f(x))} title="Xem chi tiết hạng mục" className="font-semibold text-blue-700 hover:underline">{f(x)}</button>
                       : f(x)}
                   </td>
                 ))}
               </tr>
             ))}
+            {!loc.length && <tr><td colSpan={cot.length + 1} className={`${tdB} py-6 text-center text-slate-500`}>Không có dòng nào.</td></tr>}
           </tbody>
-          {ds.length > 0 && (
+          {loc.length > 0 && (
             <tfoot className={bang.tfoot}>
               <tr>
                 <td className={`${tdB} text-center`}>TỔNG</td>
-                <td colSpan={cot.length} className={tdB}>{fmtInt(ds.length)}</td>
+                <td colSpan={cot.length} className={tdB}>{fmtInt(loc.length)}</td>
               </tr>
             </tfoot>
           )}
         </table>
       </div>
-    </div>
+    </ModalShell>
   );
 }
 export const khopO = <T,>(o: ChonO, dong: (x: T) => string, cotF: (x: T) => string) => (x: T) =>

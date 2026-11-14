@@ -12,6 +12,7 @@ export {
 export { canonicalizeProjectNames, canonicalizePersonNames, setServerProjectAliases, setPlanMet } from '../../../utils/productionMetrics';
 export { taoBanGhi, nenBanGhi } from '../../Construction/core/banGhiCongTrinh';
 export { canonicalizeWorkshops, applyWorkshopMapping } from '../../../utils/workshopGroupsCore';
+export { ghepDongFile, coSoFile } from '../../Construction/core/ghepFileCongTrinh';
 
 /** Cột như trình duyệt dựng từ dữ liệu tải về (khoá = tên trường; lõi chỉ tìm cột theo khoá) */
 export const cotTuDuLieu = (rows: DataRow[]): ColumnDefinition[] => {

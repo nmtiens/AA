@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { dungBaoCaoBot, luuHomNay, tenFile, loiTheoTen, CHUA_BOT, type OBot } from './baoCaoBot';
+import { dungBaoCaoBot, cayBaoCaoBot, luuHomNay, tenFile, loiTheoTen, CHUA_BOT, type OBot } from './baoCaoBot';
 
 describe('luuHomNay (giờ Việt Nam)', () => {
   const bayGio = new Date('2026-11-09T10:00:00Z');   // 17:00 ngày 09/11 giờ VN
@@ -124,5 +124,35 @@ describe('file công trình lỗi', () => {
     expect(m.get('B')).toEqual([f1]);
     expect(m.size).toBe(2);
     expect(loiTheoTen(undefined).size).toBe(0);
+  });
+});
+
+describe('cayBaoCaoBot (dòng theo công trình / sản phẩm / xưởng)', () => {
+  const x: OBot[] = [
+    { ten: 'A', ipo: 'I', thang: '2026-03', ngay: '2026-03-05', ct: true, tt: 5, so: 1, nsp: 'TỦ', xuong: 'X1' },
+    { ten: 'A', ipo: 'I', thang: '', ct: true, tt: 2, so: 1, nsp: 'BÀN', xuong: 'X1' },
+    { ten: 'B', ipo: 'I', thang: '2026-03', ngay: '2026-03-09', ct: true, tt: 7, so: 2, nsp: 'TỦ', xuong: 'X2' },
+    { ten: 'B', ipo: 'HỦY', thang: '2026-03', ct: true, tt: 100, so: 1, nsp: 'TỦ', xuong: 'X2' },
+    { ten: 'OEM', ipo: 'I', thang: '2026-04', ct: false, tt: 50, so: 1 },
+  ];
+  const I = new Set(['I']);
+  it('gốc theo sản phẩm, con theo công trình rồi xưởng; cộng đúng ô / tổng, cùng lọc IPO + mã CT', () => {
+    const c = cayBaoCaoBot(x, I, ['nsp', 'ct', 'xuong'], new Set(), true);
+    const tu = c.find(n => n.ten === 'TỦ')!;
+    expect(tu.tong).toBe(12);
+    expect(tu.o).toEqual({ '2026': 12 });
+    expect(tu.con.map(n => [n.ten, n.tong])).toEqual([['A', 5], ['B', 7]]);
+    expect(tu.con[1].duong).toEqual(['TỦ', 'B']);
+    expect(tu.con[1].con).toEqual([expect.objectContaining({ ten: 'X2', duong: ['TỦ', 'B', 'X2'], tong: 7, so: 2, con: [] })]);
+    expect(c.find(n => n.ten === 'BÀN')!.o).toEqual({ [CHUA_BOT]: 2 });
+    expect(c.some(n => n.ten === '')).toBe(false);   // OEM bị lọc mã CT
+  });
+  it('tổng cây = tổng báo cáo; thiếu nhóm => giá trị rỗng; lọc thêm theo tên công trình', () => {
+    const c = cayBaoCaoBot(x, I, ['xuong', 'ct', 'nsp'], new Set(['2026']), false);
+    expect(c.reduce((a, n) => a + n.tong, 0)).toBe(dungBaoCaoBot(x, I, new Set(['2026'])).tong);
+    expect(c.find(n => n.ten === '')!.tong).toBe(50);
+    expect(c.find(n => n.ten === 'X1')!.o).toEqual({ '2026-03': 5, '2026': 5, [CHUA_BOT]: 2 });
+    const chiB = cayBaoCaoBot(x, I, ['nsp', 'ct', 'xuong'], new Set(), true, new Set(), o => o.ten === 'B');
+    expect(chiB.map(n => [n.ten, n.tong])).toEqual([['TỦ', 7]]);
   });
 });

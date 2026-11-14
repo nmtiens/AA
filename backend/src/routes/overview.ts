@@ -13,6 +13,24 @@ const overviewByGroupCache = createCache<unknown>(80);
 // Luôn kèm production: lọc bỏ hạng mục HỦY / lọc tình trạng dựa vào bảng sản xuất
 const OVERVIEW_SUMMARY_VERSION_KEYS = ['order', 'tkbv', 'pthsp', 'inventory', 'export', 'production'];
 
+// Ngày mới nhất từng nguồn (toàn bảng, không theo bộ lọc): thẻ phân biệt "chưa có số" với "số 0".
+// Trước nằm trong compute của TỪNG khoá summary => mỗi khoảng ngày / bộ lọc mới lại chạy 5 câu MAX. Kết quả chỉ phụ
+// thuộc ngày hôm nay (giờ VN) + dữ liệu nên nhớ riêng theo đúng 2 thứ đó (cùng nhóm phiên bản với summary); không
+// theo người dùng, không dùng bảng tên công trình. Các lần gọi cùng lúc (trang Tổng quan gọi summary 2–3 lần) gộp 1.
+const maxDatesCache = createCache<Map<string, string | null>>(2);
+const layMaxDates = () => {
+  const homNay = vnTodayUtc().toISOString().slice(0, 10);
+  return cachedByVersions(maxDatesCache, homNay, OVERVIEW_SUMMARY_VERSION_KEYS, async () => {
+    const maxQ = await timedQuery(
+      Object.values(ANALYSIS_TABLES)
+        .map(cfg => `SELECT '${cfg.table}' AS k, to_char(MAX(date_parsed), 'YYYY-MM-DD') AS d FROM ${cfg.table} WHERE date_parsed <= $1`)
+        .join(' UNION ALL '),
+      [homNay]
+    );
+    return new Map<string, string | null>(maxQ.rows.map(row => [row.k, row.d]));
+  }, '', '', false);
+};
+
 const splitUpper = (v: unknown) => String(v || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
 
 // Bộ lọc Tình trạng / Tình trạng IPO (từ bảng sản xuất) cho các bảng giao dịch.
@@ -169,15 +187,8 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       });
 
       const finalQuery = `WITH ${ctes.join(',\n')}\n${subQueries.join('\nUNION ALL\n')}`;
-      const r = await timedQuery(finalQuery, allParams, { workMemMb: 32 });
-      // Ngày mới nhất từng nguồn (toàn bảng, không theo bộ lọc): thẻ phân biệt "chưa có số" với "số 0"
-      const maxQ = await timedQuery(
-        Object.values(ANALYSIS_TABLES)
-          .map(cfg => `SELECT '${cfg.table}' AS k, to_char(MAX(date_parsed), 'YYYY-MM-DD') AS d FROM ${cfg.table} WHERE date_parsed <= $1`)
-          .join(' UNION ALL '),
-        [vnTodayUtc().toISOString().slice(0, 10)]
-      );
-      const maxTheoBang = new Map(maxQ.rows.map(row => [row.k, row.d]));
+      // Câu chính và ngày mới nhất từng nguồn chạy song song (trước nối tiếp); phần ngày mới nhất có nhớ riêng (layMaxDates)
+      const [r, maxTheoBang] = await Promise.all([timedQuery(finalQuery, allParams, { workMemMb: 32 }), layMaxDates()]);
       const maxDates = Object.fromEntries(Object.entries(ANALYSIS_TABLES).map(([key, cfg]) => [key, maxTheoBang.get(cfg.table) ?? null]));
 
       const results: Record<string, any> = {};

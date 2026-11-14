@@ -2,9 +2,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Settings, Columns, Smartphone, Search, Factory, Hammer, Database } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Settings, Columns, Smartphone, Search, Factory, Hammer, Database, CalendarClock } from 'lucide-react';
 import { dangKyNapBang } from './services/napBang';
-import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinh } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinhDu, API_BASE_URL, type NguonBanGhiCongTrinh } from './services/dataService';
+import { taiFileCongTrinh, fileCongTrinhDaCo, fileCongTrinhCu, coSoFile, ghepDongFile, type DuLieuFileCongTrinh } from './services/congTrinhFile';
+import { findColumnKey } from './components/Dashboard/utils/columnKeyResolver';
 import { giaiNenBanGhi, type Rec as CongTrinhRec } from './components/Construction/core/banGhiCongTrinh';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -36,6 +38,7 @@ const DataGrid = lazyPage(() => import('./components/DataGrid'));
 const Login = lazyPage(() => import('./components/Login'));
 const UserManagement = lazyPage(() => import('./components/UserManagement'));
 const ConstructionSetup = lazyPage(() => import('./components/Construction/ConstructionSetup'));
+const NhapBot = lazyPage(() => import('./components/Construction/NhapBot'));
 const loadConstructionPage = () => import('./components/Construction/ConstructionOverview');
 const ConstructionOverview = lazyPage(loadConstructionPage);
 const TableColumnSetup = lazyPage(() => import('./components/Construction/TableColumnSetup'));
@@ -111,7 +114,7 @@ const tablesForPath = (path: string): string[] => {
   if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
   // Setup dữ liệu: theo thẻ đang mở (trangKey) — Xưởng / Gộp xưởng chỉ gọi API; Nhóm công trình cần bảng sản xuất;
   // Cột dữ liệu (và thẻ mặc định chưa rõ) cần cột của đủ 12 bảng
-  if (path === '/mra' || path === '/setup?tab=xuong' || path === '/setup?tab=gop-xuong') return [];
+  if (path === '/mra' || path === '/nhap-bot' || path === '/setup?tab=xuong' || path === '/setup?tab=gop-xuong') return [];
   if (path === '/setup?tab=nhom-cong-trinh') return ['production'];
   return ALL_TABLE_ENDPOINTS;
 };
@@ -192,6 +195,8 @@ const App: React.FC = () => {
                   {/* Setup dữ liệu: 1 trang chung, chọn mục bằng thẻ (?tab=). Đường dẫn cũ của 3 trang setup chuyển về đúng thẻ */}
                   <Route path="/setup" element={<DataSetupWrapper />} />
                   <Route path="/mra" element={<MraWrapper />} />
+                  {/* Nhập BOT: mọi tài khoản vào được; trang chỉ hiện công đoạn bộ phận được giao (máy chủ kiểm quyền từng ô) */}
+                  <Route path="/nhap-bot" element={<NhapBot />} />
                   <Route path="/cong-trinh/setup" element={<Navigate to="/setup?tab=nhom-cong-trinh" replace />} />
 
                   {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
@@ -285,21 +290,53 @@ const ConstructionOverviewWrapper = () => {
   const mappingReady = useViewMappingReady();
   // Chưa có bảng sản xuất (máy mới / người mới): lấy bản ghi gọn máy chủ dựng sẵn — trang hiện ngay, bảng tải ngầm
   const coBang = context.productionData.length > 0;
+  // Bản ghi dựng sẵn đã ghép số theo file công trình (máy chủ dùng chung ghepFileCongTrinh) => hiện ngay đúng số file,
+  // bảng tải xong trình duyệt ghép lại ra cùng số (không nhảy số)
   const [banGhiSan, setBanGhiSan] = useState<CongTrinhRec[] | null>(null);
+  const [nguonSan, setNguonSan] = useState<NguonBanGhiCongTrinh | null>(null);
   useEffect(() => {
     if (coBang || banGhiSan) return;
     let on = true;
-    fetchTongQuanCongTrinh().then(z => {
+    fetchTongQuanCongTrinhDu().then(z => {
       if (!on || !z) return;
       const homNay = new Date(); homNay.setHours(0, 0, 0, 0);
-      setBanGhiSan(giaiNenBanGhi(z, homNay.getTime()));
+      setBanGhiSan(giaiNenBanGhi(z.banGhi, homNay.getTime()));
+      setNguonSan(z.nguon);
     });
     return () => { on = false; };
   }, [coBang]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Số theo FILE CÔNG TRÌNH (services/congTrinhFile.ts): HEX của file + ô file khác dữ liệu app, ghép vào dòng app cùng HEX.
+  // Chưa tạo bảng / tool chưa nạp / lỗi => dùng dữ liệu app như cũ (ghi rõ trên trang).
+  const [file, setFile] = useState<DuLieuFileCongTrinh | null>(() => fileCongTrinhDaCo());
+  const [fileLoi, setFileLoi] = useState(false);
+  // Lấy lại khi bảng sản xuất trong máy đổi (tải xong / có bản mới): máy chủ so ô file với bảng sản xuất MỚI NHẤT, nên số
+  // file cũ hơn bảng trong máy thì ghép lệch — số file quá 1 phút thì lấy lại (máy chủ có nhớ, nhẹ)
+  useEffect(() => {
+    if (!fileCongTrinhCu()) return;
+    let on = true;
+    taiFileCongTrinh().then(d => { if (on) { setFile(d); setFileLoi(false); } }).catch(() => { if (on) setFileLoi(true); });
+    return () => { on = false; };
+  }, [context.productionData]);
+  const theoFile = coSoFile(file);
+  const dataFile = useMemo(
+    () => (theoFile && coBang && file ? ghepDongFile(context.productionData, context.productionColumns,
+      findColumnKey(context.productionColumns, TARGET_COLUMN_NAMES.HEX) || 'hex', file) : null),
+    [theoFile, coBang, file, context.productionData, context.productionColumns]);
   if (!mappingReady) return <FullScreenLoader />;
+  // Có bảng sản xuất: chờ số file (thường đã nhớ / ~1–3 giây) rồi ghép ở máy.
+  // Chưa có bảng: dùng bản ghi dựng sẵn (máy chủ đã ghép số file) — không phải chờ bảng ~70 giây.
+  if (coBang && !file && !fileLoi) return <FullScreenLoader />;
+  const fmtGio = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '');
+  const nguon = coBang
+    ? (theoFile ? { theoFile: true, capNhat: file.capNhat, soFile: file.soFile } : { theoFile: false })
+    : nguonSan;
+  const nguonSo = !nguon ? null : nguon.theoFile
+    ? <span title={`Theo ${nguon.soFile ?? ''} file công trình (05_PRODUCTION STATUS, như sheet TỔNG HỢP của MASTER_PROJECT_COORDINATION) — cột file không có lấy từ dữ liệu app theo HEX`}>
+        Số theo file công trình{nguon.capNhat ? ` · cập nhật ${fmtGio(nguon.capNhat)}` : ''}</span>
+    : <span className="font-semibold text-amber-700" title="Chưa có bảng cong_trinh_hang_muc hoặc tool chưa nạp file công trình">Chưa có số theo file công trình — đang hiện số của app</span>;
   // Chờ danh sách công trình của nhóm Luồng đỏ / Căn mẫu (Công trình → Setup) để lọc theo nhóm
-  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''}
-    inventory={context.inventoryData} banGhiSan={coBang ? null : banGhiSan} />;
+  return <ConstructionOverview data={dataFile ?? context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''}
+    inventory={context.inventoryData} banGhiSan={coBang ? null : banGhiSan} nguonSo={nguonSo} />;
 };
 
 const ConstructionSetupWrapper = () => {
@@ -664,18 +701,21 @@ const MainLayout: React.FC = () => {
 
   // Lưu ý: hàm này được hẹn giờ (setInterval) giữ lại từ lần render đầu, nên KHÔNG được đọc
   // state trực tiếp (sẽ là giá trị cũ) — chỉ dùng setter, ref và cập nhật dạng hàm.
-  const runSync = async (forceAll: boolean): Promise<boolean> => {
+  const runSync = async (forceAll: boolean, lan = 0): Promise<boolean> => {
     // Cache bị xoá (đăng xuất / đổi người dùng) trong lúc đang tải => bỏ kết quả lượt này: dữ liệu đã lọc theo
     // quyền của người cũ không được ghi vào cache / áp cho người mới
     const gen = getCacheGeneration();
     const stale = () => !mountedRef.current || gen !== getCacheGeneration();
+    // Bộ nhớ bị xoá giữa lượt (đăng nhập lần đầu trên máy / đổi mức xem dữ liệu) => chạy lại NGAY theo bộ nhớ mới.
+    // Trước đây bỏ lượt rồi chờ lần hẹn giờ 60 giây: máy mới / vừa đăng nhập lại phải chờ ~1 phút mới có bảng.
+    const boLuot = (): Promise<boolean> | false => (mountedRef.current && lan < 2 ? runSync(forceAll, lan + 1) : false);
     try {
       if (activeTablesRef.current.size === 0) return true; // trang hiện tại không dùng bảng nào
       const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
       if (!verRes.ok) return false;
 
       const serverVersions = await verRes.json();
-      if (stale()) return false;
+      if (stale()) return boLuot();
       syncCoveredRef.current = new Set(activeTablesRef.current);
 
       // Danh sách endpoint + setter, dùng để biết bảng nào cần cập nhật
@@ -737,7 +777,7 @@ const MainLayout: React.FC = () => {
       if (toUpdate.length > 0) {
         // Chỉ tải các bảng cần cập nhật (đổi phiên bản / chưa có cache), không tải lại cả 12 bảng
         const allData = await fetchAllDataFromServer(toUpdate.map(cfg => cfg.endpoint));
-        if (stale()) return false;
+        if (stale()) return boLuot();
         if (!allData) ok = false;
         // Bảng thuộc nhóm tải lỗi không có trong kết quả: giữ phiên bản cũ => lần đồng bộ sau tự tải lại riêng bảng đó
         if (allData && toUpdate.some(cfg => !allData[cfg.endpoint])) ok = false;
@@ -1036,6 +1076,15 @@ const MainLayout: React.FC = () => {
   const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
   const coXuong = user?.role === 'ADMIN' || hasPermission('xuong_quan_ly');
+  // Mục "Nhập BOT": tài khoản có bộ phận được giao ít nhất 1 công đoạn (Setup phân công) hoặc ADMIN
+  const [coNhapBot, setCoNhapBot] = useState(false);
+  useEffect(() => {
+    if (!user) { setCoNhapBot(false); return; }
+    let on = true;
+    fetch(`${API_BASE_URL}/bot-cong-doan/quyen`).then(r => (r.ok ? r.json() : null))
+      .then(d => { if (on) setCoNhapBot(!!d && (d.admin || (d.congDoan?.length ?? 0) > 0)); }).catch(() => { /* không có quyền / lỗi: ẩn mục */ });
+    return () => { on = false; };
+  }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
   const canSeeAnySetup = hasPermission('construction_setup') || hasPermission('table_column_setup') || user?.role === 'ADMIN';
 
   const isChartGroupActive = visibleChartItems.some(i => i.path === location.pathname);
@@ -1171,7 +1220,7 @@ const MainLayout: React.FC = () => {
             </NavGroup>
           )}
 
-          {(vuongMacView || coXuong) && <TieuDeNhom ten="Ứng dụng" collapsed={isCollapsed} />}
+          {(vuongMacView || coXuong || coNhapBot) && <TieuDeNhom ten="Ứng dụng" collapsed={isCollapsed} />}
           {vuongMacView && (
             <NavLink
               key={vuongMacView.id}
@@ -1190,6 +1239,17 @@ const MainLayout: React.FC = () => {
               icon={<Hammer size={18} />}
               label="MRA"
               active={location.pathname === '/mra'}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {coNhapBot && (
+            <NavLink
+              to="/nhap-bot"
+              icon={<CalendarClock size={18} />}
+              label="Nhập BOT"
+              active={location.pathname === '/nhap-bot'}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />

@@ -4,7 +4,7 @@ import { pool, timedQuery } from '../db.js';
 import { runWithLimit, GRACE_UNTIL_HOUR, vnDayKey, vnHour } from '../server/common.js';
 import { authenticateJWT, requireRole } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
-import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache, getTablesData } from '../server/data.js';
+import { parseSafeDate, fetchTableData, TABLES, getVersions, VERSIONS_MOI_MS, refreshAllDataCache, getTablesData } from '../server/data.js';
 import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
@@ -14,6 +14,8 @@ import { createGzip } from 'zlib';
 import { docSnapshot, luuSnapshot, guiGzip } from '../server/snapshot.js';
 import { dungGoi } from '../server/goiBang.js';
 import { kichLamNong } from '../server/lamNong.js';
+import { giuHamSong } from '../server/sharedCache.js';
+import { khoaFileNho } from './congTrinh.js';
 
 // ============================================================================
 // /api/all-data: ~150 MB JSON (12 bảng). Trước đây mỗi request đều JSON.stringify + gzip lại toàn bộ
@@ -66,6 +68,11 @@ const getAllDataGzip = (vkey: string, gzKey: string, out: Record<string, unknown
   return p;
 };
 
+// Ghi bản nén vào DB (vài MB) ở NỀN, không bắt người dùng chờ: luuSnapshot đã ghi bộ nhớ đồng bộ nên instance này
+// trúng 'mem' ngay. An toàn vì lệnh ghi được đăng ký waitUntil; trên Vercel mà không đăng ký được thì CHỜ như cũ
+// (không để lệnh ghi bị đóng băng giữa giao dịch, giữ kết nối). luuSnapshot tự bắt lỗi, không ném.
+const luuNen = async (ghi: Promise<unknown>) => { if (!giuHamSong(ghi) && process.env.VERCEL) await ghi; };
+
 app.get('/api/all-data', async (req: Request, res: Response) => {
   try {
     // ?tables=production,order: chỉ trả các bảng client cần (thường là bảng vừa đổi phiên bản),
@@ -85,7 +92,7 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
     const br = cot && req.acceptsEncodings('br') === 'br';
     const enc: 'br' | 'gzip' = br ? 'br' : 'gzip';
     if (requested.length && (br || req.acceptsEncodings('gzip'))) {
-      const all = await getVersions();
+      const all = await getVersions(VERSIONS_MOI_MS);
       const gia = !requested.includes('material') || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
       snap = { khoa: `${requested.join(',')}|${gia ? 1 : 0}${cot ? '|cot' : ''}${br ? '|br' : ''}`, ver: JSON.stringify(requested.map(k => all[k] ?? '')) };
       const t1 = Date.now();
@@ -99,9 +106,9 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
         const goi = await dungGoi(requested, gia, all, cot, br);
         const tGhep = Date.now() - t2;
         const tLuu = Date.now();
-        await luuSnapshot(snap.khoa, snap.ver, goi.buf);
+        await luuNen(luuSnapshot(snap.khoa, snap.ver, goi.buf));
         return guiGzip(res, goi.buf,
-          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`, enc);
+          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;desc="nen";dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`, enc);
       }
     }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
@@ -120,8 +127,10 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
     const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(',')}|${canSeePrice ? 1 : 0}`, out);
     // Lưu bản nén theo đúng phiên bản đã dùng để nén (versions lấy cùng lượt với dữ liệu)
     const tLuu = Date.now();
-    if (snap) await luuSnapshot(snap.khoa, JSON.stringify(requested.map(k => versions[k] ?? '')), buf);
-    guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
+    // Không lưu khi khoá là bản brotli (|br): buf ở nhánh này là GZIP dạng dòng — lưu vào thì lần sau nhánh trúng bản
+    // nén gửi nó với Content-Encoding: br, trình duyệt không giải nén được (chỉ xảy ra khi có bảng không nằm trong table_versions)
+    if (snap && !br) await luuNen(luuSnapshot(snap.khoa, JSON.stringify(requested.map(k => versions[k] ?? '')), buf));
+    guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, luu;desc="nen";dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
   } catch (error) {
     console.error('Lỗi khi fetch dữ liệu:', error);
     if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });
@@ -699,13 +708,18 @@ app.post('/api/material/pr-hexes', async (req: Request, res: Response) => {
 // --- API KIỂM TRA PHIÊN BẢN ---
 app.get('/api/check-versions', async (_req: Request, res: Response) => {
   try {
-    const versions = await getVersions();
+    const versions = await getVersions(VERSIONS_MOI_MS);
     res.json(versions);
-    // Dữ liệu vừa đổi (ETL) => dựng sẵn ở nền cho người mở web sau (server/lamNong.ts)
-    kichLamNong(versions);
+    // Dữ liệu vừa đổi (ETL) hoặc file công trình vừa nạp (tool trên Drive) => dựng sẵn ở nền cho người mở web sau
+    // (server/lamNong.ts). Mốc file chỉ dùng để kích, không gửi về trình duyệt.
+    // Đã trả lời rồi: câu hỏi mốc file (tối đa 1 lần / 30 giây) phải được đăng ký waitUntil NGAY (đồng bộ, như
+    // kichLamNong trước đây) — không thì Vercel có thể đóng băng hàm giữa truy vấn, và việc làm nóng không được kích.
+    giuHamSong(khoaFileNho()
+      .then(fileCongTrinh => kichLamNong({ ...versions, fileCongTrinh }))
+      .catch(e => console.error('[lam-nong] kích lỗi', e)));
   } catch (error) {
     console.error('Lỗi check version:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -771,7 +785,28 @@ const DATA_AS_OF_DATE_COLUMN: Record<string, string> = {
 // Bảng chụp nhanh tình trạng hiện tại (sản xuất, vật tư): "dữ liệu đến ngày" = ngày chạy cập nhật (giờ VN)
 const SNAPSHOT_TABLES = new Set(['production_status_app', 'vat_tu']);
 
-const fetchDataAsOfDates = async (): Promise<Record<string, string | null>> => {
+// Nhớ kết quả theo phiên bản các bảng (table_versions.last_updated): bảng không đổi thì ngày MAX không đổi => bỏ 7 câu
+// MAX quét bảng ở mỗi lần mở app / mỗi lần đồng bộ. Hạn tối đa 10 phút cho bảng không có dòng trong table_versions.
+let ngayDenNho: { khoa: string; luc: number; kq: Record<string, string | null> } | null = null;
+let ngayDenDangTinh: { khoa: string; p: Promise<Record<string, string | null>> } | null = null;
+const NGAY_DEN_NHO_MS = 10 * 60_000;
+const layDataAsOfDates = (khoa: string): Promise<Record<string, string | null>> => {
+  if (ngayDenNho && ngayDenNho.khoa === khoa && Date.now() - ngayDenNho.luc < NGAY_DEN_NHO_MS) return Promise.resolve(ngayDenNho.kq);
+  if (ngayDenDangTinh?.khoa === khoa) return ngayDenDangTinh.p;
+  let coLoi = false;
+  const p = fetchDataAsOfDates(() => { coLoi = true; })
+    .then(kq => {
+      // Có bảng lỗi (truy vấn hỏng / quá hạn => null) thì KHÔNG nhớ: lần hỏi sau tính lại như trước khi có bộ nhớ
+      // (không để ngày trống kẹt tới 10 phút)
+      if (!coLoi) ngayDenNho = { khoa, luc: Date.now(), kq };
+      return kq;
+    })
+    .finally(() => { if (ngayDenDangTinh?.p === p) ngayDenDangTinh = null; });
+  ngayDenDangTinh = { khoa, p };
+  return p;
+};
+
+const fetchDataAsOfDates = async (baoLoi?: () => void): Promise<Record<string, string | null>> => {
   const entries = Object.entries(DATA_AS_OF_DATE_COLUMN);
   const results = await runWithLimit(
     entries.map(([table, col]) => async (): Promise<readonly [string, string | null]> => {
@@ -782,6 +817,7 @@ const fetchDataAsOfDates = async (): Promise<Record<string, string | null>> => {
         return [table, maxDate ? maxDate.slice(0, 10) : null] as const;
       } catch (error) {
         console.error(`Lỗi lấy "dữ liệu cập nhật đến ngày" cho ${table}:`, error);
+        baoLoi?.();
         return [table, null] as const;
       }
     }),
@@ -806,15 +842,15 @@ const updateLogEntrySchema = z.object({
 
 app.get('/api/data-update-log', async (_req: Request, res: Response) => {
   try {
-    const [versionsResult, asOfDates] = await Promise.all([
-      timedQuery(`
+    // Đọc table_versions trước (1 câu nhẹ), ngày MAX của từng bảng lấy theo phiên bản đó (layDataAsOfDates có nhớ)
+    const versionsResult = await timedQuery(`
         SELECT table_name, last_updated, display_label, source_note, note,
                is_manual, manual_data_as_of_date
         FROM table_versions
         ORDER BY table_name
-      `),
-      fetchDataAsOfDates(),
-    ]);
+      `);
+    const asOfDates = await layDataAsOfDates(
+      versionsResult.rows.map(r => `${r.table_name}:${r.last_updated instanceof Date ? r.last_updated.toISOString() : r.last_updated}`).join(','));
 
     const nowDate = new Date();
     const now = nowDate.getTime();

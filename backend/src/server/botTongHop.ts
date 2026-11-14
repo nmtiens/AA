@@ -7,12 +7,14 @@ export const dinhDang = (khoa: string) => (khoa.length === 4 ? 'YYYY' : khoa.len
 
 export const chuoi = (x: unknown) => (x === null || x === undefined ? '' : String(x));
 
-export interface OBotRa { ten: string; ipo: string; ngay: string; thang: string; ct: boolean; tt: number | null; so: number }
+/** nsp / xuong: nhóm sản phẩm / xưởng (đã gộp) của HEX theo dữ liệu sản xuất ('' = không có) — chiều "Theo sản phẩm / xưởng" */
+export interface OBotRa { ten: string; ipo: string; ngay: string; thang: string; ct: boolean; tt: number | null; so: number; nsp: string; xuong: string }
 
 /** Dòng SQL (cộng theo ngày) => ô gửi giao diện. Giữ thêm `thang` cho bản giao diện cũ (chỉ biết tháng). */
-export const oTuDong = (r: { ten?: unknown; ipo?: unknown; ngay?: unknown; ct?: unknown; tt?: unknown; so?: unknown }): OBotRa => {
+export const oTuDong = (r: { ten?: unknown; ipo?: unknown; ngay?: unknown; ct?: unknown; tt?: unknown; so?: unknown; nsp?: unknown; xuong?: unknown }): OBotRa => {
   const ngay = chuoi(r.ngay);
-  return { ten: chuoi(r.ten), ipo: chuoi(r.ipo), ngay, thang: ngay.slice(0, 7), ct: !!r.ct, tt: r.tt === null || r.tt === undefined ? null : Number(r.tt), so: Number(r.so) || 0 };
+  return { ten: chuoi(r.ten), ipo: chuoi(r.ipo), ngay, thang: ngay.slice(0, 7), ct: !!r.ct, tt: r.tt === null || r.tt === undefined ? null : Number(r.tt), so: Number(r.so) || 0,
+    nsp: chuoi(r.nsp).trim(), xuong: chuoi(r.xuong).trim() };
 };
 
 /** File công trình cần xem: kieu 'doc' = tool đọc lỗi (số đang hiện là của bản đọc tốt gần nhất);

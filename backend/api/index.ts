@@ -26,6 +26,9 @@ import '../src/routes/stock.js';      // /api/stock/*, /api/warmup
 import '../src/routes/tonKhoVt.js';   // /api/ton-kho-vt/tong-hop, /api/ton-kho-vt/chi-tiet (tồn kho vật tư theo lần chốt tuần)
 import '../src/routes/bopM2.js';      // /api/bop-m2?ct= (tình trạng vật liệu BOP-M2, tab BOM)
 import '../src/routes/botTongHop.js'; // /api/bot-tong-hop (BÁO CÁO BOT như file MASTER_PROJECT_COORDINATION)
+import '../src/routes/congTrinh.js';  // /api/cong-trinh/hang-muc (Tổng quan công trình theo file công trình)
+import '../src/routes/khnkSheet.js';  // /api/khnk-sheet (kế hoạch nhập kho tháng — sheet năm của PRODUCTION STATUS.xlsx)
+import '../src/routes/botCongDoan.js'; // /api/bot-cong-doan (ngày BOT theo HEX × công đoạn — các bộ phận nhập)
 import '../src/routes/revenue.js';    // /api/revenue
 import '../src/routes/settings.js';   // /api/view-project-mapping, /api/table-column-config
 import '../src/routes/auth.js';       // /api/auth/*
@@ -44,6 +47,7 @@ import '../src/routes/xuongCongNhan.js'; // /api/xuong/cong-nhan (danh sách cô
 import '../src/routes/xuongTram.js';     // /api/xuong/tram/* (trạm quét theo tổ — docs/designs/xuong-tram-quet.md)
 import '../src/routes/xuongThongBao.js'; // thông báo mục Xưởng + /api/cron/xuong (8h00, 16h30)
 import '../src/routes/tongQuan.js';   // /api/tong-quan/san-xuat (máy chủ tính sẵn màn đầu Tổng quan bằng code của giao diện)
+import '../src/routes/doDb.js';      // /api/do-db (ADMIN: đo độ trễ mạng tới DB)
 import '../src/routes/hoiDap.js';    // /api/hoi-dap/* (Hỏi số liệu — tự tra theo danh mục bảng / cột, chỉ đọc)
 
 const PORT = process.env.PORT || 5000;

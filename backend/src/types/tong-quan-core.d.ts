@@ -25,4 +25,8 @@ declare module '@tong-quan/core' {
   export function canonicalizeWorkshops(rows: Row[], cols: Cot[]): Row[];
   export function applyWorkshopMapping(mapping: Record<string, string>): void;
   export function cotTuDuLieu(rows: Row[]): Cot[];
+  /** Số theo file công trình (frontend/components/Construction/core/ghepFileCongTrinh.ts) */
+  export interface DuLieuFileCongTrinh { coBang: boolean; capNhat: string | null; soFile: number; cot: string[]; dong: [string, Record<string, unknown> | 0][] }
+  export function ghepDongFile(app: Row[], cols: Cot[], hexKey: string, d: DuLieuFileCongTrinh): Row[];
+  export function coSoFile(d: DuLieuFileCongTrinh | null | undefined): d is DuLieuFileCongTrinh;
 }

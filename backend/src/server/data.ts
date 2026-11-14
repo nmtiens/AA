@@ -300,13 +300,20 @@ export const TABLE_TO_VERSION_KEY: Record<string, string> = {
 // trong log (poll mỗi 60s + mount + visibilitychange). Đổi sang timedQuery để
 // xem đây có phải nguồn gây tranh chấp connection hay không.
 // Mở 1 trang, giao diện bắn ~15 request cùng lúc và mỗi request đều hỏi phiên bản bảng để kiểm tra
-// cache => gộp lại: giữ kết quả 3 giây và các lần gọi đồng thời dùng chung 1 query.
-const VERSIONS_TTL_MS = 3000;
+// cache => gộp lại: giữ kết quả và các lần gọi đồng thời dùng chung 1 query.
+// Hai mức "còn mới":
+//  - VERSIONS_TTL_MS (30 giây, mặc định): API số tổng hợp (cachedByVersions). Trước đây 3 giây => gần như MỌI lần người
+//    dùng bấm (cách lần trước > 3 giây) phải hỏi DB 1 câu (kèm mở kết nối mới vì kết nối rảnh đóng sau 1 giây) dù kết
+//    quả đã nằm sẵn trong bộ nhớ. Dữ liệu chỉ đổi khi ETL chạy vài lần / ngày; trễ tối đa 30 giây sau ETL.
+//  - VERSIONS_MOI_MS (3 giây, như cũ): /api/check-versions và /api/all-data — trình duyệt LƯU bảng theo nhãn phiên bản
+//    nên hai đường này phải đọc phiên bản mới, không thì bảng cũ bị dán nhãn mới tới lần ETL sau.
+const VERSIONS_TTL_MS = 30_000;
+export const VERSIONS_MOI_MS = 3000;
 let versionsMemo: { at: number; value: Record<string, string> } | null = null;
 let versionsInflight: Promise<Record<string, string>> | null = null;
 
-export const getVersions = async (): Promise<Record<string, string>> => {
-  if (versionsMemo && Date.now() - versionsMemo.at < VERSIONS_TTL_MS) return versionsMemo.value;
+export const getVersions = async (conMoiMs: number = VERSIONS_TTL_MS): Promise<Record<string, string>> => {
+  if (versionsMemo && Date.now() - versionsMemo.at < conMoiMs) return versionsMemo.value;
   if (versionsInflight) return versionsInflight;
   versionsInflight = (async () => {
     try {
@@ -374,7 +381,7 @@ export const fetchLatestStockSnapshot = async () => {
   }
 };
 export const refreshAllDataCache = async (): Promise<{ payload: any; versions: Record<string, string>; fromCache: boolean }> => {
-  const versions = await getVersions();
+  const versions = await getVersions(VERSIONS_MOI_MS);
   if (cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
     return { payload: cachedData, versions: cachedVersions, fromCache: true };
   }
@@ -422,7 +429,7 @@ const tableCache = new Map<string, { ver: string; rows: any[] }>();
 const tableInflight = new Map<string, Promise<any[]>>();
 
 export const getTablesData = async (keys: string[]): Promise<{ payload: Record<string, any[]>; versions: Record<string, string> }> => {
-  const versions = await getVersions();
+  const versions = await getVersions(VERSIONS_MOI_MS);
   const payload: Record<string, any[]> = {};
   // Bản đủ 12 bảng còn mới (vd vừa warmup) thì dùng luôn
   const fullFresh = cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions);

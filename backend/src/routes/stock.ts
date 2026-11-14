@@ -1,9 +1,9 @@
-import { parseNameList, expandProjectNames, normName, normNameSql, canonicalProjectName, projectAliasesVersion } from '../server/projectAlias.js';
+import { parseNameList, expandProjectNames, normName, normNameSql, canonicalProjectName, projectAliasesVersion, ensureProjectAliases } from '../server/projectAlias.js';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
-import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified, sapKeySql } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, refreshAllDataCache, numericColQualified, sapKeySql } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
 import { laGioNghiDb } from '../server/gioNghi.js';
 import { app, warmupLimiter } from '../server/app.js';
@@ -16,10 +16,6 @@ import {
   LoiChiTiet, canDocChiTiet, chiTietTonKhoV5, docYeuCauChiTiet, ghepDocThem, laNgay, type BangMoTa, type ChiTietTonKho,
 } from '../server/tonKhoV5ChiTiet.js';
 
-// --- CACHE IN-MEMORY CHO /api/stock/dates (theo bộ lọc tổng) ---
-// TRƯỚC: 1 biến module-level duy nhất (không phân biệt filter).
-// SAU: Map key theo bộ lọc, giống overviewSummaryCache/khsxNhapKhoCache.
-const stockDatesCache = new Map<string, { versions: Record<string, string>; payload: any }>();
 // /api/stock/by-project, /api/stock/items, /api/stock/total-count (có lọc): cache theo phiên bản tồn kho +
 // sản xuất (xem server/cache.ts). items trả tới 5.000 dòng => giữ ít entry hơn.
 const stockQueryCache = createCache<unknown>(40);
@@ -28,6 +24,7 @@ const STOCK_VERSION_KEYS = ['stock', 'production'];
 // Báo cáo v5: đầu vào đọc 5–10 giây nên giữ lại để bấm chi tiết liên tiếp không đọc lại; mỗi đầu vào ~10 MB => giữ rất ít
 const stockHealthVersionKeys = [...STOCK_VERSION_KEYS, 'inventory', 'export'];
 const stockHealthInputCache = createCache<InputTonKhoV5>(3);
+const stockHealthPayloadCache = createCache<string>(12); // chuỗi JSON của /api/stock/health (xem route)
 const stockHealthMoTaCache = createCache<BangMoTa>(1);
 const stockHealthDetailCache = createCache<ChiTietTonKho>(20);
 
@@ -47,17 +44,17 @@ const parseStockFilters = (req: Request): StockFilterParams => ({
 });
 
 // [ĐO TIMING] Endpoint từng bị "pending" 25.39s trên production — điểm nóng số 2.
+// Nhớ qua cachedByVersions (trước là Map tự viết, không gộp lượt đang chạy: warmup + mở trang / 2 tab cùng chạy câu nặng
+// này 2 lần). Khoá: bộ lọc; hợp lệ theo phiên bản ton_kho (+ sản xuất khi lọc xưởng / tình trạng), setup gộp xưởng và
+// bảng tên công trình (mặc định của cachedByVersions) — như khoá cũ. Nhánh KHÔNG lọc: thêm bản dùng chung mọi instance
+// (khoá = đường dẫn) — kết quả là số cả kho theo ngày chốt, không theo người dùng / quyền và không dùng bảng tên
+// (phạm vi theo view đi qua tham số congTrinh = nhánh có lọc, không dùng bản chung).
 const refreshStockDatesCache = async (filters: StockFilterParams) => {
   const needsJoin = hasProductionFilter(filters);
-  // pa: phiên bản bảng tên công trình — kết quả tính lúc instance mới chưa nạp xong bảng tên không bị giữ lại
-  const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion(), pa: projectAliasesVersion() });
-  const versions = await getRelevantVersions(needsJoin ? ['stock', 'production'] : ['stock']);
-
-  const cached = stockDatesCache.get(cacheKey);
-  if (cached && JSON.stringify(cached.versions) === JSON.stringify(versions)) {
-    return { payload: cached.payload, fromCache: true };
-  }
-
+  const khongLoc = !needsJoin && filters.congTrinh.length === 0;
+  let tinhLai = false;
+  const payload = await cachedByVersions(stockQueryCache, `dates|${JSON.stringify(filters)}`, needsJoin ? ['stock', 'production'] : ['stock'], async () => {
+  tinhLai = true;
   const conds: string[] = ['s.date_parsed IS NOT NULL'];
   const params: any[] = [];
   if (filters.congTrinh.length) {
@@ -98,11 +95,13 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
     ORDER BY 1 DESC
   `;
   const r = await timedQuery(q, params);
-  const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), count0: Number(row.count0), value: Number(row.value) }));
-
-  stockDatesCache.set(cacheKey, { versions, payload });
-  trimCache(stockDatesCache);
-  return { payload, fromCache: false };
+  // date: chuỗi ISO (đúng chuỗi res.json vẫn tạo từ Date) => bản tính tại chỗ và bản đọc từ jsonb dùng chung giống hệt nhau
+  return r.rows.map(row => ({
+    date: row.d instanceof Date ? row.d.toISOString() : row.d,
+    count: Number(row.count), count0: Number(row.count0), value: Number(row.value),
+  }));
+  }, workshopGroupsVersion(), khongLoc ? '/api/stock/dates' : '');
+  return { payload, fromCache: !tinhLai };
 };
 
 // Tập ma_id_sap thoả bộ lọc xưởng / tình trạng / IPO — xét DÒNG SẢN XUẤT MỚI NHẤT của mỗi mã
@@ -278,15 +277,30 @@ const docDauVaoHealth = (date: string, filters: StockFilterParams) =>
     return { ...ghepDauVaoV5(date, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows }), tenChuan: t => normName(canonicalProjectName(t)) };
   }), `${workshopGroupsVersion()}|${projectAliasesVersion()}`);
 
+const CHO_BANG_TEN_MS = 2000;
 app.get('/api/stock/health', async (req: Request, res: Response) => {
   try {
     const { date } = req.query;
     if (!laNgay(date)) return res.status(400).json({ error: 'Invalid date' });
     const filters = parseHealthFilters(req);
+    // Xem toàn kho: kết quả không theo người dùng / quyền (phạm vi view đi qua tham số congTrinh = nhánh có lọc) => lưu
+    // thêm bản dùng chung mọi instance, instance mới khỏi chạy lại 5 câu đọc 5–10 giây. Payload có đếm công trình theo
+    // bảng tên nên CHỈ đọc / ghi bản chung khi bảng tên đã nạp (phiên bản bảng tên nằm trong extraVersion): instance
+    // mới chờ bảng tên tối đa CHO_BANG_TEN_MS (thường là 1 câu đọc bản lưu); chưa kịp thì chạy như cũ, không dùng bản chung.
+    // 1 dòng trong api_result_cache, ghi đè theo ngày xem gần nhất (ngày nằm trong extraVersion).
+    // Nhớ CHUỖI JSON (không phải object): jsonb sắp lại thứ tự khoá của object, mà giao diện duyệt Object.keys của
+    // các bảng theo dự án => lưu chuỗi để bản đọc từ DB giống từng byte bản tính tại chỗ (đúng chuỗi res.json tạo ra).
+    let khoaChung = '';
+    if (!healthCoLoc(filters)) {
+      if (!projectAliasesVersion()) {
+        await Promise.race([ensureProjectAliases().catch(() => { /* giữ bảng cũ */ }), new Promise(resolve => setTimeout(resolve, CHO_BANG_TEN_MS))]);
+      }
+      if (projectAliasesVersion()) khoaChung = 'stock-health';
+    }
 
-    const payload = await cachedByVersions(stockQueryCache, `health5|${date}|${JSON.stringify(filters)}`, stockHealthVersionKeys,
-      async () => tinhTonKhoV5(await docDauVaoHealth(date, filters)), `${workshopGroupsVersion()}|${projectAliasesVersion()}`);
-    res.json(payload);
+    const chuoi = await cachedByVersions(stockHealthPayloadCache, `health5|${date}|${JSON.stringify(filters)}`, stockHealthVersionKeys,
+      async () => JSON.stringify(tinhTonKhoV5(await docDauVaoHealth(date, filters))), `${workshopGroupsVersion()}|${projectAliasesVersion()}|${date}`, khoaChung);
+    res.type('json').send(chuoi);
   } catch (error) {
     console.error('Lỗi stock/health:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -513,10 +527,6 @@ app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: R
   }
 });
 
-// --- CACHE IN-MEMORY CHO /api/stock/total-count ---
-let cachedStockTotalCount: number | null = null;
-let cachedStockTotalCountVersion: string | null = null;
-
 app.get('/api/stock/total-count', async (req: Request, res: Response) => {
   try {
     // Có lọc công trình / xưởng / tình trạng / IPO: đếm đúng phạm vi (không cache) — trước luôn trả COUNT(*) cả bảng
@@ -530,23 +540,15 @@ app.get('/api/stock/total-count', async (req: Request, res: Response) => {
       }, workshopGroupsVersion());
       return res.json({ total });
     }
-    const verResult = await timedQuery(
-      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
-    );
-    const currentVersion = verResult.rows[0]?.last_updated
-      ? String(verResult.rows[0].last_updated)
-      : null;
-
-    if (cachedStockTotalCount !== null && currentVersion && currentVersion === cachedStockTotalCountVersion) {
-      return res.json({ total: cachedStockTotalCount });
-    }
-
     // COUNT(*) thật — khớp đúng số dòng mà /api/stock/export/csv (scope ALL) sẽ trả về
-    const r = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho`);
-    const total = Number(r.rows[0].total);
-
-    cachedStockTotalCount = total;
-    cachedStockTotalCountVersion = currentVersion;
+    const demCaBang = async () => Number((await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho`)).rows[0].total);
+    // Phiên bản ton_kho lấy từ getVersions (đã gộp / nhớ chung mọi route) — trước MỖI request chạy riêng 1 câu
+    // table_versions kể cả khi số đếm đã nhớ. Không có dòng phiên bản 'ton_kho' => không nhớ, đếm lại như cũ.
+    // Số đếm cả bảng không theo người dùng / quyền, không dùng bảng tên => thêm bản dùng chung mọi instance.
+    const coPhienBan = !!(await getRelevantVersions(['stock'])).stock;
+    const total = coPhienBan
+      ? await cachedByVersions(stockQueryCache, 'total-count|all', ['stock'], demCaBang, '', '/api/stock/total-count')
+      : await demCaBang();
     res.json({ total });
   } catch (error) {
     console.error('Lỗi stock/total-count:', error);

@@ -5,7 +5,8 @@ import { pool } from '../db.js';
 import { signAuthToken, authenticateJWT, requireSelfOrRole } from '../server/auth.js';
 import { validateBody, loginSchema, forgotPasswordSchema, verifyOtpSchema, changePasswordSchema } from '../server/validation.js';
 import { app, loginLimiter, otpRequestLimiter, otpVerifyLimiter } from '../server/app.js';
-import { bumpTokenVersion } from '../server/xuong/auth.js';
+import { bumpTokenVersion, xuongTokenVersionOk } from '../server/xuong/auth.js';
+import { docUserDayDu } from '../server/permissions.js';
 import { coGuiMail, guiMail, noiDungOtp } from '../server/mail.js';
 
 // ============================================================================
@@ -189,20 +190,19 @@ app.post(
 );
 
 // --- LẤY THÔNG TIN USER HIỆN TẠI TỪ TOKEN (dùng để refresh state, không tin snapshot cũ) ---
-// (Giữ nguyên pool.query — nhẹ, chạy trên bảng users nhỏ)
+// Middleware chung (server/app.ts) chỉ kiểm token cho đường dẫn này; route đọc THẲNG DB 1 câu (trước: middleware đọc
+// users 1 lần + route đọc lần nữa) và tự làm đủ 2 kiểm tra của middleware: tài khoản còn hoạt động + token Xưởng chưa
+// bị thu hồi. Dòng vừa đọc được ghi vào cache quyền => các request ngay sau khi mở app khỏi đọc lại users.
 app.get('/api/auth/me', authenticateJWT, async (req: Request, res: Response) => {
   try {
     // req.user chỉ chứa id/username/role từ token — cần query DB để lấy dữ liệu mới nhất
     // (role, permissions, status... có thể đã bị admin đổi sau khi token được phát hành)
-    const result = await pool.query(
-      `SELECT id, username, full_name, email, role, permissions, is_active
-       FROM users WHERE id = $1`,
-      [req.user!.id]
-    );
-
-    const user = result.rows[0];
+    const { row: user, access } = await docUserDayDu(req.user!.id);
     if (!user || !user.is_active) {
       return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại hoặc đã bị khóa' });
+    }
+    if (!xuongTokenVersionOk(req.user, access.tokenVersion)) {
+      return res.status(401).json({ success: false, message: 'Phiên mục Xưởng đã bị thu hồi, vui lòng đăng nhập lại' });
     }
 
     res.json({

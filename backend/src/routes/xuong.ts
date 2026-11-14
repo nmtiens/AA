@@ -19,6 +19,7 @@ import { thoiGianTheoLo } from '../server/xuong/metrics.js';
 import { phamViTheoQuyen, lienQuanHex, xemHexDuoc } from '../server/xuong/phamVi.js';
 import { ensureWorkshopGroups, workshopGroupOf } from '../server/workshopGroups.js';
 import { CAN_XEM_NGAY, sqlCanXuLy, sqlChuaHuy } from '../server/xuong/canXem.js';
+import { banLuuDungDuoc } from '../server/xuong/gioCongLuu.js';
 import {
   chuyenDoiTram, locTheoCheDo, cheDoTheoNgay, laSuKienTram, mnvCua, ngayCa, dungBamTayKhiChuyen, noiCoMatTangCa,
   type CheDoCham, type KetQuaTram, type MocCheDo,
@@ -97,10 +98,24 @@ export async function toTruongCua(userId: string | number): Promise<Array<{ id: 
  * chiTo = null là cả xưởng.
  */
 export async function phamViXem(userId: string | number, xuong: string): Promise<{ chiTo: number[] | null } | null> {
-  const ds = await xuongQuanLy(userId);
-  if (ds.has('*')) return { chiTo: null };
-  return phamViTheoQuyen(ds, await toTruongCua(userId), xuong);
+  return phamViTuQuyen(await quyenXuongCua(userId), xuong);
 }
+
+export interface QuyenXuong { ds: Set<string>; toTruong: Array<{ id: number; xuong: string }> }
+/**
+ * Quyền Xưởng của một người (xưởng quản lý + tổ làm tổ trưởng) đọc MỘT lần để dùng lại trong cùng request: route nào
+ * cần cả phạm vi xem lẫn "sửa được" thì gọi hàm này rồi phamViTuQuyen / quanLyDuoc, không gọi lại xuongQuanLy /
+ * toTruongCua. KHÔNG nhớ qua request (đổi tổ trưởng / thu hồi quyền có hiệu lực ngay như cũ). Hai câu độc lập chạy
+ * song song; admin không cần câu nào (như phamViXem cũ — admin luôn xem / sửa được nên tổ trưởng rỗng không đổi kết quả).
+ */
+export async function quyenXuongCua(userId: string | number): Promise<QuyenXuong> {
+  const access = await loadUserAccess(userId);
+  if (access.role === 'ADMIN') return { ds: new Set(['*']), toTruong: [] };
+  const [ds, toTruong] = await Promise.all([xuongQuanLy(userId), toTruongCua(userId)]);
+  return { ds, toTruong };
+}
+/** Phạm vi xem một xưởng từ quyền đã đọc (cùng luật phamViXem) */
+export const phamViTuQuyen = (q: QuyenXuong, xuong: string) => phamViTheoQuyen(q.ds, q.toTruong, xuong);
 
 // ---------------------------------------------------------------------------
 // Đọc sổ
@@ -241,11 +256,12 @@ export async function cuaSoCacTo(db: Pick<PoolClient, 'query'>, toIds: number[],
  * — quên ra hàng thì sau cuối ca hạng mục về tạm ngưng mà không cần tác nhân chạy ngầm.
  */
 const lanSuaTuDong = new Map<number, number>();
-export async function suaTramTuDong(toId: number): Promise<void> {
+export async function suaTramTuDong(toId: number, mocSan?: MocCheDo[]): Promise<void> {
   const now = Date.now();
   if (now - (lanSuaTuDong.get(toId) ?? 0) < 60_000) return;
   lanSuaTuDong.set(toId, now);
-  if (cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngayCa(now)) !== 'tram') return;
+  // mocSan: lịch chế độ của tổ đã đọc trong cùng request (khỏi hỏi lại)
+  if (cheDoTheoNgay(mocSan ?? await mocCheDo(poolMra, [toId]))(toId, ngayCa(now)) !== 'tram') return;
   const r = await poolMra.query(
     `SELECT t.hex, t.cong_doan_id FROM xuong_trang_thai t JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = t.cong_doan_id
      WHERE tc.to_id = $1 AND t.trang_thai IN ('dang_lam', 'tam_ngung')`, [toId]);
@@ -270,19 +286,23 @@ export async function soTram(db: Pick<PoolClient, 'query'>, evs: SuKien[], cach:
   const mnvs = [...new Set(tram.map(e => mnvCua(e)!))];
   // Đoạn đang mở trước sự kiện sớm nhất: lùi 36 giờ (đoạn ở hàng tự đóng cuối ca nên không dài hơn)
   const tu = Math.max(Math.min(...tram.map(e => e.ts)) - 36 * 3_600_000, now - 35 * 86_400_000);
-  const nguoi = (await db.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
-     WHERE loai IN ('nguoi_vao','nguoi_ra','ra_ca') AND du_lieu->>'mnv' = ANY($1::text[]) AND device_ts_hieu_chinh >= $2`,
-    [mnvs, new Date(tu).toISOString()])).rows;
-  // Có mặt (vào ca ở trạm hoặc điểm danh tay) của những người đó — phân công / tự gán chỉ tính khi có mặt
-  const vao = (await db.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
-     WHERE loai = 'vao_ca' AND device_ts_hieu_chinh >= $2
-       AND (du_lieu->>'mnv' = ANY($1::text[]) OR EXISTS (
-         SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(du_lieu->'nguoi') = 'array' THEN du_lieu->'nguoi' ELSE '[]'::jsonb END) x
-         WHERE upper(COALESCE(x->>'mnv', x #>> '{}')) = ANY($1::text[])))`,
-    [mnvs, new Date(now - 3 * 86_400_000).toISOString()])).rows;
-  nguoi.push(...vao);
+  // Hai câu chỉ đọc, độc lập nhau: chạy song song (pool có 2 kết nối; trong giao dịch ghi thì pg tự xếp nối tiếp trên
+  // cùng kết nối — kết quả như cũ)
+  const [nguoiR, vaoR] = await Promise.all([
+    db.query(
+      `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+       WHERE loai IN ('nguoi_vao','nguoi_ra','ra_ca') AND du_lieu->>'mnv' = ANY($1::text[]) AND device_ts_hieu_chinh >= $2`,
+      [mnvs, new Date(tu).toISOString()]),
+    // Có mặt (vào ca ở trạm hoặc điểm danh tay) của những người đó — phân công / tự gán chỉ tính khi có mặt
+    db.query(
+      `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+       WHERE loai = 'vao_ca' AND device_ts_hieu_chinh >= $2
+         AND (du_lieu->>'mnv' = ANY($1::text[]) OR EXISTS (
+           SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(du_lieu->'nguoi') = 'array' THEN du_lieu->'nguoi' ELSE '[]'::jsonb END) x
+           WHERE upper(COALESCE(x->>'mnv', x #>> '{}')) = ANY($1::text[])))`,
+      [mnvs, new Date(now - 3 * 86_400_000).toISOString()]),
+  ]);
+  const nguoi: Row[] = [...nguoiR.rows, ...vaoR.rows];
   const huy = nguoi.length ? (await db.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`, [nguoi.map(x => String(x.id))])).rows : [];
   const theoId = new Map<string, SuKien>(evs.map(e => [e.id, e]));
@@ -303,7 +323,14 @@ export interface GioiHanNhan { moc: number | null; loai: 'trien_khai' | 'don_han
  * (chưa triển khai thì lấy số lượng đơn hàng ở bảng sản xuất — cùng mốc với thời gian trong xưởng); đã nhận = số
  * nhận hiện có ở công đoạn đó. Khoá trả về: `${hex}|${congDoanId}`.
  */
-export async function gioiHanNhan(db: Pick<PoolClient, 'query'>, pairs: Array<[string, string]>): Promise<Map<string, GioiHanNhan>> {
+export async function gioiHanNhan(
+  db: Pick<PoolClient, 'query'>, pairs: Array<[string, string]>,
+  /**
+   * Dữ liệu người gọi vừa đọc trong cùng request, phủ ĐỦ mọi hex của `pairs` (thừa hex khác không sao — chỉ tra theo hex):
+   * evRows = suKienTheoHex (chỉ nguồn app, gồm cả huy), info = thongTinHangMuc. Có thì không hỏi lại.
+   */
+  san: { evRows?: Row[]; info?: Map<string, Row> } = {},
+): Promise<Map<string, GioiHanNhan>> {
   const out = new Map<string, GioiHanNhan>();
   if (!pairs.length) return out;
   const hexes = [...new Set(pairs.map(p => p[0]))];
@@ -311,8 +338,8 @@ export async function gioiHanNhan(db: Pick<PoolClient, 'query'>, pairs: Array<[s
   const [cdRows, nhanRows, evRows, info] = await Promise.all([
     db.query('SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cds]),
     db.query('SELECT hex, cong_doan_id, sl_nhan FROM xuong_trang_thai WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])', [hexes, cds]),
-    suKienTheoHex(db, hexes),
-    thongTinHangMuc(hexes),
+    san.evRows ?? suKienTheoHex(db, hexes),
+    san.info ?? thongTinHangMuc(hexes),
   ]);
   const xuongCd = new Map(cdRows.rows.map(x => [String(x.id), String(x.xuong)]));
   const daNhan = new Map(nhanRows.rows.map(x => [`${x.hex}|${x.cong_doan_id}`, num(x.sl_nhan)]));
@@ -590,6 +617,14 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
       }
     }
 
+    // Quyền của người gửi: vẫn đọc thẳng DB ở mỗi lô (không nhớ), chỉ dời lên TRƯỚC khi mở giao dịch và chạy song song.
+    // Ba câu này vốn đi ngoài kết nối của giao dịch (pool riêng) nên không thuộc giao dịch — dời lên không đổi gì về ghi;
+    // giao dịch ngắn hơn và không còn giữ 1 kết nối trong lúc mượn kết nối thứ 2 của pool (pool chỉ có 2).
+    // quanLy: xưởng quản lý; laToTruong: tổ người gửi là tổ trưởng (huỷ sự kiện trạm của tổ trong 7 ngày, ghi hộ người
+    // vào / ra — Sửa ngày); msnvToi: mã NV để xét thành viên tổ.
+    const [quanLy, dsToTruong, msnvToi] = await Promise.all([xuongQuanLy(sentBy), toTruongCua(sentBy), msnvCua(sentBy)]);
+    const laToTruong = new Set(dsToTruong.map(x => x.id));
+
     const ketQua = await withTransactionMra(async client => {
       // Máy phải đã đăng ký cho người gửi và chưa bị thu hồi
       const phien = await client.query(
@@ -613,11 +648,7 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
         ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai, co FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows
         : [];
       const dich = new Map<string, Row>(dichDb.map(x => [String(x.id), x]));
-      const quanLy = await xuongQuanLy(sentBy);
-      // Tổ mà người gửi là tổ trưởng: huỷ sự kiện trạm của tổ trong 7 ngày, ghi hộ người vào / ra (Sửa ngày)
-      const laToTruong = new Set((await toTruongCua(sentBy)).map(x => x.id));
       // Tổ người gửi được ghi: tổ trưởng, hoặc thành viên đang trong tổ (theo mã NV — một người có thể có nhiều tài khoản)
-      const msnvToi = await msnvCua(sentBy);
       const toCuaToi = new Set((await client.query(
         `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
          UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv
@@ -774,20 +805,27 @@ const dongTrangThai = (x: Row, info?: Row) => ({
   dvt: info?.dvt ?? null,
 });
 
+const SQL_CD_ACTIVE = 'SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active';
+
 /**
  * Gợi ý công đoạn kế cho "Xong — giao" (3F, cải tiến 6). Ưu tiên tuyến đã khai khi triển khai
  * (du_lieu.tuyen = [id công đoạn theo thứ tự]); chưa có tuyến thì các công đoạn cùng xưởng ở bậc `thu_tu` kế tiếp
  * (theo cd_tach_ma). Mảng rỗng = chưa có tuyến, màn hình bắt chọn nơi giao.
  */
-async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<{ ke: Map<string, string[]>; cuoi: Set<string> }> {
+async function goiYCongDoanKe(
+  pairs: Array<[string, string]>,
+  /** Đã đọc trong cùng request: evRows = suKienTheoHex phủ đủ hex của `pairs`; cdRows = kết quả SQL_CD_ACTIVE */
+  san: { evRows?: Row[]; cdRows?: Row[] } = {},
+): Promise<{ ke: Map<string, string[]>; cuoi: Set<string> }> {
   const out = new Map<string, string[]>();
   const cuoi = new Set<string>();
   if (!pairs.length) return { ke: out, cuoi };
   const hexes = [...new Set(pairs.map(p => p[0]))];
-  const [evRows, cd] = await Promise.all([
-    suKienTheoHex(poolMra, hexes),
-    poolMra.query('SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active'),
+  const [evRows, cdRows] = await Promise.all([
+    san.evRows ?? suKienTheoHex(poolMra, hexes),
+    san.cdRows ?? poolMra.query(SQL_CD_ACTIVE).then(r => r.rows as Row[]),
   ]);
+  const cd = { rows: cdRows };
   const evts = evRows.map(toSuKien);
   const tuyen = new Map<string, TuyenThanhPhan[]>();
   for (const hex of hexes) tuyen.set(hex, tuyenTheoThanhPhan(evts.filter(e => e.hex === hex)));
@@ -820,6 +858,23 @@ export async function suaChoGiaoCuoiTuyen(pairs: Array<[string, string]>): Promi
   if (!can.length) return 0;
   await withTransactionMra(client => luuTrangThai(client, can));
   return can.length;
+}
+
+/**
+ * Tự sửa "chờ giao ở cuối tuyến" cho cả xưởng (Báo cáo, Tổng quan, Theo dõi triển khai gọi ở đầu request). Mỗi lần chạy
+ * phải nạp MỌI sự kiện của tới 500 hạng mục chờ giao chỉ để tìm dòng cũ => chặn ≤ 1 lần / phút / xưởng / instance (cùng
+ * mức suaTramTuDong). An toàn: đây chỉ là dọn dữ liệu lưu từ trước quy tắc cuối tuyến — trạng thái ghi mới đã tính đúng
+ * ngay lúc ghi (luuTrangThai); màn Báo cáo tự gọi lại nhiều lần liên tiếp (conThieu) không cần xét lại mỗi lần.
+ * Lỗi thì không ghi mốc (lần sau thử lại).
+ */
+const lanSuaCuoiTuyen = new Map<string, number>();
+export async function suaChoGiaoCuoiTuyenXuong(xuong: string): Promise<void> {
+  const now = Date.now();
+  if (now - (lanSuaCuoiTuyen.get(xuong) ?? 0) < 60_000) return;
+  await suaChoGiaoCuoiTuyen((await poolMra.query(
+    `SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong]))
+    .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+  lanSuaCuoiTuyen.set(xuong, now);
 }
 
 // ---------------------------------------------------------------------------
@@ -883,40 +938,61 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
     if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
     const toId = Number(req.query.toId);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: 'Thiếu tổ' });
-    const cdRows = await poolMra.query(
-      `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
-       WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`, [toId]);
+    // Màn chính của tổ (mở app, màn hình hiện lại, sau mỗi lần gửi sự kiện): mỗi loại dữ liệu chỉ đọc MỘT lần trong
+    // request rồi dùng lại — lịch chế độ tổ (trước 3 lần), sự kiện các hạng mục của tổ (trước 3–4 lần), bảng công đoạn
+    // (2 lần), thông tin hạng mục ở Layerbase (2 lần); các câu độc lập chạy song song. Kết quả trả về như cũ.
+    const [cdRows, mocTo] = await Promise.all([
+      poolMra.query(
+        `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
+         WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`, [toId]),
+      // Lịch đổi chế độ chấm của tổ: không đổi trong lúc request chạy (đổi chế độ có hiệu lực từ ngày ca kế tiếp)
+      mocCheDo(poolMra, [toId]),
+    ]);
     const cds = cdRows.rows.map(x => String(x.id));
     // Tổ chế độ trạm: đoạn ở hàng quá cuối ca tự đóng (tính lại trước khi đọc)
-    await suaTramTuDong(toId);
-    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại trước khi đọc
-    if (cds.length) {
-      await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai = 'cho_giao'`, [cds]))
-        .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+    await suaTramTuDong(toId, mocTo);
+    // Trạng thái các cặp của tổ + sự kiện (chỉ nguồn app, gồm huy) của các hạng mục đó + bảng công đoạn + tên hạng mục
+    const docViec = async () => {
+      const [stR, toR] = await Promise.all([
+        cds.length
+          ? poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])
+          : Promise.resolve({ rows: [] as Row[] }),
+        poolMra.query('SELECT xuong, ten_to FROM xuong_to WHERE id = $1', [toId]),
+      ]);
+      const hexes = [...new Set(stR.rows.map(x => String(x.hex)))];
+      // MRA (Supabase) và thongTinHangMuc (Layerbase) khác pool nên chạy cùng lúc
+      const [evRows, cdAll, info] = await Promise.all([
+        suKienTheoHex(poolMra, hexes),
+        hexes.length ? poolMra.query(SQL_CD_ACTIVE).then(r => r.rows as Row[]) : Promise.resolve([] as Row[]),
+        thongTinHangMuc(hexes),
+      ]);
+      const goiY = await goiYCongDoanKe(stR.rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]), { evRows, cdRows: cdAll });
+      return { st: stR.rows as Row[], toRow: toR.rows[0] as Row | undefined, evRows, info, goiY };
+    };
+    let viec = await docViec();
+    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại rồi ĐỌC LẠI (thứ tự "sửa rồi mới đọc" như cũ). Cặp chờ
+    // giao của tổ là tập con của `st`, cuối tuyến xét trên đúng sự kiện vừa nạp nên không cần câu / lượt nạp riêng;
+    // sau lần sửa đầu gần như không bao giờ vào nhánh này.
+    const canSua = viec.st.filter(x => x.trang_thai === 'cho_giao' && viec.goiY.cuoi.has(pairKey(String(x.hex), String(x.cong_doan_id))))
+      .map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]);
+    if (canSua.length) {
+      await withTransactionMra(client => luuTrangThai(client, canSua));
+      viec = await docViec();
     }
-    const st = cds.length
-      ? (await poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows
-      : [];
-    const info = await thongTinHangMuc([...new Set(st.map(x => String(x.hex)))]);
-    const ngay = vnDayKey(new Date());
-    const hom = await poolMra.query(
-      `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
-       WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
-         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       ORDER BY device_ts_hieu_chinh`, [toId, ngay]);
-    const quanSo: Record<string, number> = {};
-    const tangCa: string[] = [];
-    for (const x of hom.rows) {
-      const d = x.du_lieu ?? {};
-      if (x.loai === 'quan_so' && typeof d.loaiCa === 'string') quanSo[d.loaiCa] = Number(d.soNguoi);
-      if (x.loai === 'tang_ca' && typeof d.loaiCa === 'string' && !tangCa.includes(d.loaiCa)) tangCa.push(d.loaiCa);
-    }
-    const toRow = (await poolMra.query('SELECT xuong, ten_to FROM xuong_to WHERE id = $1', [toId])).rows[0];
+    const { st, toRow, evRows: evSt, info } = viec;
+    const { ke: goiY, cuoi: cuoiTuyen } = viec.goiY;
     const xuongTo = toRow?.xuong ? String(toRow.xuong) : (cdRows.rows[0]?.xuong ?? null);
+    const ngay = vnDayKey(new Date());
 
+    // Hôm nay: quân số, tăng ca, đã xác nhận cuối ngày (1 câu — trước là 2 câu cùng tổ, cùng ngày, cùng lọc huỷ).
     // "Giống hôm qua" (3B, 3H): quân số gần nhất trước hôm nay theo ca, số người tăng ca gần nhất
-    const [truoc, tcTruoc, xacNhan, lichCa] = await Promise.all([
+    const [hom, truoc, tcTruoc, lichCa] = await Promise.all([
+      poolMra.query(
+        `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai IN ('quan_so','tang_ca','xac_nhan_cuoi_ngay')
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY device_ts_hieu_chinh`, [toId, ngay]),
       poolMra.query(
         `SELECT DISTINCT ON (du_lieu->>'loaiCa') du_lieu->>'loaiCa' AS ca, du_lieu->>'soNguoi' AS so
          FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'quan_so'
@@ -927,23 +1003,37 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
         `SELECT so_nguoi FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'tang_ca' AND so_nguoi IS NOT NULL
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY device_ts_hieu_chinh DESC LIMIT 1`, [toId]),
-      poolMra.query(
-        `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
-           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
-           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`, [toId, ngay]),
       xuongTo ? lichCaCuaXuong(xuongTo) : Promise.resolve([] as LichCaRow[]),
     ]);
+    const quanSo: Record<string, number> = {};
+    const tangCa: string[] = [];
+    let daXacNhanHomNay = false;
+    for (const x of hom.rows) {
+      const d = x.du_lieu ?? {};
+      if (x.loai === 'quan_so' && typeof d.loaiCa === 'string') quanSo[d.loaiCa] = Number(d.soNguoi);
+      if (x.loai === 'tang_ca' && typeof d.loaiCa === 'string' && !tangCa.includes(d.loaiCa)) tangCa.push(d.loaiCa);
+      if (x.loai === 'xac_nhan_cuoi_ngay') daXacNhanHomNay = true;
+    }
     const quanSoTruoc: Record<string, number> = {};
     for (const x of truoc.rows) if (x.ca && x.so !== null) quanSoTruoc[x.ca] = Number(x.so);
 
-    const { ke: goiY, cuoi: cuoiTuyen } = await goiYCongDoanKe(st.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+    // Hạng mục tạm ngưng: lý do + lúc ngưng (lần tạm ngưng chưa huỷ gần nhất) — dòng hiện "Tạm ngưng · Thiếu vật tư · 12 phút"
+    const dsNgung = st.filter(x => x.trang_thai === 'tam_ngung');
     // Số người đang làm: lần chia người (3D) sau lần bắt đầu / tiếp tục gần nhất thì thay số khai lúc bắt đầu
     // (cùng cách phân bổ giờ công đọc soNguoi theo thời gian — allocation.ts)
-    const chia = await poolMra.query(
-      `SELECT loai, hex, cong_doan_id, du_lieu->'phanBo' AS pb, du_lieu->'nguoi' AS nguoi, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
-       WHERE to_id = $1 AND loai IN ('chia_nguoi','bat_dau','tiep_tuc') AND device_ts_hieu_chinh > now() - interval '30 days'
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       ORDER BY device_ts_hieu_chinh`, [toId]);
+    const [chia, ngungR] = await Promise.all([
+      poolMra.query(
+        `SELECT loai, hex, cong_doan_id, du_lieu->'phanBo' AS pb, du_lieu->'nguoi' AS nguoi, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai IN ('chia_nguoi','bat_dau','tiep_tuc') AND device_ts_hieu_chinh > now() - interval '30 days'
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY device_ts_hieu_chinh`, [toId]),
+      dsNgung.length ? poolMra.query(
+        `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai = 'tam_ngung' AND hex = ANY($2::text[])
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY hex, cong_doan_id, device_ts_hieu_chinh DESC`, [toId, dsNgung.map(x => String(x.hex))])
+        : Promise.resolve({ rows: [] as Row[] }),
+    ]);
     /** Tên người đang làm (khai theo tên) từ lần bắt đầu / tiếp tục / chia người gần nhất kể từ lúc chạy */
     const tenDangLam = (hex: string, cd: string, tu: Date | null): string[] | null => {
       if (!tu) return null;
@@ -973,22 +1063,15 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       }
       return n;
     };
-    // Hạng mục tạm ngưng: lý do + lúc ngưng (lần tạm ngưng chưa huỷ gần nhất) — dòng hiện "Tạm ngưng · Thiếu vật tư · 12 phút"
-    const dsNgung = st.filter(x => x.trang_thai === 'tam_ngung');
     const ngung = new Map<string, { lyDo: string | null; tu: string }>();
-    if (dsNgung.length) {
-      const q = await poolMra.query(
-        `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
-         WHERE to_id = $1 AND loai = 'tam_ngung' AND hex = ANY($2::text[])
-           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-         ORDER BY hex, cong_doan_id, device_ts_hieu_chinh DESC`, [toId, dsNgung.map(x => String(x.hex))]);
-      for (const x of q.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
-    }
+    for (const x of ngungR.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
     // Tổ chế độ trạm: người đang ở từng hàng theo lượt quét (thay tên khai lúc Bắt đầu / Chia người)
-    const cheDoHom = cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngayCa(Date.now()));
+    const cheDoTo = cheDoTheoNgay(mocTo);
+    const cheDoHom = cheDoTo(toId, ngayCa(Date.now()));
+    // Sự kiện của các hạng mục đang làm / tạm ngưng: lọc từ evSt đã nạp (đúng tập suKienTheoHex trả cho các hex đó)
+    const hexDangLam = new Set(st.filter(x => x.trang_thai === 'dang_lam' || x.trang_thai === 'tam_ngung').map(x => String(x.hex)));
     const kqTram = cheDoHom === 'tram'
-      ? (await soTram(poolMra, (await suKienTheoHex(poolMra, [...new Set(st.filter(x => x.trang_thai === 'dang_lam' || x.trang_thai === 'tam_ngung')
-        .map(x => String(x.hex)))])).map(toSuKien), 'chinh_thuc', Date.now()))?.kq ?? null
+      ? (await soTram(poolMra, evSt.filter(x => hexDangLam.has(String(x.hex))).map(toSuKien), 'chinh_thuc', Date.now()))?.kq ?? null
       : null;
     const dangOTram = cheDoHom === 'tram' ? kqTram?.dangO ?? {} : null;
     const hoTenTram = new Map<string, string>();
@@ -1040,19 +1123,24 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       };
     });
 
-    const ghChoNhan = await gioiHanNhan(poolMra, rows.filter(x => x.slGiaoDen > x.slNhan).map(x => [String(x.hex), String(x.congDoanId)] as [string, string]));
-
     // Chấm công theo người: danh sách công nhân của tổ + người có mặt hôm nay theo ca (kể cả người mượn tổ khác)
     const chamCong = await coBangCongNhan();
+    // Giới hạn nhận dùng lại sự kiện + thông tin hạng mục đã nạp (không nạp lại, không gọi Layerbase lần 2); chạy cùng
+    // lúc với câu vào / ra ca (giữ nguyên câu này — không gộp với câu có lọc huỷ)
+    const [ghChoNhan, ddR] = await Promise.all([
+      gioiHanNhan(poolMra, rows.filter(x => x.slGiaoDen > x.slNhan).map(x => [String(x.hex), String(x.congDoanId)] as [string, string]),
+        { evRows: evSt, info }),
+      chamCong ? poolMra.query(
+        `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
+           AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`, [toId, ngay])
+        : Promise.resolve({ rows: [] as Row[] }),
+    ]);
     let congNhan: Array<{ mnv: string; hoTen: string; toKhac: string | null }> = [];
     const coMatHomNay: Record<string, Array<{ mnv: string; vao: number; ra: number | null }>> = {};
     if (chamCong) {
-      const dd = (await poolMra.query(
-        `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
-         WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
-           AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`, [toId, ngay])).rows;
+      const dd = ddR.rows;
       // Tổ chế độ cũ / song song: lượt quét vào ca ở trạm không tính là điểm danh chính thức (R3)
-      const cheDoTo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]));
       const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo)
         .filter(e => vnDayKey(new Date(e.ts)) === ngay || e.loai === 'ra_ca');
       for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
@@ -1082,7 +1170,7 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       quanSo, tangCa, quanSoTruoc,
       chamCong, congNhan, coMat: coMatHomNay,
       soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
-      daXacNhanHomNay: xacNhan.rows.length > 0,
+      daXacNhanHomNay,
       anhBat: await coBangAnh(),
       lichCa,
       // Chế độ chấm hôm nay (trạm quét): 'tram' thì app ẩn Bắt đầu / Chia người / Tạm ngưng / điểm danh tay
@@ -1124,16 +1212,28 @@ export async function lichCaCuaXuong(xuong: string, db: Pick<PoolClient, 'query'
   return r.rows.map(x => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
 }
 
-export async function gioCongToNgay(toId: number, ngay: string) {
-  const pb = await poolMra.query('SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date', [toId, ngay]);
-  const toRow = await poolMra.query('SELECT xuong FROM xuong_to WHERE id = $1', [toId]);
-  const xuong = toRow.rows[0]?.xuong;
+/**
+ * Dữ liệu người gọi đã đọc sẵn trong cùng request cho gioCongToNgay (gọi lặp 20–30 lần ở /hex/:hex, /bao-cao): có thì bỏ
+ * câu tương ứng trước khi xét cache. `v` = phiên bản sổ của (tổ, ngày), null = chưa có dòng xuong_phien_ban; `xuong` =
+ * xưởng của tổ, null = không có tổ; `lichCa` = lịch ca của ĐÚNG xưởng đó. Bỏ trống trường nào thì hàm tự đọc trường đó.
+ * v đọc trước mà có sự kiện chen giữa thì kết quả mới hơn v — lần sau v lệch sẽ tính lại (như /bao-cao vẫn làm).
+ */
+export interface GioCongSan { v?: string | number | null; xuong?: string | null; lichCa?: LichCaRow[] }
+
+export async function gioCongToNgay(toId: number, ngay: string, san: GioCongSan = {}) {
+  // Chưa có sẵn: phiên bản sổ và xưởng của tổ là 2 câu độc lập — chạy song song
+  const [vSo, xuong] = await Promise.all([
+    san.v !== undefined ? san.v
+      : poolMra.query('SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date', [toId, ngay]).then(r => r.rows[0]?.v ?? null),
+    san.xuong !== undefined ? san.xuong
+      : poolMra.query('SELECT xuong FROM xuong_to WHERE id = $1', [toId]).then(r => r.rows[0]?.xuong ?? null),
+  ]);
   if (!xuong) return null;
-  const lichCa = await lichCaCuaXuong(String(xuong));
+  const lichCa = san.lichCa ?? await lichCaCuaXuong(String(xuong));
   // Khoá cache = phiên bản sổ + dấu lịch ca: đổi lịch ca (giờ nghỉ…) thì mọi instance tự tính lại, không chỉ instance
   // nhận request sửa lịch
   const bamLichCa = dauLichCa(lichCa);
-  const v = `${pb.rows[0]?.v ?? 0}|${bamLichCa}`;
+  const v = `${vSo ?? 0}|${bamLichCa}`;
   const key = `${toId}|${ngay}`;
   const today = vnDayKey(new Date()) === ngay;
   const hit = gioCongCache.get(key);
@@ -1320,9 +1420,9 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
     const p = info.get(hex);
     if (rows.length || st.rows.length || p) {
       const me = req.user!.id;
-      const quanLy = await xuongQuanLy(me);
+      // Quyền đọc một lần (2 câu song song thay vì nối tiếp)
+      const { ds: quanLy, toTruong } = await quyenXuongCua(me);
       if (!quanLy.has('*')) {
-        const toTruong = await toTruongCua(me);
         // Bảng sản xuất có thể ghi mã xưởng gốc (X.ĐB…) — xưởng ở mục Xưởng là tên đã gộp
         await ensureWorkshopGroups();
         const lq = lienQuanHex({ xuongChinh: [p?.xuong_chinh ?? null, p?.xuong_chinh ? workshopGroupOf(p.xuong_chinh) : null], trangThai: st.rows, suKien: rows, tuyen: cdTuyen, xuongCuaCd: xuongCua });
@@ -1385,8 +1485,14 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
     }
     // Giờ chạy TRONG CA (ca chính, trừ nghỉ, bỏ Chủ nhật) — cùng cách đo với báo cáo / mốc chuẩn; giờ đồng hồ tính cả đêm
     // ("1 ngày 22 giờ") dễ hiểu nhầm là giờ làm
+    // Lịch ca từng xưởng: đọc một lần trong request (dùng cho giờ trong ca và cho giờ công từng tổ bên dưới)
+    const lichCaXuong = new Map<string, Promise<LichCaRow[]>>();
+    const layLichCa = (xg: string) => {
+      if (!lichCaXuong.has(xg)) lichCaXuong.set(xg, lichCaCuaXuong(xg));
+      return lichCaXuong.get(xg)!;
+    };
     const khungXuong = new Map<string, Array<[number, number]>>();
-    for (const xg of [...new Set(st.rows.map(x => String(x.xuong ?? '')).filter(Boolean))]) khungXuong.set(xg, khungCaChinh(await lichCaCuaXuong(xg)));
+    for (const xg of [...new Set(st.rows.map(x => String(x.xuong ?? '')).filter(Boolean))]) khungXuong.set(xg, khungCaChinh(await layLichCa(xg)));
     const gioChayCa = new Map<string, number>();
     for (const x of st.rows) {
       const cdId = String(x.cong_doan_id);
@@ -1400,15 +1506,46 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
     for (const t of tuyenHex) t.tuyen.forEach(id => { if (!viTri.has(id)) viTri.set(id, viTri.size); });
     const capNgay = [...toNgay].sort((a, b) => (a.split('|')[1] < b.split('|')[1] ? 1 : -1));
     const gioCong = new Map<string, number>();
-    await runWithLimit(capNgay.slice(0, 20).map(k => async () => {
-      const [to, ngay] = k.split('|');
-      const kq = await gioCongToNgay(Number(to), ngay);
-      if (!kq) return;
+    const congGioCong = (theoHangMuc: Record<string, { gioCongThuong: number; gioCongTangCa: number } | undefined> | null | undefined) => {
       for (const x of st.rows) {
-        const h = kq.theoHangMuc[pairKey(hex, String(x.cong_doan_id))];
+        const h = theoHangMuc?.[pairKey(hex, String(x.cong_doan_id))];
         if (h) gioCong.set(String(x.cong_doan_id), (gioCong.get(String(x.cong_doan_id)) ?? 0) + h.gioCongThuong + h.gioCongTangCa);
       }
-    }), 2);
+    };
+    // Tới 20 cặp (tổ, ngày): thay vì mỗi cặp 3 câu tiền kiểm rồi tính lại (N+1), đọc gộp 3 câu cho MỌI cặp — phiên bản
+    // sổ, xưởng của tổ, bản lưu xuong_gio_cong_ngay (bảng Báo cáo đã lưu). Bản lưu chỉ dùng khi đủ 3 điều kiện như
+    // /bao-cao: ngày đã qua, đúng phiên bản sổ, đúng dấu lịch ca hiện tại (dấu gồm cả phiên bản cách tính) — nên số
+    // giống hệt tính lại. Cặp không khớp / bảng chưa có thì tính như cũ, truyền sẵn phần đã đọc.
+    const capTinh = capNgay.slice(0, 20).map(k => ({ k, to: Number(k.split('|')[0]), ngay: k.split('|')[1] }));
+    if (capTinh.length) {
+      const dsTo = capTinh.map(c => c.to), dsNgay = capTinh.map(c => c.ngay);
+      const [pbR, toR, luuR] = await Promise.all([
+        poolMra.query(
+          `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
+           WHERE (to_id, ngay) IN (SELECT * FROM unnest($1::int[], $2::date[]))`, [dsTo, dsNgay]),
+        poolMra.query('SELECT id, xuong FROM xuong_to WHERE id = ANY($1::int[])', [[...new Set(dsTo)]]),
+        poolMra.query(
+          `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua->>'bamLichCa' AS bam, ket_qua->'theoHangMuc' AS hm
+           FROM xuong_gio_cong_ngay WHERE (to_id, ngay) IN (SELECT * FROM unnest($1::int[], $2::date[]))`, [dsTo, dsNgay])
+          .catch(e => { if (!isMissingSchema(e)) throw e; return { rows: [] as Row[] }; }),
+      ]);
+      const vCua = new Map(pbR.rows.map(x => [`${x.to_id}|${x.ngay}`, x.v]));
+      const xuongCuaTo = new Map(toR.rows.map(x => [Number(x.id), x.xuong ? String(x.xuong) : null]));
+      const luuCua = new Map(luuR.rows.map(x => [`${x.to_id}|${x.ngay}`, x]));
+      const homNay = vnDayKey(new Date());
+      await runWithLimit(capTinh.map(c => async () => {
+        const xg = xuongCuaTo.get(c.to) ?? null;
+        if (!xg) return; // không có tổ — gioCongToNgay cũng trả null
+        const lichCa = await layLichCa(xg);
+        const v = vCua.has(c.k) ? vCua.get(c.k) : null;
+        if (banLuuDungDuoc({ ngay: c.ngay, homNay, v, luu: luuCua.get(c.k), bamHienTai: dauLichCa(lichCa) })) {
+          congGioCong(luuCua.get(c.k)!.hm);
+          return;
+        }
+        const kq = await gioCongToNgay(c.to, c.ngay, { v, xuong: xg, lichCa });
+        if (kq) congGioCong(kq.theoHangMuc);
+      }), 2);
+    }
     const lam = (n: number) => Math.round(n * 100) / 100;
 
     // Lịch sử MRA (nguon = 'mra'): công đoạn tính riêng từ sự kiện MRA — thời gian chạy + số nhân công gốc

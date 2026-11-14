@@ -204,6 +204,8 @@ const docPhienBan = async (): Promise<PhienBan> => {
 };
 
 // Không phụ thuộc bảng nào trong TABLE_TO_VERSION_KEY: versionKeys = [], phiên bản riêng đi qua extraVersion
+// Tồn kho vật tư không dùng bảng tên công trình => mọi nơi gọi truyền dungBangTen = false (không tính lại khi bảng
+// tên vừa nạp xong ở nền trên instance mới). Không dùng bản chung DB: kết quả chi tiết phụ thuộc quyền xem giá.
 const cacheTongHop = createCache<TongHopTonKhoVt>(2);
 // Tổng hợp đã lọc: 1 khoá / (nhóm, bộ tên) — mỗi biểu đồ 1 bộ lọc
 const cacheTongHopLoc = createCache<TongHopTonKhoVt>(24);
@@ -279,7 +281,7 @@ app.get('/api/ton-kho-vt/tong-hop', async (req: Request, res: Response) => {
   try {
     if (!(await userHasPermission(req, QUYEN_XEM))) return res.status(403).json(LOI_QUYEN);
     const pb = await docPhienBan();
-    const payload = await cachedByVersions(cacheTongHop, 'tong-hop', [], () => tinhTongHop(pb.capNhat), pb.khoa);
+    const payload = await cachedByVersions(cacheTongHop, 'tong-hop', [], () => tinhTongHop(pb.capNhat), pb.khoa, '', false);
     res.json(payload);
   } catch (error) {
     console.error('Lỗi ton-kho-vt/tong-hop:', error);
@@ -299,7 +301,7 @@ app.post('/api/ton-kho-vt/tong-hop', async (req: Request, res: Response) => {
     const pb = await docPhienBan();
     const loc = { nhom, ten: ds.ten };
     const payload = await cachedByVersions(cacheTongHopLoc, `tong-hop-loc|${nhom}|${hashKey(ds.ten)}`, [],
-      () => tinhTongHop(pb.capNhat, loc), pb.khoa);
+      () => tinhTongHop(pb.capNhat, loc), pb.khoa, '', false);
     res.json(payload);
   } catch (error) {
     console.error('Lỗi ton-kho-vt/tong-hop (lọc):', error);
@@ -348,7 +350,7 @@ app.get('/api/ton-kho-vt/ten-vat-tu', async (req: Request, res: Response) => {
     const nhom = docNhom(req.query.nhom);
     if (!nhom) return res.status(400).json({ error: 'Thiếu hoặc sai tên nhóm vật tư' });
     const pb = await docPhienBan();
-    const payload = await cachedByVersions(cacheTenVatTu, `ten-vat-tu|${nhom}`, [], () => tinhTenVatTu(nhom), pb.khoa);
+    const payload = await cachedByVersions(cacheTenVatTu, `ten-vat-tu|${nhom}`, [], () => tinhTenVatTu(nhom), pb.khoa, '', false);
     res.json(payload);
   } catch (error) {
     console.error('Lỗi ton-kho-vt/ten-vat-tu:', error);
@@ -495,7 +497,9 @@ const xuLyChiTiet = async (req: Request, res: Response, src: Record<string, unkn
       `chi-tiet|${ngay}|${truoc ?? ''}|${nhom}|${coGia ? 1 : 0}|${ds.ten.length ? hashKey(ds.ten) : ''}`,
       [],
       () => tinhChiTiet(ngay, nhom, coGia, truoc, ds.ten),
-      pb.khoa
+      pb.khoa,
+      '',
+      false
     );
     res.json(payload);
   } catch (error) {

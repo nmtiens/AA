@@ -7,11 +7,11 @@ import { verifyDeviceToken, signDeviceToken, newDeviceId, signTramToken } from '
 import { hieuChinhGio } from '../server/xuong/clock.js';
 import { doanCoMat, chuanMnv } from '../server/xuong/chamCong.js';
 import { suKienConHieuLuc } from '../server/xuong/state.js';
-import { CHE_DO_CHAM, cheDoTheoNgay, coSuaNgay, laSuKienTram, mnvCua, ngayCa, nhomLanTruoc, type CheDoCham, type NguonDoan } from '../server/xuong/tram.js';
+import { CHE_DO_CHAM, cheDoTheoNgay, coSuaNgay, laSuKienTram, mnvCua, ngayCa, nhomLanTruoc, diemDanhTayChuaHuy, type CheDoCham, type NguonDoan } from '../server/xuong/tram.js';
 import { nguoiTrongSuKien } from '../server/xuong/chamCong.js';
 import { pairKey, type SuKien } from '../server/xuong/types.js';
 import {
-  fail, coQuyenXuong, xuongQuanLy, quanLyDuoc, toTruongCua, phamViXem, COT_SU_KIEN, toSuKien, suKienTheoHex,
+  fail, coQuyenXuong, xuongQuanLy, quanLyDuoc, quyenXuongCua, phamViTuQuyen, COT_SU_KIEN, toSuKien, suKienTheoHex,
   suKienSchema, kiemTraTheoLoai, ghiVaTinhLai, thongTinHangMuc, lichCaCuaXuong, coBangTram, mocCheDo, gioiHanNhan,
   soTram, nguoiDungTheoId, tenNguoi, type Row, type SuKienVao,
 } from './xuong.js';
@@ -170,30 +170,38 @@ app.post('/api/xuong/to/:id/che-do', async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // Sổ trạm của một tổ quanh một khoảng thời gian (sự kiện thô gồm huy + nhận / xong của các hạng mục đó)
 // ---------------------------------------------------------------------------
-/** Điểm danh tay của tổ trưởng (vao_ca / ra_ca không phải của trạm) quanh một khoảng — gộp vào "đã điểm danh" ở trạm */
-async function diemDanhTayCuaTo(toId: number, tu: number, den: number): Promise<SuKien[]> {
-  const r = await poolMra.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
-     WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca') AND device_ts_hieu_chinh BETWEEN $2 AND $3
-       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
-    [toId, new Date(tu).toISOString(), new Date(den).toISOString()]);
-  return r.rows.map(toSuKien).filter(e => !laSuKienTram(e));
-}
-
-async function soTramCuaTo(toId: number, tu: number, den: number): Promise<SuKien[]> {
+/**
+ * Sổ trạm của tổ quanh một khoảng (`evs` — như trước). `kemTay`: trả thêm `ddTay` = điểm danh tay của tổ trưởng (vao_ca /
+ * ra_ca không phải của trạm, chưa huỷ) trong CÙNG khoảng — gộp vào "đã điểm danh" ở trạm. Câu đầu vốn đã trả các dòng
+ * đó rồi bị lọc bỏ, nên màn trạm (30 giây gọi 1 lần / trạm) không cần hỏi lại câu thứ hai trên cùng (tổ, loại, khoảng
+ * giờ): chỉ lấy kèm sự kiện huy của các dòng tay trong cùng câu huy. `evs` không đổi — huy của dòng tay không đưa vào.
+ */
+async function soCuaTo(toId: number, tu: number, den: number, kemTay = false): Promise<{ evs: SuKien[]; ddTay: SuKien[] }> {
   const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
      WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca','nguoi_vao','nguoi_ra') AND device_ts_hieu_chinh BETWEEN $2 AND $3`,
     [toId, new Date(tu).toISOString(), new Date(den).toISOString()]);
   const rows = r.rows.filter(x => laSuKienTram(toSuKien(x)));
-  const huy = rows.length ? (await poolMra.query(
-    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`, [rows.map(x => String(x.id))])).rows : [];
-  const hexes = [...new Set(rows.filter(x => x.hex).map(x => String(x.hex)))];
-  const sl = (await suKienTheoHex(poolMra, hexes)).filter(x => x.loai === 'nhan' || x.loai === 'hoan_thanh' || x.loai === 'huy');
+  // Ứng viên điểm danh tay: vao_ca / ra_ca không thuộc sổ trạm
+  const tay = kemTay ? r.rows.map(toSuKien).filter(e => (e.loai === 'vao_ca' || e.loai === 'ra_ca') && !laSuKienTram(e)) : [];
+  const canHuy = [...rows.map(x => String(x.id)), ...tay.map(e => e.id)];
+  const [huyTatCa, slTho] = await Promise.all([
+    canHuy.length ? poolMra.query(
+      `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`, [canHuy]).then(q => q.rows as Row[])
+      : Promise.resolve([] as Row[]),
+    suKienTheoHex(poolMra, [...new Set(rows.filter(x => x.hex).map(x => String(x.hex)))]),
+  ]);
+  const idTram = new Set(rows.map(x => String(x.id)));
+  const huy = huyTatCa.filter(h => idTram.has(String(h.sua_cho)));
+  const sl = slTho.filter(x => x.loai === 'nhan' || x.loai === 'hoan_thanh' || x.loai === 'huy');
   const theoId = new Map<string, Row>();
   for (const x of [...rows, ...huy, ...sl]) theoId.set(String(x.id), x);
-  return [...theoId.values()].map(toSuKien);
+  return {
+    evs: [...theoId.values()].map(toSuKien),
+    ddTay: diemDanhTayChuaHuy(tay, huyTatCa.map(h => String(h.sua_cho))),
+  };
 }
+const soTramCuaTo = async (toId: number, tu: number, den: number): Promise<SuKien[]> => (await soCuaTo(toId, tu, den)).evs;
 
 // ---------------------------------------------------------------------------
 // Máy trạm
@@ -223,12 +231,11 @@ app.get('/api/xuong/tram/may/bang', async (req: Request, res: Response) => {
 
     // Ai đang ở hàng nào: sổ trạm 36 giờ gần nhất (đoạn mở tự đóng cuối ca). Trạm luôn hiện theo sổ trạm — kể cả tuần
     // song song (số chính thức vẫn theo bấm tay)
-    const evs = await soTramCuaTo(t.toId, now - 36 * 3_600_000, now + 60_000);
+    const { evs, ddTay } = await soCuaTo(t.toId, now - 36 * 3_600_000, now + 60_000, true);
     const st = await soTram(poolMra, evs, 'so_khop', now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some(c => k.endsWith(`|${c}`)));
     // Người đã điểm danh hôm nay (quét thẻ ở trạm HOẶC tổ trưởng điểm danh trên app) mà chưa ở hàng nào — người khai chọn
     // được họ làm chung
-    const ddTay = await diemDanhTayCuaTo(t.toId, now - 36 * 3_600_000, now + 60_000);
     const ddHom = [...suKienConHieuLuc(evs), ...ddTay].filter(e => (e.loai === 'vao_ca' || e.loai === 'ra_ca') && ngayCa(e.ts) === ngay)
       .sort((a, b) => a.ts - b.ts);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter(d => d && d.end === null).map(d => d!.mnv);
@@ -457,7 +464,9 @@ app.get('/api/xuong/to/:id/phan-cong', async (req: Request, res: Response) => {
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: 'Tổ không hợp lệ' });
     const toRow = (await poolMra.query('SELECT xuong FROM xuong_to WHERE id = $1', [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: 'Không tìm thấy tổ' });
-    const pv = await phamViXem(req.user!.id, String(toRow.xuong));
+    // Quyền đọc MỘT lần trong request: dùng cho cả phạm vi xem ở đây lẫn `suaDuoc` bên dưới (trước đọc lại lần 2)
+    const quyen = await quyenXuongCua(req.user!.id);
+    const pv = phamViTuQuyen(quyen, String(toRow.xuong));
     if (!pv || (pv.chiTo && !pv.chiTo.includes(toId))) return res.status(403).json({ success: false, message: 'Không có quyền xem tổ này' });
     const now = Date.now();
     const ngay = ngayCa(now);
@@ -490,8 +499,8 @@ app.get('/api/xuong/to/:id/phan-cong', async (req: Request, res: Response) => {
     const hoTen = new Map(cn.rows.map(x => [String(x.mnv), String(x.ho_ten)]));
     if (tenThem.length) for (const x of (await poolMra.query('SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])', [tenThem])).rows) hoTen.set(String(x.mnv), String(x.ho_ten));
     const info = await thongTinHangMuc([...new Set([...hm.rows.map(x => String(x.hex)), ...doan.map(d => d.hex)])]);
-    const quanLy = quanLyDuoc(await xuongQuanLy(req.user!.id), String(toRow.xuong));
-    const laToTruong = (await toTruongCua(req.user!.id)).some(x => x.id === toId);
+    const quanLy = quanLyDuoc(quyen.ds, String(toRow.xuong));
+    const laToTruong = quyen.toTruong.some(x => x.id === toId);
     res.json({
       success: true, available: true, ngay, serverNow: now, suaDuoc: quanLy || laToTruong,
       cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
@@ -530,7 +539,9 @@ app.get('/api/xuong/to/:id/sua-ngay', async (req: Request, res: Response) => {
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: 'Tổ không hợp lệ' });
     const toRow = (await poolMra.query('SELECT xuong FROM xuong_to WHERE id = $1', [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: 'Không tìm thấy tổ' });
-    const pv = await phamViXem(req.user!.id, String(toRow.xuong));
+    // Quyền đọc MỘT lần trong request: dùng cho cả phạm vi xem ở đây lẫn `suaDuoc` bên dưới (trước đọc lại lần 2)
+    const quyen = await quyenXuongCua(req.user!.id);
+    const pv = phamViTuQuyen(quyen, String(toRow.xuong));
     if (!pv || (pv.chiTo && !pv.chiTo.includes(toId))) return res.status(403).json({ success: false, message: 'Không có quyền xem tổ này' });
 
     // Ngày ca: 06:00 hôm đó tới 06:00 hôm sau (ca 4 qua đêm) — lấy rộng hơn 1 giờ mỗi bên cho quét sớm
@@ -548,8 +559,8 @@ app.get('/api/xuong/to/:id/sua-ngay', async (req: Request, res: Response) => {
       thongTinHangMuc([...new Set(doan.map(d => d.hex))]),
     ]);
     const hoTen = new Map(ten.rows.map(x => [String(x.mnv), String(x.ho_ten)]));
-    const quanLy = quanLyDuoc(await xuongQuanLy(req.user!.id), String(toRow.xuong));
-    const laToTruong = (await toTruongCua(req.user!.id)).some(x => x.id === toId);
+    const quanLy = quanLyDuoc(quyen.ds, String(toRow.xuong));
+    const laToTruong = quyen.toTruong.some(x => x.id === toId);
     // Giờ ở hàng theo nguồn (quét / phân công / tự gán / ghi hộ) — đo mức tự động thật và độ tin cậy
     const gioTheoNguon: Record<NguonDoan, number> = { quet: 0, phan_cong: 0, tu_gan: 0, ghi_ho: 0 };
     for (const d of doan) gioTheoNguon[d.nguon] += Math.max(0, ((d.end ?? now) - d.start) / 3_600_000);

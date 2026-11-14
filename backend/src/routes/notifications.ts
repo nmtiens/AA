@@ -23,16 +23,22 @@ app.get('/api/notifications', async (req: Request, res: Response) => {
   try {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30));
     const before = Number(req.query.before) || null;
-    const [list, unread] = await Promise.all([
-      pool.query(
-        `SELECT id, kind, title, body, vuong_mac_id, hex, actor, created_at, read_at
+    // 1 câu thay cho 2 câu song song (trước chiếm cả 2 kết nối của pool): số chưa đọc (luôn đúng 1 dòng) nối trái với
+    // trang danh sách => trang rỗng vẫn còn 1 dòng mang số chưa đọc (id NULL, bỏ ở Node). Kết quả như cũ.
+    const gop = await pool.query(
+      `SELECT u.n AS unread, l.*
+       FROM (SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}4) u
+       LEFT JOIN LATERAL (
+         SELECT id, kind, title, body, vuong_mac_id, hex, actor, created_at, read_at
          FROM notifications
          WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2) AND ${DK_APP}4
-         ORDER BY id DESC LIMIT $3`,
-        [me(req), before, limit + 1, laXuong(req.query.app)]
-      ),
-      pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}2`, [me(req), laXuong(req.query.app)]),
-    ]);
+         ORDER BY id DESC LIMIT $3
+       ) l ON TRUE
+       ORDER BY l.id DESC NULLS LAST`,
+      [me(req), before, limit + 1, laXuong(req.query.app)]
+    );
+    const list = { rows: gop.rows.filter((r: { id: unknown }) => r.id !== null && r.id !== undefined) };
+    const unread = { rows: [{ n: gop.rows[0]?.unread ?? 0 }] };
     const rows = list.rows.slice(0, limit);
     res.json({
       success: true,

@@ -29,3 +29,17 @@ export const sqlChuaHuy = (a = 'e') => `NOT EXISTS (SELECT 1 FROM xuong_su_kien 
 export function sqlThaoTacCanXuLy(a = 'e', gio = CAN_XEM_NGAY * 24): string {
   return `${sqlCanXuLy(a)} AND ${a}.server_ts > now() - interval '${Math.round(gio)} hours' AND ${sqlChuaHuy(a)}`;
 }
+
+/**
+ * Điều kiện "cột timestamptz thuộc các ngày tu..den theo giờ Việt Nam" viết dạng khoảng nửa mở trên CỘT GỐC:
+ *   cot >= tu 00:00 VN  AND  cot < (den + 1 ngày) 00:00 VN
+ * Tương đương chính xác với (cot AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN tu AND den (VN không đổi giờ mùa),
+ * nhưng không bọc hàm quanh cột nên Postgres dùng được index có cột đó. tu / den là tham số kiểu '$2', '$3' (ngày
+ * YYYY-MM-DD) — chỉ nhận dạng $n để không bao giờ ghép chuỗi người dùng vào SQL.
+ */
+export const sqlTrongKyVN = (cot: string, tu: string, den: string): string => {
+  if (!/^\$\d+$/.test(tu) || !/^\$\d+$/.test(den)) throw new Error('sqlTrongKyVN: tu / den phải là tham số dạng $n');
+  if (!/^[a-z_][a-z0-9_.]*$/i.test(cot)) throw new Error('sqlTrongKyVN: tên cột không hợp lệ');
+  return `(${cot} >= (${tu}::date)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`
+    + ` AND ${cot} < (${den}::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`;
+};

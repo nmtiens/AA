@@ -59,11 +59,15 @@ export const isValidUserId = (v: unknown): boolean => {
 
 // Kiểm token + tài khoản còn tồn tại và đang hoạt động (theo DB, cache 60 giây).
 // Dùng cho middleware chung /api/*: tài khoản bị khoá / đã xoá -> 401 dù token còn hạn.
-export const authenticateActiveUser = (req: Request, res: Response, next: NextFunction) =>
+// `sauKhiGoi` (tuỳ chọn): chạy NGAY SAU khi token hợp lệ và câu đọc users đã được gửi đi — middleware chung dùng để
+// kích sớm các lượt nạp mà route sắp cần (song song với câu users thay vì nối tiếp). Không chạy khi token sai.
+const kiemTaiKhoan = (req: Request, res: Response, next: NextFunction, sauKhiGoi?: () => void) =>
   authenticateJWT(req, res, () => {
     // Máy trạm quét hỏi 30 giây / lần (cả đêm nếu để màn hình mở): giữ kết quả 6 giờ để không đánh thức DB chính
     // (bảng users) liên tục. Thu hồi trạm vẫn có hiệu lực ngay — route trạm kiểm phiên máy ở Supabase mỗi lần.
-    loadUserAccess(req.user!.id, req.user!.scope === 'tram' ? 6 * 3_600_000 : undefined).then(access => {
+    const dangKiem = loadUserAccess(req.user!.id, req.user!.scope === 'tram' ? 6 * 3_600_000 : undefined);
+    if (sauKhiGoi) { try { sauKhiGoi(); } catch { /* kích sớm hỏng không được làm hỏng đăng nhập */ } }
+    dangKiem.then(access => {
       if (!access.active) return res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
       // Token Xưởng bị thu hồi (admin thu hồi / đổi mật khẩu => token_version tăng)
       if (!xuongTokenVersionOk(req.user, access.tokenVersion)) {
@@ -78,6 +82,12 @@ export const authenticateActiveUser = (req: Request, res: Response, next: NextFu
       next();
     });
   });
+
+export const authenticateActiveUser = (req: Request, res: Response, next: NextFunction) => kiemTaiKhoan(req, res, next);
+
+/** Như authenticateActiveUser + gọi `kich(path)` sau khi token hợp lệ (xem kiemTaiKhoan). Kiểm tra tài khoản y như cũ. */
+export const authenticateActiveUserKichSom = (kich: (path: string) => void) =>
+  (req: Request, res: Response, next: NextFunction) => kiemTaiKhoan(req, res, next, () => kich(req.path.toLowerCase()));
 
 // Role / trạng thái lấy theo DB (cache 60 giây, xem permissions.loadUserAccess) — token còn hạn tới 8 giờ
 // sau khi tài khoản bị khoá / hạ quyền. Cập nhật req.user.role theo DB cho các bước sau.
