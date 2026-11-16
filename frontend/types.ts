@@ -208,6 +208,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    id: 'g_ban_vat_tu',
+    label: 'Danh mục vật tư',
+    items: [
+      { id: 'ban_vat_tu', label: 'Danh mục vật tư (xem danh sách)' },
+    ],
+  },
+  {
     id: 'g_data',
     label: 'Dữ liệu',
    items: [
@@ -264,6 +271,10 @@ export const ITEM_ACTIONS: Record<string, { id: string; label: string }[]> = {
   ],
   analysis: [
     { id: 'analysis_export', label: 'Xuất báo cáo KH-TH' },
+  ],
+  // Trang Bán vật tư tồn kho: sửa giá chào / ảnh / trạng thái / liên hệ (giá vốn theo quyền materials_view_price)
+  ban_vat_tu: [
+    { id: 'ban_vat_tu_sua', label: 'Sửa thông tin bán (giá chào, ảnh, trạng thái)' },
   ],
 };
 

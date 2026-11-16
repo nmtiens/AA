@@ -24,6 +24,8 @@ import '../src/routes/overview.js';   // /api/overview/*
 import '../src/routes/tuyChonThoiGian.js'; // /api/overview/tuy-chon-thoi-gian (ngày, năm-tháng-tuần cho bộ lọc Tổng quan)
 import '../src/routes/stock.js';      // /api/stock/*, /api/warmup
 import '../src/routes/tonKhoVt.js';   // /api/ton-kho-vt/tong-hop, /api/ton-kho-vt/chi-tiet (tồn kho vật tư theo lần chốt tuần)
+import '../src/routes/banVatTu.js';   // /api/ban-vat-tu/danh-sach, PUT /api/ban-vat-tu/:ma (bán vật tư tồn kho)
+import '../src/routes/banVatTuCongKhai.js'; // /api/cong-khai/* (trang người mua — KHÔNG cần đăng nhập, tự thêm tiền tố công khai)
 import '../src/routes/bopM2.js';      // /api/bop-m2?ct= (tình trạng vật liệu BOP-M2, tab BOM)
 import '../src/routes/botTongHop.js'; // /api/bot-tong-hop (BÁO CÁO BOT như file MASTER_PROJECT_COORDINATION)
 import '../src/routes/congTrinh.js';  // /api/cong-trinh/hang-muc (Tổng quan công trình theo file công trình)

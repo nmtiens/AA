@@ -33,6 +33,12 @@ import { lazyPage } from './utils/chunkReload';
 const ChartOverview = lazyPage(() => import('./components/Charts/ChartOverview'));
 // 7. Tồn kho vật tư (bảng ton_kho_vt): trang riêng 6 biểu đồ theo nhóm KVT, số liệu qua /api/ton-kho-vt/*
 const TonKhoVatTu = lazyPage(() => import('./components/Charts/TonKhoVatTu'));
+// Bán vật tư tồn kho (bảng ban_vt_*): danh sách toàn bộ hàng tồn kho vật tư đem bán, số liệu qua /api/ban-vat-tu/*
+const BanVatTu = lazyPage(() => import('./components/BanVatTu/BanVatTu'));
+// Trang KHÁCH mua vật tư tồn (/#/cua-hang): CÔNG KHAI — không đăng nhập, không MainLayout / AuthContext, tải riêng;
+// số liệu qua /api/cong-khai/* (máy chủ chỉ trả mã admin đã đăng)
+const CuaHang = lazyPage(() => import('./components/CuaHang/CuaHang'));
+const laDuongCuaHang = () => /^#\/cua-hang(\/|\?|$)/.test(window.location.hash);
 const HoiDapPopup = React.lazy(() => import('./components/HoiDap/HoiDapPopup'));
 const loadDashboardPage = () => import('./components/Dashboard');
 const Dashboard = lazyPage(loadDashboardPage);
@@ -113,7 +119,7 @@ const tablesForPath = (path: string): string[] => {
   // doanh thu, 6 thẻ báo cáo, tồn kho, KHSX tháng vốn đã từ máy chủ). Mọi bảng tải ngầm (tablesNenForPath), có bảng
   // sản xuất thì trang tự tính như cũ (lọc tức thì, danh sách hạng mục, xuất Excel).
   if (path === '/') return [];
-  if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
+  if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path === '/ban-vat-tu' || path.startsWith('/charts/')) return [];
   // Setup dữ liệu: theo thẻ đang mở (trangKey) — Xưởng / Gộp xưởng chỉ gọi API; Nhóm công trình cần bảng sản xuất;
   // Cột dữ liệu (và thẻ mặc định chưa rõ) cần cột của đủ 12 bảng
   if (path === '/mra' || path === '/nhap-bot' || path === '/setup?tab=xuong' || path === '/setup?tab=gop-xuong') return [];
@@ -146,6 +152,19 @@ const App: React.FC = () => {
   const isTramEntry = /^\/xuong\/tram(\/|$)/.test(window.location.pathname);
   const isXuongEntry = /^\/(m\/)?xuong(\/|$)/.test(window.location.pathname);
   const isMobileEntry = window.location.pathname.startsWith('/m');
+  // Mở thẳng link trang khách (/#/cua-hang): dựng riêng, ngoài AuthProvider (không gọi /api/auth/me, không chuyển /login).
+  // Rời sang đường khác (sửa link) => chạy app thường; app thường vẫn có route /cua-hang công khai.
+  const [isCuaHangEntry, setIsCuaHangEntry] = useState(() => !isTramEntry && !isXuongEntry && !isMobileEntry && laDuongCuaHang());
+  useEffect(() => {
+    if (!isCuaHangEntry) return;
+    const onHash = () => { if (!laDuongCuaHang()) setIsCuaHangEntry(false); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [isCuaHangEntry]);
+
+  if (isCuaHangEntry) {
+    return <Suspense fallback={<FullScreenLoader />}><CuaHang /></Suspense>;
+  }
 
   // Lưu ý: view-project-mapping + table-column-config giờ được tải trong MainLayout
   // (chỉ chạy sau khi đã đăng nhập), vì backend bắt buộc token cho mọi /api/*.
@@ -169,11 +188,14 @@ const App: React.FC = () => {
             <HashRouter>
               <Routes>
                 <Route path="/login" element={<Login />} />
+                {/* Trang khách mua vật tư tồn: công khai, ngoài MainLayout / RequirePermission */}
+                <Route path="/cua-hang" element={<CuaHang />} />
                 <Route element={<MainLayout />}>
                   {/* --- Tổng quan --- */}
                   <Route path="/" element={<RequirePermission viewId="dashboard"><DashboardWrapper /></RequirePermission>} />
                   <Route path="/tra-cuu-hex" element={<RequirePermission viewId="hex_lookup"><HexLookupWrapper /></RequirePermission>} />
                   <Route path="/vuong-mac" element={<RequirePermission viewId="vuong_mac"><VuongMacManager /></RequirePermission>} />
+                  <Route path="/ban-vat-tu" element={<RequirePermission viewId="ban_vat_tu"><BanVatTu /></RequirePermission>} />
 
                   {/* --- Nhóm Dữ liệu --- */}
                   <Route path="/list" element={<RequirePermission viewId="production"><DataGridWrapper type="production" /></RequirePermission>} />
@@ -1153,6 +1175,7 @@ const MainLayout: React.FC = () => {
   const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
   const coXuong = user?.role === 'ADMIN' || hasPermission('xuong_quan_ly');
+  const coBanVatTu = hasPermission('ban_vat_tu');
   // Mục "Nhập BOT": tài khoản có bộ phận được giao ít nhất 1 công đoạn (Setup phân công) hoặc ADMIN
   const [coNhapBot, setCoNhapBot] = useState(false);
   useEffect(() => {
@@ -1297,7 +1320,7 @@ const MainLayout: React.FC = () => {
             </NavGroup>
           )}
 
-          {(vuongMacView || coXuong || coNhapBot) && <TieuDeNhom ten="Ứng dụng" collapsed={isCollapsed} />}
+          {(vuongMacView || coXuong || coNhapBot || coBanVatTu) && <TieuDeNhom ten="Ứng dụng" collapsed={isCollapsed} />}
           {vuongMacView && (
             <NavLink
               key={vuongMacView.id}
@@ -1327,6 +1350,18 @@ const MainLayout: React.FC = () => {
               icon={<CalendarClock size={18} />}
               label="Nhập BOT"
               active={location.pathname === '/nhap-bot'}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {/* Bán vật tư tồn kho: toàn bộ hàng tồn kho vật tư đem bán (giá chào, ảnh, trạng thái) */}
+          {coBanVatTu && (
+            <NavLink
+              to="/ban-vat-tu"
+              icon={<ShoppingCart size={18} />}
+              label="Danh mục vật tư"
+              active={location.pathname === '/ban-vat-tu'}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />

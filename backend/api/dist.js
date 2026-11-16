@@ -55655,10 +55655,10 @@ var lenhMoGiaoDich = ({ timeoutMs, workMemMb } = {}) => {
   if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
   return lenh.join("; ");
 };
-async function chayCoGioiHan(client, text, params, gioiHan) {
+async function chayCoGioiHan(client, text, params, gioiHan2) {
   try {
     if (GOP_LENH && typeof text === "string" && (params == null || Array.isArray(params) && params.length === 0)) {
-      const mo = lenhMoGiaoDich(gioiHan);
+      const mo = lenhMoGiaoDich(gioiHan2);
       const soMo = mo.split("; ").length;
       const ds2 = await client.query(`${mo};
 ${text.replace(/[;\s]+$/, "")}
@@ -55667,7 +55667,7 @@ ${text.replace(/[;\s]+$/, "")}
       const giua = ds2.slice(soMo, ds2.length - 1);
       return giua.length === 1 ? giua[0] : giua;
     }
-    await client.query(lenhMoGiaoDich(gioiHan));
+    await client.query(lenhMoGiaoDich(gioiHan2));
     const result = await client.query(text, params);
     await client.query("COMMIT");
     return result;
@@ -56914,6 +56914,7 @@ app.use((0, import_cors.default)((req, callback) => {
   return callback(Object.assign(new Error("CORS: origin kh\xF4ng \u0111\u01B0\u1EE3c ph\xE9p"), { status: 403 }));
 }));
 app.use((0, import_compression.default)());
+app.use("/api/cong-khai", import_express.default.json({ limit: "20kb" }));
 app.use(import_express.default.json({ limit: "2mb" }));
 var globalLimiter = rate_limit_default({
   windowMs: 60 * 1e3,
@@ -56958,7 +56959,7 @@ var PUBLIC_API_PATHS = /* @__PURE__ */ new Set([
   "/api/auth/verify-otp",
   "/api/warmup"
 ]);
-var PUBLIC_API_PREFIXES = ["/api/cron/"];
+var PUBLIC_API_PREFIXES = ["/api/cron/", "/api/cong-khai/"];
 var xacThucChung = authenticateActiveUserKichSom((path) => kichNapSom(path));
 app.use((req, res, next) => {
   const path = req.path.toLowerCase();
@@ -56969,8 +56970,8 @@ app.use((req, res, next) => {
   return xacThucChung(req, res, next);
 });
 var PROJECT_ALIAS_WAIT_MS = 0;
-var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong)(\/|$)/i;
-var NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push)(\/|$)/i;
+var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong|cong-khai)(\/|$)/i;
+var NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push|cong-khai)(\/|$)/i;
 var DUNG_PHIEN_BAN = /^\/api\/(all-data|check-versions|material|production|overview|trend(-by-[a-z]+)?|filters|detail|revenue|khsx(-nam|-nhapkho)?|stock|ton-kho-vt|tong-quan|cong-trinh|bot-tong-hop)(\/|$)/i;
 var napSomCho = (path) => ({
   gopXuong: path.startsWith("/api/") && !NO_WORKSHOP_GROUPS.test(path),
@@ -77515,6 +77516,13 @@ var PERMISSION_GROUPS = [
     ]
   },
   {
+    id: "g_ban_vat_tu",
+    label: "Danh m\u1EE5c v\u1EADt t\u01B0",
+    items: [
+      { id: "ban_vat_tu", label: "Danh m\u1EE5c v\u1EADt t\u01B0 (xem danh s\xE1ch)" }
+    ]
+  },
+  {
     id: "g_data",
     label: "D\u1EEF li\u1EC7u",
     items: [
@@ -77569,6 +77577,10 @@ var ITEM_ACTIONS = {
   ],
   analysis: [
     { id: "analysis_export", label: "Xu\u1EA5t b\xE1o c\xE1o KH-TH" }
+  ],
+  // Trang Bán vật tư tồn kho: sửa giá chào / ảnh / trạng thái / liên hệ (giá vốn theo quyền materials_view_price)
+  ban_vat_tu: [
+    { id: "ban_vat_tu_sua", label: "S\u1EEDa th\xF4ng tin b\xE1n (gi\xE1 ch\xE0o, \u1EA3nh, tr\u1EA1ng th\xE1i)" }
   ]
 };
 var ALL_ITEM_IDS = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.id));
@@ -78843,12 +78855,12 @@ function nenBanGhi(recs) {
     return i;
   };
   const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
-  const so7 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  const so9 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
   return {
     n: recs.length,
     tu,
     chu,
-    so: so7,
+    so: so9,
     open: recs.map((r) => r.open ? 1 : 0),
     qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
     planMet: recs.map((r) => r.planMet ? 1 : 0),
@@ -81226,16 +81238,16 @@ var LOAI_CHI_TIET = [
 var LoiChiTiet = class extends Error {
 };
 var ghepDocThem = (ngay3, tonNgay, nhap, xuat, don) => {
-  const so7 = (x) => Number(x) || 0;
+  const so9 = (x) => Number(x) || 0;
   const them = {};
   if (tonNgay) {
     const m = Object.fromEntries(ngay3.map((d) => [d, []]));
     for (const r of tonNgay) m[r.d]?.push(ghepDongTon(r));
     them.tonNgay = m;
   }
-  if (nhap) them.nhap = nhap.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, sl: r.sl === null ? null : so7(r.sl), tt: so7(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
-  if (xuat) them.xuat = xuat.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, tn: r.tn, ipo: r.ipo, co: r.co, sl: so7(r.sl), tt: so7(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
-  if (don) them.don = don.map((r) => ({ hex: r.hex, ct: r.ct, ten: r.ten, hm: r.hm, pm: r.pm, ipo: r.ipo, ttda: r.ttda, tn: r.tn, gtd: so7(r.gtd), nhapCap: so7(r.nhap_cap), con: so7(r.con) }));
+  if (nhap) them.nhap = nhap.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, sl: r.sl === null ? null : so9(r.sl), tt: so9(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
+  if (xuat) them.xuat = xuat.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, tn: r.tn, ipo: r.ipo, co: r.co, sl: so9(r.sl), tt: so9(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
+  if (don) them.don = don.map((r) => ({ hex: r.hex, ct: r.ct, ten: r.ten, hm: r.hm, pm: r.pm, ipo: r.ipo, ttda: r.ttda, tn: r.tn, gtd: so9(r.gtd), nhapCap: so9(r.nhap_cap), con: so9(r.con) }));
   return them;
 };
 var SO_DONG_TOI_DA = 5e3;
@@ -82506,6 +82518,1447 @@ app.get("/api/ton-kho-vt/chi-tiet", (req, res) => {
 });
 app.post("/api/ton-kho-vt/chi-tiet", (req, res) => xuLyChiTiet(req, res, req.body ?? {}));
 
+// src/routes/banVatTu.ts
+var TEN_PHIEN_BAN = "ban_vt";
+var QUYEN_XEM2 = "ban_vat_tu";
+var QUYEN_SUA = "ban_vat_tu_sua";
+var LOI_QUYEN_XEM = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem trang b\xE1n v\u1EADt t\u01B0 t\u1ED3n kho" };
+var LOI_QUYEN_SUA = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n s\u1EEDa th\xF4ng tin b\xE1n v\u1EADt t\u01B0" };
+var CANH_BAO_THIEU_BANG = "Ch\u01B0a t\u1EA1o b\u1EA3ng \u2014 ch\u1EA1y backend/sql/2026-11-14_ban_vat_tu_ton.sql";
+var TIMEOUT_MS2 = 15e3;
+var TRANG_THAI_BAN = ["dang_ban", "da_giu", "da_ban", "ngung_ban"];
+var GIA_BAN_TOI_DA = 1e13;
+var SO_ANH_TOI_DA = 10;
+var URL_TOI_DA_KY_TU = 1e3;
+var CHUOI_TOI_DA_KY_TU = 2e3;
+var MA_TOI_DA_KY_TU = 100;
+var TEN_HIEN_THI_TOI_DA_KY_TU = 200;
+var SO_MA_HANG_LOAT_TOI_DA = 6e3;
+var SQL_CONG_KHAI = "backend/sql/2026-11-15_ban_vat_tu_cong_khai.sql";
+var LOI_THIEU_COT_CONG_KHAI = { error: `Ch\u01B0a t\u1EA1o c\u1ED9t / b\u1EA3ng trang kh\xE1ch \u2014 ch\u1EA1y ${SQL_CONG_KHAI}` };
+var TRANG_THAI_ANH = ["tu_dong", "da_duyet", "an"];
+var SO_ANH_NOI_BO_TOI_DA = 12;
+var so4 = (v) => {
+  const n = Number(v);
+  return v === null || v === void 0 || v === "" ? 0 : Number.isFinite(n) ? n : 0;
+};
+var soHoacNull2 = (v) => {
+  if (v === null || v === void 0 || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+var chuoiHoacNull = (v) => v === null || v === void 0 ? null : String(v);
+var laTrangThaiBan = (v) => typeof v === "string" && TRANG_THAI_BAN.includes(v);
+var laUrlAnhHopLe = (v) => {
+  if (typeof v !== "string" || v.length === 0 || v.length > URL_TOI_DA_KY_TU) return false;
+  if (/[\s\u0000-\u001f\u007f]/.test(v)) return false;
+  try {
+    const u = new URL(v);
+    return (u.protocol === "http:" || u.protocol === "https:") && !!u.hostname;
+  } catch {
+    return false;
+  }
+};
+var docMaVatTu = (v) => {
+  if (typeof v !== "string") return null;
+  const ma = v.trim();
+  return ma && ma.length <= MA_TOI_DA_KY_TU ? ma : null;
+};
+var docChuoiTuyChon = (v, toiDa = CHUOI_TOI_DA_KY_TU) => {
+  if (v === null) return { hopLe: true, giaTri: null };
+  if (typeof v !== "string" || v.length > toiDa) return { hopLe: false };
+  const s = v.trim();
+  return { hopLe: true, giaTri: s === "" ? null : s };
+};
+var kiemTraThanPut = (body) => {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
+  const b = body;
+  const thayDoi = {};
+  if (b.giaBanVnd !== void 0) {
+    if (b.giaBanVnd === null) thayDoi.giaBanVnd = null;
+    else if (typeof b.giaBanVnd !== "number" || !Number.isFinite(b.giaBanVnd) || b.giaBanVnd < 0 || b.giaBanVnd > GIA_BAN_TOI_DA) {
+      return { hopLe: false, loi: "Gi\xE1 b\xE1n ph\u1EA3i l\xE0 s\u1ED1 t\u1EEB 0 \u0111\u1EBFn 10.000 t\u1EF7 \u0111\u1ED3ng" };
+    } else thayDoi.giaBanVnd = b.giaBanVnd;
+  }
+  if (b.anhUrls !== void 0) {
+    if (!Array.isArray(b.anhUrls)) return { hopLe: false, loi: "Danh s\xE1ch \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7" };
+    const urls = [];
+    for (const x of b.anhUrls) {
+      const u = typeof x === "string" ? x.trim() : x;
+      if (!laUrlAnhHopLe(u)) return { hopLe: false, loi: `Link \u1EA3nh ph\u1EA3i b\u1EAFt \u0111\u1EA7u b\u1EB1ng http:// ho\u1EB7c https:// v\xE0 d\xE0i t\u1ED1i \u0111a ${URL_TOI_DA_KY_TU} k\xFD t\u1EF1` };
+      if (!urls.includes(u)) urls.push(u);
+    }
+    if (urls.length > SO_ANH_TOI_DA) return { hopLe: false, loi: `T\u1ED1i \u0111a ${SO_ANH_TOI_DA} \u1EA3nh cho 1 m\xE3 v\u1EADt t\u01B0` };
+    thayDoi.anhUrls = urls;
+  }
+  if (b.trangThai !== void 0) {
+    if (!laTrangThaiBan(b.trangThai)) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i b\xE1n kh\xF4ng h\u1EE3p l\u1EC7" };
+    thayDoi.trangThai = b.trangThai;
+  }
+  for (const truong of ["lienHe", "ghiChu"]) {
+    if (b[truong] === void 0) continue;
+    const r = docChuoiTuyChon(b[truong]);
+    if (!r.hopLe) return { hopLe: false, loi: `${truong === "lienHe" ? "Li\xEAn h\u1EC7" : "Ghi ch\xFA"} t\u1ED1i \u0111a ${CHUOI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
+    thayDoi[truong] = r.giaTri;
+  }
+  if (b.dangCongKhai !== void 0) {
+    if (typeof b.dangCongKhai !== "boolean") return { hopLe: false, loi: "\u0110\u0103ng l\xEAn trang kh\xE1ch ph\u1EA3i l\xE0 true / false" };
+    thayDoi.dangCongKhai = b.dangCongKhai;
+  }
+  if (b.tenHienThi !== void 0) {
+    const r = docChuoiTuyChon(b.tenHienThi, TEN_HIEN_THI_TOI_DA_KY_TU);
+    if (!r.hopLe) return { hopLe: false, loi: `T\xEAn hi\u1EC3n th\u1ECB cho kh\xE1ch t\u1ED1i \u0111a ${TEN_HIEN_THI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
+    thayDoi.tenHienThi = r.giaTri;
+  }
+  if (b.moTaCongKhai !== void 0) {
+    const r = docChuoiTuyChon(b.moTaCongKhai);
+    if (!r.hopLe) return { hopLe: false, loi: `M\xF4 t\u1EA3 cho kh\xE1ch t\u1ED1i \u0111a ${CHUOI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
+    thayDoi.moTaCongKhai = r.giaTri;
+  }
+  if (Object.keys(thayDoi).length === 0) return { hopLe: false, loi: "Kh\xF4ng c\xF3 th\xF4ng tin n\xE0o \u0111\u1EC3 l\u01B0u" };
+  return { hopLe: true, thayDoi };
+};
+var SQL_COT_BAN = (b, coCongKhai = true) => `
+  ${b}.gia_ban_vnd AS ban_gia, ${b}.anh_urls AS ban_anh, ${b}.trang_thai AS ban_trang_thai,
+  ${b}.lien_he AS ban_lien_he, ${b}.ghi_chu AS ban_ghi_chu, ${b}.updated_by AS ban_updated_by,
+  to_char(${b}.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ban_updated_at${coCongKhai ? `,
+  ${b}.dang_cong_khai AS ban_dang_cong_khai, ${b}.ten_hien_thi AS ban_ten_hien_thi, ${b}.mo_ta_cong_khai AS ban_mo_ta_cong_khai` : ""}`;
+var coTruongCongKhai = (t) => t.dangCongKhai !== void 0 || t.tenHienThi !== void 0 || t.moTaCongKhai !== void 0;
+var COT_THAY_DOI = [
+  ["giaBanVnd", "gia_ban_vnd", "numeric"],
+  ["anhUrls", "anh_urls", "text[]"],
+  ["trangThai", "trang_thai", "text"],
+  ["lienHe", "lien_he", "text"],
+  ["ghiChu", "ghi_chu", "text"],
+  ["dangCongKhai", "dang_cong_khai", "boolean"],
+  ["tenHienThi", "ten_hien_thi", "text"],
+  ["moTaCongKhai", "mo_ta_cong_khai", "text"]
+];
+var SQL_CAP_NHAT_MOC_DANG = "dang_cong_khai_luc = CASE WHEN EXCLUDED.dang_cong_khai AND NOT ban_vt_thong_tin.dang_cong_khai THEN now() ELSE ban_vt_thong_tin.dang_cong_khai_luc END";
+var dungSqlUpsert = (ma, nguoiSua, thayDoi, docCotCongKhai = true) => {
+  const cot = [];
+  const giuCho = [];
+  const giaTri = [];
+  for (const [truong, tenCot, kieu] of COT_THAY_DOI) {
+    if (thayDoi[truong] === void 0) continue;
+    cot.push(tenCot);
+    giaTri.push(thayDoi[truong]);
+    giuCho.push(`$${giaTri.length + 2}::${kieu}`);
+  }
+  const capNhat = [...cot.map((c) => `${c} = EXCLUDED.${c}`), "updated_by = EXCLUDED.updated_by", "updated_at = now()"];
+  if (thayDoi.dangCongKhai !== void 0) {
+    const giuChoDang = giuCho[cot.indexOf("dang_cong_khai")];
+    cot.push("dang_cong_khai_luc");
+    giuCho.push(`CASE WHEN ${giuChoDang} THEN now() END`);
+    capNhat.push(SQL_CAP_NHAT_MOC_DANG);
+  }
+  const sql = `
+    INSERT INTO ban_vt_thong_tin (ma_vat_tu, ${[...cot, "updated_by", "updated_at"].join(", ")})
+    SELECT $1::text, ${[...giuCho, "$2::text", "now()"].join(", ")}
+    WHERE EXISTS (SELECT 1 FROM ban_vt_ton WHERE ma_vat_tu = $1::text)
+    ON CONFLICT (ma_vat_tu) DO UPDATE SET ${capNhat.join(", ")}
+    RETURNING ${SQL_COT_BAN("ban_vt_thong_tin", docCotCongKhai || coTruongCongKhai(thayDoi))}`;
+  return { sql, thamSo: [ma, nguoiSua, ...giaTri] };
+};
+var dungThongTinBan = (row) => ({
+  giaBanVnd: soHoacNull2(row.ban_gia),
+  anhUrls: Array.isArray(row.ban_anh) ? row.ban_anh.filter((x) => typeof x === "string" && x !== "") : [],
+  trangThai: laTrangThaiBan(row.ban_trang_thai) ? row.ban_trang_thai : "dang_ban",
+  lienHe: chuoiHoacNull(row.ban_lien_he),
+  ghiChu: chuoiHoacNull(row.ban_ghi_chu),
+  updatedBy: chuoiHoacNull(row.ban_updated_by),
+  updatedAt: chuoiHoacNull(row.ban_updated_at),
+  dangCongKhai: row.ban_dang_cong_khai === true,
+  tenHienThi: chuoiHoacNull(row.ban_ten_hien_thi),
+  moTaCongKhai: chuoiHoacNull(row.ban_mo_ta_cong_khai)
+});
+var chuanHoaThuocTinh = (v) => {
+  let o = v;
+  if (typeof o === "string") {
+    try {
+      o = JSON.parse(o);
+    } catch {
+      return {};
+    }
+  }
+  if (o === null || typeof o !== "object" || Array.isArray(o)) return {};
+  const kq = {};
+  for (const [k, x] of Object.entries(o)) {
+    if (x === null || x === void 0 || typeof x === "object") continue;
+    const s = String(x).trim();
+    if (s !== "") kq[k] = s;
+  }
+  return kq;
+};
+var THUOC_TINH_CAN_QUYEN_GIA = ["MP37", "MP18"];
+var laThuocTinhNcc = (khoa) => {
+  const ma = /^(MP\d{2})\b/i.exec(khoa.trim())?.[1]?.toUpperCase();
+  return ma !== void 0 && THUOC_TINH_CAN_QUYEN_GIA.includes(ma) || /NH[ÀA] CUNG C[ẤA]P|\bNCC\b/i.test(khoa);
+};
+var giaBinhQuanMotDvt = (gia, priceUnit) => {
+  const g = soHoacNull2(gia);
+  if (g === null) return null;
+  const pu = soHoacNull2(priceUnit);
+  return pu !== null && pu > 0 ? g / pu : g;
+};
+var KHOA_SUY_TU_TEN = {
+  chung_loai: "chungLoai",
+  quy_cach: "quyCach",
+  mau: "mau",
+  ma_mau: "maMau",
+  thuong_hieu: "thuongHieu",
+  chat_lieu: "chatLieu"
+};
+var chuanHoaSuyTuTen = (v) => {
+  const tho = chuanHoaThuocTinh(v);
+  const kq = {};
+  for (const [k, x] of Object.entries(tho)) {
+    const khoa = KHOA_SUY_TU_TEN[k.trim().toLowerCase()];
+    if (khoa) kq[khoa] = x;
+  }
+  return kq;
+};
+var boDauHoa = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "D").toUpperCase();
+var THUONG_HIEU_NCC = [
+  [/\bHAFELE\b/, "HAFELE"],
+  [/\bBLUM\b/, "BLUM"],
+  [/\bHETTICH\b/, "HETTICH"],
+  [/\bAN CUONG\b/, "AN C\u01AF\u1EDCNG"],
+  [/\bJOWAT\b/, "JOWAT"],
+  [/\bKNAUF\b/, "KNAUF"],
+  [/\bBOSCH\b/, "BOSCH"],
+  [/\bFORMICA\b/, "FORMICA"],
+  [/\bSHERWIN\b/, "SHERWIN-WILLIAMS"],
+  [/\bVIGLACERA\b/, "VIGLACERA"],
+  [/\bEGGER\b/, "EGGER"],
+  [/\bGRASS\b/, "GRASS"],
+  [/\bDULUX\b/, "DULUX"],
+  [/\bJOTUN\b/, "JOTUN"],
+  [/\bGROHE\b/, "GROHE"],
+  [/\bKOHLER\b/, "KOHLER"]
+];
+var timHang = (s) => {
+  const t = boDauHoa(s);
+  return THUONG_HIEU_NCC.filter(([re]) => re.test(t)).map(([, ten]) => ten);
+};
+var thuongHieuTuNcc = (ncc, tenVatTu) => {
+  if (typeof ncc !== "string" || !ncc.trim()) return null;
+  const hang = timHang(ncc.replace(/^\s*\d+\s*-\s*/, ""))[0];
+  if (!hang) return null;
+  if (typeof tenVatTu === "string" && timHang(tenVatTu).some((h) => h !== hang)) return null;
+  return hang;
+};
+var tenNcc = (v) => {
+  if (typeof v !== "string") return null;
+  const s = v.replace(/^\s*\d+\s*-\s*/, "").trim();
+  return s || null;
+};
+var laTrangThaiAnh = (v) => typeof v === "string" && TRANG_THAI_ANH.includes(v);
+var docIdAnh = (v) => {
+  if (typeof v !== "string" || !/^\d{1,15}$/.test(v)) return null;
+  const n = Number(v);
+  return n > 0 ? n : null;
+};
+var kiemTraThanPutAnh = (body) => {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
+  const b = body;
+  const kq = { hopLe: true };
+  if (b.trangThai !== void 0) {
+    if (!laTrangThaiAnh(b.trangThai)) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i \u1EA3nh ph\u1EA3i l\xE0 da_duyet, an ho\u1EB7c tu_dong" };
+    kq.trangThai = b.trangThai;
+  }
+  if (b.congKhai !== void 0) {
+    if (typeof b.congKhai !== "boolean") return { hopLe: false, loi: "Hi\u1EC7n cho kh\xE1ch ph\u1EA3i l\xE0 true / false" };
+    kq.congKhai = b.congKhai;
+  }
+  if (kq.trangThai === void 0 && kq.congKhai === void 0) {
+    return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i \u1EA3nh ph\u1EA3i l\xE0 da_duyet, an ho\u1EB7c tu_dong" };
+  }
+  return kq;
+};
+var kiemTraThanHangLoat = (body) => {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
+  const b = body;
+  if (typeof b.bat !== "boolean") return { hopLe: false, loi: "Thi\u1EBFu bat (true = \u0111\u0103ng, false = g\u1EE1)" };
+  if (!Array.isArray(b.mas) || b.mas.length === 0) return { hopLe: false, loi: "Ch\u01B0a ch\u1ECDn m\xE3 n\xE0o" };
+  if (b.mas.length > SO_MA_HANG_LOAT_TOI_DA) return { hopLe: false, loi: `T\u1ED1i \u0111a ${SO_MA_HANG_LOAT_TOI_DA} m\xE3 m\u1ED7i l\u1EA7n` };
+  const mas = /* @__PURE__ */ new Set();
+  for (const x of b.mas) {
+    const ma = docMaVatTu(x);
+    if (!ma) return { hopLe: false, loi: "C\xF3 m\xE3 v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" };
+    mas.add(ma);
+  }
+  return { hopLe: true, mas: [...mas], bat: b.bat };
+};
+var TRANG_THAI_YEU_CAU = ["moi", "dang_xu_ly", "da_xong", "huy"];
+var laTrangThaiYeuCau = (v) => typeof v === "string" && TRANG_THAI_YEU_CAU.includes(v);
+var kiemTraThanPutYeuCau = (body) => {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
+  const b = body;
+  const kq = { hopLe: true };
+  if (b.trangThai !== void 0) {
+    if (!laTrangThaiYeuCau(b.trangThai)) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i y\xEAu c\u1EA7u kh\xF4ng h\u1EE3p l\u1EC7" };
+    kq.trangThai = b.trangThai;
+  }
+  if (b.ghiChuNoiBo !== void 0) {
+    const r = docChuoiTuyChon(b.ghiChuNoiBo);
+    if (!r.hopLe) return { hopLe: false, loi: `Ghi ch\xFA n\u1ED9i b\u1ED9 t\u1ED1i \u0111a ${CHUOI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
+    kq.ghiChuNoiBo = r.giaTri;
+  }
+  if (kq.trangThai === void 0 && kq.ghiChuNoiBo === void 0) return { hopLe: false, loi: "Kh\xF4ng c\xF3 th\xF4ng tin n\xE0o \u0111\u1EC3 l\u01B0u" };
+  return kq;
+};
+var docDongYeuCau = (v) => {
+  let o = v;
+  if (typeof o === "string") {
+    try {
+      o = JSON.parse(o);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(o)) return [];
+  const kq = [];
+  for (const x of o) {
+    if (x === null || typeof x !== "object") continue;
+    const r = x;
+    const ma = chuoiHoacNull(r.ma);
+    const soLuong = soHoacNull2(r.soLuong);
+    if (!ma || soLuong === null) continue;
+    kq.push({ ma, ten: chuoiHoacNull(r.ten) ?? ma, soLuong, dvt: chuoiHoacNull(r.dvt) });
+  }
+  return kq;
+};
+var dungYeuCau = (row) => ({
+  id: Number(row.id),
+  maYeuCau: chuoiHoacNull(row.ma_yeu_cau),
+  items: docDongYeuCau(row.items),
+  tenKhach: String(row.ten_khach ?? ""),
+  sdt: String(row.sdt ?? ""),
+  email: chuoiHoacNull(row.email),
+  congTy: chuoiHoacNull(row.cong_ty),
+  ghiChu: chuoiHoacNull(row.ghi_chu),
+  trangThai: laTrangThaiYeuCau(row.trang_thai) ? row.trang_thai : "moi",
+  ghiChuNoiBo: chuoiHoacNull(row.ghi_chu_noi_bo),
+  xuLyBoi: chuoiHoacNull(row.xu_ly_boi),
+  xuLyLuc: chuoiHoacNull(row.xu_ly_luc),
+  createdAt: chuoiHoacNull(row.created_at)
+});
+var mimeAnhAnToan = (v) => {
+  const m = typeof v === "string" ? v.trim().toLowerCase() : "";
+  return ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(m) ? m : "image/jpeg";
+};
+var dungAnh = (row) => {
+  const id = Number(row.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  if (row.trang_thai !== "tu_dong" && row.trang_thai !== "da_duyet") return null;
+  return {
+    id,
+    chacChan: row.chac_chan === true,
+    trangThai: row.trang_thai,
+    congTrinh: chuoiHoacNull(row.cong_trinh)?.trim() || null,
+    codeVatLieu: chuoiHoacNull(row.code_vat_lieu)?.trim() || null,
+    congKhai: row.cong_khai === true
+  };
+};
+var gomAnhTheoMa = (rows) => {
+  const tam = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    const a = dungAnh(r);
+    const ma = chuoiHoacNull(r.ma_vat_tu);
+    if (!a || !ma) continue;
+    const ds2 = tam.get(ma) ?? [];
+    ds2.push({ a, tao: chuoiHoacNull(r.tao_luc) ?? "" });
+    tam.set(ma, ds2);
+  }
+  const kq = /* @__PURE__ */ new Map();
+  for (const [ma, ds2] of tam) {
+    ds2.sort((x, y) => Number(y.a.trangThai === "da_duyet") - Number(x.a.trangThai === "da_duyet") || Number(y.a.chacChan) - Number(x.a.chacChan) || (x.tao < y.tao ? 1 : x.tao > y.tao ? -1 : 0) || x.a.id - y.a.id);
+    kq.set(ma, ds2.slice(0, SO_ANH_NOI_BO_TOI_DA).map((d) => d.a));
+  }
+  return kq;
+};
+var laDongPrHuy = (trangThai) => typeof trangThai === "string" && /\bHUY\b/.test(boDauHoa(trangThai));
+var chuoiGon = (v) => {
+  const s = chuoiHoacNull(v)?.trim();
+  return s ? s : null;
+};
+var congTrinhDongPr = (r) => chuoiGon(r.trackingno) ?? chuoiGon(r.ten_cong_trinh);
+var SO_CONG_TRINH_TOI_DA = 10;
+var SO_LAN_MUA_TOI_DA = 20;
+var dungMuaHang = (rowsMoiTruoc, coGiaVon, tenTon) => {
+  const rows = rowsMoiTruoc.filter((r) => !laDongPrHuy(r.trang_thai));
+  const khacRong = (k) => rows.find((r) => chuoiGon(r[k]) !== null);
+  const duyNhat = (gt, toiDa = Infinity) => {
+    const kq = [];
+    for (const x of gt) if (x && !kq.includes(x) && kq.length < toiDa) kq.push(x);
+    return kq;
+  };
+  const giaDong = (r) => {
+    const g = soHoacNull2(r.don_gia);
+    return g !== null && g > 0 ? g : null;
+  };
+  const dongTen = khacRong("ten_vat_tu");
+  const tenPrTho = dongTen ? chuoiGon(dongTen.ten_vat_tu) : null;
+  const giong = (a, b) => a.replace(/\s+/g, " ").toUpperCase() === b.replace(/\s+/g, " ").toUpperCase();
+  const dongGia = coGiaVon ? rows.find((r) => giaDong(r) !== null) : void 0;
+  return {
+    soDongPr: rows.length,
+    ngayPrCuoi: chuoiGon(khacRong("ngay_pr")?.ngay_pr),
+    congTrinh: duyNhat(rows.map(congTrinhDongPr), SO_CONG_TRINH_TOI_DA),
+    codeVatLieu: duyNhat(rows.map((r) => chuoiGon(r.code_vat_lieu))),
+    nhomVt: chuoiGon(khacRong("nhom_vt")?.nhom_vt),
+    tenPr: tenPrTho && !(tenTon && giong(tenPrTho, tenTon.trim())) ? tenPrTho : null,
+    nhaCungCap: coGiaVon ? duyNhat(rows.map((r) => tenNcc(r.nha_cung_cap))) : null,
+    donGiaGanNhat: dongGia ? { gia: giaDong(dongGia), dvt: chuoiGon(dongGia.dvt), ngay: chuoiGon(dongGia.ngay_pr) } : null,
+    lanMua: rows.slice(0, SO_LAN_MUA_TOI_DA).map((r) => ({
+      ngayPr: chuoiGon(r.ngay_pr),
+      soPr: chuoiGon(r.so_pr),
+      congTrinh: congTrinhDongPr(r),
+      soLuong: soHoacNull2(r.so_luong),
+      dvt: chuoiGon(r.dvt),
+      donGia: coGiaVon ? giaDong(r) : null,
+      ncc: coGiaVon ? tenNcc(r.nha_cung_cap) : null
+    }))
+  };
+};
+var dungDong = (row, coGiaVon, phu2 = {}) => {
+  const ma = String(row.ma ?? "");
+  const soLuong = so4(row.so_luong);
+  const giaTri = coGiaVon ? soHoacNull2(row.gia_tri) : null;
+  const donGiaVon = giaTri !== null && soLuong > 0 ? giaTri * 1e6 / soLuong : null;
+  const coMaster = row.m_ma !== null && row.m_ma !== void 0;
+  const thuocTinh = chuanHoaThuocTinh(row.m_thuoc_tinh);
+  if (!coGiaVon) {
+    for (const k of Object.keys(thuocTinh)) if (laThuocTinhNcc(k)) delete thuocTinh[k];
+  }
+  const master = coMaster ? {
+    ten: chuoiHoacNull(row.m_ten),
+    nhomSap: chuoiHoacNull(row.m_nhom_sap),
+    tenNhomSap: chuoiHoacNull(row.m_ten_nhom_sap),
+    loai: chuoiHoacNull(row.m_loai),
+    chungLoai: chuoiHoacNull(row.m_chung_loai),
+    chatLieu: chuoiHoacNull(row.m_chat_lieu),
+    quyCach: chuoiHoacNull(row.m_quy_cach),
+    mau: chuoiHoacNull(row.m_mau),
+    thuongHieu: chuoiHoacNull(row.m_thuong_hieu),
+    xuatXu: chuoiHoacNull(row.m_xuat_xu),
+    thuocTinh,
+    giaBinhQuan: coGiaVon ? giaBinhQuanMotDvt(row.m_gia_binh_quan, row.m_price_unit) : null,
+    suyTuTen: chuanHoaSuyTuTen(phu2.suyTuTen),
+    thuongHieuNcc: thuongHieuTuNcc(phu2.nccGanNhat, row.ten ?? row.m_ten),
+    nguon: chuoiHoacNull(row.m_nguon)
+  } : null;
+  const ten = typeof row.ten === "string" && row.ten.trim() || master?.ten?.trim() || ma;
+  return {
+    ma,
+    ten,
+    // ĐVT theo file tồn; trống thì lấy của master
+    dvt: chuoiHoacNull(row.dvt) || (coMaster ? chuoiHoacNull(row.m_dvt) : null),
+    soLuong,
+    kho: chuoiHoacNull(row.kho),
+    ngayNhap: chuoiHoacNull(row.ngay_nhap),
+    chamLuanChuyen: row.cham === true,
+    tenCongTrinh: chuoiHoacNull(row.ten_cong_trinh),
+    maCongTrinh: chuoiHoacNull(row.ma_cong_trinh),
+    giaTri,
+    donGiaVon,
+    master,
+    ban: dungThongTinBan(row),
+    anh: phu2.anh ?? []
+  };
+};
+var xepDong = (items, coGiaVon) => {
+  const soChuoi = (a, b) => (a ?? "") < (b ?? "") ? -1 : (a ?? "") > (b ?? "") ? 1 : 0;
+  return items.sort((a, b) => (coGiaVon ? (b.giaTri ?? 0) - (a.giaTri ?? 0) : 0) || soChuoi(a.ma, b.ma) || soChuoi(a.kho, b.kho));
+};
+var PHIEN_BAN_TTL_MS2 = 3e3;
+var phienBanNho2 = null;
+var phienBanDangDoc2 = null;
+var theHe = 0;
+var laThieuBang2 = (e) => e?.code === "42P01";
+var laThieuBangHoacCot = (e) => laThieuBang2(e) || e?.code === "42703";
+var DINH_DANG_GIO = `'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'`;
+var phienBanAnh = async () => {
+  try {
+    const r = await timedQuery(
+      `SELECT to_char(MAX(GREATEST(created_at, duyet_luc)) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS v, COUNT(*)::text AS n
+       FROM ban_vt_anh`
+    );
+    return `${r.rows[0]?.v ?? ""}#${r.rows[0]?.n ?? 0}`;
+  } catch (e) {
+    if (!laThieuBangHoacCot(e)) throw e;
+    return "";
+  }
+};
+var tinhPhienBanChinh = async () => {
+  try {
+    const r = await timedQuery(
+      `SELECT (SELECT to_char(MAX(last_updated) AT TIME ZONE 'UTC', ${DINH_DANG_GIO})
+                 FROM table_versions WHERE table_name = $1) AS tv,
+              (SELECT to_char(MAX(updated_at) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) FROM ban_vt_thong_tin) AS tt`,
+      [TEN_PHIEN_BAN]
+    );
+    const tv = r.rows[0]?.tv;
+    const tt = r.rows[0]?.tt ?? "";
+    if (tv) return `tv:${tv}|tt:${tt}`;
+    const r2 = await timedQuery(
+      `SELECT to_char(MAX(updated_at) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS v FROM ban_vt_ton`
+    );
+    return `ua:${r2.rows[0]?.v ?? "rong"}|tt:${tt}`;
+  } catch (e) {
+    if (!laThieuBang2(e)) throw e;
+    return "thieu-bang";
+  }
+};
+var tinhPhienBan = async () => {
+  const [chinh, anh] = await Promise.all([tinhPhienBanChinh(), phienBanAnh()]);
+  return `${chinh}|anh:${anh}`;
+};
+var boPhienBanNho = () => {
+  theHe++;
+  phienBanNho2 = null;
+  phienBanDangDoc2 = null;
+};
+var docPhienBan2 = async () => {
+  if (phienBanNho2 && Date.now() - phienBanNho2.luc < PHIEN_BAN_TTL_MS2) return phienBanNho2.khoa;
+  if (phienBanDangDoc2) return phienBanDangDoc2;
+  const theHeLucDau = theHe;
+  phienBanDangDoc2 = (async () => {
+    try {
+      const khoa = await tinhPhienBan();
+      if (theHe === theHeLucDau) phienBanNho2 = { luc: Date.now(), khoa };
+      return khoa;
+    } finally {
+      if (theHe === theHeLucDau) phienBanDangDoc2 = null;
+    }
+  })();
+  return phienBanDangDoc2;
+};
+var cacheDanhSach = createCache(2);
+var sqlDanhSach = (coCongKhai) => `
+  WITH moc AS (
+    SELECT t.ngay_chot, t.nguon_file FROM ban_vt_ton t
+    ORDER BY t.ngay_chot DESC NULLS LAST, t.updated_at DESC NULLS LAST LIMIT 1
+  )
+  SELECT t.ma_vat_tu AS ma, t.ten_vat_tu AS ten, t.dvt, t.so_luong, t.gia_tri, t.kho,
+         to_char(t.ngay_nhap_kho_gan_nhat, 'YYYY-MM-DD') AS ngay_nhap,
+         COALESCE(t.cham_luan_chuyen, FALSE) AS cham,
+         t.ten_cong_trinh, t.ma_cong_trinh,
+         to_char((SELECT ngay_chot FROM moc), 'YYYY-MM-DD') AS ngay_chot,
+         (SELECT nguon_file FROM moc) AS nguon_file,
+         m.ma_vat_tu AS m_ma, m.ten_master AS m_ten, m.dvt AS m_dvt, m.nhom_sap AS m_nhom_sap,
+         m.ten_nhom_sap AS m_ten_nhom_sap, m.loai_vat_tu AS m_loai, m.gia_binh_quan AS m_gia_binh_quan,
+         m.price_unit AS m_price_unit,
+         m.chung_loai AS m_chung_loai, m.chat_lieu AS m_chat_lieu, m.quy_cach AS m_quy_cach, m.mau AS m_mau,
+         m.thuong_hieu AS m_thuong_hieu, m.xuat_xu AS m_xuat_xu, m.thuoc_tinh AS m_thuoc_tinh,
+         m.nguon AS m_nguon,
+         ${SQL_COT_BAN("b", coCongKhai)}
+  FROM ban_vt_ton t
+  LEFT JOIN ban_vt_master m ON m.ma_vat_tu = t.ma_vat_tu
+  LEFT JOIN ban_vt_thong_tin b ON b.ma_vat_tu = t.ma_vat_tu
+  -- B\u1EA3ng n\u1EA1p l\u1EA1i nguy\xEAn \u1EA3nh ch\u1EE5p m\u1ED7i l\u1EA7n; ph\xF2ng c\xF2n s\xF3t l\u1EA7n ch\u1ED1t c\u0169 th\xEC ch\u1EC9 l\u1EA5y l\u1EA7n ch\u1ED1t m\u1EDBi nh\u1EA5t
+  WHERE t.ngay_chot IS NOT DISTINCT FROM (SELECT ngay_chot FROM moc)`;
+var docBoSung = async (sql) => {
+  try {
+    return (await timedQuery(sql, [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows;
+  } catch (e) {
+    if (!laThieuBangHoacCot(e)) throw e;
+    return [];
+  }
+};
+var docSuyTuTen = async () => new Map((await docBoSung(
+  `SELECT ma_vat_tu, suy_tu_ten FROM ban_vt_master WHERE suy_tu_ten IS NOT NULL AND suy_tu_ten <> '{}'::jsonb`
+)).map((r) => [String(r.ma_vat_tu), r.suy_tu_ten]));
+var docNccGanNhat = async () => new Map((await docBoSung(
+  `
+  SELECT DISTINCT ON (v.ma_vat_tu_sap) (v.ma_vat_tu_sap::bigint)::text AS ma, v.nha_cung_cap
+  FROM vat_tu v
+  WHERE v.ma_vat_tu_sap IS NOT NULL AND NULLIF(btrim(v.nha_cung_cap), '') IS NOT NULL
+    AND COALESCE(v.trang_thai, '') NOT ILIKE '%H\u1EE6Y%'
+    AND (v.ma_vat_tu_sap::bigint)::text IN (SELECT ma_vat_tu FROM ban_vt_ton)
+  ORDER BY v.ma_vat_tu_sap, v.ngay_pr DESC NULLS LAST, v.id DESC`
+)).map((r) => [String(r.ma), r.nha_cung_cap]));
+var sqlAnhTheoMa = (coCongKhai) => `
+  SELECT a.id, a.ma_vat_tu, a.chac_chan, a.trang_thai, a.cong_trinh, a.code_vat_lieu,
+         ${coCongKhai ? "a.cong_khai" : "FALSE AS cong_khai"},
+         to_char(a.created_at AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS tao_luc
+  FROM ban_vt_anh a
+  WHERE a.trang_thai <> 'an' AND a.ma_vat_tu IN (SELECT ma_vat_tu FROM ban_vt_ton)`;
+var docAnhTheoMa = async () => {
+  try {
+    return gomAnhTheoMa((await timedQuery(sqlAnhTheoMa(true), [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows);
+  } catch (e) {
+    if (!laThieuBangHoacCot(e)) throw e;
+    return gomAnhTheoMa(await docBoSung(sqlAnhTheoMa(false)));
+  }
+};
+var docDongDanhSach = async () => {
+  try {
+    return (await timedQuery(sqlDanhSach(true), [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows;
+  } catch (e) {
+    if (e?.code !== "42703") throw e;
+    return (await timedQuery(sqlDanhSach(false), [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows;
+  }
+};
+var tinhDanhSach = async (coGiaVon) => {
+  let rows;
+  try {
+    rows = await docDongDanhSach();
+  } catch (e) {
+    if (!laThieuBang2(e)) throw e;
+    return { ngayChot: null, nguonFile: null, coGiaVon, items: [], canhBao: CANH_BAO_THIEU_BANG };
+  }
+  const [suyTuTen, nccGanNhat, anh] = await Promise.all([docSuyTuTen(), docNccGanNhat(), docAnhTheoMa()]);
+  const items = xepDong(rows.map((r) => {
+    const ma = String(r.ma ?? "");
+    return dungDong(r, coGiaVon, { suyTuTen: suyTuTen.get(ma), nccGanNhat: nccGanNhat.get(ma), anh: anh.get(ma) });
+  }), coGiaVon);
+  return {
+    ngayChot: chuoiHoacNull(rows[0]?.ngay_chot),
+    nguonFile: chuoiHoacNull(rows[0]?.nguon_file),
+    coGiaVon,
+    items
+  };
+};
+app.get("/api/ban-vat-tu/danh-sach", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM2)) return res.status(403).json(LOI_QUYEN_XEM);
+    const [coGiaVon, coQuyenSua] = await Promise.all([
+      userHasPermission(req, MATERIAL_PRICE_PERMISSION),
+      userHasPermission(req, QUYEN_SUA)
+    ]);
+    const khoa = await docPhienBan2();
+    const payload = await cachedByVersions(
+      cacheDanhSach,
+      `danh-sach|${coGiaVon ? 1 : 0}`,
+      ["material"],
+      () => tinhDanhSach(coGiaVon),
+      khoa
+    );
+    const ketQua = { ...payload, coQuyenSua };
+    res.json(ketQua);
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu/danh-sach:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var SQL_DANG_HANG_LOAT = `
+  INSERT INTO ban_vt_thong_tin (ma_vat_tu, dang_cong_khai, dang_cong_khai_luc, updated_by, updated_at)
+  SELECT DISTINCT t.ma_vat_tu, TRUE, now(), $2::text, now()
+  FROM ban_vt_ton t WHERE t.ma_vat_tu = ANY($1::text[])
+  ON CONFLICT (ma_vat_tu) DO UPDATE SET dang_cong_khai = TRUE, dang_cong_khai_luc = now(),
+    updated_by = EXCLUDED.updated_by, updated_at = now()
+  WHERE NOT ban_vt_thong_tin.dang_cong_khai
+  RETURNING ma_vat_tu`;
+var SQL_GO_HANG_LOAT = `
+  UPDATE ban_vt_thong_tin SET dang_cong_khai = FALSE, updated_by = $2::text, updated_at = now()
+  WHERE ma_vat_tu = ANY($1::text[]) AND dang_cong_khai
+  RETURNING ma_vat_tu`;
+app.put("/api/ban-vat-tu/cong-khai-hang-loat", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
+    const kt = kiemTraThanHangLoat(req.body);
+    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
+    let soDoi;
+    try {
+      soDoi = (await timedQuery(
+        kt.bat ? SQL_DANG_HANG_LOAT : SQL_GO_HANG_LOAT,
+        [kt.mas, req.user?.username ?? null],
+        { timeoutMs: TIMEOUT_MS2 }
+      )).rows.length;
+    } catch (e) {
+      if (laThieuBangHoacCot(e)) return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
+      throw e;
+    }
+    if (soDoi > 0) boPhienBanNho();
+    res.json({ soDoi });
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu cong-khai-hang-loat:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var SO_YEU_CAU_TOI_DA = 500;
+var DINH_DANG_GIO_GIAY = `'YYYY-MM-DD"T"HH24:MI:SS"Z"'`;
+var SQL_COT_YEU_CAU = `id, ma_yeu_cau, items, ten_khach, sdt, email, cong_ty, ghi_chu, trang_thai, ghi_chu_noi_bo, xu_ly_boi,
+  to_char(xu_ly_luc AT TIME ZONE 'UTC', ${DINH_DANG_GIO_GIAY}) AS xu_ly_luc,
+  to_char(created_at AT TIME ZONE 'UTC', ${DINH_DANG_GIO_GIAY}) AS created_at`;
+app.get("/api/ban-vat-tu/yeu-cau", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM2)) return res.status(403).json(LOI_QUYEN_XEM);
+    const loc = req.query.trangThai;
+    if (loc !== void 0 && loc !== "" && !laTrangThaiYeuCau(loc)) return res.status(400).json({ error: "Tr\u1EA1ng th\xE1i l\u1ECDc kh\xF4ng h\u1EE3p l\u1EC7" });
+    const trangThai = laTrangThaiYeuCau(loc) ? loc : null;
+    let rows;
+    let soMoi;
+    try {
+      const [ds2, dem2] = await Promise.all([
+        timedQuery(
+          `SELECT ${SQL_COT_YEU_CAU} FROM ban_vt_yeu_cau
+           WHERE ($1::text IS NULL OR trang_thai = $1::text)
+           ORDER BY created_at DESC NULLS LAST, id DESC LIMIT ${SO_YEU_CAU_TOI_DA}`,
+          [trangThai]
+        ),
+        timedQuery(`SELECT COUNT(*)::int AS n FROM ban_vt_yeu_cau WHERE trang_thai = 'moi'`)
+      ]);
+      rows = ds2.rows;
+      soMoi = Number(dem2.rows[0]?.n ?? 0);
+    } catch (e) {
+      if (!laThieuBangHoacCot(e)) throw e;
+      return res.json({ items: [], soMoi: 0, canhBao: LOI_THIEU_COT_CONG_KHAI.error });
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ items: rows.map(dungYeuCau), soMoi });
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu yeu-cau:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.put("/api/ban-vat-tu/yeu-cau/:id", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
+    const id = docIdAnh(req.params.id);
+    if (id === null) return res.status(400).json({ error: "M\xE3 y\xEAu c\u1EA7u kh\xF4ng h\u1EE3p l\u1EC7" });
+    const kt = kiemTraThanPutYeuCau(req.body);
+    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
+    const sets = ["xu_ly_boi = $2::text", "xu_ly_luc = now()"];
+    const thamSo = [id, req.user?.username ?? null];
+    if (kt.trangThai !== void 0) {
+      thamSo.push(kt.trangThai);
+      sets.push(`trang_thai = $${thamSo.length}::text`);
+    }
+    if (kt.ghiChuNoiBo !== void 0) {
+      thamSo.push(kt.ghiChuNoiBo);
+      sets.push(`ghi_chu_noi_bo = $${thamSo.length}::text`);
+    }
+    let dong2;
+    try {
+      dong2 = (await timedQuery(`UPDATE ban_vt_yeu_cau SET ${sets.join(", ")} WHERE id = $1 RETURNING ${SQL_COT_YEU_CAU}`, thamSo)).rows[0];
+    } catch (e) {
+      if (laThieuBangHoacCot(e)) return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
+      throw e;
+    }
+    if (!dong2) return res.status(404).json({ error: "Kh\xF4ng t\xECm th\u1EA5y y\xEAu c\u1EA7u" });
+    res.json({ yeuCau: dungYeuCau(dong2) });
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu PUT yeu-cau:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.get("/api/ban-vat-tu/anh/:id", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM2)) return res.status(403).json(LOI_QUYEN_XEM);
+    const id = docIdAnh(req.params.id);
+    if (id === null) return res.status(400).json({ error: "M\xE3 \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7" });
+    let dong2;
+    try {
+      dong2 = (await timedQuery(`SELECT data, mime, trang_thai FROM ban_vt_anh WHERE id = $1`, [id])).rows[0];
+    } catch (e) {
+      if (laThieuBangHoacCot(e)) return res.status(404).json({ error: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
+      throw e;
+    }
+    if (!dong2 || !Buffer.isBuffer(dong2.data)) return res.status(404).json({ error: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
+    if (dong2.trang_thai === "an" && !await userHasPermission(req, QUYEN_SUA)) {
+      return res.status(404).json({ error: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
+    }
+    res.setHeader("Content-Type", mimeAnhAnToan(dong2.mime));
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.send(dong2.data);
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu \u1EA3nh:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var sqlPutAnh = (coCongKhai) => `
+  UPDATE ban_vt_anh SET trang_thai = COALESCE($2::text, trang_thai), duyet_boi = $3, duyet_luc = now()
+    ${coCongKhai ? ", cong_khai = COALESCE($4::boolean, cong_khai)" : ""}
+  WHERE id = $1
+  RETURNING id, ma_vat_tu, chac_chan, trang_thai, cong_trinh, code_vat_lieu, ${coCongKhai ? "cong_khai" : "FALSE AS cong_khai"}`;
+app.put("/api/ban-vat-tu/anh/:id", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
+    const id = docIdAnh(req.params.id);
+    if (id === null) return res.status(400).json({ error: "M\xE3 \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7" });
+    const kt = kiemTraThanPutAnh(req.body);
+    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
+    const nguoi = req.user?.username ?? null;
+    let dong2;
+    try {
+      try {
+        dong2 = (await timedQuery(sqlPutAnh(true), [id, kt.trangThai ?? null, nguoi, kt.congKhai ?? null])).rows[0];
+      } catch (e) {
+        if (e?.code !== "42703" || kt.congKhai !== void 0) throw e;
+        dong2 = (await timedQuery(sqlPutAnh(false), [id, kt.trangThai ?? null, nguoi])).rows[0];
+      }
+    } catch (e) {
+      if (laThieuBangHoacCot(e)) {
+        return res.status(503).json({ error: kt.congKhai !== void 0 ? LOI_THIEU_COT_CONG_KHAI.error : "Ch\u01B0a t\u1EA1o b\u1EA3ng \u1EA3nh \u2014 ch\u1EA1y backend/sql/2026-11-15_ban_vat_tu_bo_sung.sql" });
+      }
+      throw e;
+    }
+    if (!dong2) return res.status(404).json({ error: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
+    boPhienBanNho();
+    res.json({
+      anh: {
+        id: Number(dong2.id),
+        ma: chuoiHoacNull(dong2.ma_vat_tu),
+        chacChan: dong2.chac_chan === true,
+        trangThai: laTrangThaiAnh(dong2.trang_thai) ? dong2.trang_thai : "tu_dong",
+        congTrinh: chuoiGon(dong2.cong_trinh),
+        codeVatLieu: chuoiGon(dong2.code_vat_lieu),
+        congKhai: dong2.cong_khai === true
+      }
+    });
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu PUT \u1EA3nh:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.put("/api/ban-vat-tu/:ma", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
+    const ma = docMaVatTu(req.params.ma);
+    if (!ma) return res.status(400).json({ error: "M\xE3 v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const kt = kiemTraThanPut(req.body);
+    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
+    const nguoiSua = req.user?.username ?? null;
+    let dong2;
+    try {
+      const chay2 = async (docCotCongKhai) => {
+        const { sql, thamSo } = dungSqlUpsert(ma, nguoiSua, kt.thayDoi, docCotCongKhai);
+        return (await timedQuery(sql, thamSo)).rows[0];
+      };
+      try {
+        dong2 = await chay2(true);
+      } catch (e) {
+        if (e?.code !== "42703" || coTruongCongKhai(kt.thayDoi)) throw e;
+        dong2 = await chay2(false);
+      }
+    } catch (e) {
+      if (laThieuBang2(e)) return res.status(503).json({ error: CANH_BAO_THIEU_BANG });
+      if (e?.code === "42703") return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
+      throw e;
+    }
+    if (!dong2) return res.status(404).json({ error: `Kh\xF4ng c\xF3 m\xE3 ${ma} trong t\u1ED3n kho v\u1EADt t\u01B0 \u0111ang b\xE1n` });
+    boPhienBanNho();
+    res.json({ ban: dungThongTinBan(dong2) });
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu PUT:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var SO_DONG_PR_TOI_DA = 1e3;
+var cacheMuaHang = createCache(300);
+var SQL_MUA_HANG = `
+  SELECT (so_pr::bigint)::text AS so_pr, to_char(ngay_pr, 'YYYY-MM-DD') AS ngay_pr, trackingno, ten_cong_trinh,
+         so_luong_yeu_cau AS so_luong, dvt, don_gia, nha_cung_cap, nhom_vt, code_vat_lieu, ten_vat_tu, trang_thai
+  FROM vat_tu
+  -- ma_vat_tu_sap l\xE0 double: so b\u1EB1ng gi\xE1 tr\u1ECB s\u1ED1 (m\xE3 \u2264 15 ch\u1EEF s\u1ED1 bi\u1EC3u di\u1EC5n ch\xEDnh x\xE1c) = so (::bigint)::text
+  WHERE ma_vat_tu_sap = $1::double precision
+  ORDER BY ngay_pr DESC NULLS LAST, so_pr DESC NULLS LAST, pr_line DESC NULLS LAST, id DESC
+  LIMIT ${SO_DONG_PR_TOI_DA}`;
+var docTenTon = async (ma) => {
+  try {
+    const r = await timedQuery(`SELECT ten_vat_tu FROM ban_vt_ton WHERE ma_vat_tu = $1 AND NULLIF(btrim(ten_vat_tu), '') IS NOT NULL LIMIT 1`, [ma]);
+    return chuoiGon(r.rows[0]?.ten_vat_tu);
+  } catch (e) {
+    if (!laThieuBang2(e)) throw e;
+    return null;
+  }
+};
+app.get("/api/ban-vat-tu/:ma/mua-hang", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM2)) return res.status(403).json(LOI_QUYEN_XEM);
+    const ma = docMaVatTu(req.params.ma);
+    if (!ma) return res.status(400).json({ error: "M\xE3 v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const coGiaVon = await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+    const laMaSo = /^[1-9]\d{0,14}$/.test(ma);
+    const khoa = await docPhienBan2();
+    const tho = await cachedByVersions(cacheMuaHang, `mua|${ma}`, ["material"], async () => {
+      const [rows, tenTon] = await Promise.all([
+        laMaSo ? timedQuery(SQL_MUA_HANG, [ma], { timeoutMs: TIMEOUT_MS2 }).then((r) => r.rows) : Promise.resolve([]),
+        docTenTon(ma)
+      ]);
+      return { rows, tenTon };
+    }, khoa);
+    const ketQua = dungMuaHang(tho.rows, coGiaVon, tho.tenTon);
+    res.json(ketQua);
+  } catch (error61) {
+    console.error("L\u1ED7i ban-vat-tu mua-hang:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// src/routes/banVatTuCongKhai.ts
+import { createHash as createHash4, randomInt } from "node:crypto";
+var TIMEOUT_MS3 = 15e3;
+var chuoiGon2 = (v) => {
+  if (v === null || v === void 0 || typeof v === "object") return null;
+  const s = String(v).trim();
+  return s ? s : null;
+};
+var so5 = (v) => {
+  if (v === null || v === void 0 || v === "") return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+var boDau = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
+var DS_LOAI_CHINH = [
+  "KVT V\u1EA3i Da Mouss",
+  "KVT G\u1ED7",
+  "KVT T\u1EA5m-V\xE1n",
+  "KVT ph\u1EE5 ki\u1EC7n",
+  "KVT \u0110\xE1",
+  "KVT H\xF3a ch\u1EA5t",
+  "Kho G.C\xF4ng Ngo\xE0i",
+  "KVT Bao B\xEC",
+  "KVT Kim Lo\u1EA1i",
+  "KVT CCDC"
+];
+var LOAI_KHAC = "Kh\xE1c";
+var TEN_KHO_RIENG = {
+  "vai,da,sf": "KVT V\u1EA3i Da Mouss",
+  "go": "KVT G\u1ED7",
+  "tam \u2013 van": "KVT T\u1EA5m-V\xE1n",
+  "tam - van": "KVT T\u1EA5m-V\xE1n",
+  "tam-van": "KVT T\u1EA5m-V\xE1n",
+  "phu kien": "KVT ph\u1EE5 ki\u1EC7n",
+  "da": "KVT \u0110\xE1",
+  "hoa chat": "KVT H\xF3a ch\u1EA5t",
+  "gc ngoai": "Kho G.C\xF4ng Ngo\xE0i",
+  "bao bi": "KVT Bao B\xEC",
+  "kim loai": "KVT Kim Lo\u1EA1i",
+  "ccdc": "KVT CCDC"
+};
+var loaiTuKho = (kho) => {
+  const s = String(kho ?? "").replace(/\s+/g, " ").trim();
+  if (!s) return LOAI_KHAC;
+  if (DS_LOAI_CHINH.includes(s)) return s;
+  const bo = s.replace(/^(kho\s+vt|kvt|kho)\s+/i, "").trim() || s;
+  return TEN_KHO_RIENG[boDau(bo).replace(/\s*,\s*/g, ",")] ?? LOAI_KHAC;
+};
+var TEN_DVT = {
+  PCS: "c\xE1i",
+  EA: "c\xE1i",
+  M: "m",
+  TAM: "t\u1EA5m",
+  SET: "b\u1ED9",
+  KG: "kg",
+  G: "g",
+  M2: "m\xB2",
+  M3: "m\xB3",
+  CD3: "dm\xB3",
+  L: "l\xEDt",
+  FT2: "ft\xB2",
+  YRD: "yard",
+  YD: "yard",
+  CUO: "cu\u1ED9n",
+  ROL: "cu\u1ED9n",
+  VI: "v\u1EC9",
+  THA: "thanh",
+  HOP: "h\u1ED9p",
+  CAP: "c\u1EB7p",
+  BIN: "b\xECnh",
+  CHA: "chai",
+  BIC: "b\u1ECBch",
+  XAP: "x\u1EA5p",
+  CAY: "c\xE2y",
+  SOI: "s\u1EE3i",
+  TUY: "tu\xFDp",
+  GOI: "g\xF3i",
+  TEP: "t\xE9p",
+  THU: "th\xF9ng",
+  BO: "b\u1ED9",
+  CAI: "c\xE1i",
+  CHI: "chi\u1EBFc",
+  DOI: "\u0111\xF4i",
+  LON: "lon",
+  BAO: "bao",
+  KIT: "b\u1ED9"
+};
+var tenDvt = (dvt) => {
+  const s = chuoiGon2(dvt);
+  if (!s) return null;
+  return TEN_DVT[s.toUpperCase()] ?? s.toLowerCase();
+};
+var COT_THUOC_TINH = [
+  ["chungLoai", "m_chung_loai"],
+  ["quyCach", "m_quy_cach"],
+  ["mau", "m_mau"],
+  ["maMau", null],
+  ["thuongHieu", "m_thuong_hieu"],
+  ["chatLieu", "m_chat_lieu"],
+  ["xuatXu", "m_xuat_xu"]
+];
+var TRUONG_GOP = [
+  ["chungLoai", "Ch\u1EE7ng lo\u1EA1i", 1, [1]],
+  ["thuongHieu", "Th\u01B0\u01A1ng hi\u1EC7u", 12, [12]],
+  ["mau", "M\xE0u s\u1EAFc", 15, [15]],
+  ["maMau", "M\xE3 m\xE0u", 16, [16]],
+  ["quyCach", "Quy c\xE1ch", 20, [20, 21, 22, 23, 24]],
+  ["xuatXu", "Xu\u1EA5t x\u1EE9", 26, [26]],
+  ["chatLieu", "Ch\u1EA5t li\u1EC7u", 35, [35]]
+];
+var NHAN_MP_CONG_KHAI = {
+  MP01: "Ch\u1EE7ng lo\u1EA1i",
+  MP02: "T\xEAn g\u1ED7",
+  MP03: "T\xEAn t\u1EA5m / v\xE1n",
+  MP04: "Lo\u1EA1i 1 m\u1EB7t / 2 m\u1EB7t",
+  MP05: "T\xEAn v\u1EA3i / da / m\xE2y",
+  MP06: "T\xEAn \u0111\xE1 / k\xEDnh",
+  MP07: "T\xEAn ph\u1EE5 ki\u1EC7n",
+  MP08: "T\xEAn kim lo\u1EA1i",
+  MP09: "T\xEAn keo",
+  MP10: "T\xEAn h\xF3a ch\u1EA5t",
+  MP12: "Th\u01B0\u01A1ng hi\u1EC7u",
+  MP13: "B\u1ED9 s\u01B0u t\u1EADp",
+  MP14: "V\u1EADt li\u1EC7u d\xE1n b\u1EC1 m\u1EB7t",
+  MP15: "M\xE0u s\u1EAFc",
+  MP16: "M\xE3 m\xE0u",
+  MP17: "M\xE3 h\u1ECDa ti\u1EBFt",
+  MP19: "Ti\xEAu chu\u1EA9n ch\u1EA5t l\u01B0\u1EE3ng",
+  MP20: "Quy c\xE1ch ph\xE1ch",
+  MP21: "Quy c\xE1ch d\xE0y",
+  MP22: "Quy c\xE1ch r\u1ED9ng",
+  MP23: "Quy c\xE1ch d\xE0i",
+  MP24: "Quy c\xE1ch \u0111\u01B0\u1EDDng k\xEDnh",
+  MP25: "Tr\u1ECDng l\u01B0\u1EE3ng",
+  MP26: "Xu\u1EA5t x\u1EE9",
+  MP27: "H\xECnh d\u1EA1ng",
+  MP28: "X\u1EBB g\u1ED7",
+  MP29: "\u0110\u1ED9 \u1EA9m / \u01B0\u1EDBt",
+  MP30: "Ch\u1ED1ng ch\xE1y / ch\u1EADm ch\xE1y",
+  MP31: "\u0110\u1EB7c t\xEDnh \u0111\u1EB7c th\xF9",
+  MP32: "Bi\u1EBFn t\xEDnh",
+  MP33: "Gh\xE9p g\u1ED7",
+  MP34: "Ph\u01B0\u01A1ng ph\xE1p gia c\xF4ng",
+  MP35: "Ch\u1EA5t li\u1EC7u"
+};
+var suaQuyCachDayRong = (qc) => {
+  const m = /^\s*Dày\s+(\d+(?:[.,]\d+)?)\s*×\s*Rộng\s+(\d+(?:[.,]\d+)?)\s*$/u.exec(qc);
+  if (!m) return qc;
+  const day = Number(m[1].replace(",", "."));
+  const rong = Number(m[2].replace(",", "."));
+  return day >= 600 && rong >= day ? `R\u1ED9ng ${m[1]} \xD7 D\xE0i ${m[2]}` : qc;
+};
+var laGiaTriRac = (s) => /^(?:[-–.\s]+|n\s*\/?\s*a|\(?blank\)?|none|null|0+(?:[.,]0+)?)$/i.test(s.trim());
+var khoaSo = (s) => boDau(s).replace(/[\s_\-–/.,]+/g, "");
+var dungThuocTinhDayDu = (thuocTinh, thuocTinhMp, che) => {
+  const dong2 = [];
+  const daBao = /* @__PURE__ */ new Set();
+  const daCo = /* @__PURE__ */ new Set();
+  for (const [khoa, nhan, viTri, bao] of TRUONG_GOP) {
+    const gt = thuocTinh[khoa];
+    if (!gt || laGiaTriRac(gt)) continue;
+    for (const so9 of bao) daBao.add(so9);
+    daCo.add(khoaSo(gt));
+    dong2.push({ viTri, nhan, giaTri: gt });
+  }
+  const mp = chuanHoaThuocTinh(thuocTinhMp);
+  const cacMa = Object.keys(mp).map((k) => ({ k, so: /^\s*MP(\d{2})(?!\d)/i.exec(k)?.[1] })).filter((x) => x.so !== void 0).sort((a, b) => Number(a.so) - Number(b.so) || a.k.localeCompare(b.k));
+  for (const { k, so: soMp } of cacMa) {
+    const nhan = NHAN_MP_CONG_KHAI[`MP${soMp}`];
+    const viTri = Number(soMp);
+    if (!nhan || laThuocTinhNcc(k) || daBao.has(viTri)) continue;
+    const tho = mp[k];
+    if (laGiaTriRac(tho)) continue;
+    const gt = che(tho);
+    if (!gt || laGiaTriRac(gt)) continue;
+    const ks = khoaSo(gt);
+    if (!ks || daCo.has(ks)) continue;
+    daCo.add(ks);
+    dong2.push({ viTri, nhan, giaTri: gt });
+  }
+  return dong2.sort((a, b) => a.viTri - b.viTri).map(({ nhan, giaTri }) => ({ nhan, giaTri }));
+};
+var tenNhomVatTu = (tenNhomSap, thuocTinhMp) => {
+  const ten = chuoiGon2(tenNhomSap);
+  if (ten && !/^\d+$/.test(ten)) return ten;
+  const mp = chuanHoaThuocTinh(thuocTinhMp);
+  const k = Object.keys(mp).find((x) => /^\s*MP00(?!\d)/i.test(x));
+  const t = k ? mp[k].replace(/^\s*\d+\s*[-–:]?\s*/, "").trim() : "";
+  return t && !laGiaTriRac(t) ? t : null;
+};
+var MAU_MA_CONG_TRINH = /(?<![\p{L}\p{N}])(?:CT|PO)\s*\d{2}\s*[-–]\s*\d{3,4}(?![\p{N}])/giu;
+var DAU_CHE = "\uE000";
+var MAU_QUANH_CHE = /[\s_\-–/,;:|\uE000]*\uE000[\s_\-–/,;:|\uE000]*/gu;
+var MAU_DAU_NOI_HAI_DAU = /^[\s_\-–/,;:|]+|[\s_\-–/,;:|]+$/gu;
+var thoatRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+var cumCongTrinh = (ds2) => {
+  const kq = /* @__PURE__ */ new Set();
+  for (const v of ds2) {
+    const s = chuoiGon2(v);
+    if (!s) continue;
+    for (const phan of s.split(/[\r\n+,;]+/)) {
+      let p = phan.replace(/\s+/g, " ").trim();
+      if (/^dung chung(\s|$)/.test(boDau(p))) p = p.split(" ").slice(2).join(" ").trim();
+      if (!p || p.startsWith("(") || p.length < 3) continue;
+      kq.add(p);
+    }
+  }
+  return [...kq].sort((a, b) => b.length - a.length);
+};
+var cheCongTrinh = (s, cum = []) => {
+  let t = s.replace(MAU_MA_CONG_TRINH, DAU_CHE);
+  for (const c of cum) {
+    const mau = new RegExp(`(?<![\\p{L}\\p{N}])${thoatRegex(c).replace(/ /g, "\\s+")}(?![\\p{L}\\p{N}])`, "giu");
+    t = t.replace(mau, DAU_CHE);
+  }
+  if (!t.includes(DAU_CHE)) return s.trim();
+  t = t.replace(MAU_QUANH_CHE, (khop, viTri, toanBo) => {
+    if (viTri === 0 || viTri + khop.length === toanBo.length) return "";
+    if (/\s/.test(khop)) return " ";
+    return khop.replace(/\uE000/g, "")[0] ?? " ";
+  });
+  return t.replace(/\(\s*\)|\[\s*\]/g, " ").replace(/\s+/g, " ").replace(MAU_DAU_NOI_HAI_DAU, "").trim();
+};
+var dungItemCongKhai = (rows, phu2 = {}) => {
+  if (!rows.length) return null;
+  const r0 = rows[0];
+  const ma = String(r0.ma ?? "");
+  const soLuong = Math.round(rows.reduce((t, r) => t + so5(r.so_luong), 0) * 1e6) / 1e6;
+  if (!ma || !(soLuong > 0)) return null;
+  const dongLon = rows.reduce((a, b) => so5(b.so_luong) > so5(a.so_luong) ? b : a);
+  const suy = chuanHoaSuyTuTen(phu2.suyTuTen);
+  const cum = cumCongTrinh(rows.flatMap((r) => [r.ten_cong_trinh, r.ma_cong_trinh]));
+  const che = (v) => v ? cheCongTrinh(v, cum) || null : null;
+  const thuocTinh = {};
+  for (const [khoa, cot] of COT_THUOC_TINH) {
+    const gt = che((cot ? chuoiGon2(r0[cot]) : null) ?? (khoa === "xuatXu" ? null : chuoiGon2(suy[khoa])));
+    if (gt) thuocTinh[khoa] = khoa === "quyCach" ? suaQuyCachDayRong(gt) : gt;
+  }
+  const thuocTinhDayDu = dungThuocTinhDayDu(thuocTinh, r0.m_thuoc_tinh, che);
+  const gia = Number(r0.gia_ban_vnd);
+  const anhNgoai = [];
+  if (Array.isArray(r0.anh_urls)) {
+    for (const u of r0.anh_urls) {
+      const s = typeof u === "string" ? u.trim() : "";
+      if (laUrlAnhHopLe(s) && !anhNgoai.includes(s) && anhNgoai.length < SO_ANH_TOI_DA) anhNgoai.push(s);
+    }
+  }
+  const dvt = rows.map((r) => chuoiGon2(r.dvt)).find(Boolean) ?? chuoiGon2(r0.m_dvt);
+  return {
+    ma,
+    // Tên admin đặt cho khách giữ nguyên; tên tồn / master che mã + tên công trình (hết chữ => chủng loại / 'Vật tư <mã>')
+    ten: chuoiGon2(r0.ten_hien_thi) ?? che(rows.map((r) => chuoiGon2(r.ten)).find(Boolean) ?? null) ?? che(chuoiGon2(r0.m_ten)) ?? thuocTinh.chungLoai ?? `V\u1EADt t\u01B0 ${ma}`,
+    loai: loaiTuKho(dongLon.kho),
+    thuocTinh,
+    thuocTinhDayDu,
+    nhomVatTu: che(tenNhomVatTu(r0.m_ten_nhom_sap, r0.m_thuoc_tinh)),
+    soLuong,
+    dvt: tenDvt(dvt),
+    giaBanVnd: r0.gia_ban_vnd !== null && r0.gia_ban_vnd !== void 0 && r0.gia_ban_vnd !== "" && Number.isFinite(gia) && gia > 0 ? gia : null,
+    moTa: chuoiGon2(r0.mo_ta_cong_khai),
+    anh: (phu2.anh ?? []).filter((id) => Number.isSafeInteger(id) && id > 0),
+    anhNgoai,
+    dangLuc: /^\d{4}-\d{2}-\d{2}$/.test(String(r0.dang_luc ?? "")) ? String(r0.dang_luc) : null
+  };
+};
+var gopDanhSachCongKhai = (rows, suyTuTen, anh) => {
+  const theoMa = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    const ma = String(r.ma ?? "");
+    if (!ma) continue;
+    const ds2 = theoMa.get(ma);
+    if (ds2) ds2.push(r);
+    else theoMa.set(ma, [r]);
+  }
+  const items = [];
+  for (const [ma, ds2] of theoMa) {
+    const it = dungItemCongKhai(ds2, { suyTuTen: suyTuTen.get(ma), anh: anh.get(ma) });
+    if (it) items.push(it);
+  }
+  return items.sort((a, b) => (b.dangLuc ?? "").localeCompare(a.dangLuc ?? "") || a.ten.localeCompare(b.ten, "vi") || (a.ma < b.ma ? -1 : a.ma > b.ma ? 1 : 0));
+};
+var SO_DONG_YEU_CAU_TOI_DA = 30;
+var THAN_YEU_CAU_TOI_DA_BYTE = 20 * 1024;
+var YEU_CAU_MOI_GIO_TOI_DA = 5;
+var YEU_CAU_MOI_NGAY_TOI_DA = 50;
+var chuanHoaSdt = (v) => {
+  if (typeof v !== "string" || v.length > 40) return null;
+  let s = v.replace(/[\s.\-()]/g, "");
+  if (s.startsWith("+84")) s = "0" + s.slice(3);
+  return /^\d{9,12}$/.test(s) ? s : null;
+};
+var vanBanThuan = (s, nhieuDong = false) => {
+  let t = nhieuDong ? s.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ") : s.replace(/[\u0000-\u001f\u007f]/g, " ");
+  t = nhieuDong ? t.split("\n").map((d) => d.replace(/[ \t]+/g, " ").trim()).join("\n").replace(/\n{3,}/g, "\n\n") : t.replace(/\s+/g, " ");
+  return t.trim();
+};
+var laEmailHopLe = (s) => s.length <= 200 && /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/.test(s);
+var kiemTraThanYeuCau = (body) => {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
+  const b = body;
+  if (b.web !== void 0 && b.web !== null && String(b.web).trim() !== "") return { hopLe: true, laBot: true };
+  if (!Array.isArray(b.items) || b.items.length === 0) return { hopLe: false, loi: "Ch\u01B0a ch\u1ECDn v\u1EADt t\u01B0 n\xE0o" };
+  if (b.items.length > SO_DONG_YEU_CAU_TOI_DA) return { hopLe: false, loi: `T\u1ED1i \u0111a ${SO_DONG_YEU_CAU_TOI_DA} m\xE3 m\u1ED7i y\xEAu c\u1EA7u` };
+  const gop = /* @__PURE__ */ new Map();
+  for (const x of b.items) {
+    if (x === null || typeof x !== "object") return { hopLe: false, loi: "Danh s\xE1ch v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" };
+    const d = x;
+    const ma = docMaVatTu(d.ma);
+    if (!ma) return { hopLe: false, loi: "C\xF3 m\xE3 v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" };
+    if (typeof d.soLuong !== "number" || !Number.isFinite(d.soLuong) || d.soLuong <= 0) {
+      return { hopLe: false, loi: `S\u1ED1 l\u01B0\u1EE3ng c\u1EE7a m\xE3 ${ma} ph\u1EA3i l\u1EDBn h\u01A1n 0` };
+    }
+    gop.set(ma, (gop.get(ma) ?? 0) + d.soLuong);
+  }
+  if (typeof b.ten !== "string") return { hopLe: false, loi: "Vui l\xF2ng nh\u1EADp h\u1ECD t\xEAn" };
+  const ten = vanBanThuan(b.ten);
+  if (ten.length < 2 || ten.length > 100) return { hopLe: false, loi: "H\u1ECD t\xEAn t\u1EEB 2 \u0111\u1EBFn 100 k\xFD t\u1EF1" };
+  const sdt = chuanHoaSdt(b.sdt);
+  if (!sdt) return { hopLe: false, loi: "S\u1ED1 \u0111i\u1EC7n tho\u1EA1i kh\xF4ng h\u1EE3p l\u1EC7 (9\u201312 ch\u1EEF s\u1ED1)" };
+  const tuyChon = (v, toiDa, nhieuDong = false) => {
+    if (v === void 0 || v === null) return { ok: true, gt: null };
+    if (typeof v !== "string" || v.length > toiDa * 2) return { ok: false };
+    const s = vanBanThuan(v, nhieuDong);
+    return s.length > toiDa ? { ok: false } : { ok: true, gt: s || null };
+  };
+  const email3 = tuyChon(b.email, 200);
+  if (!email3.ok || email3.gt !== null && !laEmailHopLe(email3.gt)) return { hopLe: false, loi: "Email kh\xF4ng h\u1EE3p l\u1EC7" };
+  const congTy = tuyChon(b.congTy, 200);
+  if (!congTy.ok) return { hopLe: false, loi: "T\xEAn c\xF4ng ty t\u1ED1i \u0111a 200 k\xFD t\u1EF1" };
+  const ghiChu = tuyChon(b.ghiChu, 1e3, true);
+  if (!ghiChu.ok) return { hopLe: false, loi: "Ghi ch\xFA t\u1ED1i \u0111a 1000 k\xFD t\u1EF1" };
+  return {
+    hopLe: true,
+    laBot: false,
+    than: {
+      items: [...gop].map(([ma, soLuong]) => ({ ma, soLuong })),
+      ten,
+      sdt,
+      email: email3.gt,
+      congTy: congTy.gt,
+      ghiChu: ghiChu.gt
+    }
+  };
+};
+var ghepYeuCau = (items, theoMa) => {
+  const dong2 = [];
+  for (const { ma, soLuong } of items) {
+    const it = theoMa.get(ma);
+    if (!it) return { hopLe: false, loi: `M\xE3 ${ma} hi\u1EC7n kh\xF4ng c\xF2n ch\xE0o b\xE1n \u2014 vui l\xF2ng b\u1ECF kh\u1ECFi y\xEAu c\u1EA7u` };
+    if (soLuong > it.soLuong + 1e-9) {
+      return { hopLe: false, loi: `M\xE3 ${ma} ch\u1EC9 c\xF2n ${it.soLuong.toLocaleString("vi-VN")}${it.dvt ? " " + it.dvt : ""}` };
+    }
+    dong2.push({ ma, ten: it.ten, soLuong, dvt: it.dvt });
+  }
+  return { hopLe: true, dong: dong2 };
+};
+var KY_TU_MA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var taoMaYeuCau = (luc = /* @__PURE__ */ new Date(), ngauNhien = randomInt) => {
+  const ngay3 = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(luc).replace(/-/g, "");
+  let duoi = "";
+  for (let i = 0; i < 4; i++) duoi += KY_TU_MA[ngauNhien(KY_TU_MA.length)];
+  return `YC-${ngay3}-${duoi}`;
+};
+var ipKhach = (req) => req.ip || String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim() || "khong-ro";
+var khoaIp = (ip) => {
+  try {
+    return ipKeyGenerator(ip, 56);
+  } catch {
+    return ip;
+  }
+};
+var bamIp = (ip, biMat = JWT_SECRET_SAFE) => createHash4("sha256").update(`${khoaIp(ip)}|${biMat}`).digest("hex");
+var laThieuBangHoacCot2 = (e) => ["42P01", "42703"].includes(String(e?.code));
+var SQL_CONG_KHAI_DANH_SACH = `
+  WITH moc AS (
+    SELECT t.ngay_chot FROM ban_vt_ton t
+    ORDER BY t.ngay_chot DESC NULLS LAST, t.updated_at DESC NULLS LAST LIMIT 1
+  )
+  SELECT t.ma_vat_tu AS ma, t.ten_vat_tu AS ten, t.dvt, t.so_luong, t.kho,
+         t.ten_cong_trinh, t.ma_cong_trinh, -- CH\u1EC8 \u0111\u1EC3 che kh\u1ECFi t\xEAn / thu\u1ED9c t\xEDnh (dungItemCongKhai), kh\xF4ng ra item
+         to_char((SELECT ngay_chot FROM moc), 'YYYY-MM-DD') AS ngay_chot,
+         b.ten_hien_thi, b.mo_ta_cong_khai, b.gia_ban_vnd, b.anh_urls,
+         to_char(b.dang_cong_khai_luc AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS dang_luc,
+         m.ten_master AS m_ten, m.dvt AS m_dvt, m.chung_loai AS m_chung_loai, m.chat_lieu AS m_chat_lieu,
+         m.quy_cach AS m_quy_cach, m.mau AS m_mau, m.thuong_hieu AS m_thuong_hieu, m.xuat_xu AS m_xuat_xu,
+         m.ten_nhom_sap AS m_ten_nhom_sap,
+         m.thuoc_tinh AS m_thuoc_tinh -- CH\u1EC8 qua danh s\xE1ch tr\u1EAFng NHAN_MP_CONG_KHAI (dungThuocTinhDayDu), kh\xF4ng ra item th\xF4
+  FROM ban_vt_ton t
+  JOIN ban_vt_thong_tin b ON b.ma_vat_tu = t.ma_vat_tu AND b.dang_cong_khai AND b.trang_thai = 'dang_ban'
+  LEFT JOIN ban_vt_master m ON m.ma_vat_tu = t.ma_vat_tu
+  WHERE t.ngay_chot IS NOT DISTINCT FROM (SELECT ngay_chot FROM moc)`;
+var SQL_MA_DANG_CONG_KHAI = `
+  EXISTS (SELECT 1 FROM ban_vt_thong_tin b
+          WHERE b.ma_vat_tu = a.ma_vat_tu AND b.dang_cong_khai AND b.trang_thai = 'dang_ban')
+  AND EXISTS (SELECT 1 FROM ban_vt_ton t
+              WHERE t.ma_vat_tu = a.ma_vat_tu
+                AND t.ngay_chot IS NOT DISTINCT FROM (SELECT ngay_chot FROM ban_vt_ton
+                                                      ORDER BY ngay_chot DESC NULLS LAST, updated_at DESC NULLS LAST LIMIT 1))`;
+var docPhu = async (sql) => {
+  try {
+    return (await timedQuery(sql, [], { timeoutMs: TIMEOUT_MS3, workMemMb: 16 })).rows;
+  } catch (e) {
+    if (!laThieuBangHoacCot2(e)) throw e;
+    return [];
+  }
+};
+var tinhDanhSachCongKhai = async () => {
+  let rows;
+  try {
+    rows = (await timedQuery(SQL_CONG_KHAI_DANH_SACH, [], { timeoutMs: TIMEOUT_MS3, workMemMb: 16 })).rows;
+  } catch (e) {
+    if (!laThieuBangHoacCot2(e)) throw e;
+    return { capNhat: null, items: [] };
+  }
+  if (!rows.length) return { capNhat: null, items: [] };
+  const [suyRows, anhRows] = await Promise.all([
+    docPhu(`SELECT m.ma_vat_tu, m.suy_tu_ten FROM ban_vt_master m
+            WHERE m.suy_tu_ten IS NOT NULL AND m.suy_tu_ten <> '{}'::jsonb
+              AND EXISTS (SELECT 1 FROM ban_vt_thong_tin b WHERE b.ma_vat_tu = m.ma_vat_tu AND b.dang_cong_khai AND b.trang_thai = 'dang_ban')`),
+    // Đã duyệt trước, rồi chắc chắn, rồi mới nhất (như trang admin)
+    docPhu(`SELECT a.id, a.ma_vat_tu FROM ban_vt_anh a
+            WHERE a.cong_khai AND a.trang_thai <> 'an' AND ${SQL_MA_DANG_CONG_KHAI}
+            ORDER BY a.ma_vat_tu, (a.trang_thai = 'da_duyet') DESC, a.chac_chan DESC, a.created_at DESC NULLS LAST, a.id`)
+  ]);
+  const suy = new Map(suyRows.map((r) => [String(r.ma_vat_tu), r.suy_tu_ten]));
+  const anh = /* @__PURE__ */ new Map();
+  for (const r of anhRows) {
+    const ma = String(r.ma_vat_tu);
+    const id = Number(r.id);
+    if (!Number.isSafeInteger(id)) continue;
+    const ds2 = anh.get(ma) ?? [];
+    if (ds2.length < 12) ds2.push(id);
+    anh.set(ma, ds2);
+  }
+  return { capNhat: chuoiGon2(rows[0]?.ngay_chot), items: gopDanhSachCongKhai(rows, suy, anh) };
+};
+var cacheCongKhai = createCache(1);
+var docDanhSachCongKhai = async () => cachedByVersions(cacheCongKhai, "cong-khai", [], tinhDanhSachCongKhai, await docPhienBan2());
+var gioiHan = (windowMs, max, loi) => rate_limit_default({
+  windowMs,
+  max,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: loi }
+});
+var gioiHanDanhSach = gioiHan(6e4, 60, "Truy c\u1EADp qu\xE1 nhi\u1EC1u, vui l\xF2ng th\u1EED l\u1EA1i sau \xEDt ph\xFAt");
+var gioiHanAnh = gioiHan(6e4, 600, "T\u1EA3i \u1EA3nh qu\xE1 nhi\u1EC1u, vui l\xF2ng th\u1EED l\u1EA1i sau \xEDt ph\xFAt");
+var gioiHanGui = gioiHan(15 * 6e4, 10, "B\u1EA1n \u0111\xE3 g\u1EEDi qu\xE1 nhi\u1EC1u y\xEAu c\u1EA7u, vui l\xF2ng th\u1EED l\u1EA1i sau");
+app.get("/api/cong-khai/vat-tu", gioiHanDanhSach, async (_req, res) => {
+  try {
+    const ketQua = await docDanhSachCongKhai();
+    res.setHeader("Cache-Control", "public, max-age=30");
+    res.json(ketQua);
+  } catch (error61) {
+    console.error("L\u1ED7i cong-khai/vat-tu:", error61);
+    res.status(500).json({ error: "H\u1EC7 th\u1ED1ng \u0111ang b\u1EADn, vui l\xF2ng th\u1EED l\u1EA1i sau" });
+  }
+});
+var KHONG_THAY_ANH = { error: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" };
+app.get("/api/cong-khai/anh/:id", gioiHanAnh, async (req, res) => {
+  try {
+    const id = docIdAnh(req.params.id);
+    if (id === null) return res.status(404).json(KHONG_THAY_ANH);
+    let dong2;
+    try {
+      dong2 = (await timedQuery(
+        `SELECT a.data, a.mime FROM ban_vt_anh a
+         WHERE a.id = $1 AND a.cong_khai AND a.trang_thai <> 'an' AND ${SQL_MA_DANG_CONG_KHAI}`,
+        [id]
+      )).rows[0];
+    } catch (e) {
+      if (laThieuBangHoacCot2(e)) return res.status(404).json(KHONG_THAY_ANH);
+      throw e;
+    }
+    if (!dong2 || !Buffer.isBuffer(dong2.data)) return res.status(404).json(KHONG_THAY_ANH);
+    res.setHeader("Content-Type", mimeAnhAnToan(dong2.mime));
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.send(dong2.data);
+  } catch (error61) {
+    console.error("L\u1ED7i cong-khai/anh:", error61);
+    res.status(500).json({ error: "H\u1EC7 th\u1ED1ng \u0111ang b\u1EADn, vui l\xF2ng th\u1EED l\u1EA1i sau" });
+  }
+});
+var LOI_THIEU_BANG_YEU_CAU = { error: "Ch\u1EE9c n\u0103ng g\u1EEDi y\xEAu c\u1EA7u \u0111ang t\u1EA1m d\u1EEBng, vui l\xF2ng g\u1ECDi \u0111i\u1EC7n cho ch\xFAng t\xF4i" };
+var THONG_BAO_MOI_GIO_TOI_DA = 30;
+var kieuThongBao = (demTruocTrongGio) => demTruocTrongGio < THONG_BAO_MOI_GIO_TOI_DA ? "tung_cai" : demTruocTrongGio === THONG_BAO_MOI_GIO_TOI_DA ? "gop" : "khong";
+var baoYeuCauMoi = async (maYeuCau, soMa, kieu) => {
+  try {
+    const r = await timedQuery(
+      `SELECT id::text AS id FROM users WHERE is_active AND (role = 'ADMIN' OR $1::text = ANY(permissions))`,
+      [QUYEN_SUA]
+    );
+    const ids = r.rows.map((x) => String(x.id));
+    if (!ids.length) return;
+    const title = kieu === "gop" ? "C\xF3 nhi\u1EC1u y\xEAu c\u1EA7u mua v\u1EADt t\u01B0 m\u1EDBi" : "C\xF3 y\xEAu c\u1EA7u mua v\u1EADt t\u01B0 m\u1EDBi";
+    const body = kieu === "gop" ? `\u0110\xE3 c\xF3 ${THONG_BAO_MOI_GIO_TOI_DA + 1} y\xEAu c\u1EA7u trong 1 gi\u1EDD qua \u2014 t\u1EA1m ng\u1EEBng b\xE1o t\u1EEBng y\xEAu c\u1EA7u, xem \u1EDF trang B\xE1n v\u1EADt t\u01B0` : `${maYeuCau} \xB7 ${soMa} m\xE3`;
+    try {
+      await timedQuery(
+        `INSERT INTO notifications (user_id, kind, title, body, vuong_mac_id, hex, actor)
+         SELECT u, 'ban_vt_yeu_cau', $2, $3, NULL, NULL, NULL FROM unnest($1::text[]) u`,
+        [ids, title, body]
+      );
+    } catch (e) {
+      if (!laThieuBangHoacCot2(e)) throw e;
+    }
+    await sendToUsers(ids, { title, body, tag: kieu === "gop" ? "ban-vt-nhieu-yeu-cau" : `ban-vt-${maYeuCau}`, target: { hex: "", category: "ban_vat_tu", id: 0, url: "/#/ban-vat-tu" } });
+  } catch (e) {
+    console.error("[ban-vat-tu] l\u1ED7i g\u1EEDi th\xF4ng b\xE1o y\xEAu c\u1EA7u mua", e);
+  }
+};
+app.post("/api/cong-khai/yeu-cau", gioiHanGui, async (req, res) => {
+  try {
+    const doDai = Number(req.headers["content-length"] ?? 0);
+    if (doDai > THAN_YEU_CAU_TOI_DA_BYTE || Buffer.byteLength(JSON.stringify(req.body ?? null)) > THAN_YEU_CAU_TOI_DA_BYTE) {
+      return res.status(413).json({ error: "Y\xEAu c\u1EA7u qu\xE1 d\xE0i" });
+    }
+    const kt = kiemTraThanYeuCau(req.body);
+    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
+    if (kt.laBot) return res.status(201).json({ maYeuCau: taoMaYeuCau() });
+    const ds2 = await docDanhSachCongKhai();
+    const ghep = ghepYeuCau(kt.than.items, new Map(ds2.items.map((it) => [it.ma, it])));
+    if (!ghep.hopLe) return res.status(400).json({ error: ghep.loi });
+    const ipHash = bamIp(ipKhach(req));
+    const ua = String(req.headers["user-agent"] ?? "").slice(0, 300) || null;
+    let kq;
+    try {
+      kq = await withTransaction(async (client) => {
+        await client.query(`SET LOCAL statement_timeout = ${TIMEOUT_MS3}`);
+        await client.query(`SELECT pg_advisory_xact_lock(hashtext('ban_vt_yeu_cau|' || $1::text))`, [ipHash]);
+        const r = await client.query(
+          `SELECT COUNT(*) FILTER (WHERE ip_hash = $1 AND created_at > now() - interval '1 hour')::int AS gio,
+                  COUNT(*) FILTER (WHERE ip_hash = $1)::int AS ngay,
+                  COUNT(*) FILTER (WHERE created_at > now() - interval '1 hour')::int AS toan_bo
+           FROM ban_vt_yeu_cau WHERE created_at > now() - interval '1 day'`,
+          [ipHash]
+        );
+        const gio = Number(r.rows[0]?.gio ?? 0);
+        const ngay3 = Number(r.rows[0]?.ngay ?? 0);
+        if (gio >= YEU_CAU_MOI_GIO_TOI_DA || ngay3 >= YEU_CAU_MOI_NGAY_TOI_DA) return { quaGioiHan: true };
+        for (let lan = 0; lan < 5; lan++) {
+          const ma = taoMaYeuCau();
+          const ins = await client.query(
+            `INSERT INTO ban_vt_yeu_cau (ma_yeu_cau, items, ten_khach, sdt, email, cong_ty, ghi_chu, ip_hash, user_agent)
+             VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (ma_yeu_cau) DO NOTHING RETURNING id`,
+            [ma, JSON.stringify(ghep.dong), kt.than.ten, kt.than.sdt, kt.than.email, kt.than.congTy, kt.than.ghiChu, ipHash, ua]
+          );
+          if (ins.rows.length) return { quaGioiHan: false, maYeuCau: ma, demToanBo: Number(r.rows[0]?.toan_bo ?? 0) };
+        }
+        throw new Error("Kh\xF4ng sinh \u0111\u01B0\u1EE3c m\xE3 y\xEAu c\u1EA7u kh\xF4ng tr\xF9ng sau 5 l\u1EA7n");
+      });
+    } catch (e) {
+      if (laThieuBangHoacCot2(e)) {
+        console.error(`[cong-khai] ch\u01B0a t\u1EA1o b\u1EA3ng ban_vt_yeu_cau \u2014 ch\u1EA1y ${SQL_CONG_KHAI}`);
+        return res.status(503).json(LOI_THIEU_BANG_YEU_CAU);
+      }
+      throw e;
+    }
+    if (kq.quaGioiHan) return res.status(429).json({ error: "B\u1EA1n \u0111\xE3 g\u1EEDi qu\xE1 nhi\u1EC1u y\xEAu c\u1EA7u, vui l\xF2ng th\u1EED l\u1EA1i sau" });
+    const kieu = kieuThongBao(kq.demToanBo);
+    if (kieu !== "khong") await baoYeuCauMoi(kq.maYeuCau, ghep.dong.length, kieu);
+    res.status(201).json({ maYeuCau: kq.maYeuCau });
+  } catch (error61) {
+    console.error("L\u1ED7i cong-khai/yeu-cau:", error61);
+    res.status(500).json({ error: "H\u1EC7 th\u1ED1ng \u0111ang b\u1EADn, vui l\xF2ng th\u1EED l\u1EA1i sau" });
+  }
+});
+
 // src/routes/bopM2.ts
 var MA_CT = /^CT\d{2}-\d{3}$/i;
 app.get("/api/bop-m2/nhieu", async (req, res) => {
@@ -82868,7 +84321,7 @@ var boPhanNho = taoNhoCoHan(3e5, async () => {
   const bp = await timedQuery(`SELECT DISTINCT department FROM users WHERE is_active AND COALESCE(TRIM(department), '') NOT IN ('', '0') ORDER BY 1`);
   return [...new Set(bp.rows.map((x) => chuanTen2(x.department)))];
 });
-var laThieuBang2 = (e) => e?.code === "42P01" && /bot_cong_doan/.test(String(e?.message ?? ""));
+var laThieuBang3 = (e) => e?.code === "42P01" && /bot_cong_doan/.test(String(e?.message ?? ""));
 var chuanHex = (h) => /^\d{6,15}$/.test(h) ? BigInt(h).toString() : null;
 app.get("/api/bot-cong-doan", authenticateJWT, async (req, res) => {
   try {
@@ -82889,7 +84342,7 @@ app.get("/api/bot-cong-doan", authenticateJWT, async (req, res) => {
       boPhanDs
     });
   } catch (e) {
-    if (laThieuBang2(e)) return res.json({ coBang: false, congDoan: CONG_DOAN, ngay: {}, quyen: null, setup: SETUP_RONG, boPhanDs: [] });
+    if (laThieuBang3(e)) return res.json({ coBang: false, congDoan: CONG_DOAN, ngay: {}, quyen: null, setup: SETUP_RONG, boPhanDs: [] });
     console.error("[bot-cong-doan]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c BOT c\xF4ng \u0111o\u1EA1n" });
   }
@@ -82967,7 +84420,7 @@ app.post("/api/bot-cong-doan", authenticateJWT, async (req, res) => {
     }
     res.json({ ghi: soDoi, bo });
   } catch (e) {
-    if (laThieuBang2(e)) return res.status(503).json({ error: "Ch\u01B0a t\u1EA1o b\u1EA3ng BOT c\xF4ng \u0111o\u1EA1n (backend/sql/2026-11-13_bot_cong_doan.sql)" });
+    if (laThieuBang3(e)) return res.status(503).json({ error: "Ch\u01B0a t\u1EA1o b\u1EA3ng BOT c\xF4ng \u0111o\u1EA1n (backend/sql/2026-11-13_bot_cong_doan.sql)" });
     console.error("[bot-cong-doan POST]", e);
     res.status(500).json({ error: "Kh\xF4ng l\u01B0u \u0111\u01B0\u1EE3c BOT c\xF4ng \u0111o\u1EA1n" });
   }
@@ -82977,7 +84430,7 @@ app.get("/api/bot-cong-doan/quyen", authenticateJWT, async (req, res) => {
     const [setup, nguoi] = await Promise.all([setupNho.lay(), nguoiNhapNho(req)]);
     res.json({ admin: nguoi.admin, boPhan: nguoi.boPhan, congDoan: nguoi.active ? congDoanDuocNhap(nguoi, setup) : [], xuong: xuongDuocNhap(nguoi, setup) });
   } catch (e) {
-    if (laThieuBang2(e)) return res.json({ admin: false, boPhan: null, congDoan: [], xuong: null });
+    if (laThieuBang3(e)) return res.json({ admin: false, boPhan: null, congDoan: [], xuong: null });
     console.error("[bot-cong-doan/quyen]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c quy\u1EC1n" });
   }
@@ -83059,7 +84512,7 @@ app.get("/api/bot-cong-doan/lich-su", authenticateJWT, async (req, res) => {
         FROM bot_cong_doan_lich_su WHERE hex = $1 ORDER BY luc DESC LIMIT 200`, [hex3]);
     res.json({ ds: r.rows });
   } catch (e) {
-    if (laThieuBang2(e)) return res.json({ ds: [] });
+    if (laThieuBang3(e)) return res.json({ ds: [] });
     console.error("[bot-cong-doan/lich-su]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c l\u1ECBch s\u1EED" });
   }
@@ -83081,7 +84534,7 @@ app.post("/api/bot-cong-doan/setup", authenticateJWT, requireRole("ADMIN"), asyn
     setupNho.dat(setup);
     res.json({ ok: true, setup });
   } catch (e) {
-    if (laThieuBang2(e)) return res.status(503).json({ error: "Ch\u01B0a t\u1EA1o b\u1EA3ng BOT c\xF4ng \u0111o\u1EA1n" });
+    if (laThieuBang3(e)) return res.status(503).json({ error: "Ch\u01B0a t\u1EA1o b\u1EA3ng BOT c\xF4ng \u0111o\u1EA1n" });
     console.error("[bot-cong-doan/setup]", e);
     res.status(500).json({ error: "Kh\xF4ng l\u01B0u \u0111\u01B0\u1EE3c setup" });
   }
@@ -87031,7 +88484,7 @@ app.post("/api/notifications/test", async (req, res) => {
 
 // src/routes/xuong.ts
 var import_express4 = __toESM(require_express2(), 1);
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 
 // src/server/xuong/clock.ts
 var NGUONG_LECH_MS = 5 * 6e4;
@@ -88108,7 +89561,7 @@ async function mocCheDoTo(toIds) {
 var sqlDaChotCa = (a, toSql, caSql) => `EXISTS (SELECT 1 FROM xuong_su_kien ${a} WHERE ${a}.to_id = ${toSql} AND ${a}.loai IN ('quan_so','vao_ca') AND ${a}.du_lieu->>'loaiCa' = ${caSql}
              AND (${a}.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
              AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h_${a} WHERE h_${a}.loai = 'huy' AND h_${a}.sua_cho = ${a}.id))`;
-var so4 = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+var so6 = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 async function baoHangChoNhan(ds2, actorId) {
   try {
     if (!ds2.length) return;
@@ -88127,7 +89580,7 @@ async function baoHangChoNhan(ds2, actorId) {
         kind: "xuong_cho_nhan",
         userIds: nguoi.get(Number(x.to_id)) ?? [],
         title: `C\xF3 h\xE0ng giao t\u1EDBi ${x.cd_chi_tiet}`,
-        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so4(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
+        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so6(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
         hex: cua.length === 1 ? cua[0].hex : null
       });
     }
@@ -88149,13 +89602,13 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     for (const it of items) {
       for (const t of it.thanhPhan) {
         if (t.xuong !== xuongChinh && !t.tuyen.length) {
-          them(t.xuong, `${it.hex} \xB7 ${so4(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
+          them(t.xuong, `${it.hex} \xB7 ${so6(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
           continue;
         }
         for (const id of t.tuyen) {
           const c = cdMap.get(id);
           if (!c || c.xuong === xuongChinh) continue;
-          them(c.xuong, `${it.hex} \xB7 ${so4(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
+          them(c.xuong, `${it.hex} \xB7 ${so6(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
         }
       }
     }
@@ -88879,7 +90332,7 @@ app.post("/api/xuong/events", async (req, res) => {
       const toCuaToi = await toCuaNguoi(client, sentBy, msnvToi);
       const SAI_SO2 = 5e-4;
       const capSl = hopLe.filter((e) => ["nhan", "hoan_thanh", "giao"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
-      const gioiHan = await gioiHanNhan(client, capSl.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
+      const gioiHan2 = await gioiHanNhan(client, capSl.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
       const soCap = /* @__PURE__ */ new Map();
       if (capSl.length) {
         const tt = await client.query(
@@ -88972,7 +90425,7 @@ app.post("/api/xuong/events", async (req, res) => {
           const c = soCap.get(k) ?? { nhan: 0, ht: 0, giao: 0 };
           const sl = e.soLuong ?? 0;
           if (e.loai === "nhan") {
-            const gh = gioiHan.get(k);
+            const gh = gioiHan2.get(k);
             if (gh && gh.moc !== null && c.nhan + sl > gh.moc + SAI_SO2) {
               tuChoi.push({ id: e.id, reason: `Nh\u1EADn v\u01B0\u1EE3t s\u1ED1 ${gh.loai === "trien_khai" ? "\u0111\xE3 tri\u1EC3n khai" : "l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng"} ${hienSo(gh.moc)} \u2014 c\xF2n nh\u1EADn \u0111\u01B0\u1EE3c ${hienSo(gh.moc - c.nhan)}` });
               continue;
@@ -89411,7 +90864,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
 var PHIEN_BAN_TINH2 = "pb9";
-var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
+var dauLichCa = (lichCa) => createHash5("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
 async function lichCaCuaXuong(xuong, db = poolMra) {
@@ -90039,14 +91492,14 @@ var gomChoNhan = (cap, gh) => {
   }
   return { theoTo, tong: cacCap.size };
 };
-async function demChoNhan(db, xuong, toIds, gioiHan) {
+async function demChoNhan(db, xuong, toIds, gioiHan2) {
   const cap = (await db.query(
     `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
        JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
      WHERE t.xuong = $1 AND ($2::int[] IS NULL AND t.active OR t.id = ANY($2::int[]))`,
     [xuong, toIds]
   )).rows;
-  return gomChoNhan(cap, await gioiHan(db, cap.map((x) => [String(x.hex), String(x.cong_doan_id)])));
+  return gomChoNhan(cap, await gioiHan2(db, cap.map((x) => [String(x.hex), String(x.cong_doan_id)])));
 }
 
 // src/server/xuong/soKhopTram.ts
@@ -90971,7 +92424,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
 });
 
 // src/server/xuong/huyTrienKhai.ts
-var so5 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var so7 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
 var EPS2 = 5e-4;
 function suKienCuaDot(evts, trienKhaiId) {
   const con = suKienConHieuLuc(evts);
@@ -91002,7 +92455,7 @@ function kiemTraHuyDot(evts, trienKhaiId) {
   const chan = [];
   for (const cd of [...new Set(huy.map((e) => e.congDoanDenId).filter((x) => !!x))]) {
     const nhan = suKienConHieuLuc(evts.filter((e) => e.congDoanId === cd || e.loai === "huy")).filter((e) => e.loai === "nhan" && !e.congDoanNguonId && !e.xuongNguon);
-    const slNhan = nhan.reduce((a, e) => a + so5(e.soLuong), 0);
+    const slNhan = nhan.reduce((a, e) => a + so7(e.soLuong), 0);
     const truoc = giaoDen(evts, cd);
     const conLai = giaoDen(sau, cd);
     if (slNhan > conLai + EPS2 && conLai < truoc - EPS2) {
@@ -93553,7 +95006,7 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
 });
 
 // src/routes/tongQuan.ts
-import { createHash as createHash5 } from "crypto";
+import { createHash as createHash6 } from "crypto";
 import { gzipSync as gzipSync3, gunzipSync } from "zlib";
 var dsChuoi2 = external_exports.array(external_exports.string().max(300)).max(3e3);
 var BodySchema = external_exports.object({
@@ -93687,7 +95140,7 @@ function layHoacDung(khoa, ver, luuDb, dung2) {
 }
 async function tongQuanSanXuat(filters, tuy) {
   const { verSanXuat, verChuan, ban, verMra, ngayVN } = await phienBanChuan();
-  const khoa = `tongquan|${createHash5("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
+  const khoa = `tongquan|${createHash6("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
   const macDinh = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
   const ver = JSON.stringify([verChuan, verMra, verMra ? ngayVN : ""]);
   return layHoacDung(khoa, ver, macDinh && !verMra, async () => {
@@ -93812,7 +95265,7 @@ app.get("/api/do-db", authenticateJWT, requireRole("ADMIN"), async (_req, res) =
 });
 
 // src/server/hoiDapDanhMuc.ts
-var so6 = (col) => numericExprQualified(`t."${col}"`);
+var so8 = (col) => numericExprQualified(`t."${col}"`);
 var XUONG2 = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
 var CT2 = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
 var MA_CT2 = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
@@ -94058,7 +95511,7 @@ var DANH_MUC = [
       { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", tien: true },
       { id: "thanh_tien_tinh_phieu", ten: "\u0110\xE3 t\xEDnh phi\u1EBFu", dn: ["gi\xE1 tr\u1ECB t\xEDnh phi\u1EBFu"], kieu: "so", tien: true },
       { id: "thanh_tien_nhap_kho_luy_ke", ten: "\u0110\xE3 nh\u1EADp kho", dn: ["nh\u1EADp kho l\u0169y k\u1EBF", "\u0111\xE3 nh\u1EADp"], kieu: "so", tien: true },
-      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so6("thanh_tien_xuat_kho_luy_ke"), tien: true },
+      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so8("thanh_tien_xuat_kho_luy_ke"), tien: true },
       { id: "thanh_tien_ton_kho_hien_tai", ten: "T\u1ED3n kho hi\u1EC7n t\u1EA1i", dn: ["gi\xE1 tr\u1ECB t\u1ED3n"], kieu: "so", tien: true },
       { id: "gia_tri_con_lai", ten: "Gi\xE1 tr\u1ECB c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "ch\u01B0a nh\u1EADp"], kieu: "so", tien: true, sql: CON_LAI },
       { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
@@ -94132,7 +95585,7 @@ var DANH_MUC = [
       HM2,
       HEX2,
       { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true },
-      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so6("so_luong_kh") }
+      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so8("so_luong_kh") }
     ]
   },
   {
@@ -94176,8 +95629,8 @@ var DANH_MUC = [
       HM2,
       HEX2,
       { id: "tinh_trang_thuc_hien_ke_hoach", ten: "T\xECnh tr\u1EA1ng th\u1EF1c hi\u1EC7n", tuDien: true, dn: ["t\xECnh tr\u1EA1ng", "k\u1EBFt qu\u1EA3"], kieu: "chu" },
-      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so6("thanh_tien_ke_hoach"), tien: true },
-      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so6("nhap_kho_tuan"), tien: true },
+      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so8("thanh_tien_ke_hoach"), tien: true },
+      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so8("nhap_kho_tuan"), tien: true },
       { id: "dung_ke_hoach", ten: "\u0110\xFAng k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
       { id: "thuc_hien_dung_ke_hoach_1_phan", ten: "\u0110\xFAng KH 1 ph\u1EA7n", kieu: "so", tien: true },
       { id: "rot_ke_hoach", ten: "R\u1EDBt k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
@@ -94627,8 +96080,8 @@ var MAX_NGAY = () => Number(process.env.HOI_DAP_AI_MAX_NGAY) || 1e3;
 var CO_TEN_RIENG = /* @__PURE__ */ new Set(["ten_pm", "ten_pc", "khach_hang", "handler", "created_by", "nguoi_yeu_cau", "nguoi_tao", "nguoi_trien_khai", "nha_cung_cap", "ten_cong_trinh", "ma_cong_trinh"]);
 var THU = ["Ch\u1EE7 nh\u1EADt", "Th\u1EE9 hai", "Th\u1EE9 ba", "Th\u1EE9 t\u01B0", "Th\u1EE9 n\u0103m", "Th\u1EE9 s\xE1u", "Th\u1EE9 b\u1EA3y"];
 var iso2 = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-var boDau = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
-var tuCua = (s) => new Set(boDau(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 2));
+var boDau2 = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+var tuCua = (s) => new Set(boDau2(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 2));
 function chonViDu(cau, bangs, sx, soVd = 8) {
   const duocXem = new Map(bangs.map((x) => [x.b.id, new Set(x.cot.map((c) => c.id))]));
   const sxXem = new Set(sx.map((c) => `sx:${c.id}`));
@@ -94644,7 +96097,7 @@ function chonViDu(cau, bangs, sx, soVd = 8) {
       if (q.has(x)) chung++;
     });
     const b = bangs.find((x) => x.b.id === String(v.tv.bang))?.b;
-    const cungBang = b && [b.ten, ...b.dn].some((t) => ` ${boDau(cau)} `.includes(` ${boDau(t)} `)) ? 1 : 0;
+    const cungBang = b && [b.ten, ...b.dn].some((t) => ` ${boDau2(cau)} `.includes(` ${boDau2(t)} `)) ? 1 : 0;
     return { v, diem: chung / Math.sqrt(w.size || 1) + cungBang };
   }).filter((x) => x.diem > 0).sort((a, z2) => z2.diem - a.diem);
   const theoBang = /* @__PURE__ */ new Map();
@@ -94818,8 +96271,8 @@ var goc = (ch) => ch === "\u0111" || ch === "\xF0" ? "d" : ch.normalize("NFD").r
 var TU = CO_DAU + CO_DAU.toUpperCase();
 var SANG = [...CO_DAU].map(goc).join("").repeat(2);
 var khongDau = (e) => `translate(lower(COALESCE((${e})::text, '')), '${TU}', '${SANG}')`;
-var boDau2 = (s) => [...String(s).toLowerCase()].map((ch) => TU.includes(ch) ? SANG[TU.indexOf(ch)] : ch).join("").replace(/\s+/g, " ").trim();
-var thich = (s) => `%${boDau2(s).replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+var boDau3 = (s) => [...String(s).toLowerCase()].map((ch) => TU.includes(ch) ? SANG[TU.indexOf(ch)] : ch).join("").replace(/\s+/g, " ").trim();
+var thich = (s) => `%${boDau3(s).replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 var gonTen = (e) => `NULLIF(TRIM(REGEXP_REPLACE(COALESCE((${e})::text, ''), '\\s+', ' ', 'g')), '')`;
 var NGAY_RE4 = /^\d{4}-\d{2}-\d{2}$/;
 var GiaTri = external_exports.union([external_exports.string().max(300), external_exports.number()]);
@@ -94929,7 +96382,7 @@ function dieuKienLoc(b, l, co2, p) {
   const bangChu = () => {
     if (c.kieu === "xuong") return `UPPER(TRIM(COALESCE(${e}, ''))) = ANY(${thamSo(expandWorkshops(ds2))}::text[])`;
     if (c.kieu === "ct") return `${normNameSql(e)} = ANY(${thamSo(expandProjectNames(ds2))}::text[])`;
-    return `${khongDau(e)} = ANY(${thamSo(ds2.map(boDau2))}::text[])`;
+    return `${khongDau(e)} = ANY(${thamSo(ds2.map(boDau3))}::text[])`;
   };
   switch (l.op) {
     case "bang":
@@ -95026,10 +96479,10 @@ async function chay(b, q, co2) {
     });
     const cots = ids.map((id) => timCot(b, id, co2));
     const chon = cots.map((c, i) => `${c.kieu === "ngay" ? MOC.ngay(sqlCot(c)) : sqlCot(c)} AS c${i}`);
-    const gioiHan = Math.min(q.gioiHan ?? 100, 200);
+    const gioiHan2 = Math.min(q.gioiHan ?? 100, 200);
     const sapCot = q.sap && cots[q.sap.cot] ? `c${q.sap.cot} ${q.sap.giam ? "DESC" : "ASC"} NULLS LAST` : `${sqlCot(cotNgay(b))} DESC NULLS LAST`;
     const r2 = await timedQuery(
-      await thayKhDat(`SELECT ${chon.join(", ")}, count(*) OVER () AS so_dong FROM ${tu} ${where} ORDER BY ${sapCot} LIMIT ${gioiHan}`, p),
+      await thayKhDat(`SELECT ${chon.join(", ")}, count(*) OVER () AS so_dong FROM ${tu} ${where} ORDER BY ${sapCot} LIMIT ${gioiHan2}`, p),
       p,
       { timeoutMs: 2e4, heavy: true }
     );
@@ -95250,7 +96703,7 @@ app.get("/api/hoi-dap/gia-tri", limiter, async (req, res) => {
       });
       return [...m.entries()].map(([v, n]) => ({ v, n })).sort((a, b2) => b2.n - a.n).slice(0, 30);
     };
-    const gt = b.phienBan ? await cachedByVersions(cacheGt, `${b.id}|${c.id}|${boDau2(q)}`, phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
+    const gt = b.phienBan ? await cachedByVersions(cacheGt, `${b.id}|${c.id}|${boDau3(q)}`, phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
     res.json({ success: true, gt });
   } catch (e) {
     if (e instanceof LoiHoi) return res.status(400).json({ success: false, message: e.message });
