@@ -1,12 +1,13 @@
 import { getToken } from './userService';
 
 // ============================================================================
-// API vướng mắc sản xuất (5M) — dùng chung cho app điện thoại (/m/) và web.
+// API vướng mắc sản xuất (6M: 5M + Money) — dùng chung cho app điện thoại (/m/) và web.
 // Quy trình: open (mới) -> doing (đang xử lý) -> done (đã xử lý, chờ xác nhận) -> closed (đã đóng).
 // isResolved = status là done hoặc closed (giữ cho các màn hình cũ).
 // ============================================================================
 
-export const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement'] as const;
+// money (M6): vướng về tiền / đơn giá của HEX. Tên biến giữ FIVE_M_* để không đổi lan man
+export const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement', 'money'] as const;
 export type FiveMCategory = typeof FIVE_M_CATEGORIES[number];
 
 export const FIVE_M_LABELS: Record<FiveMCategory, string> = {
@@ -15,6 +16,7 @@ export const FIVE_M_LABELS: Record<FiveMCategory, string> = {
   material: 'Material (Nguyên vật liệu)',
   method: 'Method (Phương pháp)',
   measurement: 'Measurement (Đo lường)',
+  money: 'Money (Tiền / đơn giá)',
 };
 
 export const VM_STATUSES = ['open', 'doing', 'done', 'closed'] as const;

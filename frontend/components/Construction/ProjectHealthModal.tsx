@@ -95,9 +95,9 @@ const modeOf = (vals: string[]): string => {
   m.forEach((c, v) => { if (c > n) { best = v; n = c; } });
   return best;
 };
-// Tên ngắn 5M — giống form "Thêm vướng mắc"
+// Tên ngắn 6M — giống form "Thêm vướng mắc"
 const FIVE_M_VI: Record<FiveMCategory, string> = {
-  man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường',
+  man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường', money: 'Tiền',
 };
 
 const BUCKET_LABEL: Record<RemainBucket, string> = {
@@ -308,7 +308,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const [openIssues, setOpenIssues] = useState<Record<string, number> | null>(null);
   // Vướng mắc M3 (Vật tư) chưa xử lý theo hex — dùng cho BOM
   const [materialIssues, setMaterialIssues] = useState<Record<string, VuongMacItem[]> | null>(null);
-  // Loại vướng mắc đang mở theo hex (M1..M5) — hiện trong cột "Vấn đề"
+  // Loại vướng mắc đang mở theo hex (M1..M6) — hiện trong cột "Vấn đề"
   const [issueCats, setIssueCats] = useState<Record<string, Partial<Record<FiveMCategory, number>>>>({});
   const [openIssueList, setOpenIssueList] = useState<Record<string, VuongMacItem[]>>({});
 
@@ -763,7 +763,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
               <dd className={`text-right tabular-nums ${bomDetail?.issueTotal ? 'font-semibold text-red-600' : 'text-slate-700'}`}>
                 {!bomDetail || materialIssues === null ? '…' : `${fmtInt(bomDetail.issueTotal)} · ${fmtInt(bomDetail.issueHexes)} HM`}
               </dd>
-              <dt className="text-slate-500" title="Mọi loại M1–M5 chưa xử lý">Vướng mắc tồn đọng (mọi loại)</dt>
+              <dt className="text-slate-500" title="Mọi loại M1–M6 chưa xử lý">Vướng mắc tồn đọng (mọi loại)</dt>
               <dd className={`text-right tabular-nums ${openIssueTotal ? 'font-semibold text-red-600' : 'text-slate-700'}`}>
                 {openIssueTotal === null ? '…' : fmtInt(openIssueTotal)}
               </dd>

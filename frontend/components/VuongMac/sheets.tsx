@@ -729,7 +729,7 @@ export function FormSheet({ row, preset, onClose, onDone }: {
         {/* Loại */}
         <div className="md:col-span-2">
           <p className="mb-1 text-base font-medium text-slate-700">🏷️ Vướng mắc về</p>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {FIVE_M_CATEGORIES.map(c => (
               <button type="button" key={c} onClick={() => setCategory(c)} aria-pressed={category === c}
                 className={`rounded-2xl px-2 py-2 text-center ${category === c ? 'bg-[#d3e3fd] ring-1 ring-[#8ab4f8]' : 'border border-slate-200 active:bg-slate-50'}`}>

@@ -39,7 +39,7 @@ Cột đưa xuống trình duyệt qua `/api/all-data` được giới hạn b�
 | Bảng | Tạo bởi | Nội dung |
 |---|---|---|
 | `users` | có sẵn | `id, username, password_hash, full_name, role (ADMIN/USER), department, permissions, is_active, otp_code, otp_expires_at, notify_prefs (jsonb)` |
-| `vuong_mac` | có sẵn + `2026-10-10_vuong_mac_quy_trinh.sql` | vướng mắc theo HEX: `category (man/machine/material/method/measurement)`, `content, handler, bot, bot_end, is_resolved`, cột quy trình `status (open/doing/done/closed), priority, stage, xuong, ten_cong_trinh, ma_cong_trinh, ten_hang_muc, accepted_*, closed_*, escalated_at` |
+| `vuong_mac` | có sẵn + `2026-10-10_vuong_mac_quy_trinh.sql` | vướng mắc theo HEX: `category (man/machine/material/method/measurement/money — 6M, money = M6 Tiền)`, `content, handler, bot, bot_end, is_resolved`, cột quy trình `status (open/doing/done/closed), priority, stage, xuong, ten_cong_trinh, ma_cong_trinh, ten_hang_muc, accepted_*, closed_*, escalated_at` |
 | `vuong_mac_log` | có sẵn | nhật ký; `action IN ('CREATE','UPDATE','DELETE','STATUS','COMMENT')` sau khi chạy SQL 2026-10-10 |
 | `vuong_mac_photo`, `vuong_mac_extension`, `vuong_mac_bot_notifications` | có sẵn | ảnh đính kèm, xin gia hạn, mốc đã nhắc (chống nhắc trùng) |
 | `notifications` | `2026-10-03_notifications.sql` | hộp thông báo theo `user_id`, `kind`, đã đọc |

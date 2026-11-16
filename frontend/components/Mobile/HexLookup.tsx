@@ -29,6 +29,7 @@ const VM_TEXT: Record<FiveMCategory, string> = {
   material: 'text-amber-700',
   method: 'text-teal-700',
   measurement: 'text-pink-700',
+  money: 'text-emerald-700',
 };
 
 type Detail = { notes: Record<string, string | null>; items: VuongMacItem[] };
@@ -374,10 +375,10 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
               </table>
             </div>
 
-            {/* Vướng mắc 5M */}
+            {/* Vướng mắc 6M */}
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-slate-500">Vướng mắc 5M ({d.items.length})</p>
+                <p className="font-semibold text-slate-500">Vướng mắc 6M ({d.items.length})</p>
                 <button
                   type="button"
                   onClick={() => setAddFor(h)}
@@ -404,9 +405,9 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
                 })}
               </div>
 
-              {/* Máy tính: bảng 5 cột (mỗi loại 5M một cột) */}
+              {/* Máy tính: bảng 6 cột (mỗi loại 6M một cột) */}
               <div className={`${khung} hidden md:block`}>
-                <table className={`${table} min-w-[1000px] table-fixed`}>
+                <table className={`${table} min-w-[1200px] table-fixed`}>
                   <thead className={thead}>
                     <tr>
                       {FIVE_M_CATEGORIES.map(cat => (

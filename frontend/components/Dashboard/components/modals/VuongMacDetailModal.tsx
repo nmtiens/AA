@@ -450,7 +450,7 @@ export const VuongMacDetailModal = ({
 
   const myIds = [norm(currentUser), ...tokenIdentities()].filter(Boolean);
   const shortCode = (categoryLabel.match(/M\d+/g) ?? [categoryLabel]).join(' + '); // "Con Người (M1)" -> "M1"
-  const badgeLabel = shortCode; // M1..M5 là 5 loại riêng (không còn ghép "+ M5")
+  const badgeLabel = shortCode; // M1..M6 là 6 loại riêng (không còn ghép "+ M5")
   const openCount = items.filter(v => !v.isResolved).length;
   const doneCount = items.length - openCount;
 

@@ -89,10 +89,11 @@ const NHOM_BOT_SQL = `(CASE WHEN NOT ${MO} THEN NULL
 
 const HM: Cot = { id: 'ten_hang_muc', ten: 'Hạng mục', dn: ['hạng mục', 'tên hạng mục', 'sản phẩm'], kieu: 'chu' };
 const HEX: Cot = { id: 'hex', ten: 'HEX', dn: ['hex', 'mã hex'], kieu: 'ma', sql: `t.hex::text` };
-// Loại vướng mắc 5M lưu mã tiếng Anh (routes/vuongMac.ts FIVE_M_CATEGORIES) => chatbot hiện / lọc bằng tên tiếng Việt như trang
+// Loại vướng mắc 6M (5M + money) lưu mã tiếng Anh (routes/vuongMac.ts FIVE_M_CATEGORIES) => chatbot hiện / lọc bằng tên tiếng Việt như trang
 // Vướng mắc (VuongMac/model.ts CAT_NAME). Riêng machine ghi 'Máy' (không 'Máy móc') vì bộ đọc câu chỉ khớp nguyên cụm:
 // công nhân hỏi "vướng mắc về máy". Giá trị lạ (chưa có trong bảng này) giữ nguyên mã.
-const LOAI_5M: Array<[string, string]> = [['man', 'Con người'], ['machine', 'Máy'], ['material', 'Vật tư'], ['method', 'Phương pháp'], ['measurement', 'Đo lường']];
+// money đặt tên cụm 'Tiền / đơn giá' (không để 'Tiền'): bộ đọc câu Hỏi đáp so gt theo nguyên từ, 'tiền' sẽ bắt nhầm 'ưu tiên' / 'tiến độ'
+const LOAI_5M: Array<[string, string]> = [['man', 'Con người'], ['machine', 'Máy'], ['material', 'Vật tư'], ['method', 'Phương pháp'], ['measurement', 'Đo lường'], ['money', 'Tiền / đơn giá']];
 const LOAI_5M_SQL = `(CASE t.category ${LOAI_5M.map(([ma, ten]) => `WHEN '${ma}' THEN '${ten}'`).join(' ')} ELSE t.category END)`;
 
 // ---- Bảng kế hoạch (khsx): mỗi hạng mục có 2 loại dòng — KH THÁNG (phan_loai_kh 'THÁNG', chỉ có nam/thang, ngay_khnk NULL)
@@ -374,7 +375,7 @@ export const DANH_MUC: Bang[] = [
         id: 'qua_han', ten: 'Quá hạn', dn: ['trễ hạn', 'quá hạn bot'], kieu: 'chu', gt: ['Quá hạn'],
         sql: `(CASE WHEN NOT COALESCE(t.is_resolved, false) AND t.bot_end IS NOT NULL AND t.bot_end < now() THEN 'Quá hạn' ELSE 'Không' END)`,
       },
-      { id: 'category', ten: 'Loại vướng mắc', tuDien: true, dn: ['loại', 'nhóm', '5m'], kieu: 'chu', gt: LOAI_5M.map(x => x[1]), sql: LOAI_5M_SQL },
+      { id: 'category', ten: 'Loại vướng mắc', tuDien: true, dn: ['loại', 'nhóm', '5m', '6m'], kieu: 'chu', gt: LOAI_5M.map(x => x[1]), sql: LOAI_5M_SQL },
       { id: 'priority', ten: 'Mức ưu tiên', tuDien: true, dn: ['ưu tiên'], kieu: 'chu' },
       { id: 'stage', ten: 'Công đoạn', tuDien: true, kieu: 'chu' },
       // "tổ 4A có bao nhiêu vướng mắc": tổ = xưởng. Chỉ thêm ở bảng này — ở bảng sản xuất "tổ đá / tổ sơn" là tổ nhỏ trong xưởng

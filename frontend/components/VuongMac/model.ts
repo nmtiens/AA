@@ -49,14 +49,14 @@ export const fmtHours = (h: number | null | undefined) => {
   return `${Math.round((h / 24) * 10) / 10} ngày`;
 };
 
-// ---------------- Loại vướng mắc (5M) ----------------
+// ---------------- Loại vướng mắc (6M: 5M + M6 Tiền) ----------------
 export const CAT_ICON: Record<string, string> = {
-  man: '👷', machine: '⚙️', material: '🪵', method: '📋', measurement: '📏',
+  man: '👷', machine: '⚙️', material: '🪵', method: '📋', measurement: '📏', money: '💰',
 };
 export const catIcon = (c: string) => CAT_ICON[c] ?? '🏷️';
-export const CAT_CODE: Record<string, string> = { man: 'M1', machine: 'M2', material: 'M3', method: 'M4', measurement: 'M5' };
+export const CAT_CODE: Record<string, string> = { man: 'M1', machine: 'M2', material: 'M3', method: 'M4', measurement: 'M5', money: 'M6' };
 export const CAT_NAME: Record<string, string> = {
-  man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường',
+  man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường', money: 'Tiền',
 };
 /** "M1 · Con người" */
 export const catLabel = (c: string) => (CAT_CODE[c] ? `${CAT_CODE[c]} · ${CAT_NAME[c]}` : c);
@@ -67,6 +67,7 @@ export const CAT_HINT: Record<FiveMCategory, string> = {
   material: 'Thiếu / sai / chậm vật tư, NVL lỗi…',
   method: 'Bản vẽ, quy trình, hướng dẫn chưa rõ, sai cách làm…',
   measurement: 'Sai kích thước, QC trả về, dụng cụ đo…',
+  money: 'Một HEX nhiều đơn giá, sai giá, chưa có giá, lệch trị giá đơn hàng…',
 };
 /** Từ khoá phòng ban nên xử lý theo loại — để gợi ý người xử lý (so với users.department) */
 export const CAT_DEPT_KEYWORDS: Record<FiveMCategory, string[]> = {
@@ -75,6 +76,7 @@ export const CAT_DEPT_KEYWORDS: Record<FiveMCategory, string[]> = {
   material: ['mua', 'vật tư', 'kho', 'kế hoạch', 'pc', 'kh'],
   method: ['kỹ thuật', 'công nghệ', 'thiết kế', 'r&d', 'bản vẽ'],
   measurement: ['qc', 'kcs', 'chất lượng', 'qa'],
+  money: ['kế toán', 'kinh doanh', 'sales', 'pm', 'tài chính'],
 };
 
 // ---------------- Trạng thái quy trình ----------------

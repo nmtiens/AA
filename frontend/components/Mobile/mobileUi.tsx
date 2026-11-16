@@ -24,7 +24,7 @@ export const btnSecondary =
 export const chipCls = (on: boolean) =>
   `shrink-0 rounded-full px-4 py-2 text-base ${on ? 'bg-slate-900 font-medium text-white' : 'border border-slate-300 bg-white text-slate-600 active:bg-slate-100'}`;
 
-// ---------------- Thời gian / loại 5M / trạng thái: dùng chung với web (components/VuongMac/model.ts) ----------------
+// ---------------- Thời gian / loại 6M / trạng thái: dùng chung với web (components/VuongMac/model.ts) ----------------
 export {
   pad, fmtTime, fmtShort, fmtSpan, fmtAgo, dayKey, catIcon, CAT_CODE, CAT_NAME, catLabel, botCountdown, initials,
 } from '../VuongMac/model';

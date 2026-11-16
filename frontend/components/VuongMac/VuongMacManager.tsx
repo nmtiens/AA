@@ -17,7 +17,7 @@ import { BOP_STAGE_ORDER } from '../../utils/productionMetrics';
 // ============================================================================
 // MÀN QUẢN LÝ VƯỚNG MẮC (desktop, /vuong-mac — quyền "vuong_mac"):
 //  1. Số liệu kỳ: tồn đọng, quá hạn, chờ xác nhận, báo quản lý, thời gian nhận / xử lý / đóng trung bình
-//  2. Xu hướng 12 tuần (báo mới / xử lý xong / đóng), tuổi vướng mắc chưa xong, theo loại 5M
+//  2. Xu hướng 12 tuần (báo mới / xử lý xong / đóng), tuổi vướng mắc chưa xong, theo loại 6M
 //  3. Theo khu vực SX · công đoạn · người xử lý · công trình (bấm 1 dòng để lọc danh sách)
 //  4. Cần xử lý ngay (quá hạn lâu nhất) + danh sách đầy đủ có lọc, xuất Excel, mở chi tiết (cùng sheet với app điện thoại)
 // ============================================================================
@@ -49,7 +49,7 @@ const UNKNOWN_LABEL = 'Chưa rõ';
 const CT_NONE = '__none__';
 const PAGE = 50;
 type NhomTab = 'cat' | 'xuong' | 'stage' | 'handler' | 'project';
-const NHOM_TABS: Array<[NhomTab, string]> = [['cat', 'Loại 5M'], ['xuong', 'Khu vực SX'], ['stage', 'Công đoạn'], ['handler', 'Người xử lý'], ['project', 'Công trình']];
+const NHOM_TABS: Array<[NhomTab, string]> = [['cat', 'Loại 6M'], ['xuong', 'Khu vực SX'], ['stage', 'Công đoạn'], ['handler', 'Người xử lý'], ['project', 'Công trình']];
 
 export default function VuongMacManager() {
   const { user } = useAuth();

@@ -505,6 +505,11 @@ describe('vòng 1 rà soát: mẫu hay tự tra (cụm 11, 14), hai nghĩa thậ
     expect(doc('vướng mắc chưa xử lý theo xưởng').tv.tu).toBeUndefined();
     expect(doc('vướng mắc theo người xử lý').tv.tu).toBe('2026-01-01');
   });
+  it('loại M6 tên "Tiền / đơn giá": "ưu tiên", "tiến độ" không bị hiểu thành lọc loại vướng mắc', () => {
+    const khongLoaiTien = (s: string) => expect(doc(s).tv.loc ?? []).not.toEqual(expect.arrayContaining([expect.objectContaining({ cot: 'category' })]));
+    khongLoaiTien('vướng mắc ưu tiên khẩn cấp');
+    khongLoaiTien('vướng mắc ảnh hưởng tiến độ');
+  });
   it('vướng mắc "đang mở / chưa xong": lọc trạng thái Mới + Đang xử lý (như trang), không kỳ; câu trần vẫn là câu trả lời mẫu', () => {
     const tuTra = (s: string) => nenTuTra(hieuCauHoi(s, H), hieuTruyVan(s, dm, H, td), true);
     const dangMo = { cot: 'status', op: 'bang', gt: ['Mới', 'Đang xử lý'] };

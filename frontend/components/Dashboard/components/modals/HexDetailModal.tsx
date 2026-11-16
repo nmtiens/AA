@@ -288,13 +288,15 @@ export const NoteContent = ({ text }: { text: string }) => {
   );
 };
 
-const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method', 'measurement'];
+// 6M: 5M + money (M6 Tiền / đơn giá)
+const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method', 'measurement', 'money'];
 const FIVE_M_SHORT: Record<FiveMCategory, string> = {
   man: 'M1',
   machine: 'M2',
   material: 'M3',
   method: 'M4',
   measurement: 'M5',
+  money: 'M6',
 };
 const FIVE_M_VI: Record<FiveMCategory, string> = {
   man: 'Con Người',
@@ -302,6 +304,7 @@ const FIVE_M_VI: Record<FiveMCategory, string> = {
   material: 'Nguyên Vật Liệu',
   method: 'Phương Pháp',
   measurement: 'Đo Lường',
+  money: 'Tiền / Đơn Giá',
 };
 const CATEGORY_SORT_KEY: Record<FiveMCategory, SortKey> = {
   man: 'vmMan',
@@ -309,6 +312,7 @@ const CATEGORY_SORT_KEY: Record<FiveMCategory, SortKey> = {
   material: 'vmMaterial',
   method: 'vmMethod',
   measurement: 'vmMeasurement',
+  money: 'vmMoney',
 };
 
 const VUONG_MAC_TEXT_STYLE: Record<FiveMCategory, string> = {
@@ -317,6 +321,7 @@ const VUONG_MAC_TEXT_STYLE: Record<FiveMCategory, string> = {
   material: 'text-amber-700',
   method: 'text-teal-700',
   measurement: 'text-pink-700',
+  money: 'text-emerald-700',
 };
 
 const VM_SUB_WIDTH = 108;
@@ -374,10 +379,11 @@ type SortKey =
   | 'vmMachine'
   | 'vmMaterial'
   | 'vmMethod'
-  | 'vmMeasurement';
+  | 'vmMeasurement'
+  | 'vmMoney';
 type SortDir = 'asc' | 'desc';
 
-// "vuongMac" là 1 khóa DUY NHẤT (ẩn/hiện cả nhóm); 5 cột con chỉ là chi tiết bên trong.
+// "vuongMac" là 1 khóa DUY NHẤT (ẩn/hiện cả nhóm); 6 cột con chỉ là chi tiết bên trong.
 type OptionalColKey =
   | 'congTrinh'
   | 'hangMuc'
@@ -429,7 +435,7 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
   thongTinQc: { label: 'Thông tin QC', sortKey: 'thongTinQc' },
   ghiChuXuatKho: { label: 'Ghi chú xuất kho', sortKey: 'ghiChuXuatKho' },
   // Chỉ để thỏa kiểu dữ liệu — header thật của "vuongMac" render đặc biệt (2 tầng).
-  vuongMac: { label: 'Vướng Mắc (5M)', sortKey: 'vmMan' },
+  vuongMac: { label: 'Vướng Mắc (6M)', sortKey: 'vmMan' },
 };
 
 const COT_KHO_CSV = ['Còn Lại (Triệu đồng)', 'Đã Xuất (Triệu đồng)', 'Tồn Theo Đơn (Triệu đồng)', 'Chênh (Triệu đồng)', 'Xuất Vượt Nhập (Triệu đồng)'];
@@ -569,7 +575,7 @@ export const HexDetailModal = ({
     return () => { huy = true; };
   }, [isOpen, hexList]);
 
-  // Tải lại vướng mắc 5M mỗi khi hexList đổi (kể cả sau khi popup con đóng).
+  // Tải lại vướng mắc 6M mỗi khi hexList đổi (kể cả sau khi popup con đóng).
   useEffect(() => {
     if (!isOpen || hexList.length === 0) {
       setVuongMacMap({});
@@ -684,7 +690,7 @@ export const HexDetailModal = ({
     { key: 'ghiChuNhapKho', label: 'Tổng Hợp Ghi Chú Nhập Kho' },
     { key: 'thongTinQc', label: 'Tổng Hợp Thông Tin QC' },
     { key: 'ghiChuXuatKho', label: 'Tổng Hợp Ghi Chú Xuất Kho' },
-    { key: 'vuongMac', label: 'Vướng Mắc (5M)' },
+    { key: 'vuongMac', label: 'Vướng Mắc (6M)' },
   ], [showProjectColumn]);
 
   const visibleCols = useMemo(
@@ -702,7 +708,7 @@ export const HexDetailModal = ({
   }), [triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey]);
   const kyCua = useCallback((row: DataRow) => giaTriKy?.[String(row[hexKey] ?? '').trim()] ?? 0, [giaTriKy, hexKey]);
 
-  // ✅ Freeze: gồm cả STT + Mã Hex + các cột phụ. Nhóm "Vướng Mắc (5M)" không
+  // ✅ Freeze: gồm cả STT + Mã Hex + các cột phụ. Nhóm "Vướng Mắc (6M)" không
   // ghim được — hook tự cắt phần ghim lại ở trước nhóm này.
   const frozen = useFrozenColumns(
     'modal_hex_detail',
@@ -802,6 +808,7 @@ export const HexDetailModal = ({
         case 'vmMaterial': return getOpenVuongMacByCategory(row, 'material').length;
         case 'vmMethod': return getOpenVuongMacByCategory(row, 'method').length;
         case 'vmMeasurement': return getOpenVuongMacByCategory(row, 'measurement').length;
+        case 'vmMoney': return getOpenVuongMacByCategory(row, 'money').length;
         default: return '';
       }
     };
@@ -1235,7 +1242,7 @@ export const HexDetailModal = ({
                         if (key === 'vuongMac') {
                           return (
                             <th key="vuongMac-group" colSpan={FIVE_M_ORDER.length} className={bang.thC}>
-                              Vướng Mắc (5M)
+                              Vướng Mắc (6M)
                             </th>
                           );
                         }
@@ -1457,7 +1464,7 @@ export const HexDetailModal = ({
         congTrinhByHex={congTrinhByHex}
       />
 
-      {/* Popup CRUD + log Vướng Mắc — khóa cứng đúng hex + đúng loại 5M. */}
+      {/* Popup CRUD + log Vướng Mắc — khóa cứng đúng hex + đúng loại 6M. */}
       <VuongMacDetailModal
         isOpen={vuongMacDetail.open}
         onClose={() => setVuongMacDetail(prev => ({ ...prev, open: false }))}

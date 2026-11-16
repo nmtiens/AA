@@ -17,7 +17,7 @@ import { giuHamSong } from '../server/sharedCache.js';
 import { taoNhoNgan, taoNhoTheoKhoa } from '../server/nhoNgan.js';
 
 // ============================================================================
-// VƯỚNG MẮC SẢN XUẤT (5M) — QUY TRÌNH XỬ LÝ
+// VƯỚNG MẮC SẢN XUẤT (6M: 5M + Money) — QUY TRÌNH XỬ LÝ
 //
 //   open ──(nhận xử lý)──> doing ──(báo xong)──> done ──(người báo xác nhận)──> closed
 //     │                      │                     │
@@ -38,7 +38,8 @@ import { taoNhoNgan, taoNhoTheoKhoa } from '../server/nhoNgan.js';
 // các thao tác cần cột mới trả 409 kèm hướng dẫn.
 // ============================================================================
 
-const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement'] as const;
+// money (M6): HEX vướng về tiền — một HEX nhiều đơn giá, sai / chưa có giá… (cột category là text, không cần SQL)
+const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement', 'money'] as const;
 export const VM_STATUSES = ['open', 'doing', 'done', 'closed'] as const;
 type VmStatus = typeof VM_STATUSES[number];
 const PRIORITIES = ['normal', 'high', 'urgent'] as const;
@@ -1600,7 +1601,7 @@ app.get('/api/vuong-mac/handlers', authenticateJWT, async (_req: Request, res: R
   }
 });
 
-// Người xử lý + phòng ban (gợi ý giao việc theo loại 5M: vật tư -> phòng mua hàng / PC…)
+// Người xử lý + phòng ban (gợi ý giao việc theo loại 6M: vật tư -> phòng mua hàng / PC, tiền -> kế toán / kinh doanh…)
 app.get('/api/vuong-mac/people', authenticateJWT, async (_req: Request, res: Response) => {
   try {
     const r = await pool.query(
