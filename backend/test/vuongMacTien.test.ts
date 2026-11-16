@@ -164,3 +164,12 @@ test('locGoiYVatTu: bỏ HỦY / trị giá 0 / vật tư <= trị giá; đổi 
   assert.deepEqual(ds[0], { hex: 'b', tenHangMuc: 'HM b', tenCongTrinh: 'CT B', triGia: 20_000_000, tongVatTu: 50_000_000, chenh: 30_000_000 });
   assert.equal(locGoiYVatTu([dong('a', 10), dong('b', 20)], tong, 1).length, 1);
 });
+
+test('kiemChiTietTien: nhieu_gia giữ 1 ảnh sản phẩm chung; loại khác bỏ ảnh', () => {
+  const kq = kiemChiTietTien('money', { loai: 'nhieu_gia', hexTrung: ['261119528'], anhSp: 12 }, '190402647');
+  assert.equal(kq.ok && kq.value?.anhSp, 12);
+  const khong = kiemChiTietTien('money', { loai: 'nhieu_gia', hexTrung: ['261119528'] }, '190402647');
+  assert.equal(khong.ok && 'anhSp' in (khong.value ?? {}), false);
+  const gcvt = kiemChiTietTien('money', { loai: 'gia_thap_gcvt', giaiTrinh: 'x', anhSp: 12 }, '190402647');
+  assert.equal(gcvt.ok && 'anhSp' in (gcvt.value ?? {}), false);
+});

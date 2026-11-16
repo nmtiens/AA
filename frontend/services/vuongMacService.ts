@@ -41,6 +41,8 @@ export interface ChiTietTien {
   chiPhiGcvt?: number;
   giaiTrinh?: string;
   ghiChu?: string;
+  /** Một HEX nhiều giá: 1 ảnh sản phẩm dùng chung cho cả nhóm mã (id ảnh của vướng mắc này) */
+  anhSp?: number;
 }
 
 /** Kết quả tra giá 1 HEX. MỌI SỐ TIỀN Ở ĐÂY LÀ VNĐ (máy chủ đã đổi từ đơn vị gốc trong DB) */
@@ -58,6 +60,17 @@ export interface TraGiaHex {
   tongVatTu: number | null;
   /** false = người đang đăng nhập không có quyền xem tiền vật tư (máy chủ trả coGiaVatTu cho cả lần tra) */
   coGiaVatTu?: boolean;
+  // Thông tin thêm cho bảng chi tiết (máy chủ cũ có thể chưa trả)
+  maNhaMay?: string | null;
+  moTa?: string | null;
+  nhomSp?: string | null;
+  xuong?: string | null;
+  bop?: string | null;
+  ipo?: string | null;
+  /** Số lượng đơn hàng tổng */
+  soLuong?: number | null;
+  pm?: string | null;
+  pc?: string | null;
 }
 
 /** Gợi ý M6 cho admin: hạng mục có tổng vật tư > trị giá sản phẩm (VNĐ) */

@@ -56,6 +56,9 @@ type TimelineEntry =
   | { kind: 'deleted'; del: DeletedEntry; at: string };
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
+// Ảnh đính kèm chung: bỏ ảnh sản phẩm của M6 "Một HEX nhiều giá" (đã hiện trong bảng mã HEX)
+const anhChung = (v: { photos?: number[]; chiTiet?: { anhSp?: number } | null }) =>
+  (v.photos ?? []).filter(id => id !== v.chiTiet?.anhSp);
 const fmtHM = (iso?: string) => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -794,9 +797,9 @@ export const VuongMacDetailModal = ({
                           </p>
                         )}
 
-                        {!!v.photos?.length && editingId !== v.id && (
+                        {!!anhChung(v).length && editingId !== v.id && (
                           <div className="mt-2.5">
-                            <PhotoThumbs ids={v.photos} onOpen={(i) => setPhotoViewer({ ids: v.photos ?? [], idx: i })} />
+                            <PhotoThumbs ids={anhChung(v)} onOpen={(i) => setPhotoViewer({ ids: anhChung(v), idx: i })} />
                           </div>
                         )}
 
@@ -953,14 +956,14 @@ export const VuongMacDetailModal = ({
               <div className={`whitespace-pre-wrap break-words rounded-xl border p-4 text-sm leading-relaxed ${detail.isResolved ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-900'}`}>
                 {highlight(detail.content, q, false)}
               </div>
-              {!!detail.photos?.length && (
+              {!!anhChung(detail).length && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold text-slate-600">Ảnh đính kèm ({detail.photos.length})</p>
+                  <p className="mb-2 text-xs font-semibold text-slate-600">Ảnh đính kèm ({anhChung(detail).length})</p>
                   <PhotoThumbs
-                    ids={detail.photos}
-                    max={detail.photos.length}
+                    ids={anhChung(detail)}
+                    max={anhChung(detail).length}
                     size="h-24 w-24"
-                    onOpen={(i) => setPhotoViewer({ ids: detail.photos ?? [], idx: i })}
+                    onOpen={(i) => setPhotoViewer({ ids: anhChung(detail), idx: i })}
                   />
                 </div>
               )}

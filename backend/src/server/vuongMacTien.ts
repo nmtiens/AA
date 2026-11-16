@@ -30,6 +30,8 @@ export interface ChiTietTien {
   chiPhiGcvt?: number;
   giaiTrinh?: string;
   ghiChu?: string;
+  /** Một HEX nhiều giá: 1 ảnh sản phẩm dùng chung cho cả nhóm mã (id ảnh trong vuong_mac_photo của chính vướng mắc này) */
+  anhSp?: number;
 }
 
 export const TRIEU = 1_000_000;
@@ -57,6 +59,7 @@ export const chiTietTienSchema = z.object({
   chiPhiGcvt: z.number().nonnegative().max(1e13).optional().nullable(),
   giaiTrinh: z.string().max(2000).optional().nullable(),
   ghiChu: z.string().max(2000).optional().nullable(),
+  anhSp: z.number().int().positive().optional().nullable(),
 });
 export type ChiTietTienVao = z.infer<typeof chiTietTienSchema>;
 
@@ -107,7 +110,11 @@ export const kiemChiTietTien = (category: string, chiTiet: unknown, hexChinh: st
     }
     if (sai.length) return { ok: false, message: `Mã HEX không hợp lệ (cần 9 số): ${sai.slice(0, 5).join(', ')}` };
     if (ds.length === 0) return { ok: false, message: 'Một HEX nhiều giá: nhập ít nhất 1 mã HEX khác cùng sản phẩm' };
-    return { ok: true, value: { loai: 'nhieu_gia', hexTrung: ds, ...(ghiChu ? { ghiChu } : {}) } };
+    // Ảnh sản phẩm chung của nhóm mã (id ảnh thuộc vướng mắc nào do route kiểm)
+    return {
+      ok: true,
+      value: { loai: 'nhieu_gia', hexTrung: ds, ...(ghiChu ? { ghiChu } : {}), ...(c.anhSp ? { anhSp: c.anhSp } : {}) },
+    };
   }
   if (c.loai === 'gia_thap_gcvt') {
     const giaiTrinh = chuSach(c.giaiTrinh);

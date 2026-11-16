@@ -152,6 +152,8 @@ export const chuanHoaChiTiet = (ct: Partial<ChiTietTien>, hexChinh?: string): Ch
   const out: ChiTietTien = { loai: ct.loai };
   const trung = ct.loai === 'nhieu_gia' ? hexTrungThat(ct.hexTrung, hexChinh) : [];
   if (trung.length) out.hexTrung = trung;
+  // Ảnh sản phẩm chung của nhóm mã
+  if (ct.loai === 'nhieu_gia' && ct.anhSp) out.anhSp = ct.anhSp;
   if (ct.loai === 'gia_thap_gcvt') {
     if (typeof ct.chiPhiGcvt === 'number' && Number.isFinite(ct.chiPhiGcvt)) out.chiPhiGcvt = ct.chiPhiGcvt;
     if (ct.giaiTrinh?.trim()) out.giaiTrinh = ct.giaiTrinh.trim();

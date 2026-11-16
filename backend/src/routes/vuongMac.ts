@@ -442,8 +442,9 @@ app.post(
       }
 
       const me = await getVuongMacActor(req);
+      await hasWorkflowSchema(); // đọc cờ cột chi_tiet
       const existing = await pool.query(
-        `SELECT vm.created_by, vm.handler, u.department AS created_department
+        `SELECT vm.created_by, vm.handler, vm.category, u.department AS created_department${coCotChiTiet() ? ', vm.chi_tiet' : ''}
          FROM vuong_mac vm LEFT JOIN users u ON u.username = vm.created_by
          WHERE vm.id = $1`,
         [id]
@@ -457,8 +458,11 @@ app.post(
       }
 
       const cnt = await pool.query('SELECT COUNT(*) FROM vuong_mac_photo WHERE vuong_mac_id = $1', [id]);
-      if (Number(cnt.rows[0].count) >= MAX_PHOTOS_PER_ITEM) {
-        return res.status(400).json({ success: false, message: `Tối đa ${MAX_PHOTOS_PER_ITEM} ảnh` });
+      // M6 "Một HEX nhiều giá": thêm 1 ảnh sản phẩm dùng chung cho cả nhóm mã (cột hình ảnh của bảng mã)
+      const ctAnh = docChiTietTien(old.category, old.chi_tiet);
+      const toiDa = MAX_PHOTOS_PER_ITEM + (ctAnh?.loai === 'nhieu_gia' ? 1 : 0);
+      if (Number(cnt.rows[0].count) >= toiDa) {
+        return res.status(400).json({ success: false, message: `Tối đa ${toiDa} ảnh` });
       }
 
       const r = await pool.query(
@@ -1115,6 +1119,7 @@ app.post(
       const kiem = kiemChiTietTien(category, req.body.chiTiet, String(hex));
       if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
       const chiTiet: ChiTietTien | null = kiem.value;
+      if (chiTiet?.anhSp) delete chiTiet.anhSp; // vướng mắc mới chưa có ảnh nào — ảnh gắn sau bằng PUT
       const me = await getVuongMacActor(req);
       const actor = me.username;
 
@@ -1248,6 +1253,11 @@ app.put(
         const kiem = kiemChiTietTien(effCategory, req.body.chiTiet, String(old.hex));
         if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
         chiTietMoi = kiem.value;
+        // Ảnh sản phẩm M6 chỉ được trỏ ảnh của chính vướng mắc này
+        if (chiTietMoi?.anhSp) {
+          const co = await pool.query('SELECT 1 FROM vuong_mac_photo WHERE vuong_mac_id = $1 AND id = $2', [id, chiTietMoi.anhSp]);
+          if (!co.rows.length) delete chiTietMoi.anhSp;
+        }
       } else if (effCategory !== 'money' && old.chi_tiet != null) {
         chiTietMoi = null;
       }
@@ -1718,7 +1728,8 @@ const duocXemTienVatTu = async (req: Request) =>
   (await userHasPermission(req, 'vuong_mac')) || (await userHasPermission(req, 'materials_view_price'));
 
 // GET /api/vuong-mac/tra-gia?hexes=a,b,c (<= 50 mã; mã nhà máy 13 số tự cắt về HEX)
-// -> { ketQua: { [mã gửi lên]: { tenHangMuc, tenCongTrinh, maCongTrinh, donGia, triGia, dvt, coGiaCongNgoai, tongVatTu } },
+// -> { ketQua: { [mã gửi lên]: { tenHangMuc, tenCongTrinh, maCongTrinh, donGia, triGia, dvt, coGiaCongNgoai, tongVatTu,
+//      maNhaMay, moTa, nhomSp, xuong, bop, ipo, soLuong, pm, pc } },  (nhóm cuối cho bảng chi tiết M6 "một HEX nhiều giá")
 //      coGiaVatTu }  — tiền VNĐ. Mã không có trong bảng sản xuất: không có khoá trong ketQua.
 // tongVatTu = null khi HEX không khớp dòng vật tư nào, hoặc người xem không có quyền xem tiền vật tư (coGiaVatTu = false).
 // Dùng cho form báo M6 (Một HEX nhiều giá: hiện giá cạnh từng mã; Giá thấp GCVT / Vật tư vượt giá: số của HEX chính).
@@ -1731,7 +1742,9 @@ app.get('/api/vuong-mac/tra-gia', authenticateJWT, requireActiveUser, async (req
     const [r, coGiaVatTu] = await Promise.all([
       timedQuery(
         `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, ma_cong_trinh,
-                don_gia_co_oh, tri_gia_don_hang_tong, dvt, co_gia_cong_ngoai
+                don_gia_co_oh, tri_gia_don_hang_tong, dvt, co_gia_cong_ngoai,
+                ma_nha_may, mo_ta_san_pham, phan_loai_nhom_san_pham, xuong_chinh, bop, tinh_trang_ipo,
+                so_luong_don_hang_tong, ten_pm, ten_pc
          FROM production_status_app
          WHERE hex::text = ANY($1::text[])
          ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`,
@@ -1750,7 +1763,10 @@ app.get('/api/vuong-mac/tra-gia', authenticateJWT, requireActiveUser, async (req
     const ketQua: Record<string, {
       tenHangMuc: string | null; tenCongTrinh: string | null; maCongTrinh: string | null; donGia: number | null;
       triGia: number | null; dvt: string | null; coGiaCongNgoai: boolean; tongVatTu: number | null;
+      maNhaMay: string | null; moTa: string | null; nhomSp: string | null; xuong: string | null; bop: string | null;
+      ipo: string | null; soLuong: number | null; pm: string | null; pc: string | null;
     }> = {};
+    const chu = (v: unknown) => (v == null || String(v).trim() === '' ? null : String(v).trim());
     for (const m of ma) {
       const h = hexOf.get(m)!;
       const row = theoHex.get(h);
@@ -1764,6 +1780,10 @@ app.get('/api/vuong-mac/tra-gia', authenticateJWT, requireActiveUser, async (req
         dvt: row.dvt ?? null,
         coGiaCongNgoai: coGiaCongNgoai(row.co_gia_cong_ngoai),
         tongVatTu: tong ? (tong[h] ?? null) : null,             // VNĐ
+        maNhaMay: chu(row.ma_nha_may), moTa: chu(row.mo_ta_san_pham), nhomSp: chu(row.phan_loai_nhom_san_pham),
+        xuong: chu(row.xuong_chinh), bop: chu(row.bop), ipo: chu(row.tinh_trang_ipo),
+        soLuong: row.so_luong_don_hang_tong == null || !Number.isFinite(Number(row.so_luong_don_hang_tong)) ? null : Number(row.so_luong_don_hang_tong),
+        pm: chu(row.ten_pm), pc: chu(row.ten_pc),
       };
     }
     res.json({ ketQua, coGiaVatTu });

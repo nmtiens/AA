@@ -84929,7 +84929,8 @@ var chiTietTienSchema = external_exports.object({
   hexTrung: external_exports.array(external_exports.string().max(40)).max(100).optional().nullable(),
   chiPhiGcvt: external_exports.number().nonnegative().max(1e13).optional().nullable(),
   giaiTrinh: external_exports.string().max(2e3).optional().nullable(),
-  ghiChu: external_exports.string().max(2e3).optional().nullable()
+  ghiChu: external_exports.string().max(2e3).optional().nullable(),
+  anhSp: external_exports.number().int().positive().optional().nullable()
 });
 var chuanHoaHex = (raw) => {
   const s = String(raw ?? "").replace(/\s+/g, "");
@@ -84964,7 +84965,10 @@ var kiemChiTietTien = (category, chiTiet, hexChinh) => {
     }
     if (sai.length) return { ok: false, message: `M\xE3 HEX kh\xF4ng h\u1EE3p l\u1EC7 (c\u1EA7n 9 s\u1ED1): ${sai.slice(0, 5).join(", ")}` };
     if (ds2.length === 0) return { ok: false, message: "M\u1ED9t HEX nhi\u1EC1u gi\xE1: nh\u1EADp \xEDt nh\u1EA5t 1 m\xE3 HEX kh\xE1c c\xF9ng s\u1EA3n ph\u1EA9m" };
-    return { ok: true, value: { loai: "nhieu_gia", hexTrung: ds2, ...ghiChu ? { ghiChu } : {} } };
+    return {
+      ok: true,
+      value: { loai: "nhieu_gia", hexTrung: ds2, ...ghiChu ? { ghiChu } : {}, ...c.anhSp ? { anhSp: c.anhSp } : {} }
+    };
   }
   if (c.loai === "gia_thap_gcvt") {
     const giaiTrinh = chuSach(c.giaiTrinh);
@@ -85395,8 +85399,9 @@ app.post(
         return res.status(400).json({ success: false, message: "Ch\u1EC9 nh\u1EADn \u1EA3nh JPEG" });
       }
       const me2 = await getVuongMacActor(req);
+      await hasWorkflowSchema();
       const existing = await pool.query(
-        `SELECT vm.created_by, vm.handler, u.department AS created_department
+        `SELECT vm.created_by, vm.handler, vm.category, u.department AS created_department${coCotChiTiet() ? ", vm.chi_tiet" : ""}
          FROM vuong_mac vm LEFT JOIN users u ON u.username = vm.created_by
          WHERE vm.id = $1`,
         [id]
@@ -85409,8 +85414,10 @@ app.post(
         return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n th\xEAm \u1EA3nh" });
       }
       const cnt = await pool.query("SELECT COUNT(*) FROM vuong_mac_photo WHERE vuong_mac_id = $1", [id]);
-      if (Number(cnt.rows[0].count) >= MAX_PHOTOS_PER_ITEM) {
-        return res.status(400).json({ success: false, message: `T\u1ED1i \u0111a ${MAX_PHOTOS_PER_ITEM} \u1EA3nh` });
+      const ctAnh = docChiTietTien(old.category, old.chi_tiet);
+      const toiDa = MAX_PHOTOS_PER_ITEM + (ctAnh?.loai === "nhieu_gia" ? 1 : 0);
+      if (Number(cnt.rows[0].count) >= toiDa) {
+        return res.status(400).json({ success: false, message: `T\u1ED1i \u0111a ${toiDa} \u1EA3nh` });
       }
       const r = await pool.query(
         `INSERT INTO vuong_mac_photo (vuong_mac_id, data, mime, size, created_by)
@@ -86028,6 +86035,7 @@ app.post(
       const kiem = kiemChiTietTien(category, req.body.chiTiet, String(hex3));
       if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
       const chiTiet = kiem.value;
+      if (chiTiet?.anhSp) delete chiTiet.anhSp;
       const me2 = await getVuongMacActor(req);
       const actor = me2.username;
       const ready = await hasWorkflowSchema();
@@ -86175,6 +86183,10 @@ app.put(
         const kiem = kiemChiTietTien(effCategory, req.body.chiTiet, String(old.hex));
         if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
         chiTietMoi = kiem.value;
+        if (chiTietMoi?.anhSp) {
+          const co2 = await pool.query("SELECT 1 FROM vuong_mac_photo WHERE vuong_mac_id = $1 AND id = $2", [id, chiTietMoi.anhSp]);
+          if (!co2.rows.length) delete chiTietMoi.anhSp;
+        }
       } else if (effCategory !== "money" && old.chi_tiet != null) {
         chiTietMoi = null;
       }
@@ -86647,7 +86659,9 @@ app.get("/api/vuong-mac/tra-gia", authenticateJWT, requireActiveUser, async (req
     const [r, coGiaVatTu] = await Promise.all([
       timedQuery(
         `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, ma_cong_trinh,
-                don_gia_co_oh, tri_gia_don_hang_tong, dvt, co_gia_cong_ngoai
+                don_gia_co_oh, tri_gia_don_hang_tong, dvt, co_gia_cong_ngoai,
+                ma_nha_may, mo_ta_san_pham, phan_loai_nhom_san_pham, xuong_chinh, bop, tinh_trang_ipo,
+                so_luong_don_hang_tong, ten_pm, ten_pc
          FROM production_status_app
          WHERE hex::text = ANY($1::text[])
          ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`,
@@ -86667,6 +86681,7 @@ app.get("/api/vuong-mac/tra-gia", authenticateJWT, requireActiveUser, async (req
     const theoHex = /* @__PURE__ */ new Map();
     for (const row of r.rows) theoHex.set(String(row.hex), row);
     const ketQua = {};
+    const chu = (v) => v == null || String(v).trim() === "" ? null : String(v).trim();
     for (const m of ma) {
       const h = hexOf.get(m);
       const row = theoHex.get(h);
@@ -86681,8 +86696,17 @@ app.get("/api/vuong-mac/tra-gia", authenticateJWT, requireActiveUser, async (req
         // triệu -> VNĐ
         dvt: row.dvt ?? null,
         coGiaCongNgoai: coGiaCongNgoai(row.co_gia_cong_ngoai),
-        tongVatTu: tong2 ? tong2[h] ?? null : null
+        tongVatTu: tong2 ? tong2[h] ?? null : null,
         // VNĐ
+        maNhaMay: chu(row.ma_nha_may),
+        moTa: chu(row.mo_ta_san_pham),
+        nhomSp: chu(row.phan_loai_nhom_san_pham),
+        xuong: chu(row.xuong_chinh),
+        bop: chu(row.bop),
+        ipo: chu(row.tinh_trang_ipo),
+        soLuong: row.so_luong_don_hang_tong == null || !Number.isFinite(Number(row.so_luong_don_hang_tong)) ? null : Number(row.so_luong_don_hang_tong),
+        pm: chu(row.ten_pm),
+        pc: chu(row.ten_pc)
       };
     }
     res.json({ ketQua, coGiaVatTu });

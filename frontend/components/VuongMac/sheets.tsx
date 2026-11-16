@@ -15,7 +15,7 @@ import { AuthImg } from '../shared/VuongMacPhoto';
 import { BottomSheet, LabeledField, inputCls, btnPrimary, chipCls } from '../Mobile/mobileUi';
 import HandlerPicker from '../Mobile/HandlerPicker';
 import MentionTextarea from '../Mobile/MentionTextarea';
-import PhotoPicker, { type PhotoItem } from '../Mobile/PhotoPicker';
+import PhotoPicker, { compressImage, type PhotoItem } from '../Mobile/PhotoPicker';
 import { currentUsername } from '../../services/vuongMacMobileApi';
 import {
   STATUS_META, PRIORITY_META, DISPLAY_META, displayState, botCountdown, deadlineInfo, isActive, ageText,
@@ -299,7 +299,8 @@ export function DetailSheet({ v, onClose, onChanged, onOpenHex, flash }: {
   const [convKey, setConvKey] = useState(0);
   const perms = v.perms ?? { edit: !!v.canModify, work: !!v.canModify, close: !!v.canModify, delete: !!v.canModify };
   const cd = botCountdown(v);
-  const photoIds = v.photos ?? [];
+  const anhSp = v.chiTiet?.anhSp;
+  const photoIds = (v.photos ?? []).filter(id => id !== anhSp);
   const dl = deadlineInfo(v);
 
   const share = async () => {
@@ -578,7 +579,32 @@ export function FormSheet({ row, preset, presetTien, onClose, onDone }: {
   const [note, setNote] = useState(row?.note ?? '');
   const [more, setMore] = useState(!!(row?.solution || row?.note));
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
-  const [keptIds, setKeptIds] = useState<number[]>(row?.photos ?? []);
+  // Ảnh sản phẩm M6 (chiTiet.anhSp) quản lý ở bảng mã, không nằm trong ô Ảnh hiện trường
+  const [keptIds, setKeptIds] = useState<number[]>(() => (row?.photos ?? []).filter(id => id !== row?.chiTiet?.anhSp));
+  // Ảnh sản phẩm vừa chọn, chưa lưu (tải lên sau khi lưu vướng mắc). Ảnh đã lưu nằm ở tien.anhSp
+  const [anhMoi, setAnhMoi] = useState<PhotoItem | null>(null);
+  const anhMoiRef = useRef(anhMoi);
+  anhMoiRef.current = anhMoi;
+  useEffect(() => () => { if (anhMoiRef.current) URL.revokeObjectURL(anhMoiRef.current.url); }, []);
+  const [anhLoi, setAnhLoi] = useState('');
+  const boAnhCu = () => setTien(t => (t.anhSp ? { ...t, anhSp: undefined } : t));
+  const anhProps = {
+    daCo: tien.anhSp,
+    moi: anhMoi,
+    onChon: async (file: File) => {
+      setAnhLoi('');
+      try {
+        const blob = await compressImage(file);
+        const p: PhotoItem = { id: `sp-${Date.now()}`, blob, url: URL.createObjectURL(blob) };
+        setAnhMoi(m => { if (m) URL.revokeObjectURL(m.url); return p; });
+        boAnhCu(); // đổi ảnh: ảnh cũ bị xoá khi lưu
+      } catch { setAnhLoi('Không đọc được ảnh này, thử ảnh khác'); }
+    },
+    onXoa: () => {
+      setAnhMoi(m => { if (m) URL.revokeObjectURL(m.url); return null; });
+      boAnhCu();
+    },
+  };
   const [people, setPeople] = useState<{ name: string; department: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -650,9 +676,10 @@ export function FormSheet({ row, preset, presetTien, onClose, onDone }: {
     }
     // Ảnh (nội dung đã lưu rồi nên lỗi ảnh chỉ báo, không bắt nhập lại)
     let failed = 0;
+    const anhCu = row?.chiTiet?.anhSp;
     if (row) {
       for (const pid of row.photos ?? []) {
-        if (keptIds.includes(pid)) continue;
+        if (keptIds.includes(pid) || pid === anhCu) continue;
         try { await deleteVuongMacPhoto(pid); } catch { failed++; }
       }
     }
@@ -660,9 +687,21 @@ export function FormSheet({ row, preset, presetTien, onClose, onDone }: {
     for (const p of photos) {
       try { uploaded.push((await uploadVuongMacPhoto(item.id, p.blob)).id); } catch { failed++; }
     }
+    // Ảnh sản phẩm (M6 Một HEX nhiều giá, dùng chung cả nhóm mã): tải ảnh mới, ghi id vào chi tiết, xoá ảnh cũ không còn dùng
+    let anhCuoi = chiTiet?.loai === 'nhieu_gia' ? chiTiet.anhSp : undefined;
+    if (chiTiet?.loai === 'nhieu_gia' && anhMoi) {
+      try {
+        const idMoi = (await uploadVuongMacPhoto(item.id, anhMoi.blob)).id;
+        item = await updateVuongMacStrict(item.id, { chiTiet: { ...chiTiet, anhSp: idMoi } });
+        anhCuoi = idMoi;
+      } catch { failed++; }
+    }
+    if (anhCu && anhCu !== anhCuoi) {
+      try { await deleteVuongMacPhoto(anhCu); } catch { failed++; }
+    }
     setBusy(false);
     onDone(
-      { ...item, photos: [...(row ? keptIds : []), ...uploaded] },
+      { ...item, photos: [...(row ? keptIds : []), ...uploaded, ...(anhCuoi ? [anhCuoi] : [])] },
       failed ? `Đã lưu, nhưng ${failed} ảnh bị lỗi. Bấm Sửa để thêm lại ảnh` : editing ? 'Đã lưu thay đổi' : 'Đã báo vướng mắc'
     );
   };
@@ -775,13 +814,14 @@ export function FormSheet({ row, preset, presetTien, onClose, onDone }: {
 
         {laTien && (
           <div className="md:col-span-2">
-            <TienM6Fields mainHex={hexInfo?.hex} value={tien} onChange={setTien} batBuocLoai={batBuocLoai}
+            <TienM6Fields mainHex={hexInfo?.hex} value={tien} onChange={setTien} batBuocLoai={batBuocLoai} anh={anhProps}
               scanButton={canScan() ? them => (
                 <button type="button" aria-label="Quét mã" onClick={() => { scanCb.current = them; setScanTien(true); }}
                   className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white text-slate-700 active:bg-slate-100">
                   <ScanLine size="1.25em" />
                 </button>
               ) : undefined} />
+            {anhLoi && <p className="mt-1 text-sm text-red-600">{anhLoi}</p>}
           </div>
         )}
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FileSpreadsheet, X } from 'lucide-react';
-import { TRONG_M2, NHOM_VAT_TU, pivotM2, giaTriLoc, docFileBopM2, khopCongTrinh, type DuLieuM2, type HexM2, type VatLieuM2 } from './core/bopM2';
-import { Pivot, ChiTiet, Loc, khopO, tenO, TAT_CA, type ChonO } from './PivotExcel';
+import { TRONG_M2, NHOM_VAT_TU, giaTriLoc, docFileBopM2, khopCongTrinh, type DuLieuM2, type HexM2, type VatLieuM2 } from './core/bopM2';
+import { ChiTiet, Loc, TAT_CA } from './PivotExcel';
+import { PivotCay, NutChieu, type ChieuCay, type ChonCay } from './PivotCay';
 import { API_BASE_URL } from '../../services/dataService';
 import { IPO_MAC_DINH } from '../../utils/productionMetrics';
 import { fmtInt } from '../../utils/format';
@@ -132,49 +133,66 @@ export const BopM2Section = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: strin
   );
 };
 
-/** 2 pivot của tab BOM (II. BOM theo danh mục vật liệu + 3/ Tình trạng vật tư theo đơn hàng) trên 1 bộ dữ liệu */
-const HaiBangBom = ({ duLieu, onHexClick, coCt = false }: {
+/** 2 pivot của tab BOM (II. BOM theo danh mục vật liệu + 3/ Tình trạng vật tư theo đơn hàng) trên 1 bộ dữ liệu — cùng
+ *  mẫu bảng cây tab BOP / BOT: dòng theo công trình / nhóm (sản phẩm, xưởng, nhóm vật tư), bấm ▸ tách tiếp */
+const HaiBangBom = ({ duLieu, onHexClick, tenCt }: {
   duLieu: Pick<DuLieuM2, 'hex' | 'vatLieu'>; onHexClick?: (hex: string) => void;
-  /** Nhiều công trình: danh sách chi tiết có thêm cột CÔNG TRÌNH */
-  coCt?: boolean;
+  /** Nhiều công trình: mã CT => tên đầy đủ (có => thêm chiều + cột CÔNG TRÌNH) */
+  tenCt?: Map<string, string>;
 }) => {
+  const coCt = !!tenCt;
+  const nhanCt = (v: string) => tenCt?.get(v) ?? v;
+  const chieuCt = <T extends { ct?: string }>(): ChieuCay<T> => ({ k: 'ct', ten: 'Công trình', of: x => x.ct ?? '', khong: '(Chưa có công trình)', laCt: true, nhan: nhanCt });
+  const chieuVl = useMemo<ChieuCay<VatLieuM2>[]>(() => [
+    ...(coCt ? [chieuCt<VatLieuM2>()] : []),
+    { k: 'nhom', ten: 'Nhóm vật tư', of: v => v.nhom, khong: TRONG_M2 },
+  ], [tenCt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chieuHex = useMemo<ChieuCay<HexM2>[]>(() => [
+    ...(coCt ? [chieuCt<HexM2>()] : []),
+    { k: 'nsp', ten: 'Sản phẩm', of: h => h.nhomSp, khong: TRONG_M2 },
+    { k: 'xuong', ten: 'Xưởng', of: h => h.xuong, khong: TRONG_M2 },
+  ], [tenCt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [gocVl, setGocVl] = useState(chieuVl[0].k);
+  const [gocHex, setGocHex] = useState(chieuHex[0].k);
+
   const [nhuCau, setNhuCau] = useState(TAT_CA);
   const [ipo, setIpo] = useState<string | null>(null); // null = mặc định của file
-  const [oVl, setOVl] = useState<ChonO>(null);
-  const [oHex, setOHex] = useState<ChonO>(null);
+  const [oVl, setOVl] = useState<ChonCay<VatLieuM2>>(null);
+  const [oHex, setOHex] = useState<ChonCay<HexM2>>(null);
   // II. BOM theo danh mục vật liệu — Count of CODE VẬT LIỆU (dòng CODE trống không đếm)
   const vl = useMemo(() => (duLieu?.vatLieu ?? []).filter(v => v.code), [duLieu]);
   const dsNhuCau = useMemo(() => giaTriLoc(vl, (v: VatLieuM2) => v.nhuCau), [vl]);
   const vlLoc = useMemo(() => vl.filter(v => nhuCau === TAT_CA || (v.nhuCau || TRONG_M2) === nhuCau), [vl, nhuCau]);
-  const bangVl = useMemo(() => pivotM2(vlLoc, v => v.nhom, v => v.m), [vlLoc]);
 
   // 3/ Tình trạng vật tư theo đơn hàng — Count of HEX, lọc TÌNH TRẠNG IPO FINAL
   const hex = useMemo(() => duLieu?.hex ?? [], [duLieu]);
   const dsIpo = useMemo(() => giaTriLoc(hex, (h: HexM2) => h.ipo), [hex]);
   const ipoChon = ipo ?? (dsIpo.includes(MAC_DINH_IPO) ? MAC_DINH_IPO : TAT_CA);
   const hexLoc = useMemo(() => hex.filter(h => ipoChon === TAT_CA || (h.ipo || TRONG_M2) === ipoChon), [hex, ipoChon]);
-  const bangHex = useMemo(() => pivotM2(hexLoc, h => h.nhomSp, h => h.final), [hexLoc]);
+
+  const cotVl = useMemo<[string, (v: VatLieuM2) => string][]>(() => (coCt ? [['CÔNG TRÌNH', v => nhanCt(v.ct ?? '')], ...COT_VL] : COT_VL), [tenCt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cotHex = useMemo<[string, (h: HexM2) => string][]>(() => (coCt ? [['CÔNG TRÌNH', h => nhanCt(h.ct ?? '')], ...COT_HEX] : COT_HEX), [tenCt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
         <section className="space-y-2">
           <h3 className="text-lg font-bold text-red-600">II. BOM - THEO DANH MỤC VẬT LIỆU (BOP-M2)</h3>
-          <Loc nhan="PHÂN LOẠI NHU CẦU ĐẶT MUA" gia={nhuCau} ds={dsNhuCau} onDoi={v => { setNhuCau(v); setOVl(null); }} />
-          <Pivot cotDong="NHÓM VẬT TƯ" p={bangVl} chon={oVl} onChon={setOVl} />
-          {oVl && (
-            <ChiTiet tieuDe={`Chi tiết vật liệu: ${tenO(oVl)}`} cot={coCt ? [['CÔNG TRÌNH', v => v.ct ?? ''], ...COT_VL] : COT_VL} onDong={() => setOVl(null)}
-              ds={vlLoc.filter(khopO(oVl, (v: VatLieuM2) => v.nhom, v => v.m))} />
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Loc nhan="PHÂN LOẠI NHU CẦU ĐẶT MUA" gia={nhuCau} ds={dsNhuCau} onDoi={v => { setNhuCau(v); setOVl(null); }} />
+            <NutChieu chieu={chieuVl} chon={gocVl} onChon={k => { setGocVl(k); setOVl(null); }} />
+          </div>
+          <PivotCay ds={vlLoc} chieu={chieuVl} goc={gocVl} cotOf={(v: VatLieuM2) => v.m} ten="" chon={oVl} onChon={setOVl} />
+          {oVl && <ChiTiet tieuDe={`Chi tiết vật liệu: ${oVl.ten}`} cot={cotVl} onDong={() => setOVl(null)} ds={oVl.ds} />}
         </section>
 
         <section className="space-y-2">
           <h3 className="text-lg font-bold text-red-600">3/ TÌNH TRẠNG VẬT TƯ THEO ĐƠN HÀNG (ITEM BY ITEM)</h3>
-          <Loc nhan="TÌNH TRẠNG IPO FINAL" gia={ipoChon} ds={dsIpo} onDoi={v => { setIpo(v); setOHex(null); }} />
-          <Pivot cotDong="PHÂN LOẠI NHÓM SẢN PHẨM" p={bangHex} chon={oHex} onChon={setOHex} />
-          {oHex && (
-            <ChiTiet tieuDe={`Chi tiết HEX: ${tenO(oHex)}`} cot={coCt ? [['CÔNG TRÌNH', h => h.ct ?? ''], ...COT_HEX] : COT_HEX} onDong={() => setOHex(null)} onHex={onHexClick}
-              ds={hexLoc.filter(khopO(oHex, (h: HexM2) => h.nhomSp, h => h.final))} />
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Loc nhan="TÌNH TRẠNG IPO FINAL" gia={ipoChon} ds={dsIpo} onDoi={v => { setIpo(v); setOHex(null); }} />
+            <NutChieu chieu={chieuHex} chon={gocHex} onChon={k => { setGocHex(k); setOHex(null); }} />
+          </div>
+          <PivotCay ds={hexLoc} chieu={chieuHex} goc={gocHex} cotOf={(h: HexM2) => h.final} ten="" chon={oHex} onChon={setOHex} />
+          {oHex && <ChiTiet tieuDe={`Chi tiết HEX: ${oHex.ten}`} cot={cotHex} onDong={() => setOHex(null)} onHex={onHexClick} ds={oHex.ds} />}
         </section>
 
     </>
@@ -224,6 +242,12 @@ export const BomTatCa = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: string[];
     return () => { bo = true; };
   }, [khoa]); // eslint-disable-line react-hooks/exhaustive-deps
   const dangTai = !!khoa && kq?.khoa !== khoa && !loi;
+  // Mã CT => tên đầy đủ (như bảng BOP / BOT) để hiện + xếp theo Luồng đỏ
+  const tenCt = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of tenCongTrinh) { const c = maCtOf(t); if (c && !m.has(c)) m.set(c, t); }
+    return m;
+  }, [tenCongTrinh]);
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
@@ -232,7 +256,7 @@ export const BomTatCa = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: string[];
           : dangTai ? 'Đang tải BOP-M2 của các công trình…'
           : <><b className="text-slate-800">{fmtInt(kq!.soCt)}</b> / {fmtInt(ma.length)} công trình đã nạp · {fmtInt(kq!.duLieu.hex.length)} HEX · {fmtInt(kq!.duLieu.vatLieu.length)} dòng vật liệu</>}
       </p>
-      {kq && kq.khoa === khoa && <HaiBangBom key={khoa} duLieu={kq.duLieu} onHexClick={onHexClick} coCt />}
+      {kq && kq.khoa === khoa && <HaiBangBom key={khoa} duLieu={kq.duLieu} onHexClick={onHexClick} tenCt={tenCt} />}
     </div>
   );
 };
