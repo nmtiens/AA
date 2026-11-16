@@ -705,5 +705,185 @@ class MauTuAnh(unittest.TestCase):
         self.assertEqual(c2['1']['mp']['MP15'], 'NÂU ĐẤT')
 
 
+class DocPhieuAnh(unittest.TestCase):
+    """--doc-phieu-anh: thân có ảnh, parse, ánh xạ cột, lọc an toàn, không ghi cột cấm, loader đọc 2 file."""
+    HDRP = ['A', 'Material', 'Material Description', 'NHÓM VẬT TƯ-MP00', 'CHỦNG LOẠI-MP01', 'THƯƠNG HIỆU-MP12',
+            'BỘ SƯU TẬP-MP13', 'MÀU SẮC-MP15', 'MÃ MÀU-MP16', 'MÃ HỌA TIẾT-MP17', 'MÃ SẢN PHẨM NCC-MP18',
+            'TIÊU CHUẨN CHẤT LƯỢNG-MP19', 'QUY CÁCH RỘNG-MP22', 'HÌNH DẠNG-MP27', 'ĐẶC TÍNH ĐẶC THÙ-MP31',
+            'PHƯƠNG PHÁP GIA CÔNG-MP34', 'CHẤT LIỆU-MP35', 'ĐƠN VỊ TÍNH-MP36', 'NHÀ CUNG CẤP-MP37',
+            'LEADTIME SẢN XUẤT-MP38', 'CHÚ THÍCH THÊM-MP99']
+    NCC = T.bo_ncc(['10009999 - CÔNG TY TNHH LEPLUS', '20000376 - NICOLAI DIAMANT SRL', '10000495 - AN HƯNG'])
+    RAW = {
+        'phieu': {'kho_rong': '142 CM', 'thanh_phan': '100% polyester', 'mai_mon': 'Martindale 50.000',
+                  'ma_mau': 'MG01', 'bo_suu_tap': 'CT26-041 CUZ', 'ma_mau_nsx': '0909 123 456',
+                  'thuong_hieu': 'Leplus', 'project': 'APEC S3', 'leadtime': '40-50 NGÀY'},
+        'anh': {'hoa_van': 'trơn', 'be_mat': 'dệt thô', 'kieu_chat_lieu': 'vải'},
+        'MP18': 'X1', 'MP37': 'LEPLUS', 'MP38': '6 TUẦN', 'MP99': 'ghi chú', 'do_tin_cay': 'cao'}
+
+    def setUp(self):
+        import contextlib
+        import io
+        import tempfile
+        import nap_ban_vat_tu  # noqa: F401 — import trước khi chuyển stdout (module gọi stdout.reconfigure)
+        self.tmp = tempfile.TemporaryDirectory()
+        self.im = contextlib.redirect_stdout(io.StringIO())
+        self.im.__enter__()
+
+    def tearDown(self):
+        self.im.__exit__(None, None, None)
+        self.tmp.cleanup()
+
+    def test_than_co_anh_va_prompt(self):
+        da_co = {'MP01': ('CHỦNG LOẠI', 'VẢI'), 'MP16': ('MÃ MÀU', 'MG01')}
+        pr = T.dung_prompt_phieu(dict(ma='9', ten='VẢI_HN-CUZ-MG01', loai_vat_tu='Vật tư'), da_co, 3)
+        b = T.than_yeu_cau_anh(pr, [('image/jpeg', b'a'), ('image/jpeg', b'b'), ('image/jpeg', b'c')])
+        parts = b['contents'][0]['parts']
+        self.assertEqual(len(parts), 4)
+        self.assertTrue(all('inline_data' in p for p in parts[1:]))
+        for chu in ('VẢI_HN-CUZ-MG01', 'MP16 MÃ MÀU: MG01', 'Chủng loại: VẢI', 'PROJECT', 'LEADTIME', 'kho_rong',
+                    'thanh_phan', 'hoa_van', '"thấp|vừa"'):
+            self.assertIn(chu, pr)
+
+    def test_parse_va_anh_xa(self):
+        raw = T.tach_json('```json\n' + __import__('json').dumps(self.RAW, ensure_ascii=False) + '\n```')
+        kq = T.doc_phieu(raw, {'MP01': 'VẢI', 'MP16': 'MG01'}, self.NCC, '100000013325')
+        self.assertEqual(kq['mp'], {'MP22': '1420', 'MP35': '100% POLYESTER', 'MP19': 'MARTINDALE 50.000',
+                                    'MP27': 'TRƠN', 'MP34': 'DỆT THÔ'})
+        self.assertEqual(kq['nguon_cot'], {'MP22': 'phiếu', 'MP35': 'phiếu', 'MP19': 'phiếu', 'MP27': 'ảnh',
+                                           'MP34': 'ảnh'})
+        bo = dict(kq['bo'])
+        self.assertEqual(bo['MP13'], 'mã công trình / đơn')       # CT26-041
+        self.assertEqual(bo['MP17'], 'số điện thoại / số dài')     # SĐT
+        self.assertIn('NCC', bo['MP12'])      # LEPLUS: NCC (danh sách NCC hay gặp hoặc DB)
+        self.assertEqual(bo['MP31'], 'trùng thuộc tính đã có')     # VẢI = chủng loại
+        self.assertNotIn('MP16', kq['mp'])                         # đã có => không đọc lại
+        self.assertEqual(kq['do_tin_cay'], 'vừa')                  # không bao giờ 'cao'
+        gc = T.ghi_chu_phieu(kq)
+        self.assertIn('đọc phiếu: MP19, MP22, MP35', gc)
+        self.assertIn('nhìn ảnh: MP27, MP34', gc)
+
+    def test_bo_ghep_ten_ma_mau_chu_va_mau_thuan(self):
+        # chạy thật 16/11: MP17 'HN - CUZ - MG01' (ghép lại tên), MP16 'MINT GREEN' (tên màu), DA ghi SIMILI
+        kq = T.doc_phieu({'phieu': {'ma_mau_nsx': 'HN - CUZ - MG01'}, 'anh': {'kieu_chat_lieu': 'SIMILI / DA PU'}},
+                         {'MP01': 'DA', 'MP12': 'HN', 'MP13': 'CUZ', 'MP16': 'MG01'}, set())
+        self.assertEqual(kq['mp'], {})
+        self.assertEqual(dict(kq['bo']), {'MP17': 'ghép từ thuộc tính đã có', 'MP31': 'mâu thuẫn chủng loại'})
+        kq = T.doc_phieu({'phieu': {'ma_mau': 'MINT GREEN'}}, {'MP01': 'ĐÁ'}, set())
+        self.assertEqual((kq['mp'], kq['bo']), ({}, [('MP16', 'mã màu không có số')]))
+        self.assertEqual(T.doc_phieu({'phieu': {'ma_mau': 'COL 14', 'ma_mau_nsx': 'ST-10'}}, {}, set())['mp'],
+                         {'MP16': 'COL 14'})  # 16/11: ST-10 là mã submittal công trình => bỏ
+
+    def test_khong_ghi_cot_cam(self):
+        raw = {'phieu': {'thuong_hieu': 'DEDAR'}, 'MP18': 'A', 'MP37': 'B', 'MP38': 'C', 'MP39': 'D', 'MP99': 'E',
+               'MP15': 'ĐỎ'}
+        kq = T.doc_phieu(raw, {}, set())
+        self.assertEqual(kq['mp'], {'MP12': 'DEDAR'})
+        for k in ('MP18', 'MP37', 'MP38', 'MP39', 'MP99', 'MP00', 'MP36'):
+            self.assertNotIn(k, T.MP_CONG_KHAI)
+        self.assertTrue(all(k in T.MP_CONG_KHAI for _, _, k, _ in T.BANG_PHIEU))
+
+    def test_loc_an_toan(self):
+        L = T.ly_do_cam
+        self.assertIsNotNone(L('CT26-041'))
+        self.assertIsNotNone(L('ct 25-075 sofa'))
+        self.assertIsNotNone(L('PO26-001'))
+        self.assertIsNotNone(L('0909.123.456'))
+        self.assertIsNotNone(L('+84 28 3812 3456'))
+        self.assertIsNotNone(L('PROJECT APEC'))
+        self.assertIsNotNone(L('APPROVED BY CLIENT'))
+        self.assertIsNotNone(L('6-8 TUẦN'))
+        self.assertIsNotNone(L('13/7/26'))
+        self.assertIsNotNone(L('2026-11-16'))
+        self.assertIsNotNone(L('XIAMEN JSC GROUP'))
+        self.assertIsNotNone(L('Nicolai Diamant', self.NCC))
+        self.assertIsNotNone(L('Công ty TNHH Leplus', self.NCC))
+        for ok in ('100% POLYESTER', 'MARTINDALE 50.000', '142 CM', 'MG01', 'CUZ', 'DEDAR', 'LINEA 09-11', '22070802',
+                   'TRƠN', 'MÀI MỜ (HONED)'):
+            self.assertIsNone(L(ok, self.NCC), ok)
+        self.assertIsNone(L('AN', self.NCC))  # tên NCC ngắn (<4) không làm hỏng giá trị khác
+
+    def test_thuoc_tinh_da_co(self):
+        d = T.thuoc_tinh_da_co({'MP16 MÃ MÀU': '217', 'MP15 MÀU SẮC': '-', 'NGUỒN THUỘC TÍNH': 'AI'},
+                               {'MP16': 'KHÁC', 'MP22': '1400'}, None)
+        self.assertEqual(d, {'MP16': ('MÃ MÀU', '217'), 'MP22': ('', '1400')})
+
+    def test_chay_ghi_file_rieng(self):
+        import argparse
+        import json
+        import openpyxl
+        from unittest import mock
+        cmp_ = T.cot_mp(self.HDRP)
+        ra = os.path.join(self.tmp.name, T.TEN_FILE_PHIEU)
+        vt = {'1': dict(ma='1', ten='VẢI_HN-CUZ-MG01', dvt='M', kho='K', gia_tri=2, nhom_sap='106', ten_nhom_sap='Vải',
+                        loai_vat_tu='')}
+        goi = []
+
+        def goi_gia(self_api, prompt, tra_google=True, than=None):
+            goi.append(than)
+            return {'candidates': [{'content': {'parts': [{'text': json.dumps(self.RAW, ensure_ascii=False)}]}}]}
+
+        a = argparse.Namespace(ma='1', tu_file=None, toi_da=10, tra_lai=False, model='m', rpm=6000, dot=20)
+        nen = (['1'], {'1': dict(thuoc_tinh={'MP01 CHỦNG LOẠI': 'VẢI', 'MP16 MÃ MÀU': 'MG01'}, loai_vat_tu='')},
+               ['10009999 - CÔNG TY TNHH LEPLUS'])
+        with mock.patch.object(T, 'doc_db', lambda ds: [vt[m] for m in ds if m in vt]), \
+                mock.patch.object(T, 'doc_nen_phieu', lambda ds: nen), \
+                mock.patch.object(T, 'doc_anh_db', lambda ds, n=2: {m: [('image/jpeg', b'abc')] * n for m in ds}), \
+                mock.patch.object(T.Gemini, 'goi', goi_gia), \
+                mock.patch.object(T, 'FILE_KQ', os.path.join(self.tmp.name, 'khong_co.xlsx')):
+            T.chay_doc_phieu_anh(a, 'khoa-gia', ra, ra[:-5] + '.jsonl', {}, self.HDRP, cmp_, [], 0)
+        self.assertEqual(len(goi), 1)
+        self.assertEqual(len(goi[0]['contents'][0]['parts']), 1 + T.ANH_PHIEU_MOI_MA)
+        wb = openpyxl.load_workbook(ra)
+        ws = wb[T.SHEET_KQ]
+        hdr = [c.value for c in ws[1]]
+        r = [c.value for c in ws[2]]
+        wb.close()
+        self.assertEqual(hdr, self.HDRP + T.COT_THEM)
+        d = dict(zip(hdr, r))
+        self.assertEqual(d['QUY CÁCH RỘNG-MP22'], '1420')
+        self.assertEqual(d['CHẤT LIỆU-MP35'], '100% POLYESTER')
+        for cam in ('THƯƠNG HIỆU-MP12', 'MÃ SẢN PHẨM NCC-MP18', 'NHÀ CUNG CẤP-MP37', 'LEADTIME SẢN XUẤT-MP38',
+                    'CHÚ THÍCH THÊM-MP99', 'MÃ MÀU-MP16', 'BỘ SƯU TẬP-MP13'):
+            self.assertIn(d[cam], (None, ''), cam)
+        self.assertEqual(d['NGUỒN'], T.NGUON_PHIEU)
+        self.assertIn('đọc phiếu', d['GHI CHÚ TRA CỨU'])
+        self.assertTrue(str(d['A']).startswith('AI ĐỌC PHIẾU'))
+        self.assertFalse(os.path.exists(os.path.join(self.tmp.name, 'khong_co.xlsx')))  # không đụng file thuộc tính
+
+    def test_loader_doc_hai_file(self):
+        import openpyxl
+        import nap_ban_vat_tu as N
+        cmp_ = T.cot_mp(self.HDRP)
+        f1, f2 = (os.path.join(self.tmp.name, x) for x in ('tc.xlsx', 'phieu.xlsx'))
+        T.ghi_excel(f1, {'1': dict(ma='1', ten='t', mp={'MP15': 'NÂU', 'MP35': 'TỪ FILE 1'})}, self.HDRP, cmp_)
+        T.ghi_excel(f2, {'1': dict(ma='1', ten='t', mp={'MP35': 'TỪ FILE 2', 'MP22': '1420'}),
+                         '2': dict(ma='2', ten='t2', mp={'MP27': 'SỌC'})}, self.HDRP, cmp_)
+        for f in (f1, f2):
+            wb = openpyxl.load_workbook(f)
+            ws = wb[T.SHEET_KQ]
+            for r in range(2, ws.max_row + 1):
+                ws.cell(r, len(self.HDRP) + 5).value = 'X'
+            wb.save(f)
+            wb.close()
+        self.assertEqual(N.ds_file_tra_cuu(None, (f1, os.path.join(self.tmp.name, 'khong.xlsx'), f2)), [f1, f2])
+        self.assertEqual(N.ds_file_tra_cuu(['']), [])
+        self.assertEqual(N.ds_file_tra_cuu([f1, f2, f1]), [f1, f2])
+        mp = {'1': {'MP01 CHỦNG LOẠI': 'VẢI'}}
+        kq = N.nap_cac_tra_cuu(mp, [f1, f2])
+        self.assertEqual([(n, b) for _, n, b in kq], [(2 - 1, 1), (2, 2)])
+        self.assertEqual(mp['1']['MP35 CHẤT LIỆU'], 'TỪ FILE 1')  # file trước thắng, file sau không đè
+        self.assertEqual(mp['1']['MP22 QUY CÁCH RỘNG'], '1420')    # file sau bù ô trống
+        self.assertEqual(mp['1']['MP01 CHỦNG LOẠI'], 'VẢI')
+        self.assertEqual(mp['2']['MP27 HÌNH DẠNG'], 'SỌC')
+
+
+class LuatChan1611(unittest.TestCase):
+    def test_ma_noi_bo_va_ncc_hay_gap(self):
+        for v in ('ST-103', 'AATN25-044', 'ATC', 'WOODEN WHITE - KNL', 'ARMANI/CASA', 'SHERWIN'):
+            self.assertIsNotNone(T.ly_do_cam(v), v)
+        for v in ('TANA 101', '100% POLYESTER', 'WARWICK', 'G8041-04', 'RUST 33', 'NCS S 4050-R10B'):
+            self.assertIsNone(T.ly_do_cam(v), v)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -24,6 +24,8 @@ Nguồn:
 - --tra-cuu <file> (mặc định TRA_CUU_THUOC_TINH_VAT_TU.xlsx cạnh file DEMO nếu có; scripts/tra_thuoc_tinh.py tạo):
   dòng DUYỆT = X được dùng NHƯ 1 DÒNG MD_MATERIAL_PROPERTIES cho mã CHƯA có dòng MD; dòng chưa duyệt bỏ qua.
   Mã được bù mang thêm khoá thuoc_tinh "NGUỒN THUỘC TÍNH" = "AI TRA CỨU (ĐÃ DUYỆT)" để về sau biết thuộc tính do AI tra.
+  16/11/2026: --tra-cuu lặp được (nhiều file, nạp theo thứ tự); mặc định cả TRA_CUU_THUOC_TINH_VAT_TU.xlsx rồi
+  TRA_CUU_PHIEU_ANH_VAT_TU.xlsx (tra_thuoc_tinh.py --doc-phieu-anh) nếu có — file sau chỉ bù ô còn trống.
 - Đọc Excel bằng python-calamine (file DEMO > 400 MB, openpyxl quá chậm): pip install python-calamine
 
 Cách chạy (từ thư mục backend):
@@ -50,6 +52,8 @@ FILE_DEMO = (r'G:\Shared drives\PPD-Production Planning Department\003_PERSONAL\
 # kết quả điền thuộc tính bằng AI (scripts/tra_thuoc_tinh.py; mặc định KHÔNG tra web — NGUỒN 'AI (không tra web)'),
 # người dùng duyệt X
 FILE_TRA_CUU = tra.FILE_KQ
+# kết quả đọc phiếu + ảnh (tra_thuoc_tinh.py --doc-phieu-anh) — nạp SAU file thuộc tính, chỉ bù ô còn trống
+FILE_TRA_CUU_PHIEU = tra.FILE_PHIEU
 SHEET_TON = 'Chi tiet tong ton kho'
 TEN_TON = re.compile(r'^BC ton kho vat tu .*\.xlsx$', re.I)
 NGAY_TEN = re.compile(r'(\d{1,2})\.(\d{1,2})\.(\d{4})')
@@ -336,6 +340,32 @@ def bu_tra_cuu(mp, tc):
     return n
 
 
+def ds_file_tra_cuu(tham_so, mac_dinh=None):
+    """Danh sách file tra cứu theo thứ tự nạp. tham_so: list từ --tra-cuu (lặp được) hoặc None.
+    - None: mặc định cả 2 file cạnh DEMO nếu có — file thuộc tính cũ trước, file phiếu ảnh sau;
+    - có '' trong danh sách (--tra-cuu ""): bỏ qua tra cứu hoàn toàn."""
+    if tham_so is None:
+        mac_dinh = (FILE_TRA_CUU, FILE_TRA_CUU_PHIEU) if mac_dinh is None else mac_dinh
+        return [f for f in mac_dinh if f and os.path.exists(f)]
+    if any(not chuan(f) for f in tham_so):
+        return []
+    return list(dict.fromkeys(tham_so))
+
+
+def nap_cac_tra_cuu(mp, ds_file):
+    """Đọc lần lượt từng file (dòng DUYỆT = X) rồi bù vào mp — file trước bù trước, file sau chỉ bù ô còn trống.
+    Trả [(file, số dòng duyệt, số mã được bù)]."""
+    out = []
+    for f in ds_file:
+        tam = tra.ban_co_gio(f)
+        if tam:
+            print(f'CẢNH BÁO: có bản ghi tạm MỚI HƠN file tra cứu ({", ".join(os.path.basename(x) for x in tam)}) — dòng '
+                  'X đánh ở đó CHƯA được nạp. Đóng file gốc rồi chạy tra_thuoc_tinh.py --chi-ghi-file để gộp vào file gốc.')
+        tc = doc_tra_cuu(f)
+        out.append((f, len(tc), bu_tra_cuu(mp, tc)))
+    return out
+
+
 def lay_mp(tt, ma_mp):
     return next((v for k, v in tt.items() if k.startswith(ma_mp + ' ')), None)
 
@@ -570,9 +600,10 @@ def main():
     ap.add_argument('--master', default=FILE_MASTER, help=f'MASTER DATA VẬT TƯ.xlsx (mặc định {FILE_MASTER})')
     ap.add_argument('--demo', default=FILE_DEMO if os.path.exists(FILE_DEMO) else None,
                     help=f'file DEMO (sheet DATA_ZMM60 + MD_MATERIAL_PROPERTIES; mặc định {FILE_DEMO} nếu có); không có = không có thuộc tính MPxx')
-    ap.add_argument('--tra-cuu', default=FILE_TRA_CUU if os.path.exists(FILE_TRA_CUU) else None,
-                    help=f'file kết quả tra cứu (scripts/tra_thuoc_tinh.py; mặc định {FILE_TRA_CUU} nếu có): dòng DUYỆT = X '
-                         'dùng như dòng MD cho mã chưa có MD; truyền "" để bỏ qua')
+    ap.add_argument('--tra-cuu', action='append', default=None,
+                    help=f'file kết quả tra cứu (scripts/tra_thuoc_tinh.py), lặp được, nạp theo thứ tự; mặc định cả '
+                         f'{FILE_TRA_CUU} rồi {FILE_TRA_CUU_PHIEU} nếu có. Dòng DUYỆT = X dùng như dòng MD cho mã chưa '
+                         'có MD, mã đã có MD chỉ bù ô trống; truyền "" để bỏ qua')
     ap.add_argument('--ngay-chot', help='YYYY-MM-DD khi tên file tồn không có ngày dd.mm.yyyy')
     ap.add_argument('--ghi', action='store_true', help='GHI DB (xoá hết ban_vt_ton / ban_vt_master rồi ghi lại); mặc định chạy khô')
     ap.add_argument('--cho-phep-giam', action='store_true',
@@ -599,15 +630,11 @@ def main():
         print('Demo:   (không truyền --demo — bỏ qua mã bù DATA_ZMM60 và thuộc tính MPxx)')
     print(f'Đọc: master {len(master):,} mã · DATA_ZMM60 {len(zmm60):,} mã · MD_MATERIAL_PROPERTIES {len(mp):,} mã'
           f' · {time.time() - t0:.1f}s')
-    if a.tra_cuu:
-        tam = tra.ban_co_gio(a.tra_cuu)
-        if tam:
-            print(f'CẢNH BÁO: có bản ghi tạm MỚI HƠN file tra cứu ({", ".join(os.path.basename(f) for f in tam)}) — dòng X '
-                  'đánh ở đó CHƯA được nạp. Đóng file gốc rồi chạy tra_thuoc_tinh.py --chi-ghi-file để gộp vào file gốc.')
-        tc = doc_tra_cuu(a.tra_cuu)
-        n_bu = bu_tra_cuu(mp, tc)
-        print(f'Tra cứu: {a.tra_cuu} — {len(tc):,} dòng đã duyệt X · bù {n_bu:,} mã (dòng mới hoặc ô trống)'
-              f' · bỏ {len(tc) - n_bu:,} mã đã có MD')
+    ds_tc = ds_file_tra_cuu(a.tra_cuu)
+    if ds_tc:
+        for f, n_dong, n_bu in nap_cac_tra_cuu(mp, ds_tc):
+            print(f'Tra cứu: {f} — {n_dong:,} dòng đã duyệt X · bù {n_bu:,} mã (dòng mới hoặc ô trống)'
+                  f' · {n_dong - n_bu:,} mã không có ô trống để bù')
     else:
         print('Tra cứu: (không có file tra cứu thuộc tính — bỏ qua)')
 
