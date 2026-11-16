@@ -84908,6 +84908,149 @@ var taoNhoTheoKhoa = (ttlMs, toiDa = 2e3, now = Date.now) => {
   };
 };
 
+// src/server/vuongMacTien.ts
+var LOAI_TIEN = ["nhieu_gia", "gia_thap_gcvt", "vat_tu_vuot_gia"];
+var TRIEU = 1e6;
+var trieuSangVnd = (v) => {
+  const n = soHuuHan(v);
+  return n === null ? null : Math.round(n * TRIEU);
+};
+var soHuuHan = (v) => {
+  if (v === null || v === void 0 || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+var lamTronVnd = (v) => {
+  const n = soHuuHan(v);
+  return n === null ? null : Math.round(n);
+};
+var chiTietTienSchema = external_exports.object({
+  loai: external_exports.enum(LOAI_TIEN).optional().nullable(),
+  hexTrung: external_exports.array(external_exports.string().max(40)).max(100).optional().nullable(),
+  chiPhiGcvt: external_exports.number().nonnegative().max(1e13).optional().nullable(),
+  giaiTrinh: external_exports.string().max(2e3).optional().nullable(),
+  ghiChu: external_exports.string().max(2e3).optional().nullable()
+});
+var chuanHoaHex = (raw) => {
+  const s = String(raw ?? "").replace(/\s+/g, "");
+  if (/^\d{9}$/.test(s)) return s;
+  if (/^\d{13}$/.test(s)) return s.slice(4);
+  return null;
+};
+var chuSach = (v) => {
+  const s = typeof v === "string" ? v.trim() : "";
+  return s ? s : void 0;
+};
+var kiemChiTietTien = (category, chiTiet, hexChinh) => {
+  if (category !== "money") return { ok: true, value: null };
+  if (chiTiet === null || chiTiet === void 0) return { ok: true, value: null };
+  const parsed = chiTietTienSchema.safeParse(chiTiet);
+  if (!parsed.success) return { ok: false, message: "Chi ti\u1EBFt M6 kh\xF4ng h\u1EE3p l\u1EC7" };
+  const c = parsed.data;
+  if (!c.loai) return { ok: true, value: null };
+  const ghiChu = chuSach(c.ghiChu);
+  if (c.loai === "nhieu_gia") {
+    const chinh = chuanHoaHex(hexChinh) ?? String(hexChinh ?? "").trim();
+    const sai = [];
+    const ds2 = [];
+    for (const raw of c.hexTrung ?? []) {
+      if (!String(raw ?? "").trim()) continue;
+      const h = chuanHoaHex(raw);
+      if (!h) {
+        sai.push(String(raw).trim());
+        continue;
+      }
+      if (h !== chinh && !ds2.includes(h)) ds2.push(h);
+    }
+    if (sai.length) return { ok: false, message: `M\xE3 HEX kh\xF4ng h\u1EE3p l\u1EC7 (c\u1EA7n 9 s\u1ED1): ${sai.slice(0, 5).join(", ")}` };
+    if (ds2.length === 0) return { ok: false, message: "M\u1ED9t HEX nhi\u1EC1u gi\xE1: nh\u1EADp \xEDt nh\u1EA5t 1 m\xE3 HEX kh\xE1c c\xF9ng s\u1EA3n ph\u1EA9m" };
+    return { ok: true, value: { loai: "nhieu_gia", hexTrung: ds2, ...ghiChu ? { ghiChu } : {} } };
+  }
+  if (c.loai === "gia_thap_gcvt") {
+    const giaiTrinh = chuSach(c.giaiTrinh);
+    if (!giaiTrinh) return { ok: false, message: "Gi\xE1 th\u1EA5p, kh\xF4ng GCVT \u0111\u01B0\u1EE3c: vui l\xF2ng nh\u1EADp gi\u1EA3i tr\xECnh" };
+    const chiPhi = soHuuHan(c.chiPhiGcvt);
+    return {
+      ok: true,
+      value: {
+        loai: "gia_thap_gcvt",
+        ...chiPhi !== null ? { chiPhiGcvt: Math.round(chiPhi) } : {},
+        giaiTrinh,
+        ...ghiChu ? { ghiChu } : {}
+      }
+    };
+  }
+  return { ok: true, value: { loai: "vat_tu_vuot_gia", ...ghiChu ? { ghiChu } : {} } };
+};
+var docChiTietTien = (category, raw) => {
+  if (category !== "money" || raw === null || raw === void 0) return null;
+  try {
+    const v = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!v || typeof v !== "object" || !LOAI_TIEN.includes(v.loai)) return null;
+    return v;
+  } catch {
+    return null;
+  }
+};
+var jsonKhoaSap = (v) => {
+  if (Array.isArray(v)) return `[${v.map(jsonKhoaSap).join(",")}]`;
+  if (v && typeof v === "object") {
+    const o = v;
+    return `{${Object.keys(o).filter((k) => o[k] !== void 0).sort().map((k) => `${JSON.stringify(k)}:${jsonKhoaSap(o[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v ?? null);
+};
+var cungChiTiet = (a, b) => jsonKhoaSap(a ?? null) === jsonKhoaSap(b ?? null);
+var dinhDangVnd = (n) => {
+  const am = n < 0;
+  const s = String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return am ? `-${s}` : s;
+};
+var TEN_LOAI = {
+  nhieu_gia: "M\u1ED9t HEX nhi\u1EC1u gi\xE1",
+  gia_thap_gcvt: "Gi\xE1 th\u1EA5p, kh\xF4ng GCVT \u0111\u01B0\u1EE3c",
+  vat_tu_vuot_gia: "Gi\xE1 v\u1EADt t\u01B0 > gi\xE1 s\u1EA3n ph\u1EA9m"
+};
+var moTaChiTietTien = (c) => {
+  if (!c) return "kh\xF4ng c\xF3";
+  const phan = [TEN_LOAI[c.loai]];
+  if (c.hexTrung?.length) phan.push(`HEX tr\xF9ng: ${c.hexTrung.join(", ")}`);
+  if (c.chiPhiGcvt !== void 0) phan.push(`chi ph\xED GCVT ${dinhDangVnd(c.chiPhiGcvt)} \u0111`);
+  if (c.giaiTrinh) phan.push(`gi\u1EA3i tr\xECnh: ${c.giaiTrinh}`);
+  if (c.ghiChu) phan.push(`ghi ch\xFA: ${c.ghiChu}`);
+  return phan.join(" \xB7 ");
+};
+var tachDanhSachHex = (raw) => {
+  const parts = (Array.isArray(raw) ? raw.join(",") : String(raw ?? "")).split(/[,;\s]+/);
+  const out = [];
+  for (const p of parts) {
+    const s = p.trim();
+    if (s && !out.includes(s)) out.push(s);
+  }
+  return out;
+};
+var laHuy3 = (tinhTrang) => String(tinhTrang ?? "").toUpperCase().includes("H\u1EE6Y");
+var locGoiYVatTu = (dongs, tongVatTuTheoHex, toiDa = 300, tenCt = (t) => t) => {
+  const out = [];
+  for (const d of dongs) {
+    if (laHuy3(d.tinh_trang)) continue;
+    const triGia = trieuSangVnd(d.tri_gia_don_hang_tong);
+    const tong2 = lamTronVnd(tongVatTuTheoHex[d.hex]);
+    if (triGia === null || triGia <= 0 || tong2 === null || tong2 <= triGia) continue;
+    out.push({
+      hex: d.hex,
+      tenHangMuc: d.ten_hang_muc ?? null,
+      tenCongTrinh: d.ten_cong_trinh ? tenCt(d.ten_cong_trinh) : null,
+      triGia,
+      tongVatTu: tong2,
+      chenh: tong2 - triGia
+    });
+  }
+  out.sort((a, b) => b.chenh - a.chenh || a.hex.localeCompare(b.hex));
+  return out.slice(0, toiDa);
+};
+var coGiaCongNgoai = (v) => /^(yes|y|có|co|x|true|1)$/i.test(String(v ?? "").trim());
+
 // src/routes/vuongMac.ts
 var FIVE_M_CATEGORIES = ["man", "machine", "material", "method", "measurement", "money"];
 var VM_STATUSES = ["open", "doing", "done", "closed"];
@@ -84920,7 +85063,9 @@ var vuongMacCreateSchema = external_exports.object({
   bot: external_exports.string().max(200).optional().nullable(),
   solution: external_exports.string().max(2e3).optional().nullable(),
   note: external_exports.string().max(2e3).optional().nullable(),
-  priority: external_exports.enum(PRIORITIES).optional()
+  priority: external_exports.enum(PRIORITIES).optional(),
+  // Chi tiết M6 Tiền (chỉ category money) — kiểm sâu ở kiemChiTietTien (server/vuongMacTien.ts)
+  chiTiet: chiTietTienSchema.optional().nullable()
 });
 var vuongMacUpdateSchema = external_exports.object({
   category: external_exports.enum(FIVE_M_CATEGORIES).optional(),
@@ -84935,7 +85080,9 @@ var vuongMacUpdateSchema = external_exports.object({
   handler: external_exports.string().max(200).optional().nullable(),
   bot: external_exports.string().max(200).optional().nullable(),
   solution: external_exports.string().max(2e3).optional().nullable(),
-  note: external_exports.string().max(2e3).optional().nullable()
+  note: external_exports.string().max(2e3).optional().nullable(),
+  // Chi tiết M6 Tiền: gửi => ghi lại (null = xoá); không gửi => giữ (đổi sang loại 6M khác thì tự xoá)
+  chiTiet: chiTietTienSchema.optional().nullable()
 });
 var vuongMacExtendSchema = external_exports.object({
   content: external_exports.string().trim().min(1).max(2e3),
@@ -84976,25 +85123,33 @@ var WORKFLOW_COLUMN_LIST = [
   "escalated_at"
 ];
 var WORKFLOW_SQL_HINT = "M\xE1y ch\u1EE7 ch\u01B0a ch\u1EA1y file SQL backend/sql/2026-10-10_vuong_mac_quy_trinh.sql \u2014 thao t\xE1c n\xE0y c\u1EA7n c\u1ED9t quy tr\xECnh m\u1EDBi";
+var CHI_TIET_SQL_HINT = "M\xE1y ch\u1EE7 ch\u01B0a ch\u1EA1y file SQL backend/sql/2026-11-16_vuong_mac_chi_tiet.sql \u2014 ch\u01B0a l\u01B0u \u0111\u01B0\u1EE3c chi ti\u1EBFt M6 Ti\u1EC1n";
 var workflowReady = null;
+var chiTietReady = false;
 var workflowCheckedAt = 0;
 async function hasWorkflowSchema() {
-  if (workflowReady === true) return true;
+  if (workflowReady === true && chiTietReady) return true;
   if (workflowReady !== null && Date.now() - workflowCheckedAt < 6e4) return workflowReady;
   try {
     const r = await pool.query(
-      `SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'vuong_mac' AND column_name = 'escalated_at'`
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'vuong_mac' AND column_name IN ('escalated_at', 'chi_tiet')`
     );
-    workflowReady = r.rows.length > 0;
+    const cols = new Set(r.rows.map((row) => String(row.column_name)));
+    workflowReady = cols.has("escalated_at");
+    chiTietReady = cols.has("chi_tiet");
   } catch {
     workflowReady = false;
+    chiTietReady = false;
   }
   workflowCheckedAt = Date.now();
   return workflowReady;
 }
+var coCotChiTiet = () => chiTietReady;
 var vmCols = (ready, alias = "vm") => [
   ...BASE_COLUMN_LIST.map((c) => `${alias}.${c}`),
-  ...WORKFLOW_COLUMN_LIST.map((c) => ready ? `${alias}.${c}` : `NULL AS ${c}`)
+  ...WORKFLOW_COLUMN_LIST.map((c) => ready ? `${alias}.${c}` : `NULL AS ${c}`),
+  chiTietReady ? `${alias}.chi_tiet` : "NULL::jsonb AS chi_tiet"
 ].join(", ");
 var PRODUCTION_LATERAL = `
   LEFT JOIN LATERAL (
@@ -85149,6 +85304,8 @@ var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? 
     bot: row.bot,
     solution: row.solution,
     note: row.note,
+    // Chi tiết M6 Tiền (chỉ category money, còn lại null) — server/vuongMacTien.ts
+    chiTiet: docChiTietTien(row.category, row.chi_tiet),
     resolvedNote: row.resolved_note,
     resolvedBy: row.resolved_by,
     resolvedAt: row.resolved_at,
@@ -85403,6 +85560,14 @@ app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, re
     if (FIVE_M_CATEGORIES.includes(category)) {
       params.push(category);
       conds.push(`b.category = $${params.length}`);
+    }
+    const loaiTien = String(req.query.loaiTien || "").trim();
+    if (category === "money" && loaiTien && coCotChiTiet()) {
+      if (loaiTien === "none") conds.push(`(b.chi_tiet IS NULL OR b.chi_tiet->>'loai' IS NULL)`);
+      else if (LOAI_TIEN.includes(loaiTien)) {
+        params.push(loaiTien);
+        conds.push(`b.chi_tiet->>'loai' = $${params.length}`);
+      }
     }
     const likeEsc = (v) => v.replace(/[\\%_]/g, (m) => `\\${m}`);
     if (q) {
@@ -85860,9 +86025,13 @@ app.post(
   async (req, res) => {
     try {
       const { hex: hex3, category, content, handler, bot, solution, note, priority } = req.body;
+      const kiem = kiemChiTietTien(category, req.body.chiTiet, String(hex3));
+      if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
+      const chiTiet = kiem.value;
       const me2 = await getVuongMacActor(req);
       const actor = me2.username;
       const ready = await hasWorkflowSchema();
+      if (chiTiet && !coCotChiTiet()) return res.status(409).json({ success: false, message: CHI_TIET_SQL_HINT });
       const [duocThem, prod] = await Promise.all([
         canAddToVuongMacThread(me2, hex3, category),
         ready ? productionOfHex(String(hex3)) : null
@@ -85890,6 +86059,10 @@ app.post(
             vals.push(/* @__PURE__ */ new Date(), actor);
           }
         }
+        if (chiTiet) {
+          cols.push("chi_tiet");
+          vals.push(JSON.stringify(chiTiet));
+        }
         const result = await client.query(
           `INSERT INTO vuong_mac (${cols.join(", ")}) VALUES (${vals.map((_, i) => `$${i + 1}`).join(", ")})
            RETURNING id, hex`,
@@ -85897,9 +86070,17 @@ app.post(
         );
         const inserted = result.rows[0];
         await client.query(
-          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
-           VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
-          [inserted.id, hex3, category, content, actor]
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, detail, snapshot, actor)
+           VALUES ($1, $2, 'CREATE', $3, $4, $5, $6::jsonb, $7)`,
+          [
+            inserted.id,
+            hex3,
+            category,
+            content,
+            chiTiet ? `Chi ti\u1EBFt M6: ${moTaChiTietTien(chiTiet)}` : null,
+            chiTiet ? JSON.stringify({ chiTiet }) : null,
+            actor
+          ]
         );
         return inserted;
       });
@@ -85987,6 +86168,23 @@ app.put(
       ];
       if (category !== void 0) push("category", category);
       if (content !== void 0) push("content", content);
+      const effCategory = String(category ?? old.category);
+      const chiTietCu = docChiTietTien(old.category, old.chi_tiet);
+      let chiTietMoi;
+      if (req.body.chiTiet !== void 0) {
+        const kiem = kiemChiTietTien(effCategory, req.body.chiTiet, String(old.hex));
+        if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
+        chiTietMoi = kiem.value;
+      } else if (effCategory !== "money" && old.chi_tiet != null) {
+        chiTietMoi = null;
+      }
+      if (chiTietMoi !== void 0 && (!cungChiTiet(chiTietCu, chiTietMoi) || chiTietMoi === null && old.chi_tiet != null)) {
+        if (!coCotChiTiet()) return res.status(409).json({ success: false, message: CHI_TIET_SQL_HINT });
+        push("chi_tiet", chiTietMoi ? JSON.stringify(chiTietMoi) : null);
+        if (!cungChiTiet(chiTietCu, chiTietMoi)) logs.push(`Chi ti\u1EBFt M6: ${moTaChiTietTien(chiTietCu)} \u2192 ${moTaChiTietTien(chiTietMoi)}`);
+      } else {
+        chiTietMoi = void 0;
+      }
       let newHandler;
       if (handler !== void 0) {
         newHandler = (handler ?? "").trim() || null;
@@ -86117,9 +86315,19 @@ app.put(
         );
         const updated = result.rows[0];
         await client.query(
-          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [updated.id, updated.hex, action, updated.category, old.content, updated.content, detail, actor]
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, snapshot, actor)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)`,
+          [
+            updated.id,
+            updated.hex,
+            action,
+            updated.category,
+            old.content,
+            updated.content,
+            detail,
+            chiTietMoi !== void 0 ? JSON.stringify({ chiTiet: chiTietMoi, chiTietTruoc: chiTietCu }) : null,
+            actor
+          ]
         );
         return updated;
       });
@@ -86407,6 +86615,117 @@ app.get("/api/vuong-mac/people", authenticateJWT, async (_req, res) => {
   } catch (error61) {
     console.error("L\u1ED7i /api/vuong-mac/people:", error61);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var tongVatTuCache = createCache(1);
+var layTongVatTuTheoHex = () => cachedByVersions(tongVatTuCache, "tong-vat-tu", ["material", "production"], async () => {
+  const r = await timedQuery(
+    `WITH ${materialCodesCte(`AND UPPER(COALESCE(v.trang_thai, '') || ' ' || COALESCE(v.trang_thai_sap, '')) NOT LIKE '%H\u1EE6Y%'`)},
+     p AS (SELECT DISTINCT hex::text AS hex FROM production_status_app WHERE hex IS NOT NULL),
+     x AS (SELECT DISTINCT m.id, m.hex FROM m JOIN p ON p.hex = m.hex),
+     d AS (SELECT id, COUNT(*) AS n FROM x GROUP BY id)
+     SELECT x.hex, SUM(COALESCE(v.thanh_tien, 0) / d.n) AS tong
+     FROM x JOIN d ON d.id = x.id JOIN vat_tu v ON v.id = x.id
+     GROUP BY x.hex`,
+    [],
+    { timeoutMs: 3e4, workMemMb: 32 }
+  );
+  const out = {};
+  for (const row of r.rows) {
+    const t = lamTronVnd(row.tong);
+    if (t !== null) out[String(row.hex)] = t;
+  }
+  return out;
+}, "", "", false);
+var duocXemTienVatTu = async (req) => await userHasPermission(req, "vuong_mac") || await userHasPermission(req, "materials_view_price");
+app.get("/api/vuong-mac/tra-gia", authenticateJWT, requireActiveUser, async (req, res) => {
+  try {
+    const ma = tachDanhSachHex(req.query.hexes);
+    if (ma.length === 0) return res.json({ ketQua: {}, coGiaVatTu: false });
+    if (ma.length > 50) return res.status(400).json({ success: false, message: "T\u1ED1i \u0111a 50 m\xE3 HEX m\u1ED7i l\u1EA7n tra" });
+    const hexOf = new Map(ma.map((m) => [m, chuanHoaHex(m) ?? m]));
+    const [r, coGiaVatTu] = await Promise.all([
+      timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, ma_cong_trinh,
+                don_gia_co_oh, tri_gia_don_hang_tong, dvt, co_gia_cong_ngoai
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`,
+        [[...new Set(hexOf.values())]],
+        { timeoutMs: 15e3 }
+      ),
+      duocXemTienVatTu(req)
+    ]);
+    let tong2 = null;
+    if (coGiaVatTu && r.rows.length) {
+      try {
+        tong2 = await layTongVatTuTheoHex();
+      } catch (error61) {
+        console.error("L\u1ED7i t\u1ED5ng v\u1EADt t\u01B0 theo HEX (M6):", error61);
+      }
+    }
+    const theoHex = /* @__PURE__ */ new Map();
+    for (const row of r.rows) theoHex.set(String(row.hex), row);
+    const ketQua = {};
+    for (const m of ma) {
+      const h = hexOf.get(m);
+      const row = theoHex.get(h);
+      if (!row) continue;
+      ketQua[m] = {
+        tenHangMuc: row.ten_hang_muc ?? null,
+        tenCongTrinh: row.ten_cong_trinh ? canonicalProjectName(row.ten_cong_trinh) : null,
+        maCongTrinh: row.ma_cong_trinh ?? null,
+        donGia: lamTronVnd(row.don_gia_co_oh),
+        // VNĐ (gốc)
+        triGia: trieuSangVnd(row.tri_gia_don_hang_tong),
+        // triệu -> VNĐ
+        dvt: row.dvt ?? null,
+        coGiaCongNgoai: coGiaCongNgoai(row.co_gia_cong_ngoai),
+        tongVatTu: tong2 ? tong2[h] ?? null : null
+        // VNĐ
+      };
+    }
+    res.json({ ketQua, coGiaVatTu });
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/tra-gia:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+var goiYVatTuCache = createCache(1);
+app.get("/api/vuong-mac/m6/goi-y-vat-tu", authenticateJWT, async (req, res) => {
+  try {
+    if (!await userHasPermission(req, "vuong_mac")) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem g\u1EE3i \xFD M6" });
+    const ds2 = await cachedByVersions(goiYVatTuCache, "goi-y-vat-tu", ["material", "production"], async () => {
+      const tong2 = await layTongVatTuTheoHex();
+      const hexes = Object.keys(tong2).filter((h) => tong2[h] > 0);
+      if (hexes.length === 0) return [];
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, tri_gia_don_hang_tong, tinh_trang
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`,
+        [hexes],
+        { timeoutMs: 2e4 }
+      );
+      return locGoiYVatTu(r.rows, tong2, 300, canonicalProjectName);
+    });
+    const daBao = /* @__PURE__ */ new Map();
+    const ready = await hasWorkflowSchema();
+    if (ds2.length && coCotChiTiet()) {
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex) hex, id FROM vuong_mac
+         WHERE category = 'money' AND chi_tiet->>'loai' = 'vat_tu_vuot_gia' AND hex = ANY($1::text[])
+           AND ${ready ? `status <> 'closed'` : "is_resolved = FALSE"}
+         ORDER BY hex, created_at DESC, id DESC`,
+        [ds2.map((d) => d.hex)],
+        { timeoutMs: 1e4 }
+      );
+      for (const row of r.rows) daBao.set(String(row.hex), Number(row.id));
+    }
+    res.json({ ds: ds2.map((d) => ({ ...d, daBaoId: daBao.get(d.hex) ?? null })) });
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/m6/goi-y-vat-tu:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
 var FACTORY_CODE_COL = "ma_nha_may";
@@ -88354,14 +88673,14 @@ app.post("/api/xuong/thiet-bi", async (req, res) => {
     fail(res, e, "/api/xuong/thiet-bi");
   }
 });
-var soHuuHan = external_exports.number().finite();
+var soHuuHan2 = external_exports.number().finite();
 var suKienSchema = external_exports.object({
   id: external_exports.string().uuid(),
   loai: external_exports.enum(LOAI_SU_KIEN),
   hex: external_exports.string().max(20).nullish(),
   congDoanId: external_exports.string().max(40).nullish(),
   toId: external_exports.number().int().positive().nullish(),
-  soLuong: soHuuHan.min(0).max(1e6).nullish(),
+  soLuong: soHuuHan2.min(0).max(1e6).nullish(),
   congDoanDenId: external_exports.string().max(40).nullish(),
   congDoanNguonId: external_exports.string().max(40).nullish(),
   xuongNguon: external_exports.string().max(20).nullish(),
@@ -88370,8 +88689,8 @@ var suKienSchema = external_exports.object({
   tienDo: external_exports.number().int().min(0).max(100).nullish(),
   ghiChu: external_exports.string().max(1e3).nullish(),
   duLieu: external_exports.record(external_exports.string(), external_exports.unknown()).nullish(),
-  deviceTs: soHuuHan,
-  lechMs: soHuuHan.nullish(),
+  deviceTs: soHuuHan2,
+  lechMs: soHuuHan2.nullish(),
   sauDoiGio: external_exports.boolean().optional(),
   userId: external_exports.number().int().positive().nullish(),
   suaCho: external_exports.string().uuid().nullish()

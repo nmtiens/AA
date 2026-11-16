@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { RefreshCw, Plus, Download, Search as SearchIcon, AlertTriangle, Clock, CheckCircle2, Lock, Flame, Siren } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
-  fetchVuongMacDashboard, fetchVuongMacAllStrict, fetchHandlerNames, UNAUTHORIZED,
+  fetchVuongMacDashboard, fetchVuongMacAllStrict, fetchHandlerNames, goiYVatTu, UNAUTHORIZED, LOAI_TIEN,
   type VuongMacDashboard, type VuongMacItem, type VmGroupStat, type FiveMCategory, type VmStatus, type VuongMacQuery,
+  type GoiYVatTu, type LoaiTien, type HexHit, type ChiTietTien,
 } from '../../services/vuongMacService';
 import { fetchXuongList } from '../../services/vuongMacMobileApi';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +13,7 @@ import { STATUS_META, PRIORITY_META, CAT_CODE, CAT_NAME, fmtHours, fmtShort, fmt
 import * as bang from '../shared/bangBaoCao';
 import { fmtInt } from '../../utils/format';
 import { DetailSheet, FormSheet, StatusPill, PriorityPill } from './sheets';
+import { LOAI_TIEN_META, fmtDong } from './tienM6';
 import { BOP_STAGE_ORDER } from '../../utils/productionMetrics';
 
 // ============================================================================
@@ -38,8 +40,10 @@ interface ListFilter {
   sort: '' | 'bot' | 'oldest' | 'priority'; from: string; to: string; mine: '' | 'assignee' | 'reporter';
   /** Lọc theo tên công trình (tham số congTrinh — chỉ so tên công trình, không lẫn nội dung như ô tìm) */
   congTrinh: string;
+  /** M6: lọc theo loại vấn đề tiền ('none' = M6 chưa phân loại); chỉ dùng khi cat = money */
+  loaiTien: LoaiTien | 'none' | '';
 }
-const DEFAULT_LIST: ListFilter = { tab: 'active', q: '', cat: '', handler: '', xuong: '', stage: '', due: '', sort: 'bot', from: '', to: '', mine: '', congTrinh: '' };
+const DEFAULT_LIST: ListFilter = { tab: 'active', q: '', cat: '', handler: '', xuong: '', stage: '', due: '', sort: 'bot', from: '', to: '', mine: '', congTrinh: '', loaiTien: '' };
 // Giá trị người xử lý đặc biệt: vướng mắc chưa giao ai (handler rỗng) — backend hiểu `__none__`
 const HANDLER_NONE = '__none__';
 const NONE_LABEL = 'Chưa giao';
@@ -113,6 +117,10 @@ export default function VuongMacManager() {
   const [listLoading, setListLoading] = useState(false);
   const [detail, setDetail] = useState<VuongMacItem | null>(null);
   const [creating, setCreating] = useState(false);
+  // "Báo M6" từ gợi ý: mở form điền sẵn HEX + loại vat_tu_vuot_gia
+  const [baoM6, setBaoM6] = useState<{ preset: HexHit; tien: ChiTietTien } | null>(null);
+  // HEX vừa báo M6 "vật tư vượt giá" trong phiên này (gợi ý hiện "Đã báo #id" ngay, khỏi chờ tải lại)
+  const [vuaBaoM6, setVuaBaoM6] = useState<Record<string, number>>({});
   const [qInput, setQInput] = useState('');
   const [nhomTab, setNhomTab] = useState<NhomTab>('cat');
   // Giữ nguyên object khi q không đổi (vd. pick vừa xoá ô tìm) => không tải lại danh sách thừa
@@ -123,6 +131,7 @@ export default function VuongMacManager() {
     return {
       status: f.tab === 'all' ? 'all' : undefined, st: tab.st.length ? tab.st : '', q: f.q, category: f.cat, handler: f.handler,
       xuong: f.xuong, stage: f.stage, due: f.due, sort: f.sort, from: f.from, to: f.to, mine: f.mine, congTrinh: f.congTrinh,
+      loaiTien: f.cat === 'money' ? f.loaiTien : '',
       page: p, pageSize: size,
     };
   }, [f]);
@@ -139,6 +148,8 @@ export default function VuongMacManager() {
   }, [query, flash]);
   useEffect(() => { loadList(1); }, [loadList]);
 
+  // Lọc loại vấn đề tiền (loaiTien) làm ở máy chủ (/api/vuong-mac/all) => tổng + phân trang đúng theo bộ lọc
+  const shownRows = rows;
   const refreshAll = () => { loadDash(); loadList(page); };
   const applyChange = (next: VuongMacItem | null, msg: string) => {
     flash(msg);
@@ -168,9 +179,14 @@ export default function VuongMacManager() {
         'Hạn nhập kho hạng mục': fmtDay(v.deadline), 'Xử lý xong lúc': fmtShort(v.resolvedAt), 'Nội dung đã xử lý': v.resolvedNote ?? '',
         'Đóng lúc': fmtShort(v.closedAt), 'Người đóng': v.closedBy ?? '', 'Số lần gia hạn': v.extensions?.length ?? 0,
         'Đã báo quản lý': v.escalatedAt ? 'Có' : '', 'Số ảnh': v.photos?.length ?? 0,
+        'Vấn đề tiền (M6)': v.category === 'money' && v.chiTiet?.loai ? LOAI_TIEN_META[v.chiTiet.loai].label : '',
+        'HEX cùng sản phẩm': v.chiTiet?.hexTrung?.join(', ') ?? '',
+        'Chi phí GCVT (đ)': v.chiTiet?.chiPhiGcvt ?? '',
+        'Giải trình': v.chiTiet?.giaiTrinh ?? '',
+        'Ghi chú tiền': v.chiTiet?.ghiChu ?? '',
       }));
       const ws = XLSX.utils.json_to_sheet(data);
-      ws['!cols'] = [5, 6, 11, 30, 30, 10, 10, 14, 16, 14, 14, 10, 50, 30, 24, 12, 12, 16, 20, 16, 34, 14, 16, 40, 16, 12, 8, 10, 6].map(wch => ({ wch }));
+      ws['!cols'] = [5, 6, 11, 30, 30, 10, 10, 14, 16, 14, 14, 10, 50, 30, 24, 12, 12, 16, 20, 16, 34, 14, 16, 40, 16, 12, 8, 10, 6, 30, 30, 14, 40, 30].map(wch => ({ wch }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Vuong mac');
       XLSX.writeFile(wb, `vuong_mac_${todayISO()}.xlsx`);
@@ -334,6 +350,12 @@ export default function VuongMacManager() {
         </Panel>
       </div>
 
+      {/* Gợi ý M6: tổng vật tư > trị giá sản phẩm (admin / quản lý vướng mắc) */}
+      <GoiYM6Panel daBao={vuaBaoM6} onMo={openById} onBao={g => setBaoM6({
+        preset: { hex: g.hex, hangMuc: g.tenHangMuc, congTrinh: g.tenCongTrinh },
+        tien: { loai: 'vat_tu_vuot_gia' },
+      })} />
+
       {/* 4. Danh sách */}
       <div ref={listRef} className="scroll-mt-4" />
       <Panel title="Danh sách vướng mắc" sub={`${fmtInt(total)} mục · bấm 1 dòng để mở chi tiết (nhận xử lý, báo xong, xác nhận đóng, trao đổi)`}
@@ -353,10 +375,17 @@ export default function VuongMacManager() {
             <SearchIcon size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input value={qInput} onChange={e => setQInput(e.target.value)} placeholder="Tìm nội dung, HEX, công trình, người…" className="w-64 rounded-lg border border-slate-300 py-1.5 pl-8 pr-2" />
           </div>
-          <select value={f.cat} onChange={e => set({ cat: e.target.value as FiveMCategory | '' })} className="rounded-lg border border-slate-300 px-2 py-1.5">
+          <select value={f.cat} onChange={e => set({ cat: e.target.value as FiveMCategory | '', loaiTien: '' })} className="rounded-lg border border-slate-300 px-2 py-1.5">
             <option value="">Mọi loại</option>
             {(Object.keys(CAT_CODE) as FiveMCategory[]).map(c => <option key={c} value={c}>{CAT_CODE[c]} · {CAT_NAME[c]}</option>)}
           </select>
+          {f.cat === 'money' && (
+            <select value={f.loaiTien} onChange={e => set({ loaiTien: e.target.value as ListFilter['loaiTien'] })} className="rounded-lg border border-slate-300 px-2 py-1.5" title="Loại vấn đề tiền (M6)">
+              <option value="">Mọi vấn đề tiền</option>
+              {LOAI_TIEN.map(l => <option key={l} value={l}>{LOAI_TIEN_META[l].icon} {LOAI_TIEN_META[l].label}</option>)}
+              <option value="none">Chưa phân loại</option>
+            </select>
+          )}
           <select value={f.xuong} onChange={e => set({ xuong: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1.5">
             <option value="">Mọi khu vực SX</option>
             {xuongs.map(x => <option key={x} value={x}>{x}</option>)}
@@ -401,7 +430,7 @@ export default function VuongMacManager() {
               </tr>
             </thead>
             <tbody>
-              {rows.map(v => {
+              {shownRows.map(v => {
                 const cd = botCountdown(v);
                 const mine = me && v.handler && v.handler.trim().toLowerCase() === (me.fullName ?? '').trim().toLowerCase();
                 return (
@@ -413,7 +442,10 @@ export default function VuongMacManager() {
                       <p className="truncate text-xs text-slate-500" title={v.hangMuc ?? ''}>{v.hangMuc || ''}</p>
                     </td>
                     <td className={`${bang.tdB} max-w-[360px]`}><p className="line-clamp-3 text-slate-800">{v.content}</p>{(v.photos?.length ?? 0) > 0 && <span className="text-xs text-slate-400">📷 {v.photos!.length}</span>}</td>
-                    <td className={bang.tdSo}>{CAT_CODE[v.category]}</td>
+                    <td className={bang.tdSo}>
+                      {CAT_CODE[v.category]}
+                      {v.category === 'money' && v.chiTiet?.loai && <span className="block whitespace-nowrap text-xs text-slate-500" title={LOAI_TIEN_META[v.chiTiet.loai].label}>{LOAI_TIEN_META[v.chiTiet.loai].short}</span>}
+                    </td>
                     <td className={`${bang.tdB} whitespace-nowrap`}>{v.xuong || '—'}<br /><span className="text-xs text-slate-500">{v.stage || '—'}{v.bop && v.stage && !String(v.bop).toUpperCase().startsWith(v.stage) ? ` → ${String(v.bop).slice(0, 4)}` : ''}</span></td>
                     <td className={`${bang.tdB} whitespace-nowrap`}>{v.handler ? <span className={mine ? 'font-medium text-indigo-700' : 'text-slate-700'}>{v.handler}</span> : <span className="text-amber-700">Chưa giao</span>}</td>
                     <td className={`${bang.tdB} whitespace-nowrap`}>
@@ -425,7 +457,7 @@ export default function VuongMacManager() {
                   </tr>
                 );
               })}
-              {!listLoading && rows.length === 0 && <tr><td colSpan={8} className="px-3 py-8 text-center text-slate-400">Không có vướng mắc nào khớp bộ lọc.</td></tr>}
+              {!listLoading && shownRows.length === 0 && <tr><td colSpan={8} className="px-3 py-8 text-center text-slate-400">Không có vướng mắc nào khớp bộ lọc.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -438,7 +470,14 @@ export default function VuongMacManager() {
         </div>
       </Panel>
 
-      {detail && !creating && <DetailSheet v={detail} onClose={() => setDetail(null)} onChanged={applyChange} flash={flash} />}
+      {baoM6 && (
+        <FormSheet preset={baoM6.preset} presetTien={baoM6.tien} onClose={() => setBaoM6(null)}
+          onDone={(item, msg) => {
+            if (item.category === 'money' && item.chiTiet?.loai === 'vat_tu_vuot_gia') setVuaBaoM6(m => ({ ...m, [item.hex]: item.id }));
+            setBaoM6(null); flash(msg); setDetail(item); loadDash(); loadList(1);
+          }} />
+      )}
+      {detail && !creating && !baoM6 && <DetailSheet v={detail} onClose={() => setDetail(null)} onChanged={applyChange} flash={flash} />}
       {creating && <FormSheet onClose={() => setCreating(false)} onDone={(item, msg) => { setCreating(false); flash(msg); setDetail(item); loadDash(); loadList(1); }} />}
     </div>
     </div>
@@ -556,5 +595,113 @@ function GroupTable({ rows, label, onPick, active, showAvg }: {
         )}
       </table>
     </div>
+  );
+}
+
+// ---------------- Gợi ý M6: giá vật tư > giá sản phẩm ----------------
+// Chỉ tải khi bấm mở (không gọi DB mỗi lần vào trang); máy chủ trả 403 với người không có quyền quản lý => ẩn hẳn
+const GOI_Y_TRANG = 30;
+function GoiYM6Panel({ onBao, onMo, daBao }: {
+  onBao: (g: GoiYVatTu) => void;
+  /** Mở chi tiết vướng mắc đã báo */
+  onMo: (id: number) => void;
+  /** HEX -> id vướng mắc vừa báo trong phiên (bổ sung cho daBaoId máy chủ trả) */
+  daBao: Record<string, number>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [ds, setDs] = useState<GoiYVatTu[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [hidden, setHidden] = useState(false);
+  const [q, setQ] = useState('');
+  const [n, setN] = useState(GOI_Y_TRANG);
+
+  const load = useCallback(async () => {
+    setLoading(true); setErr('');
+    try { setDs(await goiYVatTu()); }
+    catch (e: any) {
+      const m = String(e?.message ?? '');
+      if (/403|quyền/i.test(m)) setHidden(true);
+      else setErr(m === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : (m || 'Không tải được gợi ý'));
+    } finally { setLoading(false); }
+  }, []);
+  const daTai = useRef(false);
+  useEffect(() => { if (open && !daTai.current) { daTai.current = true; load(); } }, [open, load]);
+
+  const loc = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return (ds ?? []).filter(g => !t || [g.hex, g.tenHangMuc, g.tenCongTrinh].some(x => String(x ?? '').toLowerCase().includes(t)));
+  }, [ds, q]);
+  if (hidden) return null;
+
+  return (
+    <Panel title="💰 Gợi ý M6: giá vật tư > giá sản phẩm"
+      sub="Hạng mục (không huỷ) có tổng tiền vật tư lớn hơn trị giá sản phẩm, chênh nhiều nhất lên đầu (dòng vật tư mua chung nhiều HEX chia đều). Bấm Báo M6 để mở form điền sẵn; HEX đã có M6 chưa đóng hiện “Đã báo #id”."
+      right={
+        <div className="flex items-center gap-2 text-sm">
+          {open && (
+            <button onClick={load} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Tải lại
+            </button>
+          )}
+          <button onClick={() => setOpen(o => !o)} aria-expanded={open} className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">
+            {open ? 'Thu gọn' : `Xem gợi ý${ds ? ` (${fmtInt(ds.length)})` : ''}`}
+          </button>
+        </div>
+      }>
+      {open && (
+        <>
+          {err && <p className="mb-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">{err}</p>}
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+            <div className="relative">
+              <SearchIcon size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={q} onChange={e => { setQ(e.target.value); setN(GOI_Y_TRANG); }} placeholder="Tìm HEX, hạng mục, công trình…" className="w-64 rounded-lg border border-slate-300 py-1.5 pl-8 pr-2" />
+            </div>
+            {ds && <span className="text-slate-500">{fmtInt(loc.length)} hạng mục{ds.length >= 300 ? ' (máy chủ trả tối đa 300)' : ''}</span>}
+          </div>
+          <div className={`${bang.khung} max-h-[480px]`}>
+            <table className={`${bang.table} min-w-[820px]`}>
+              <thead className={bang.thead}>
+                <tr>
+                  {['HEX · Hạng mục', 'Công trình', 'Trị giá SP', 'Tổng vật tư', 'Chênh', ''].map((h, i) => <th key={i} className={`${bang.thC} whitespace-nowrap`}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {loc.slice(0, n).map(g => (
+                  <tr key={g.hex} className="align-top hover:bg-slate-50">
+                    <td className={`${bang.tdB} max-w-[300px]`}>
+                      <p className="font-semibold text-slate-900">HEX {g.hex}</p>
+                      <p className="truncate text-xs text-slate-500" title={g.tenHangMuc ?? ''}>{g.tenHangMuc || '—'}</p>
+                    </td>
+                    <td className={`${bang.tdB} max-w-[260px] truncate`} title={g.tenCongTrinh ?? ''}>{g.tenCongTrinh || '—'}</td>
+                    <td className={`${bang.tdSo} whitespace-nowrap`}>{fmtDong(g.triGia)}</td>
+                    <td className={`${bang.tdSo} whitespace-nowrap`}>{fmtDong(g.tongVatTu)}</td>
+                    <td className={`${bang.tdSo} whitespace-nowrap font-semibold text-red-600`}>{g.chenh !== null && g.chenh !== undefined ? `+${fmtDong(g.chenh)}` : '—'}</td>
+                    <td className={`${bang.tdB} whitespace-nowrap text-right`}>
+                      {(() => {
+                        // Đã có M6 "vật tư vượt giá" chưa đóng cho HEX này => mở cái đã báo, không tạo trùng
+                        const id = daBao[g.hex] ?? g.daBaoId;
+                        return id
+                          ? <button onClick={() => onMo(id)} title="Mở vướng mắc đã báo" className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-800 hover:bg-emerald-100">Đã báo #{id}</button>
+                          : <button onClick={() => onBao(g)} className="rounded-lg bg-slate-900 px-3 py-1 text-sm font-medium text-white hover:bg-slate-700">Báo M6</button>;
+                      })()}
+                    </td>
+                  </tr>
+                ))}
+                {ds && loc.length === 0 && (
+                  <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">{ds.length ? 'Không có hạng mục khớp ô tìm.' : 'Không có hạng mục nào có tiền vật tư vượt giá sản phẩm.'}</td></tr>
+                )}
+                {!ds && loading && <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">Đang tải…</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {loc.length > n && (
+            <button onClick={() => setN(x => x + GOI_Y_TRANG)} className="mt-2 text-sm text-blue-700 underline">
+              Xem thêm {fmtInt(Math.min(GOI_Y_TRANG, loc.length - n))} dòng
+            </button>
+          )}
+        </>
+      )}
+    </Panel>
   );
 }

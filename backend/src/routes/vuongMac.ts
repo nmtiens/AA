@@ -15,6 +15,12 @@ import { app } from '../server/app.js';
 import { userHasPermission, loadUserAccess } from '../server/permissions.js';
 import { giuHamSong } from '../server/sharedCache.js';
 import { taoNhoNgan, taoNhoTheoKhoa } from '../server/nhoNgan.js';
+import { cachedByVersions, createCache } from '../server/cache.js';
+import { materialCodesCte } from './data.js';
+import {
+  chiTietTienSchema, kiemChiTietTien, docChiTietTien, cungChiTiet, moTaChiTietTien, tachDanhSachHex,
+  trieuSangVnd, lamTronVnd, coGiaCongNgoai, locGoiYVatTu, chuanHoaHex, LOAI_TIEN, type ChiTietTien, type DongSanPham,
+} from '../server/vuongMacTien.js';
 
 // ============================================================================
 // VƯỚNG MẮC SẢN XUẤT (6M: 5M + Money) — QUY TRÌNH XỬ LÝ
@@ -54,6 +60,8 @@ const vuongMacCreateSchema = z.object({
   solution: z.string().max(2000).optional().nullable(),
   note: z.string().max(2000).optional().nullable(),
   priority: z.enum(PRIORITIES).optional(),
+  // Chi tiết M6 Tiền (chỉ category money) — kiểm sâu ở kiemChiTietTien (server/vuongMacTien.ts)
+  chiTiet: chiTietTienSchema.optional().nullable(),
 });
 const vuongMacUpdateSchema = z.object({
   category: z.enum(FIVE_M_CATEGORIES).optional(),
@@ -69,6 +77,8 @@ const vuongMacUpdateSchema = z.object({
   bot: z.string().max(200).optional().nullable(),
   solution: z.string().max(2000).optional().nullable(),
   note: z.string().max(2000).optional().nullable(),
+  // Chi tiết M6 Tiền: gửi => ghi lại (null = xoá); không gửi => giữ (đổi sang loại 6M khác thì tự xoá)
+  chiTiet: chiTietTienSchema.optional().nullable(),
 });
 const vuongMacExtendSchema = z.object({
   content: z.string().trim().min(1).max(2000),
@@ -88,27 +98,38 @@ const WORKFLOW_COLUMN_LIST = [
   'accepted_at', 'accepted_by', 'closed_at', 'closed_by', 'escalated_at',
 ];
 const WORKFLOW_SQL_HINT = 'Máy chủ chưa chạy file SQL backend/sql/2026-10-10_vuong_mac_quy_trinh.sql — thao tác này cần cột quy trình mới';
+const CHI_TIET_SQL_HINT = 'Máy chủ chưa chạy file SQL backend/sql/2026-11-16_vuong_mac_chi_tiet.sql — chưa lưu được chi tiết M6 Tiền';
 
-// ---------- Cột quy trình đã có trên DB chưa (kiểm tra lại mỗi phút cho tới khi có) ----------
+// ---------- Cột quy trình (escalated_at) + cột chi_tiet (M6) đã có trên DB chưa (kiểm lại mỗi phút cho tới khi đủ) ----------
 let workflowReady: boolean | null = null;
+// Cột chi_tiet (jsonb, SQL 2026-11-16): cập nhật cùng lần kiểm với workflowReady. Mọi nơi dùng selectVm / vmCols đều
+// gọi hasWorkflowSchema() trước nên cờ này luôn đã được đọc.
+let chiTietReady = false;
 let workflowCheckedAt = 0;
 export async function hasWorkflowSchema(): Promise<boolean> {
-  if (workflowReady === true) return true;
+  if (workflowReady === true && chiTietReady) return true;
   if (workflowReady !== null && Date.now() - workflowCheckedAt < 60_000) return workflowReady;
   try {
     const r = await pool.query(
-      `SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'vuong_mac' AND column_name = 'escalated_at'`);
-    workflowReady = r.rows.length > 0;
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = current_schema() AND table_name = 'vuong_mac' AND column_name IN ('escalated_at', 'chi_tiet')`);
+    const cols = new Set(r.rows.map(row => String(row.column_name)));
+    workflowReady = cols.has('escalated_at');
+    chiTietReady = cols.has('chi_tiet');
   } catch {
     workflowReady = false;
+    chiTietReady = false;
   }
   workflowCheckedAt = Date.now();
   return workflowReady;
 }
+/** Cột chi_tiet (M6) đã có chưa — gọi sau hasWorkflowSchema() */
+const coCotChiTiet = () => chiTietReady;
 
 const vmCols = (ready: boolean, alias = 'vm') => [
   ...BASE_COLUMN_LIST.map(c => `${alias}.${c}`),
   ...WORKFLOW_COLUMN_LIST.map(c => (ready ? `${alias}.${c}` : `NULL AS ${c}`)),
+  chiTietReady ? `${alias}.chi_tiet` : 'NULL::jsonb AS chi_tiet',
 ].join(', ');
 
 // Dòng sản xuất mới nhất của HEX: công trình / hạng mục / xưởng / công đoạn / hạn nhập kho
@@ -323,6 +344,8 @@ const mapVuongMacRow = (
     bot: row.bot,
     solution: row.solution,
     note: row.note,
+    // Chi tiết M6 Tiền (chỉ category money, còn lại null) — server/vuongMacTien.ts
+    chiTiet: docChiTietTien(row.category, row.chi_tiet),
     resolvedNote: row.resolved_note,
     resolvedBy: row.resolved_by,
     resolvedAt: row.resolved_at,
@@ -630,6 +653,16 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
     if ((FIVE_M_CATEGORIES as readonly string[]).includes(category)) {
       params.push(category);
       conds.push(`b.category = $${params.length}`);
+    }
+    // loaiTien (chỉ khi category=money, cột chi_tiet đã có): nhieu_gia | gia_thap_gcvt | vat_tu_vuot_gia | none (chưa phân loại)
+    // Lọc ở câu SQL nên tổng + phân trang đúng theo bộ lọc
+    const loaiTien = String(req.query.loaiTien || '').trim();
+    if (category === 'money' && loaiTien && coCotChiTiet()) {
+      if (loaiTien === 'none') conds.push(`(b.chi_tiet IS NULL OR b.chi_tiet->>'loai' IS NULL)`);
+      else if ((LOAI_TIEN as readonly string[]).includes(loaiTien)) {
+        params.push(loaiTien);
+        conds.push(`b.chi_tiet->>'loai' = $${params.length}`);
+      }
     }
     // Thoát ký tự đại diện % _ \ trong chữ tìm (như hex-search)
     const likeEsc = (v: string) => v.replace(/[\\%_]/g, m => `\\${m}`);
@@ -1078,10 +1111,15 @@ app.post(
   async (req: Request, res: Response) => {
     try {
       const { hex, category, content, handler, bot, solution, note, priority } = req.body;
+      // Chi tiết M6 Tiền: kiểm theo loại (nhieu_gia cần HEX trùng, gia_thap_gcvt cần giải trình); loại 6M khác => null
+      const kiem = kiemChiTietTien(category, req.body.chiTiet, String(hex));
+      if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
+      const chiTiet: ChiTietTien | null = kiem.value;
       const me = await getVuongMacActor(req);
       const actor = me.username;
 
       const ready = await hasWorkflowSchema(); // đã nhớ trong instance
+      if (chiTiet && !coCotChiTiet()) return res.status(409).json({ success: false, message: CHI_TIET_SQL_HINT });
       // Kiểm quyền và đọc dòng sản xuất độc lập nhau: chạy song song (2 kết nối của pool). Bị 403 thì chỉ thừa 1 câu đọc.
       const [duocThem, prod] = await Promise.all([
         canAddToVuongMacThread(me, hex, category),
@@ -1103,16 +1141,20 @@ app.post(
             prod?.tenCongTrinh ?? null, prod?.maCongTrinh ?? null, prod?.tenHangMuc ?? null);
           if (hasHandler) { cols.push('accepted_at', 'accepted_by'); vals.push(new Date(), actor); }
         }
+        if (chiTiet) { cols.push('chi_tiet'); vals.push(JSON.stringify(chiTiet)); }
         const result = await client.query(
           `INSERT INTO vuong_mac (${cols.join(', ')}) VALUES (${vals.map((_, i) => `$${i + 1}`).join(', ')})
            RETURNING id, hex`,
           vals
         );
         const inserted = result.rows[0];
+        // M6 có chi tiết: ghi kèm mô tả (detail) + bản chụp { chiTiet } (snapshot). Màn "đã xoá" chỉ đọc snapshot của DELETE.
         await client.query(
-          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
-           VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
-          [inserted.id, hex, category, content, actor]
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, detail, snapshot, actor)
+           VALUES ($1, $2, 'CREATE', $3, $4, $5, $6::jsonb, $7)`,
+          [inserted.id, hex, category, content,
+            chiTiet ? `Chi tiết M6: ${moTaChiTietTien(chiTiet)}` : null,
+            chiTiet ? JSON.stringify({ chiTiet }) : null, actor]
         );
         return inserted;
       });
@@ -1198,6 +1240,24 @@ app.put(
 
       if (category !== undefined) push('category', category);
       if (content !== undefined) push('content', content);
+      // Chi tiết M6 Tiền: gửi chiTiet => kiểm theo loại 6M sau khi sửa; không gửi mà đổi sang loại khác money => xoá
+      const effCategory = String(category ?? old.category);
+      const chiTietCu = docChiTietTien(old.category, old.chi_tiet);
+      let chiTietMoi: ChiTietTien | null | undefined;
+      if (req.body.chiTiet !== undefined) {
+        const kiem = kiemChiTietTien(effCategory, req.body.chiTiet, String(old.hex));
+        if (!kiem.ok) return res.status(400).json({ success: false, message: kiem.message });
+        chiTietMoi = kiem.value;
+      } else if (effCategory !== 'money' && old.chi_tiet != null) {
+        chiTietMoi = null;
+      }
+      if (chiTietMoi !== undefined && (!cungChiTiet(chiTietCu, chiTietMoi) || (chiTietMoi === null && old.chi_tiet != null))) {
+        if (!coCotChiTiet()) return res.status(409).json({ success: false, message: CHI_TIET_SQL_HINT });
+        push('chi_tiet', chiTietMoi ? JSON.stringify(chiTietMoi) : null);
+        if (!cungChiTiet(chiTietCu, chiTietMoi)) logs.push(`Chi tiết M6: ${moTaChiTietTien(chiTietCu)} → ${moTaChiTietTien(chiTietMoi)}`);
+      } else {
+        chiTietMoi = undefined;
+      }
       let newHandler: string | null | undefined;
       if (handler !== undefined) {
         newHandler = (handler ?? '').trim() || null;
@@ -1301,10 +1361,12 @@ app.put(
           values
         );
         const updated = result.rows[0];
+        // Đổi chi tiết M6: bản chụp { chiTiet (mới), chiTietTruoc } vào snapshot
         await client.query(
-          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [updated.id, updated.hex, action, updated.category, old.content, updated.content, detail, actor]
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, snapshot, actor)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)`,
+          [updated.id, updated.hex, action, updated.category, old.content, updated.content, detail,
+            chiTietMoi !== undefined ? JSON.stringify({ chiTiet: chiTietMoi, chiTietTruoc: chiTietCu }) : null, actor]
         );
         return updated;
       });
@@ -1614,6 +1676,144 @@ app.get('/api/vuong-mac/people', authenticateJWT, async (_req: Request, res: Res
   } catch (error) {
     console.error('Lỗi /api/vuong-mac/people:', error);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// ============================================================================
+// M6 TIỀN: tra giá các HEX + gợi ý "vật tư vượt giá" (hàm thuần ở server/vuongMacTien.ts)
+// ĐƠN VỊ (đọc DB thật 16/11/2026): production_status_app.don_gia_co_oh = VNĐ, tri_gia_don_hang_tong = TRIỆU đồng,
+// vat_tu.thanh_tien = VNĐ  =>  2 API dưới đây trả MỌI số tiền bằng VNĐ (trị giá nhân 1.000.000, làm tròn đồng).
+// ============================================================================
+
+// Tổng tiền vật tư (VNĐ) theo HEX trên TOÀN bảng vat_tu — cùng cách khớp mã như /api/material/by-hex
+// (routes/data.ts materialCodesCte): ô ma_nha_may (dãy 13 số bỏ 4 số đầu / dãy 9 số) hoặc mã 13 số ở item_note_pr.
+// Bỏ dòng PR đã HỦY (như hex-counts / tab BOM). Dòng mua gộp cho nhiều HEX: CHIA ĐỀU thanh_tien cho số HEX trong ô
+// (không chia thì 1 cây vải mua cho 4 hạng mục bị cộng đủ tiền vào cả 4). Chỉ đếm/chia cho HEX CÓ THẬT trong bảng sản
+// xuất: ô gõ sai mã (DB 16/11: 4 dòng, vd '1004260409307 1004260519569' chỉ 1 mã có thật) không làm giảm phần của HEX thật.
+// HEX không khớp dòng vật tư nào: không có khoá. CÁCH CHIA ĐỀU chờ chủ app xác nhận (giao diện ghi rõ "đã chia đều").
+// ~29k dòng vật tư, ~0,8 s => nhớ theo phiên bản bảng vat_tu + bảng sản xuất (chỉ đổi khi ETL nạp).
+const tongVatTuCache = createCache<Record<string, number>>(1);
+const layTongVatTuTheoHex = () => cachedByVersions(tongVatTuCache, 'tong-vat-tu', ['material', 'production'], async () => {
+  const r = await timedQuery(
+    `WITH ${materialCodesCte(`AND UPPER(COALESCE(v.trang_thai, '') || ' ' || COALESCE(v.trang_thai_sap, '')) NOT LIKE '%HỦY%'`)},
+     p AS (SELECT DISTINCT hex::text AS hex FROM production_status_app WHERE hex IS NOT NULL),
+     x AS (SELECT DISTINCT m.id, m.hex FROM m JOIN p ON p.hex = m.hex),
+     d AS (SELECT id, COUNT(*) AS n FROM x GROUP BY id)
+     SELECT x.hex, SUM(COALESCE(v.thanh_tien, 0) / d.n) AS tong
+     FROM x JOIN d ON d.id = x.id JOIN vat_tu v ON v.id = x.id
+     GROUP BY x.hex`,
+    [],
+    { timeoutMs: 30000, workMemMb: 32 }
+  );
+  const out: Record<string, number> = {};
+  for (const row of r.rows) {
+    const t = lamTronVnd(row.tong);
+    if (t !== null) out[String(row.hex)] = t;
+  }
+  return out;
+}, '', '', false);
+
+// Tổng vật tư là tiền mua vật tư => chỉ trả cho người có quyền quản lý vướng mắc hoặc "Xem Giá/NCC" vật tư (ADMIN có cả)
+const duocXemTienVatTu = async (req: Request) =>
+  (await userHasPermission(req, 'vuong_mac')) || (await userHasPermission(req, 'materials_view_price'));
+
+// GET /api/vuong-mac/tra-gia?hexes=a,b,c (<= 50 mã; mã nhà máy 13 số tự cắt về HEX)
+// -> { ketQua: { [mã gửi lên]: { tenHangMuc, tenCongTrinh, maCongTrinh, donGia, triGia, dvt, coGiaCongNgoai, tongVatTu } },
+//      coGiaVatTu }  — tiền VNĐ. Mã không có trong bảng sản xuất: không có khoá trong ketQua.
+// tongVatTu = null khi HEX không khớp dòng vật tư nào, hoặc người xem không có quyền xem tiền vật tư (coGiaVatTu = false).
+// Dùng cho form báo M6 (Một HEX nhiều giá: hiện giá cạnh từng mã; Giá thấp GCVT / Vật tư vượt giá: số của HEX chính).
+app.get('/api/vuong-mac/tra-gia', authenticateJWT, requireActiveUser, async (req: Request, res: Response) => {
+  try {
+    const ma = tachDanhSachHex(req.query.hexes);
+    if (ma.length === 0) return res.json({ ketQua: {}, coGiaVatTu: false });
+    if (ma.length > 50) return res.status(400).json({ success: false, message: 'Tối đa 50 mã HEX mỗi lần tra' });
+    const hexOf = new Map<string, string>(ma.map((m): [string, string] => [m, chuanHoaHex(m) ?? m]));
+    const [r, coGiaVatTu] = await Promise.all([
+      timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, ma_cong_trinh,
+                don_gia_co_oh, tri_gia_don_hang_tong, dvt, co_gia_cong_ngoai
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`,
+        [[...new Set(hexOf.values())]],
+        { timeoutMs: 15000 }
+      ),
+      duocXemTienVatTu(req),
+    ]);
+    let tong: Record<string, number> | null = null;
+    if (coGiaVatTu && r.rows.length) {
+      // Lỗi tính tổng vật tư không làm hỏng phần giá sản phẩm
+      try { tong = await layTongVatTuTheoHex(); } catch (error) { console.error('Lỗi tổng vật tư theo HEX (M6):', error); }
+    }
+    const theoHex = new Map<string, any>();
+    for (const row of r.rows) theoHex.set(String(row.hex), row);
+    const ketQua: Record<string, {
+      tenHangMuc: string | null; tenCongTrinh: string | null; maCongTrinh: string | null; donGia: number | null;
+      triGia: number | null; dvt: string | null; coGiaCongNgoai: boolean; tongVatTu: number | null;
+    }> = {};
+    for (const m of ma) {
+      const h = hexOf.get(m)!;
+      const row = theoHex.get(h);
+      if (!row) continue;
+      ketQua[m] = {
+        tenHangMuc: row.ten_hang_muc ?? null,
+        tenCongTrinh: row.ten_cong_trinh ? canonicalProjectName(row.ten_cong_trinh) : null,
+        maCongTrinh: row.ma_cong_trinh ?? null,
+        donGia: lamTronVnd(row.don_gia_co_oh),                 // VNĐ (gốc)
+        triGia: trieuSangVnd(row.tri_gia_don_hang_tong),        // triệu -> VNĐ
+        dvt: row.dvt ?? null,
+        coGiaCongNgoai: coGiaCongNgoai(row.co_gia_cong_ngoai),
+        tongVatTu: tong ? (tong[h] ?? null) : null,             // VNĐ
+      };
+    }
+    res.json({ ketQua, coGiaVatTu });
+  } catch (error) {
+    console.error('Lỗi /api/vuong-mac/tra-gia:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+// GET /api/vuong-mac/m6/goi-y-vat-tu -> { ds: [{ hex, tenHangMuc, tenCongTrinh, triGia, tongVatTu, chenh }] } (VNĐ)
+// Hạng mục không HỦY, trị giá > 0, tổng vật tư > trị giá; chênh giảm dần, tối đa 300. Chỉ người quản lý vướng mắc
+// (quyền "vuong_mac" như /dashboard; ADMIN có sẵn). Nhớ theo phiên bản vat_tu + bảng sản xuất (+ bảng tên công trình):
+// mở lại trang không chạy lại câu nào, chỉ tính lại sau khi ETL nạp.
+const goiYVatTuCache = createCache<ReturnType<typeof locGoiYVatTu>>(1);
+app.get('/api/vuong-mac/m6/goi-y-vat-tu', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    if (!(await userHasPermission(req, 'vuong_mac'))) return res.status(403).json({ success: false, message: 'Không có quyền xem gợi ý M6' });
+    const ds = await cachedByVersions(goiYVatTuCache, 'goi-y-vat-tu', ['material', 'production'], async () => {
+      const tong = await layTongVatTuTheoHex();
+      const hexes = Object.keys(tong).filter(h => tong[h] > 0);
+      if (hexes.length === 0) return [];
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, tri_gia_don_hang_tong, tinh_trang
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`,
+        [hexes],
+        { timeoutMs: 20000 }
+      );
+      return locGoiYVatTu(r.rows as DongSanPham[], tong, 300, canonicalProjectName);
+    });
+    // Vướng mắc M6 "vật tư vượt giá" CHƯA ĐÓNG đã báo cho các HEX gợi ý (không nhớ: báo xong phải thấy ngay) —
+    // giao diện hiện "Đã báo #id" thay nút Báo M6 để khỏi báo trùng. Câu nhỏ (lọc category + loại), chỉ khi có cột.
+    const daBao = new Map<string, number>();
+    const ready = await hasWorkflowSchema(); // cũng cập nhật cờ cột chi_tiet
+    if (ds.length && coCotChiTiet()) {
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex) hex, id FROM vuong_mac
+         WHERE category = 'money' AND chi_tiet->>'loai' = 'vat_tu_vuot_gia' AND hex = ANY($1::text[])
+           AND ${ready ? `status <> 'closed'` : 'is_resolved = FALSE'}
+         ORDER BY hex, created_at DESC, id DESC`,
+        [ds.map(d => d.hex)],
+        { timeoutMs: 10000 }
+      );
+      for (const row of r.rows) daBao.set(String(row.hex), Number(row.id));
+    }
+    res.json({ ds: ds.map(d => ({ ...d, daBaoId: daBao.get(d.hex) ?? null })) });
+  } catch (error) {
+    console.error('Lỗi /api/vuong-mac/m6/goi-y-vat-tu:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
   }
 });
 

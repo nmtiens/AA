@@ -24,6 +24,54 @@ export type VmStatus = typeof VM_STATUSES[number];
 export const VM_PRIORITIES = ['normal', 'high', 'urgent'] as const;
 export type VmPriority = typeof VM_PRIORITIES[number];
 
+// ---------------------------------------------------------------------------
+// M6 Tiền: 3 loại vấn đề, lưu ở cột vuong_mac.chi_tiet (jsonb). Chỉ có khi category = 'money'.
+//   nhieu_gia        Một HEX nhiều giá: xưởng nhìn hàng thật thấy vài mã HEX là cùng 1 sản phẩm mà giá khác nhau
+//   gia_thap_gcvt    Giá quá thấp so với quy mô, gia công vệ tinh vượt cost -> không GCVT được (bắt buộc giải trình)
+//   vat_tu_vuot_gia  Tổng tiền vật tư của hạng mục > giá sản phẩm
+// ---------------------------------------------------------------------------
+export const LOAI_TIEN = ['nhieu_gia', 'gia_thap_gcvt', 'vat_tu_vuot_gia'] as const;
+export type LoaiTien = typeof LOAI_TIEN[number];
+
+export interface ChiTietTien {
+  loai: LoaiTien;
+  /** Các mã HEX (9 số) cùng sản phẩm với HEX chính — không gồm HEX chính, không trùng */
+  hexTrung?: string[];
+  /** Chi phí GCVT báo giá, ĐƠN VỊ VNĐ */
+  chiPhiGcvt?: number;
+  giaiTrinh?: string;
+  ghiChu?: string;
+}
+
+/** Kết quả tra giá 1 HEX. MỌI SỐ TIỀN Ở ĐÂY LÀ VNĐ (máy chủ đã đổi từ đơn vị gốc trong DB) */
+export interface TraGiaHex {
+  tenHangMuc: string | null;
+  tenCongTrinh: string | null;
+  maCongTrinh: string | null;
+  /** Đơn giá sản phẩm (VNĐ) */
+  donGia: number | null;
+  /** Trị giá đơn hàng của hạng mục (VNĐ) */
+  triGia: number | null;
+  dvt: string | null;
+  coGiaCongNgoai: boolean | string | null;
+  /** Tổng tiền vật tư của HEX (VNĐ). null: không khớp vật tư nào, HOẶC người xem không có quyền (coGiaVatTu = false) */
+  tongVatTu: number | null;
+  /** false = người đang đăng nhập không có quyền xem tiền vật tư (máy chủ trả coGiaVatTu cho cả lần tra) */
+  coGiaVatTu?: boolean;
+}
+
+/** Gợi ý M6 cho admin: hạng mục có tổng vật tư > trị giá sản phẩm (VNĐ) */
+export interface GoiYVatTu {
+  hex: string;
+  tenHangMuc: string | null;
+  tenCongTrinh: string | null;
+  triGia: number | null;
+  tongVatTu: number | null;
+  chenh: number | null;
+  /** Id vướng mắc M6 "vật tư vượt giá" chưa đóng đã báo cho HEX này (null = chưa báo) */
+  daBaoId?: number | null;
+}
+
 /** Quyền của người đang đăng nhập trên 1 vướng mắc (server tính) */
 export interface VmPerms { edit: boolean; work: boolean; close: boolean; delete: boolean }
 
@@ -80,6 +128,8 @@ export interface VuongMacItem {
   /** Hạn nhập kho của hạng mục (KH tuần -> KH tháng), YYYY-MM-DD */
   deadline?: string | null;
   ngayCanGiao?: string | null;
+  /** Chi tiết M6 Tiền (null với loại khác / bản cũ chưa phân loại) */
+  chiTiet?: ChiTietTien | null;
   perms?: VmPerms;
   canModify?: boolean; // = perms.edit (cũ)
 }
@@ -92,6 +142,8 @@ export interface VuongMacExtra {
   solution: string;
   note: string;
   priority?: VmPriority;
+  /** Chỉ gửi khi category = 'money' */
+  chiTiet?: ChiTietTien | null;
 }
 
 export interface VuongMacExtendInput {
@@ -110,6 +162,7 @@ export interface VuongMacSnapshot {
   createdDepartment?: string | null; // phòng khi backend đặt tên khác
   updatedBy?: string | null;
   updatedAt?: string | null;
+  chiTiet?: ChiTietTien | null;
 }
 
 export interface VuongMacLogEntry {
@@ -237,6 +290,8 @@ export type VuongMacPatch = Partial<{
   solution: string;
   note: string;
   resolvedNote: string; // bắt buộc khi isResolved = true
+  /** M6 Tiền; null = bỏ (khi đổi sang loại khác) */
+  chiTiet: ChiTietTien | null;
 }>;
 
 export const updateVuongMac = async (id: number, patch: VuongMacPatch): Promise<VuongMacItem | null> => {
@@ -321,6 +376,8 @@ export interface VuongMacQuery {
   handler?: string;
   stage?: string;
   priority?: VmPriority | '';
+  /** Lọc M6 theo loại vấn đề tiền ('none' = M6 chưa phân loại) — máy chủ lọc (chỉ khi category = money) */
+  loaiTien?: LoaiTien | 'none' | '';
 }
 
 export interface VuongMacPage { data: VuongMacItem[]; total: number; page: number; pageSize: number; workflow: boolean }
@@ -545,3 +602,37 @@ export const fetchVuongMacPhotoUrl = (photoId: number): Promise<string> => {
   }
   return p;
 };
+
+// ---------------------------------------------------------------------------
+// M6 Tiền: tra giá theo danh sách HEX + gợi ý "giá vật tư > giá sản phẩm"
+// ---------------------------------------------------------------------------
+const TRA_GIA_MAX = 50;      // máy chủ nhận tối đa 50 mã / lần
+const TRA_GIA_TTL = 60_000;  // nhớ kết quả 1 phút: thêm / bỏ từng mã không gọi lại mã đã tra
+const traGiaCache = new Map<string, { at: number; v: TraGiaHex | null }>();
+// Kết quả phụ thuộc quyền người xem (tổng vật tư) => đổi người đăng nhập (đổi token) thì bỏ hết bản nhớ
+let traGiaToken: string | null = null;
+
+/** Tra tên hạng mục, công trình, đơn giá, trị giá, tổng vật tư (VNĐ) của các HEX. Mã không có trong dữ liệu => không có trong kết quả */
+export const traGia = async (hexes: string[]): Promise<Record<string, TraGiaHex>> => {
+  const now = Date.now();
+  const token = getToken();
+  if (token !== traGiaToken) { traGiaCache.clear(); traGiaToken = token; }
+  const ds = [...new Set(hexes.map(h => h.trim()).filter(Boolean))];
+  const thieu = ds.filter(h => { const c = traGiaCache.get(h); return !c || now - c.at > TRA_GIA_TTL; });
+  for (let i = 0; i < thieu.length; i += TRA_GIA_MAX) {
+    const lo = thieu.slice(i, i + TRA_GIA_MAX);
+    const d = await callJson<{ ketQua?: Record<string, TraGiaHex>; coGiaVatTu?: boolean }>(
+      `/api/vuong-mac/tra-gia?hexes=${encodeURIComponent(lo.join(','))}`);
+    if (getToken() !== traGiaToken) break; // đổi người giữa chừng: không nhớ kết quả của người trước
+    const kq = d.ketQua ?? {};
+    const coGia = d.coGiaVatTu !== false;
+    lo.forEach(h => traGiaCache.set(h, { at: now, v: kq[h] ? { ...kq[h], coGiaVatTu: coGia } : null }));
+  }
+  const out: Record<string, TraGiaHex> = {};
+  ds.forEach(h => { const v = traGiaCache.get(h)?.v; if (v) out[h] = v; });
+  return out;
+};
+
+/** Gợi ý M6 (admin / quản lý vướng mắc): hạng mục không huỷ có tổng vật tư > trị giá, chênh giảm dần, tối đa 300 */
+export const goiYVatTu = async (): Promise<GoiYVatTu[]> =>
+  (await callJson<{ ds?: GoiYVatTu[] }>('/api/vuong-mac/m6/goi-y-vat-tu')).ds ?? [];

@@ -18,6 +18,7 @@ import {
 import { getToken } from '../../../../services/userService';
 import { PhotoThumbs, PhotoViewer } from '../../../shared/VuongMacPhoto';
 import { DISPLAY_META, displayState } from '../../../VuongMac/model';
+import { TienM6View } from '../../../VuongMac/TienM6Form';
 
 // VuongMacItem có thêm handler?, bot?, solution?, note?, resolvedNote?, extensions?, createdDepartment?, canModify? (xem vuongMacService)
 type ChatItem = VuongMacItem;
@@ -961,6 +962,11 @@ export const VuongMacDetailModal = ({
                     size="h-24 w-24"
                     onOpen={(i) => setPhotoViewer({ ids: detail.photos ?? [], idx: i })}
                   />
+                </div>
+              )}
+              {detail.category === 'money' && detail.chiTiet?.loai && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                  <TienM6View hex={detail.hex} ct={detail.chiTiet} dense />
                 </div>
               )}
               <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2.5 text-sm">

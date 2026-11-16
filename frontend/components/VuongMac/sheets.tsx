@@ -5,10 +5,10 @@ import {
   ChevronDown, ChevronUp, AlertTriangle, CalendarClock, Factory, Search as SearchIcon, X as XIcon,
 } from 'lucide-react';
 import {
-  type VuongMacItem, type VuongMacLogEntry, type FiveMCategory, type VmStatus, type VmPriority, type HexHit,
+  type VuongMacItem, type VuongMacLogEntry, type FiveMCategory, type VmStatus, type VmPriority, type HexHit, type ChiTietTien,
   UNAUTHORIZED, FIVE_M_CATEGORIES, FIVE_M_LABELS, VM_PRIORITIES,
   changeVuongMacStatus, commentVuongMac, extendVuongMacStrict, deleteVuongMacStrict, fetchVuongMacLog,
-  createVuongMacStrict, updateVuongMacStrict, uploadVuongMacPhoto, deleteVuongMacPhoto, fetchHexSearch, fetchPeople,
+  createVuongMacStrict, updateVuongMacStrict, uploadVuongMacPhoto, deleteVuongMacPhoto, fetchHexSearch, fetchPeople, traGia,
 } from '../../services/vuongMacService';
 import { useAuth } from '../../context/AuthContext';
 import { AuthImg } from '../shared/VuongMacPhoto';
@@ -23,6 +23,8 @@ import {
   fmtShort, fmtDay, fmtAgo, BOT_PRESETS, dateToLocalInput, botTextToLocalInput, localInputToBot,
   loadRecentHex, pushRecentHex, initials,
 } from './model';
+import { TienM6Fields, TienM6View } from './TienM6Form';
+import { LOAI_TIEN_META, thieuTruongTien, chuanHoaChiTiet, noiDungTuDong } from './tienM6';
 
 // ============================================================================
 // Các cửa sổ (sheet) dùng chung cho app điện thoại và màn quản lý trên web:
@@ -102,7 +104,7 @@ export function VmCard({ v, onOpen, me }: { v: VuongMacItem; onOpen: () => void;
       </p>
       <p className="mt-1.5 line-clamp-2 text-base text-slate-700">{v.content}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
-        <span>{catIcon(v.category)} {CAT_CODE[v.category] ?? FIVE_M_LABELS[v.category]}</span>
+        <span>{catIcon(v.category)} {CAT_CODE[v.category] ?? FIVE_M_LABELS[v.category]}{v.category === 'money' && v.chiTiet?.loai ? ` · ${LOAI_TIEN_META[v.chiTiet.loai].short}` : ''}</span>
         {v.stage && <span>🧩 {v.stage}</span>}
         {v.xuong && <span>🏭 {v.xuong}</span>}
         {v.handler && <span className={mineHandler ? 'font-medium text-indigo-700' : ''}>👤 {mineHandler ? 'Tôi xử lý' : v.handler}</span>}
@@ -389,6 +391,7 @@ export function DetailSheet({ v, onClose, onChanged, onOpenHex, flash }: {
             <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">Nội dung vướng mắc</p>
             <p className="whitespace-pre-line">{v.content}</p>
           </div>
+          {v.category === 'money' && v.chiTiet?.loai && <TienM6View hex={v.hex} ct={v.chiTiet} />}
           {v.solution && (
             <div>
               <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">💡 Giải pháp</p>
@@ -537,10 +540,12 @@ function ScanOverlay({ onResult, onClose }: { onResult: (code: string) => void; 
 }
 
 // ---------------- Báo vướng mắc mới (2 bước) / sửa ----------------
-export function FormSheet({ row, preset, onClose, onDone }: {
+export function FormSheet({ row, preset, presetTien, onClose, onDone }: {
   row?: VuongMacItem;
   /** Hạng mục chọn sẵn (vd. từ tab Tra cứu) */
   preset?: HexHit | null;
+  /** Mở sẵn M6 Tiền với chi tiết điền sẵn (vd. nút "Báo M6" ở gợi ý vật tư > giá) */
+  presetTien?: ChiTietTien | null;
   onClose: () => void;
   onDone: (item: VuongMacItem, msg: string) => void;
 }) {
@@ -557,7 +562,13 @@ export function FormSheet({ row, preset, onClose, onDone }: {
   const recent = useMemo(() => loadRecentHex(), []);
 
   // Bước 2: nội dung
-  const [category, setCategory] = useState<FiveMCategory>(row?.category ?? 'man');
+  const [category, setCategory] = useState<FiveMCategory>(row?.category ?? (presetTien ? 'money' : 'man'));
+  const [tien, setTien] = useState<Partial<ChiTietTien>>(() => row?.chiTiet ?? presetTien ?? {});
+  // Báo mới M6 bắt buộc chọn loại vấn đề tiền; sửa bản cũ chưa phân loại thì không bắt
+  const batBuocLoai = !editing || !!row?.chiTiet?.loai;
+  const scanCb = useRef<((code: string) => void) | null>(null);
+  const [scanTien, setScanTien] = useState(false);
+  const onScanTien = useCallback((code: string) => { setScanTien(false); scanCb.current?.(code); }, []);
   const [content, setContent] = useState(row?.content ?? '');
   const [handler, setHandler] = useState(row?.handler ?? '');
   const [priority, setPriority] = useState<VmPriority>(row?.priority ?? 'normal');
@@ -596,23 +607,39 @@ export function FormSheet({ row, preset, onClose, onDone }: {
 
   const botInvalid = !!(start && end && end < start);
   const newBot = end ? `${localInputToBot(start || dateToLocalInput(new Date()))} - ${localInputToBot(end)}` : '';
-  const canSubmit = !busy && !!content.trim() && (editing || !!picked) && !botInvalid;
+  const laTien = category === 'money';
+  // HEX trùng tính sau khi bỏ HEX chính (đổi HEX chính đúng bằng 1 mã đã thêm) — khớp kiểm tra của máy chủ
+  const tienThieu = laTien ? (batBuocLoai && !tien.loai ? 'Chọn vấn đề tiền' : thieuTruongTien(tien, row?.hex ?? picked?.hex)) : null;
+  // M6 đã chọn loại: để trống nội dung thì app tự soạn từ chi tiết tiền
+  const noiDungTu = laTien && !!tien.loai && !tienThieu;
+  const canSubmit = !busy && (!!content.trim() || noiDungTu) && (editing || !!picked) && !botInvalid && !tienThieu;
 
   const submit = async () => {
     if (!canSubmit) return;
     setBusy(true); setErr('');
     let item: VuongMacItem;
+    const hexChinh = row?.hex ?? picked!.hex;
+    const chiTiet = laTien ? chuanHoaChiTiet(tien, hexChinh) : null;
+    let noiDung = content.trim();
+    if (!noiDung && chiTiet) {
+      // Giá đã tra (service nhớ 1 phút) để câu tự soạn có số; lỗi thì soạn không có số
+      const kq = await traGia([hexChinh, ...(chiTiet.hexTrung ?? [])]).catch(() => ({}) as Awaited<ReturnType<typeof traGia>>);
+      noiDung = noiDungTuDong(hexChinh, chiTiet, kq);
+    }
     try {
       if (row) {
         const patch: Parameters<typeof updateVuongMacStrict>[1] = {
-          category, content: content.trim(), handler: handler.trim(), solution: solution.trim(), note: note.trim(),
+          category, content: noiDung, handler: handler.trim(), solution: solution.trim(), note: note.trim(),
         };
         if (priority !== row.priority) patch.priority = priority;
         if (newBot !== (row.bot ?? '')) patch.bot = newBot;
+        // Đổi sang loại khác => xoá chi tiết tiền; M6 chưa phân loại (bản cũ) mà vẫn không chọn loại => không gửi
+        if (laTien ? !!chiTiet : !!row.chiTiet) patch.chiTiet = chiTiet;
         item = await updateVuongMacStrict(row.id, patch);
       } else {
-        item = await createVuongMacStrict(picked!.hex, category, content.trim(), {
+        item = await createVuongMacStrict(picked!.hex, category, noiDung, {
           handler: handler.trim(), bot: newBot, solution: solution.trim(), note: note.trim(), priority,
+          ...(chiTiet ? { chiTiet } : {}),
         });
         pushRecentHex({ hex: picked!.hex, congTrinh: picked!.congTrinh, hangMuc: picked!.hangMuc, xuong: picked!.xuong });
       }
@@ -644,7 +671,11 @@ export function FormSheet({ row, preset, onClose, onDone }: {
 
   // ---- Bước 1 ----
   if (!editing && step === 1) {
-    const choose = (h: HexHit) => { setPicked(h); setStep(2); };
+    // Chọn lại HEX chính: bỏ nó khỏi danh sách HEX trùng (nếu đã thêm)
+    const choose = (h: HexHit) => {
+      setPicked(h); setStep(2);
+      setTien(t => (t.hexTrung?.includes(h.hex) ? { ...t, hexTrung: t.hexTrung.filter(x => x !== h.hex) } : t));
+    };
     return (
       <BottomSheet title={title} onClose={onClose}>
         <div className="space-y-4">
@@ -709,7 +740,7 @@ export function FormSheet({ row, preset, onClose, onDone }: {
           {err && <p className="mb-2 text-base text-red-600">{err}</p>}
           {!canSubmit && !busy && (
             <p className="mb-2 text-center text-sm text-slate-400">
-              {!editing && !picked ? 'Chọn hạng mục' : !content.trim() ? 'Nhập nội dung vướng mắc' : 'Kiểm tra lại thời gian BOT'} để gửi
+              {!editing && !picked ? 'Chọn hạng mục' : tienThieu ? tienThieu : !content.trim() && !noiDungTu ? 'Nhập nội dung vướng mắc' : 'Kiểm tra lại thời gian BOT'} để gửi
             </p>
           )}
           <div className="flex gap-2">
@@ -742,9 +773,21 @@ export function FormSheet({ row, preset, onClose, onDone }: {
           <p className="mt-1 text-sm text-slate-500">{CAT_HINT[category]}</p>
         </div>
 
-        <LabeledField label="Nội dung vướng mắc" required className="md:col-span-2">
+        {laTien && (
+          <div className="md:col-span-2">
+            <TienM6Fields mainHex={hexInfo?.hex} value={tien} onChange={setTien} batBuocLoai={batBuocLoai}
+              scanButton={canScan() ? them => (
+                <button type="button" aria-label="Quét mã" onClick={() => { scanCb.current = them; setScanTien(true); }}
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white text-slate-700 active:bg-slate-100">
+                  <ScanLine size="1.25em" />
+                </button>
+              ) : undefined} />
+          </div>
+        )}
+
+        <LabeledField label="Nội dung vướng mắc" required={!noiDungTu} className="md:col-span-2">
           <MentionTextarea value={content} onChange={setContent} rows={3} maxLength={2000}
-            placeholder="Đang vướng gì, ảnh hưởng thế nào… Gõ @ để tag người liên quan" className={inputCls} />
+            placeholder={noiDungTu ? 'Để trống thì app tự ghi theo vấn đề tiền ở trên. Gõ @ để tag' : 'Đang vướng gì, ảnh hưởng thế nào… Gõ @ để tag người liên quan'} className={inputCls} />
         </LabeledField>
 
         {/* Ảnh — đưa lên gần nội dung: công nhân chụp ngay hiện trường */}
@@ -812,6 +855,7 @@ export function FormSheet({ row, preset, onClose, onDone }: {
           </>
         )}
       </div>
+      {scanTien && <ScanOverlay onResult={onScanTien} onClose={() => setScanTien(false)} />}
     </BottomSheet>
   );
 }

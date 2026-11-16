@@ -462,7 +462,8 @@ const RE_FACTORY_CODE = `'(^|[^0-9])([0-9]{9}|[0-9]{13})([^0-9]|$)'`;
 const RE_NOTE_CODE = `'(^|[^0-9])[0-9]{13}([^0-9]|$)'`;
 
 // Tách mọi mã của dòng vật tư thành (id, mã, hex, nguồn). extraWhere: điều kiện thêm trên v.
-const materialCodesCte = (extraWhere = '') => `m AS (
+// Dùng chung: routes/vuongMac.ts (M6 — tổng tiền vật tư theo HEX)
+export const materialCodesCte = (extraWhere = '') => `m AS (
   SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex, src.source
   FROM vat_tu v
   CROSS JOIN LATERAL (
