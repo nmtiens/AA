@@ -19241,14 +19241,14 @@ var require_etag = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto4.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto5.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -22798,17 +22798,17 @@ var require_content_disposition = __commonJS({
 // ../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js"(exports) {
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto5.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(input2, secret) {
       if ("string" != typeof input2) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input2.slice(0, input2.lastIndexOf(".")), expectedInput = exports.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input2);
-      return expectedBuffer.length === inputBuffer.length && crypto4.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto5.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -27619,7 +27619,7 @@ var require_main = __commonJS({
     var fs = __require("fs");
     var path = __require("path");
     var os = __require("os");
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -27863,7 +27863,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto4.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto5.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error61) {
@@ -28182,14 +28182,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto4.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto5.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -28279,17 +28279,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac2 = crypto4.createHmac("sha" + bits, secret);
+        var hmac2 = crypto5.createHmac("sha" + bits, secret);
         var sig = (hmac2.update(thing), hmac2.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto4 ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual = "timingSafeEqual" in crypto5 ? function timingSafeEqual2(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto4.timingSafeEqual(a, b);
+      return crypto5.timingSafeEqual(a, b);
     } : function timingSafeEqual2(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -28306,7 +28306,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto4.createSign("RSA-SHA" + bits);
+        var signer = crypto5.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -28316,7 +28316,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto4.createVerify("RSA-SHA" + bits);
+        var verifier = crypto5.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -28325,11 +28325,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto4.createSign("RSA-SHA" + bits);
+        var signer = crypto5.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto5.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto5.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -28339,12 +28339,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto4.createVerify("RSA-SHA" + bits);
+        var verifier = crypto5.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto5.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto5.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -33004,7 +33004,7 @@ var require_cert_signatures = __commonJS({
 var require_sasl = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
-    var crypto4 = require_utils5();
+    var crypto5 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
     function saslprep(password) {
       const nonAsciiSpace = /[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g;
@@ -33022,7 +33022,7 @@ var require_sasl = __commonJS({
       if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream.getPeerCertificate !== "function") {
         throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
       }
-      const clientNonce = crypto4.randomBytes(18).toString("base64");
+      const clientNonce = crypto5.randomBytes(18).toString("base64");
       const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream ? "y" : "n";
       return {
         mechanism,
@@ -33064,20 +33064,20 @@ var require_sasl = __commonJS({
         const peerCert = stream.getPeerCertificate().raw;
         let hashName = signatureAlgorithmHashFromCertificate(peerCert);
         if (hashName === "MD5" || hashName === "SHA-1") hashName = "SHA-256";
-        const certHash = await crypto4.hashByName(hashName, peerCert);
+        const certHash = await crypto5.hashByName(hashName, peerCert);
         const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
         channelBinding = bindingData.toString("base64");
       }
       const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
       const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
       const saltBytes = Buffer.from(sv.salt, "base64");
-      const saltedPassword = await crypto4.deriveKey(saslprep(password), saltBytes, sv.iteration);
-      const clientKey = await crypto4.hmacSha256(saltedPassword, "Client Key");
-      const storedKey = await crypto4.sha256(clientKey);
-      const clientSignature = await crypto4.hmacSha256(storedKey, authMessage);
+      const saltedPassword = await crypto5.deriveKey(saslprep(password), saltBytes, sv.iteration);
+      const clientKey = await crypto5.hmacSha256(saltedPassword, "Client Key");
+      const storedKey = await crypto5.sha256(clientKey);
+      const clientSignature = await crypto5.hmacSha256(storedKey, authMessage);
       const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
-      const serverKey = await crypto4.hmacSha256(saltedPassword, "Server Key");
-      const serverSignatureBytes = await crypto4.hmacSha256(serverKey, authMessage);
+      const serverKey = await crypto5.hmacSha256(saltedPassword, "Server Key");
+      const serverSignatureBytes = await crypto5.hmacSha256(serverKey, authMessage);
       session.message = "SASLResponse";
       session.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
       session.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
@@ -35311,7 +35311,7 @@ var require_client = __commonJS({
     var Query2 = require_query();
     var defaults2 = require_defaults();
     var Connection2 = require_connection();
-    var crypto4 = require_utils5();
+    var crypto5 = require_utils5();
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
@@ -35566,7 +35566,7 @@ var require_client = __commonJS({
       _handleAuthMD5Password(msg) {
         this._getPassword(async () => {
           try {
-            const hashedPassword = await crypto4.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+            const hashedPassword = await crypto5.postgresMd5PasswordHash(this.user, this.password, msg.salt);
             this.connection.password(hashedPassword);
           } catch (e) {
             this.emit("error", e);
@@ -41329,7 +41329,7 @@ var require_urlsafe_base64_helper = __commonJS({
 var require_vapid_helper = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/vapid-helper.js"(exports, module) {
     "use strict";
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var asn1 = require_asn1();
     var jws = require_jws();
     var { URL: URL2 } = __require("url");
@@ -41356,7 +41356,7 @@ var require_vapid_helper = __commonJS({
       });
     }
     function generateVAPIDKeys() {
-      const curve = crypto4.createECDH("prime256v1");
+      const curve = crypto5.createECDH("prime256v1");
       curve.generateKeys();
       let publicKeyBuffer = curve.getPublicKey();
       let privateKeyBuffer = curve.getPrivateKey();
@@ -41506,7 +41506,7 @@ var require_vapid_helper = __commonJS({
 var require_ece = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/http_ece/ece.js"(exports, module) {
     "use strict";
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var AES_GCM = "aes-128-gcm";
     var PAD_SIZE = { "aes128gcm": 1, "aesgcm": 2 };
     var TAG_LENGTH = 16;
@@ -41533,7 +41533,7 @@ var require_ece = __commonJS({
       return b;
     }
     function HMAC_hash(key, input2) {
-      var hmac2 = crypto4.createHmac("sha256", key);
+      var hmac2 = crypto5.createHmac("sha256", key);
       hmac2.update(input2);
       return hmac2.digest();
     }
@@ -41801,7 +41801,7 @@ var require_ece = __commonJS({
     function decryptRecord(key, counter, buffer, header, last) {
       keylog("decrypt", buffer);
       var nonce = generateNonce(key.nonce, counter);
-      var gcm = crypto4.createDecipheriv(AES_GCM, key.key, nonce);
+      var gcm = crypto5.createDecipheriv(AES_GCM, key.key, nonce);
       gcm.setAuthTag(buffer.slice(buffer.length - TAG_LENGTH));
       var data = gcm.update(buffer.slice(0, buffer.length - TAG_LENGTH));
       data = Buffer.concat([data, gcm.final()]);
@@ -41849,7 +41849,7 @@ var require_ece = __commonJS({
       keylog("encrypt", buffer);
       pad = pad || 0;
       var nonce = generateNonce(key.nonce, counter);
-      var gcm = crypto4.createCipheriv(AES_GCM, key.key, nonce);
+      var gcm = crypto5.createCipheriv(AES_GCM, key.key, nonce);
       var ciphertext = [];
       var padSize = PAD_SIZE[header.version];
       var padding = Buffer.alloc(pad + padSize);
@@ -41892,7 +41892,7 @@ var require_ece = __commonJS({
       }
       var header = parseParams(params);
       if (!header.salt) {
-        header.salt = crypto4.randomBytes(KEY_LENGTH);
+        header.salt = crypto5.randomBytes(KEY_LENGTH);
       }
       var result;
       if (header.version === "aes128gcm") {
@@ -41957,7 +41957,7 @@ var require_ece = __commonJS({
 var require_encryption_helper = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/encryption-helper.js"(exports, module) {
     "use strict";
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var ece = require_ece();
     var encrypt = function(userPublicKey, userAuth, payload, contentEncoding) {
       if (!userPublicKey) {
@@ -41984,9 +41984,9 @@ var require_encryption_helper = __commonJS({
       if (typeof payload === "string" || payload instanceof String) {
         payload = Buffer.from(payload);
       }
-      const localCurve = crypto4.createECDH("prime256v1");
+      const localCurve = crypto5.createECDH("prime256v1");
       const localPublicKey = localCurve.generateKeys();
-      const salt = crypto4.randomBytes(16).toString("base64url");
+      const salt = crypto5.randomBytes(16).toString("base64url");
       const cipherText = ece.encrypt(payload, {
         version: contentEncoding,
         dh: userPublicKey,
@@ -47282,7 +47282,7 @@ var require_le_unix = __commonJS({
 var require_mime_node = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
     "use strict";
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var fs = __require("fs");
     var punycode = require_punycode();
     var PassThrough = __require("stream").PassThrough;
@@ -47299,7 +47299,7 @@ var require_mime_node = __commonJS({
       constructor(contentType, options) {
         this.nodeCounter = 0;
         options = options || {};
-        this.baseBoundary = options.baseBoundary || crypto4.randomBytes(8).toString("hex");
+        this.baseBoundary = options.baseBoundary || crypto5.randomBytes(8).toString("hex");
         this.boundaryPrefix = options.boundaryPrefix || "--_NmP";
         this.disableFileAccess = !!options.disableFileAccess;
         this.disableUrlAccess = !!options.disableUrlAccess;
@@ -48242,8 +48242,8 @@ var require_mime_node = __commonJS({
       _generateMessageId() {
         return "<" + [2, 2, 2, 6].reduce(
           // crux to generate UUID-like random strings
-          (prev, len) => prev + "-" + crypto4.randomBytes(len).toString("hex"),
-          crypto4.randomBytes(4).toString("hex")
+          (prev, len) => prev + "-" + crypto5.randomBytes(len).toString("hex"),
+          crypto5.randomBytes(4).toString("hex")
         ) + "@" + // try to use the domain of the FROM address or fallback to server hostname
         (this.getEnvelope().from || this.hostname || "localhost").split("@").pop() + ">";
       }
@@ -48834,14 +48834,14 @@ var require_relaxed_body = __commonJS({
   "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var RelaxedBody = class extends Transform {
       constructor(options) {
         super();
         options = options || {};
         this.chunkBuffer = [];
         this.chunkBufferLen = 0;
-        this.bodyHash = crypto4.createHash(options.hashAlgo || "sha1");
+        this.bodyHash = crypto5.createHash(options.hashAlgo || "sha1");
         this.remainder = "";
         this.byteLength = 0;
         this.debug = options.debug;
@@ -48944,7 +48944,7 @@ var require_sign3 = __commonJS({
     "use strict";
     var punycode = require_punycode();
     var mimeFuncs = require_mime_funcs();
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     module.exports = (headers, hashAlgo, bodyHash, options) => {
       options = options || {};
       let defaultFieldNames = "From:Sender:Reply-To:Subject:Date:Message-ID:To:Cc:MIME-Version:Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive";
@@ -48953,7 +48953,7 @@ var require_sign3 = __commonJS({
       let dkimHeader = generateDKIMHeader(options.domainName, options.keySelector, canonicalizedHeaderData.fieldNames, hashAlgo, bodyHash);
       let signer, signature;
       canonicalizedHeaderData.headers += "dkim-signature:" + relaxedHeaderLine(dkimHeader);
-      signer = crypto4.createSign(("rsa-" + hashAlgo).toUpperCase());
+      signer = crypto5.createSign(("rsa-" + hashAlgo).toUpperCase());
       signer.update(canonicalizedHeaderData.headers);
       try {
         signature = signer.sign(options.privateKey, "base64");
@@ -49021,7 +49021,7 @@ var require_dkim = __commonJS({
     var PassThrough = __require("stream").PassThrough;
     var fs = __require("fs");
     var path = __require("path");
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var DKIM_ALGO = "sha256";
     var MAX_MESSAGE_SIZE = 128 * 1024;
     var DKIMSigner = class {
@@ -49034,7 +49034,7 @@ var require_dkim = __commonJS({
         this.chunks = [];
         this.chunklen = 0;
         this.readPos = 0;
-        this.cachePath = this.cacheDir ? path.join(this.cacheDir, "message." + Date.now() + "-" + crypto4.randomBytes(14).toString("hex")) : false;
+        this.cachePath = this.cacheDir ? path.join(this.cacheDir, "message." + Date.now() + "-" + crypto5.randomBytes(14).toString("hex")) : false;
         this.cache = false;
         this.headers = false;
         this.bodyHash = false;
@@ -49590,7 +49590,7 @@ var require_mailer = __commonJS({
     var MailMessage = require_mail_message();
     var net = __require("net");
     var dns = __require("dns");
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var Mail = class extends EventEmitter {
       constructor(transporter2, options, defaults2) {
         super();
@@ -49914,7 +49914,7 @@ var require_mailer = __commonJS({
           }
           let cidCounter = 0;
           html = (html || "").toString().replace(/(<img\b[^<>]{0,1024} src\s{0,20}=[\s"']{0,20})(data:([^;]+);[^"'>\s]+)/gi, (match, prefix, dataUri, mimeType) => {
-            let cid = crypto4.randomBytes(10).toString("hex") + "@localhost";
+            let cid = crypto5.randomBytes(10).toString("hex") + "@localhost";
             if (!mail.data.attachments) {
               mail.data.attachments = [];
             }
@@ -50041,7 +50041,7 @@ var require_smtp_connection = __commonJS({
     var net = __require("net");
     var tls = __require("tls");
     var os = __require("os");
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var DataStream = require_data_stream2();
     var PassThrough = __require("stream").PassThrough;
     var shared = require_shared();
@@ -50052,7 +50052,7 @@ var require_smtp_connection = __commonJS({
     var SMTPConnection = class extends EventEmitter {
       constructor(options) {
         super(options);
-        this.id = crypto4.randomBytes(8).toString("base64").replace(/\W/g, "");
+        this.id = crypto5.randomBytes(8).toString("base64").replace(/\W/g, "");
         this.stage = "init";
         this.options = options || {};
         this.secureConnection = !!this.options.secure;
@@ -51144,7 +51144,7 @@ var require_smtp_connection = __commonJS({
         } else {
           challengeString = challengeMatch[1];
         }
-        let base64decoded = Buffer.from(challengeString, "base64").toString("ascii"), hmacMD5 = crypto4.createHmac("md5", this._auth.credentials.pass);
+        let base64decoded = Buffer.from(challengeString, "base64").toString("ascii"), hmacMD5 = crypto5.createHmac("md5", this._auth.credentials.pass);
         hmacMD5.update(base64decoded);
         let prepended = this._auth.credentials.user + " " + hmacMD5.digest("hex");
         this._responseActions.push((str2) => {
@@ -51455,7 +51455,7 @@ var require_xoauth2 = __commonJS({
     "use strict";
     var Stream = __require("stream").Stream;
     var nmfetch = require_fetch();
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var shared = require_shared();
     var XOAuth2 = class extends Stream {
       constructor(options, logger) {
@@ -51746,7 +51746,7 @@ var require_xoauth2 = __commonJS({
        */
       jwtSignRS256(payload) {
         payload = ['{"alg":"RS256","typ":"JWT"}', JSON.stringify(payload)].map((val) => this.toBase64URL(val)).join(".");
-        let signature = crypto4.createSign("RSA-SHA256").update(payload).sign(this.options.privateKey);
+        let signature = crypto5.createSign("RSA-SHA256").update(payload).sign(this.options.privateKey);
         return payload + "." + this.toBase64URL(signature);
       }
     };
@@ -55723,6 +55723,7 @@ function boGioiHan(p) {
 boRetry(pool);
 boGioiHan(pool);
 var urlMra = boSslmode(process.env.DATABASE_URL_MRA);
+var coDbMra = !!urlMra;
 var poolMra = urlMra ? new Pool({
   connectionString: urlMra,
   // Supabase luôn bắt SSL (kể cả chạy ở máy)
@@ -56607,8 +56608,8 @@ var getPeriodRangeFromKey = (value, granularity) => {
     const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
     return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
   }
-  const iso2 = d.toISOString().slice(0, 10);
-  return { start: iso2, end: iso2 };
+  const iso3 = d.toISOString().slice(0, 10);
+  return { start: iso3, end: iso3 };
 };
 var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, params) => {
   if (upperBound) {
@@ -76923,6 +76924,2107 @@ app.get("/api/cong-trinh/hang-muc", async (_req, res) => {
   }
 });
 
+// src/server/xuong/viTriBop.ts
+import crypto2 from "node:crypto";
+
+// src/server/xuong/state.ts
+var soSanhSuKien = (a, b) => a.ts - b.ts || a.serverTs - b.serverTs || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+function suKienConHieuLuc(events) {
+  const byId = new Map(events.map((e) => [e.id, e]));
+  const huyBiVoHieu = /* @__PURE__ */ new Set();
+  for (const e of events) {
+    if (e.loai !== "huy" || !e.suaCho) continue;
+    const dich = byId.get(e.suaCho);
+    if (dich?.loai === "huy") huyBiVoHieu.add(dich.id);
+  }
+  const biHuy = /* @__PURE__ */ new Set();
+  for (const e of events) {
+    if (e.loai !== "huy" || !e.suaCho || huyBiVoHieu.has(e.id)) continue;
+    const dich = byId.get(e.suaCho);
+    if (dich && dich.loai !== "huy") biHuy.add(dich.id);
+  }
+  return events.filter((e) => e.loai !== "huy" && !biHuy.has(e.id)).sort(soSanhSuKien);
+}
+var so = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var THANH_PHAN = ["G\u1ED6", "SOFA", "KIM LO\u1EA0I", "K\xCDNH", "\u0110\xC1"];
+var dsChuoi = (v) => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
+function tuyenTheoThanhPhan(evts) {
+  const m = /* @__PURE__ */ new Map();
+  for (const e of suKienConHieuLuc(evts)) {
+    if (e.loai === "trien_khai") {
+      const tp2 = Array.isArray(e.duLieu?.thanhPhan) ? e.duLieu.thanhPhan : null;
+      if (tp2) for (const x of tp2) {
+        const t = dsChuoi(x?.tuyen);
+        if (t.length) m.set(String(x?.ten ?? ""), t);
+      }
+      else {
+        const t = dsChuoi(e.duLieu?.tuyen);
+        if (t.length) m.set("", t);
+      }
+    } else if (e.loai === "khai_bao_cd" && typeof e.duLieu?.thanhPhan === "string") {
+      const t = dsChuoi(e.duLieu?.tuyen);
+      if (t.length) m.set(e.duLieu.thanhPhan, t);
+    }
+  }
+  return [...m.entries()].map(([thanhPhan, tuyen]) => ({ thanhPhan, tuyen }));
+}
+function slGiaoDenDongBo(incoming, tuyen, congDoanId) {
+  const tong2 = incoming.reduce((a, e) => a + so(e.soLuong), 0);
+  if (!congDoanId) return tong2;
+  const qua = tuyen.filter((t) => t.tuyen.includes(congDoanId));
+  if (qua.length < 2) return tong2;
+  const theoTp = new Map(qua.map((t) => [t.thanhPhan, 0]));
+  let chung = 0;
+  for (const e of incoming) {
+    let tp2 = null;
+    if (e.loai === "khai_bao_cd" && typeof e.duLieu?.thanhPhan === "string" && theoTp.has(e.duLieu.thanhPhan)) {
+      tp2 = e.duLieu.thanhPhan;
+    } else if (e.congDoanId) {
+      const nhanh = qua.filter((t) => {
+        const i = t.tuyen.indexOf(e.congDoanId);
+        return i >= 0 && i < t.tuyen.indexOf(congDoanId);
+      });
+      if (nhanh.length && nhanh.length < qua.length) tp2 = nhanh[0].thanhPhan;
+    }
+    if (tp2 === null) chung += so(e.soLuong);
+    else theoTp.set(tp2, (theoTp.get(tp2) ?? 0) + so(e.soLuong));
+  }
+  return chung + Math.min(...theoTp.values());
+}
+function laCuoiTuyen(tuyen, congDoanId) {
+  if (!congDoanId) return false;
+  const qua = tuyen.filter((t) => t.tuyen.includes(congDoanId));
+  return qua.length > 0 && qua.every((t) => t.tuyen[t.tuyen.length - 1] === congDoanId);
+}
+var nhanNgoaiApp = (e) => !!(e.congDoanNguonId || e.xuongNguon);
+function tinhTrangThai(cuaCongDoan, giaoDen2, tuyen = [], congDoanId = null) {
+  const own2 = suKienConHieuLuc(cuaCongDoan);
+  const incoming = suKienConHieuLuc(giaoDen2).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd");
+  const co2 = /* @__PURE__ */ new Set();
+  const slGiaoDen = slGiaoDenDongBo(incoming, tuyen, congDoanId);
+  let slNhan = 0;
+  let slNhanTrongApp = 0;
+  let slHoanThanh = 0;
+  let slGiao = 0;
+  let soNguoi = null;
+  let dangChayTu = null;
+  let tamNgung = false;
+  let daBatDau = false;
+  const doanChay = [];
+  const batDauChay = (e) => {
+    if (dangChayTu !== null) {
+      co2.add("bat_dau_hai_lan");
+    } else {
+      dangChayTu = e.ts;
+      doanChay.push({ start: e.ts, end: null });
+    }
+    if (e.soNguoi !== null && e.soNguoi !== void 0) soNguoi = e.soNguoi;
+    tamNgung = false;
+    daBatDau = true;
+  };
+  const dungChay = (e) => {
+    if (dangChayTu === null) return false;
+    doanChay[doanChay.length - 1].end = e.ts;
+    dangChayTu = null;
+    return true;
+  };
+  for (const e of own2) {
+    switch (e.loai) {
+      case "nhan":
+        slNhan += so(e.soLuong);
+        if (!nhanNgoaiApp(e)) slNhanTrongApp += so(e.soLuong);
+        break;
+      case "bat_dau":
+        batDauChay(e);
+        break;
+      case "tiep_tuc":
+        if (dangChayTu === null && !tamNgung) co2.add("tiep_tuc_khi_chua_tam_ngung");
+        batDauChay(e);
+        break;
+      case "tam_ngung":
+        if (!dungChay(e)) co2.add("tam_ngung_khi_khong_chay");
+        tamNgung = true;
+        break;
+      case "hoan_thanh":
+        if (!daBatDau) co2.add("hoan_thanh_chua_bat_dau");
+        slHoanThanh += so(e.soLuong);
+        if (slHoanThanh >= slNhan) {
+          dungChay(e);
+          tamNgung = false;
+        }
+        break;
+      case "giao":
+        slGiao += so(e.soLuong);
+        break;
+      default:
+        break;
+    }
+  }
+  if (slNhanTrongApp > slGiaoDen) co2.add("nhan_chua_thay_giao");
+  if (slGiao > slHoanThanh) co2.add("giao_vuot_hoan_thanh");
+  if (slHoanThanh > slNhan && slNhan > 0) co2.add("hoan_thanh_vuot_nhan");
+  let trangThai;
+  if (dangChayTu !== null) trangThai = "dang_lam";
+  else if (tamNgung) trangThai = "tam_ngung";
+  else if (slHoanThanh > slGiao && !laCuoiTuyen(tuyen, congDoanId)) trangThai = "cho_giao";
+  else if (slNhan > slHoanThanh) trangThai = "da_nhan";
+  else if (slGiaoDen > slNhan) trangThai = "cho_nhan";
+  else if (slNhan > 0 || slGiao > 0) trangThai = "xong";
+  else trangThai = "cho_nhan";
+  const tatCa = [...own2, ...incoming];
+  const suKienCuoi = tatCa.length ? Math.max(...tatCa.map((e) => e.ts)) : null;
+  return {
+    trangThai,
+    slGiaoDen,
+    slNhan,
+    slHoanThanh,
+    slGiao,
+    soNguoi,
+    dangChayTu,
+    suKienCuoi,
+    doanChay,
+    co: [...co2].sort()
+  };
+}
+
+// src/server/xuong/viTriBop.ts
+var THU_TU_BOP = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
+var MA_HOP_LE = /* @__PURE__ */ new Set(["P012", "P013", "P014", "P016", "P018", "P020", "P021"]);
+var hangBop = (ma) => THU_TU_BOP.indexOf(ma);
+function chuanTen(s) {
+  return String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toUpperCase().replace(/\s+/g, " ").trim().replace(/^\d+[A-Z]*-\s*/, "");
+}
+var CUM_DAC_BIET = [["MAY TINH", "P014"], ["EP NGUOI", "P013"]];
+var TEN_DUNG = {
+  "DAN CANH": "P014",
+  TUBI: "P014",
+  KINH: "P014",
+  DA: "P014",
+  "DONG NHOM": "P016",
+  RESIN: "P018"
+};
+var LUAT = [
+  [["BAO BI"], "P021"],
+  [["GIAO NHAN"], "GIU_TRUOC"],
+  [["FITTING", "DAM VA", "DAN MOUSSE"], "P020"],
+  [["VECNI", "SON", "UV", "PVD"], "P018"],
+  [["MOC", "LAP RAP", "HAN", "NGUOI", "MAY", "BOC NEM"], "P016"],
+  [["TINH", "CNC", "CHA NHAM", "CTS"], "P014"],
+  [["CAT", "LAMINATE", "EP", "PHOI", "VAN LANG"], "P013"]
+];
+var reTu = /* @__PURE__ */ new Map();
+var coTu = (s, kw) => {
+  let re = reTu.get(kw);
+  if (!re) {
+    re = new RegExp(`(^|[^A-Z])${kw}([^A-Z]|$)`);
+    reTu.set(kw, re);
+  }
+  return re.test(s);
+};
+function theoLuat(s, laTenCd) {
+  if (!s) return null;
+  if (!laTenCd && TEN_DUNG[s]) return TEN_DUNG[s];
+  for (const [kw, ma] of CUM_DAC_BIET) if (coTu(s, kw)) return ma;
+  for (const [ds2, ma] of LUAT) {
+    if (ds2.some((kw) => !(laTenCd && kw === "MAY") && coTu(s, kw))) return ma;
+  }
+  return null;
+}
+function goiYMaBop(cdChiTiet, tenCd, laBaoBi, maBopGhiDe) {
+  const ghiDe = String(maBopGhiDe ?? "").trim().toUpperCase();
+  if (/^P0\d\d$/.test(ghiDe) && MA_HOP_LE.has(ghiDe)) return ghiDe;
+  if (laBaoBi) return "P021";
+  return theoLuat(chuanTen(cdChiTiet), false) ?? theoLuat(chuanTen(tenCd), true);
+}
+var goiYCua = (cd) => cd ? goiYMaBop(cd.cdChiTiet, cd.tenCd, cd.laBaoBi, cd.maBop) : null;
+function maCongDoan(cd, dsCdCungXuong, tuyen = [], cdTheoId) {
+  const g = goiYCua(cd);
+  if (g !== "GIU_TRUOC") return g;
+  for (const t of tuyen) {
+    const i = t.indexOf(cd.id);
+    for (let j = i - 1; j >= 0; j--) {
+      const m = goiYCua(cdTheoId?.get(t[j]) ?? dsCdCungXuong.find((x) => x.id === t[j]));
+      if (m && m !== "GIU_TRUOC") return m;
+    }
+  }
+  const tt = cd.thuTu ?? 0;
+  const truoc = dsCdCungXuong.filter((x) => x.id !== cd.id && x.xuong === cd.xuong && (x.thuTu ?? 0) < tt).map((x) => ({ x, m: goiYCua(x) })).filter((v) => !!v.m && v.m !== "GIU_TRUOC").sort((a, b) => (b.x.thuTu ?? 0) - (a.x.thuTu ?? 0));
+  return truoc[0]?.m ?? "P013";
+}
+var iso = (v) => {
+  const t = v ? new Date(v).getTime() : NaN;
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+};
+var msCua = (s) => s ? new Date(s).getTime() : Infinity;
+function chonViTri(vao, opt = {}) {
+  const conHl = suKienConHieuLuc(vao.suKien);
+  const tk = conHl.filter((e) => e.loai === "trien_khai");
+  if (tk.reduce((a, e) => a + (Number(e.soLuong) || 0), 0) <= 0) return null;
+  if (!vao.dong.length) {
+    const ms2 = Math.max(...tk.map((e) => e.serverTs).filter(Number.isFinite));
+    return { ma: "P012", tu: Number.isFinite(ms2) ? new Date(ms2).toISOString() : null, cd: [], trangThai: "trien_khai" };
+  }
+  const chuaXong = vao.dong.filter((d) => d.trangThai !== "xong");
+  if (!chuaXong.length) {
+    opt.giuPc?.();
+    return null;
+  }
+  const tenCua = (d) => vao.cdTheoId.get(d.congDoanId)?.cdChiTiet ?? d.congDoanId;
+  if ((opt.p012KhiChuaNhan ?? true) && chuaXong.length === vao.dong.length && chuaXong.every((d) => d.trangThai === "cho_nhan" && !(d.slNhan > 0))) {
+    const cu = [...chuaXong].sort((a, b) => msCua(a.suKienCuoi) - msCua(b.suKienCuoi))[0];
+    return { ma: "P012", tu: cu.suKienCuoi, cd: [...new Set(chuaXong.map(tenCua))], trangThai: "cho_nhan" };
+  }
+  const tuyen = tuyenTheoThanhPhan(vao.suKien).map((t) => t.tuyen);
+  const ds2 = vao.dsCongDoan ?? [...vao.cdTheoId.values()];
+  const ung = [];
+  for (const d of chuaXong) {
+    const cd = vao.cdTheoId.get(d.congDoanId);
+    const ma = cd ? maCongDoan(cd, ds2, tuyen, vao.cdTheoId) : null;
+    if (!ma) {
+      opt.chuaNoi?.add(tenCua(d));
+      continue;
+    }
+    const tu = d.trangThai === "dang_lam" ? d.dangChayTu ?? d.suKienCuoi : d.suKienCuoi ?? d.dangChayTu;
+    ung.push({ d, ma, tu });
+  }
+  if (!ung.length) return null;
+  const hang = Math.min(...ung.map((u) => hangBop(u.ma)));
+  const chon = ung.filter((u) => hangBop(u.ma) === hang).sort((a, b) => msCua(a.tu) - msCua(b.tu));
+  return { ma: chon[0].ma, tu: chon[0].tu, cd: [...new Set(chon.map((u) => tenCua(u.d)))], trangThai: chon[0].d.trangThai };
+}
+function dungBanDo(dong2, suKien, cd, opt = {}) {
+  const cdTheoId = new Map(cd.map((x) => [x.id, x]));
+  const dongTheoHex = /* @__PURE__ */ new Map();
+  for (const d of dong2) {
+    if (!dongTheoHex.has(d.hex)) dongTheoHex.set(d.hex, []);
+    dongTheoHex.get(d.hex).push(d);
+  }
+  const evTheoHex = /* @__PURE__ */ new Map();
+  for (const e of suKien) {
+    if (!e.hex) continue;
+    if (!evTheoHex.has(e.hex)) evTheoHex.set(e.hex, []);
+    evTheoHex.get(e.hex).push(e);
+  }
+  const map2 = {};
+  const chuaNoi = /* @__PURE__ */ new Set();
+  let giuPc = 0;
+  for (const hex3 of /* @__PURE__ */ new Set([...dongTheoHex.keys(), ...evTheoHex.keys()])) {
+    const v = chonViTri(
+      { dong: dongTheoHex.get(hex3) ?? [], suKien: evTheoHex.get(hex3) ?? [], cdTheoId, dsCongDoan: cd },
+      { ...opt, chuaNoi, giuPc: () => {
+        giuPc++;
+      } }
+    );
+    if (v) map2[hex3] = v;
+  }
+  return { map: map2, thongKe: { soHex: Object.keys(map2).length, chuaNoi: [...chuaNoi].sort((a, b) => a.localeCompare(b, "vi")), giuPc } };
+}
+function verBanDo(map2) {
+  const ngay3 = (tu) => {
+    const t = tu ? new Date(tu) : null;
+    return t && Number.isFinite(t.getTime()) ? vnDayKey(t) : "";
+  };
+  const sap = Object.keys(map2).sort().map((k) => [k, map2[k].ma, map2[k].cd, ngay3(map2[k].tu)]);
+  return crypto2.createHash("sha1").update(JSON.stringify(sap)).digest("hex").slice(0, 16);
+}
+var BAN_DO_TAT = Object.freeze({ ver: "off", map: {}, tinhLuc: null, thongKe: { soHex: 0, chuaNoi: [], giuPc: 0 } });
+var thanhDong = (x) => ({
+  hex: String(x.hex),
+  congDoanId: String(x.cong_doan_id),
+  xuong: x.xuong ?? null,
+  trangThai: String(x.trang_thai),
+  slNhan: Number(x.sl_nhan ?? 0) || 0,
+  suKienCuoi: iso(x.su_kien_cuoi),
+  dangChayTu: iso(x.dang_chay_tu)
+});
+var thanhCongDoan = (x) => ({
+  id: String(x.id),
+  xuong: x.xuong ?? null,
+  tenCd: x.ten_cd ?? null,
+  cdChiTiet: x.cd_chi_tiet ?? null,
+  thuTu: x.thu_tu === null || x.thu_tu === void 0 ? null : Number(x.thu_tu),
+  laBaoBi: !!x.la_bao_bi,
+  maBop: x.ma_bop ?? null
+});
+var thanhSuKien = (r) => ({
+  id: String(r.id),
+  loai: r.loai,
+  hex: r.hex ?? null,
+  congDoanId: r.cong_doan_id ?? null,
+  toId: r.to_id === null || r.to_id === void 0 ? null : Number(r.to_id),
+  soLuong: r.so_luong === null || r.so_luong === void 0 || r.so_luong === "" ? null : Number(r.so_luong),
+  congDoanDenId: r.cong_doan_den_id ?? null,
+  congDoanNguonId: r.cong_doan_nguon_id ?? null,
+  xuongNguon: r.xuong_nguon ?? null,
+  soNguoi: r.so_nguoi === null || r.so_nguoi === void 0 ? null : Number(r.so_nguoi),
+  lyDoTamNgung: r.ly_do_tam_ngung ?? null,
+  duLieu: r.du_lieu ?? null,
+  ts: new Date(r.device_ts_hieu_chinh).getTime(),
+  serverTs: new Date(r.server_ts).getTime(),
+  suaCho: r.sua_cho ? String(r.sua_cho) : null
+});
+var truyVanMra = (sql, params) => poolMra.query(sql, params);
+var COT_DONG = `t.hex, t.xuong, t.cong_doan_id, t.trang_thai, t.sl_hoan_thanh::float AS h, t.sl_nhan::float AS sl_nhan,
+  t.su_kien_cuoi, t.dang_chay_tu, c.cd_chi_tiet, c.thu_tu, c.ten_cd, c.la_bao_bi`;
+var COT_SK = `e.id, e.loai, e.hex, e.cong_doan_id, e.to_id, e.xuong, e.so_luong, e.cong_doan_den_id, e.cong_doan_nguon_id,
+  e.xuong_nguon, e.so_nguoi, e.ly_do_tam_ngung, e.tien_do, e.ghi_chu, e.du_lieu, e.device_ts, e.lech_ms, e.device_ts_hieu_chinh,
+  e.server_ts, e.user_id, e.user_id_khai, e.sent_by, e.device_id, e.sua_cho, e.nguon, e.nguoi_thao_tac_goc, e.co`;
+var LOC_SK = `e.nguon = 'app' AND e.loai IN ('trien_khai', 'khai_bao_cd', 'huy')`;
+async function docTrangThaiMra(hexes, q = truyVanMra) {
+  if (hexes !== "tat-ca") {
+    if (!hexes.length) return { dong: [], suKien: [] };
+    const [r2, ev2] = await Promise.all([
+      q(`SELECT ${COT_DONG} FROM xuong_trang_thai t LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id
+         WHERE t.hex = ANY($1::text[])`, [hexes]),
+      q(`SELECT ${COT_SK} FROM xuong_su_kien e WHERE e.hex = ANY($1::text[]) AND ${LOC_SK}`, [hexes])
+    ]);
+    return { dong: r2.rows, suKien: ev2.rows };
+  }
+  const conDo = `SELECT DISTINCT hex FROM xuong_trang_thai WHERE trang_thai <> 'xong'`;
+  const [r, ev] = await Promise.all([
+    q(`SELECT ${COT_DONG} FROM xuong_trang_thai t LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id
+       WHERE t.hex IN (${conDo})`),
+    q(`SELECT ${COT_SK} FROM xuong_su_kien e WHERE ${LOC_SK}
+         AND (e.hex IN (${conDo})
+           OR (NOT EXISTS (SELECT 1 FROM xuong_trang_thai t WHERE t.hex = e.hex)
+               AND EXISTS (SELECT 1 FROM xuong_su_kien k WHERE k.hex = e.hex AND k.loai = 'trien_khai' AND k.nguon = 'app')))`)
+  ]);
+  return { dong: r.rows, suKien: ev.rows };
+}
+var coMaBop = null;
+async function coCotMaBop(q = truyVanMra) {
+  if (coMaBop !== null) return coMaBop;
+  const r = await q(`SELECT 1 FROM information_schema.columns WHERE table_name = 'xuong_cong_doan' AND column_name = 'ma_bop' LIMIT 1`);
+  coMaBop = r.rows.length > 0;
+  return coMaBop;
+}
+var DO_MS = 3e4;
+var DUNG_LAI_MS = 6e5;
+var CHO_TOI_DA_MS = 3e3;
+var SQL_DO = `SELECT (SELECT count(*)::int FROM xuong_trang_thai) AS n, (SELECT max(cap_nhat) FROM xuong_trang_thai) AS m,
+  (SELECT max(server_ts) FROM xuong_su_kien WHERE nguon = 'app' AND loai IN ('trien_khai', 'khai_bao_cd', 'huy')) AS e`;
+var SQL_GIU_PC = `SELECT count(1)::int AS so_giu FROM (SELECT hex FROM xuong_trang_thai GROUP BY hex
+  HAVING bool_and(trang_thai = 'xong')) x`;
+function taoNguonBanDo(deps) {
+  const bayGio = deps.bayGio ?? Date.now;
+  let ban = null;
+  let dau = "";
+  let lucDo = 0;
+  let lucDung = 0;
+  let dangChay = null;
+  let daBaoTat = false;
+  let loi = null;
+  async function chay2() {
+    const r = await deps.q(SQL_DO);
+    const dauMoi = `${r.rows[0]?.n ?? 0}|${iso(r.rows[0]?.m) ?? ""}|${iso(r.rows[0]?.e) ?? ""}`;
+    const now = bayGio();
+    lucDo = now;
+    if (ban && dauMoi === dau && now - lucDung < DUNG_LAI_MS) return ban;
+    const [doc, coCot, giu] = await Promise.all([docTrangThaiMra("tat-ca", deps.q), coCotMaBop(deps.q), deps.q(SQL_GIU_PC)]);
+    const dm = await deps.q(`SELECT id, xuong, ten_cd, cd_chi_tiet, thu_tu, la_bao_bi${coCot ? ", ma_bop" : ""} FROM xuong_cong_doan`);
+    const dung2 = dungBanDo(doc.dong.map(thanhDong), doc.suKien.map(thanhSuKien), dm.rows.map(thanhCongDoan), deps.opt);
+    const { map: map2 } = dung2;
+    const thongKe = { ...dung2.thongKe, giuPc: dung2.thongKe.giuPc + (Number(giu.rows[0]?.so_giu) || 0) };
+    const ver = verBanDo(map2);
+    ban = ban && ban.ver === ver ? { ...ban, thongKe } : { ver, map: map2, tinhLuc: new Date(now).toISOString(), thongKe };
+    dau = dauMoi;
+    lucDung = now;
+    return ban;
+  }
+  return async function layBanDo() {
+    if (deps.tat()) {
+      if (!daBaoTat) {
+        daBaoTat = true;
+        console.warn("[vi-tri-bop] t\u1EAFt ph\u1EE7 v\u1ECB tr\xED MRA (ch\u01B0a c\xF3 DB MRA ri\xEAng ho\u1EB7c PHU_VI_TRI_MRA=0)");
+      }
+      return BAN_DO_TAT;
+    }
+    if (ban && bayGio() - lucDo < DO_MS) return ban;
+    if (!ban && loi && bayGio() - loi.luc < DO_MS) throw loi.e;
+    if (!dangChay) {
+      dangChay = chay2().then((b) => {
+        loi = null;
+        return b;
+      }).catch((e) => {
+        lucDo = bayGio();
+        loi = { luc: lucDo, e };
+        if (ban) {
+          console.warn("[vi-tri-bop] d\xF2 / d\u1EF1ng b\u1EA3n \u0111\u1ED3 MRA l\u1ED7i, d\xF9ng b\u1EA3n c\u0169", ban.ver, e);
+          return ban;
+        }
+        throw e;
+      }).finally(() => {
+        dangChay = null;
+      });
+    }
+    const p = dangChay;
+    if (!ban) return p;
+    const cu = ban;
+    let hen;
+    return Promise.race([p, new Promise((r) => {
+      hen = setTimeout(() => r(cu), CHO_TOI_DA_MS);
+    })]).finally(() => clearTimeout(hen));
+  };
+}
+var layBanDoViTri = taoNguonBanDo({
+  tat: () => !coDbMra || process.env.PHU_VI_TRI_MRA === "0",
+  q: truyVanMra
+});
+
+// ../frontend/types.ts
+var TARGET_COLUMN_NAMES = {
+  HEX: "hex",
+  CONG_TRINH: "ten_cong_trinh",
+  XUONG: "xuong_chinh",
+  TINH_TRANG: "tinh_trang",
+  TINH_TRANG_IPO: "tinh_trang_ipo",
+  // New Column
+  BOP: "bop",
+  GIA_TRI_CON_LAI: "gia_tri_don_hang_con_lai",
+  GIA_TRI_THUC_TE: "gia_tri_con_lai",
+  // New columns for Project Summary Section
+  TRI_GIA_DON_HANG_TONG: "tri_gia_don_hang_tong",
+  THANH_TIEN_TINH_PHIEU: "thanh_tien_tinh_phieu",
+  THANH_TIEN_NHAP_KHO: "thanh_tien_nhap_kho_luy_ke",
+  // Cột cũ của Production View
+  INVENTORY_AMOUNT: "thanh_tien_nhap_kho",
+  // Cột mới chính xác cho Inventory View
+  EXPORT_AMOUNT: "thanh_tien_xuat_kho",
+  // Correct column for Export View
+  EXPORT_QUANTITY: "so_luong_xuat_kho",
+  // ✅ MỚI: cột số lượng (khác với EXPORT_AMOUNT là cột tiền)
+  GIA_TRI_TON_KHO: "gia_tri",
+  // For Stock View // Correct column for Export View
+  MA_ID_SAP: "ma_id_sap",
+  // For counting unique items in Stock
+  NHAP_KHO_TUAN: "nhap_kho_tuan",
+  // Cột mới theo yêu cầu
+  // Inventory Specific Date Columns
+  NAM: "nam",
+  THANG: "thang",
+  NGAY: "ngay",
+  DATE: "date",
+  // New Column for Inventory Overview
+  TUAN: "tuan",
+  // New Column for Weekly Analysis
+  TEN_HANG_MUC: "ten_hang_muc",
+  PHAN_LOAI_NHOM_SAN_PHAM: "phan_loai_nhom_san_pham",
+  // ✅ MỚI
+  // Production Days Columns
+  SO_NGAY_CD_HIEN_TAI: "so_ngay_cd_hien_tai",
+  // KHSX Specific Columns
+  THANH_TIEN_KE_HOACH: "thanh_tien_ke_hoach",
+  PHAN_LOAI_KH: "phan_loai_kh",
+  NGAY_KHNK: "ngay_khnk",
+  MA_CONG_TRINH: "ma_cong_trinh",
+  // Order Data Specific Columns
+  NGAY_NHAN_TU_PM: "ngay_nhan_tu_pm",
+  // TKBV Specific Columns
+  NGAY_NHAN: "ngay_nhan",
+  // PTHSP Specific Columns
+  NGAY_HOAN_THANH: "ngay_hoan_thanh",
+  THANH_TIEN_PTHSP: "thanh_tien",
+  // Material View Columns
+  SO_PR: "so_pr",
+  SO_PO: "so_po",
+  TRACKING_NO: "trackingno",
+  TEN_VAT_TU: "ten_vat_tu",
+  NHOM_VT: "nhom_vt",
+  // Material Dashboard Columns
+  SL_YEU_CAU: "so_luong_yeu_cau",
+  SL_DA_NHAN: "so_luong_da_nhan_sap",
+  STATUS: "trang_thai",
+  STATUS_SAP: "trang_thai_sap",
+  PR_ITEM: "pr_line",
+  MATERIAL_CODE: "ma_vat_tu_sap",
+  BASE_UNIT: "dvt",
+  REQUEST_DATE: "ngay_pr",
+  EST_DELIVERY: "ngay_du_kien_giao_hang_pmh_nhap",
+  REMAINING_QTY: "so_luong_con_lai",
+  STATUS_PO: "tinh_trang_po",
+  NOTE_PO: "ghi_chu_tinh_trang_po",
+  PR_LINE_COMBINED: "pr_line_1",
+  ACTUAL_DATE: "ngay_ve",
+  ACTUAL_QTY: "sl_hang_ve_thuc_te",
+  TEAM_PR_NOTE: "team_pr_note",
+  REQUISITIONER: "nguoi_yeu_cau",
+  // Weekly Analysis New Columns
+  DUNG_KE_HOACH: "dung_ke_hoach",
+  THUC_HIEN_DUNG_KE_HOACH_1_PHAN: "thuc_hien_dung_ke_hoach_1_phan",
+  ROT_KE_HOACH: "rot_ke_hoach",
+  THUC_HIEN_ROT_KE_HOACH_1_PHAN: "thuc_hien_rot_ke_hoach_1_phan",
+  NHAP_KHO_TRUOC_KE_HOACH: "nhap_kho_truoc_ke_hoach",
+  VUOT_KE_HOACH: "vuot_ke_hoach",
+  NHAP_KHO_NGOAI_KE_HOACH: "nhap_kho_ngoai_ke_hoach",
+  // Attendance Columns
+  SO_LUONG_CONG_NHAN: "so_luong_cong_nhan",
+  GIO_CONG_HC: "gio_cong_hanh_chinh",
+  GIO_CONG_TC: "gio_cong_tang_ca",
+  DINH_BIEN: "dinh_bien"
+};
+var PRODUCTION_DEFAULT_VIEW_COLUMNS = [
+  TARGET_COLUMN_NAMES.HEX,
+  TARGET_COLUMN_NAMES.CONG_TRINH,
+  TARGET_COLUMN_NAMES.XUONG,
+  TARGET_COLUMN_NAMES.TEN_HANG_MUC,
+  TARGET_COLUMN_NAMES.TINH_TRANG_IPO,
+  TARGET_COLUMN_NAMES.TINH_TRANG,
+  TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI,
+  TARGET_COLUMN_NAMES.GIA_TRI_THUC_TE,
+  TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO,
+  TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG,
+  TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU
+];
+var PERMISSION_GROUPS = [
+  {
+    id: "g_dashboard",
+    label: "T\u1ED5ng quan",
+    items: [
+      { id: "dashboard", label: "T\u1ED5ng quan" },
+      { id: "hex_lookup", label: "Tra c\u1EE9u hex" },
+      { id: "vuong_mac", label: "V\u01B0\u1EDBng m\u1EAFc s\u1EA3n xu\u1EA5t (qu\u1EA3n l\xFD)" }
+    ]
+  },
+  {
+    id: "g_xuong",
+    label: "X\u01B0\u1EDFng (ch\u1EA5m c\xF4ng \u0111o\u1EA1n)",
+    items: [
+      { id: "xuong", label: "T\u1ED5 tr\u01B0\u1EDFng \u2014 ghi thao t\xE1c \u1EDF x\u01B0\u1EDFng (app MRA /xuong)" },
+      { id: "xuong_quan_ly", label: "Qu\u1EA3n l\xFD x\u01B0\u1EDFng \u2014 hu\u1EF7 / xem c\u1EA7n xem" }
+    ]
+  },
+  {
+    id: "g_construction",
+    label: "C\xF4ng tr\xECnh",
+    items: [
+      { id: "construction_overview", label: "T\u1ED5ng quan c\xF4ng tr\xECnh" },
+      { id: "construction_setup", label: "Setup d\u1EEF li\u1EC7u (ph\xE2n lo\u1EA1i c\xF4ng tr\xECnh)" }
+    ]
+  },
+  {
+    id: "g_charts",
+    label: "Qu\u1EA3n tr\u1ECB (Bi\u1EC3u \u0111\u1ED3)",
+    items: [
+      { id: "chart_order", label: "1. \u0110\u01A1n h\xE0ng m\u1EDBi (P001)" },
+      { id: "chart_tkbv", label: "2. Tri\u1EC3n khai BV (P002)" },
+      { id: "chart_pthsp", label: "3. \u0110\xE3 t\xEDnh phi\u1EBFu (P012)" },
+      { id: "chart_inventory", label: "4. Nh\u1EADp kho (P022)" },
+      { id: "chart_export", label: "5. Xu\u1EA5t kho (P025)" },
+      { id: "chart_stock", label: "6. T\u1ED3n kho" },
+      { id: "chart_stock_vt", label: "7. T\u1ED3n kho v\u1EADt t\u01B0" }
+    ]
+  },
+  {
+    id: "g_data",
+    label: "D\u1EEF li\u1EC7u",
+    items: [
+      { id: "production", label: "D\u1EEF li\u1EC7u S\u1EA3n xu\u1EA5t" },
+      { id: "yearly_plan_data", label: "D\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch n\u0103m" },
+      { id: "orders", label: "D\u1EEF li\u1EC7u \u0110\u01A1n h\xE0ng t\u1ED5ng" },
+      { id: "inventory", label: "D\u1EEF li\u1EC7u Nh\u1EADp kho" },
+      { id: "export", label: "D\u1EEF li\u1EC7u Xu\u1EA5t kho" },
+      { id: "stock", label: "D\u1EEF li\u1EC7u T\u1ED3n kho" },
+      { id: "attendance", label: "D\u1EEF li\u1EC7u \u0110i\u1EC3m danh" },
+      { id: "khsx", label: "K\u1EBF ho\u1EA1ch SX" },
+      { id: "analysis", label: "Ph\xE2n t\xEDch KH-TH" },
+      { id: "tkbv", label: "D\u1EEF li\u1EC7u TKBV" },
+      { id: "pthsp", label: "D\u1EEF li\u1EC7u PTHSP" },
+      { id: "materials", label: "V\u1EADt t\u01B0" },
+      { id: "data_log", label: "Nh\u1EADt k\xFD c\u1EADp nh\u1EADt" }
+    ]
+  },
+  {
+    id: "g_system",
+    label: "H\u1EC7 th\u1ED1ng",
+    items: [
+      { id: "users", label: "Qu\u1EA3n tr\u1ECB User" },
+      { id: "table_column_setup", label: "Setup c\u1ED9t d\u1EEF li\u1EC7u" }
+      // MỚI
+    ]
+  }
+];
+var ITEM_ACTIONS = {
+  dashboard: [
+    { id: "dashboard_overview", label: "B\xE1o c\xE1o T\u1ED5ng quan" },
+    { id: "dashboard_financial", label: "S\u1ED1 li\u1EC7u T\xE0i ch\xEDnh" },
+    { id: "dashboard_bottleneck", label: "B\xE1o c\xE1o \u0110i\u1EC3m ngh\u1EBDn" }
+  ],
+  production: [
+    { id: "production_edit", label: "Ch\u1EC9nh s\u1EEDa d\u1EEF li\u1EC7u" },
+    { id: "production_export", label: "Xu\u1EA5t Excel" }
+  ],
+  yearly_plan_data: [
+    { id: "yearly_plan_data_export", label: "Xu\u1EA5t Excel" }
+  ],
+  orders: [
+    { id: "orders_import", label: "Import D\u1EEF li\u1EC7u" },
+    { id: "orders_view_price", label: "Xem Gi\xE1 tr\u1ECB \u0110\u01A1n h\xE0ng" }
+  ],
+  materials: [
+    { id: "materials_view_price", label: "Xem Gi\xE1/NCC" },
+    { id: "materials_edit", label: "C\u1EADp nh\u1EADt tr\u1EA1ng th\xE1i" }
+  ],
+  inventory: [
+    { id: "inventory_edit", label: "\u0110i\u1EC1u ch\u1EC9nh kho" }
+  ],
+  analysis: [
+    { id: "analysis_export", label: "Xu\u1EA5t b\xE1o c\xE1o KH-TH" }
+  ]
+};
+var ALL_ITEM_IDS = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.id));
+var ALL_ACTION_IDS = Object.values(ITEM_ACTIONS).flatMap((a) => a.map((x) => x.id));
+
+// ../frontend/components/Dashboard/constants.ts
+var STATUS_GROUPS = {
+  VECNI_FITTING: ["01", "02.*"],
+  // tên cũ; thực đo Đóng gói / KĐB
+  CHUYEN_KHAC: ["03.*", "04.*", "05.*", "06.*", "07.*", "16.*"],
+  CO_PHIEU_CHUA_SX: ["11"],
+  VUONG_SL: ["12", "13"],
+  CHUA_TRIEN_KHAI: ["14.*", "15"]
+};
+var NHOM_CO_THE_SX = ["VECNI_FITTING", "CHUYEN_KHAC", "CO_PHIEU_CHUA_SX"];
+var NHOM_CHUA_THE_SX = ["VUONG_SL", "CHUA_TRIEN_KHAI"];
+var maTinhTrang = (status) => /^\d{2}(?:\.\d+)?/.exec(String(status ?? "").trim())?.[0] ?? "";
+var khopMa = (ma, mau) => mau.endsWith(".*") ? ma === mau.slice(0, -2) || ma.startsWith(mau.slice(0, -1)) : ma === mau;
+var nhomCuaMa = (ma) => Object.keys(STATUS_GROUPS).find((n) => STATUS_GROUPS[n].some((m) => khopMa(ma, m))) ?? null;
+var laChuaTheSX = (status) => {
+  const n = nhomCuaMa(maTinhTrang(status));
+  return !!n && NHOM_CHUA_THE_SX.includes(n);
+};
+var MATERIAL_LIST_COLUMNS = [
+  TARGET_COLUMN_NAMES.STATUS,
+  TARGET_COLUMN_NAMES.CONG_TRINH,
+  TARGET_COLUMN_NAMES.SO_PR,
+  TARGET_COLUMN_NAMES.TEN_VAT_TU,
+  TARGET_COLUMN_NAMES.SL_YEU_CAU,
+  TARGET_COLUMN_NAMES.BASE_UNIT,
+  TARGET_COLUMN_NAMES.REQUEST_DATE,
+  TARGET_COLUMN_NAMES.EST_DELIVERY,
+  TARGET_COLUMN_NAMES.SL_DA_NHAN,
+  TARGET_COLUMN_NAMES.REMAINING_QTY,
+  TARGET_COLUMN_NAMES.TEAM_PR_NOTE,
+  TARGET_COLUMN_NAMES.STATUS_PO,
+  TARGET_COLUMN_NAMES.NOTE_PO,
+  TARGET_COLUMN_NAMES.PR_ITEM,
+  TARGET_COLUMN_NAMES.ACTUAL_DATE,
+  TARGET_COLUMN_NAMES.ACTUAL_QTY,
+  TARGET_COLUMN_NAMES.MATERIAL_CODE,
+  TARGET_COLUMN_NAMES.REQUISITIONER
+];
+var MATERIAL_LIST_COLUMN_LABELS = {
+  [TARGET_COLUMN_NAMES.STATUS]: "TR\u1EA0NG TH\xC1I",
+  [TARGET_COLUMN_NAMES.CONG_TRINH]: "T\xCAN C\xD4NG TR\xCCNH",
+  [TARGET_COLUMN_NAMES.SO_PR]: "S\u1ED0 PR",
+  [TARGET_COLUMN_NAMES.TEN_VAT_TU]: "T\xCAN V\u1EACT T\u01AF",
+  [TARGET_COLUMN_NAMES.SL_YEU_CAU]: "S\u1ED0 L\u01AF\u1EE2NG Y\xCAU C\u1EA6U",
+  [TARGET_COLUMN_NAMES.BASE_UNIT]: "\u0110VT",
+  [TARGET_COLUMN_NAMES.REQUEST_DATE]: "NG\xC0Y PR",
+  [TARGET_COLUMN_NAMES.EST_DELIVERY]: "NG\xC0Y D\u1EF0 KI\u1EBEN GIAO H\xC0NG PMH NH\u1EACP",
+  [TARGET_COLUMN_NAMES.SL_DA_NHAN]: "S\u1ED0 L\u01AF\u1EE2NG \u0110\xC3 NH\u1EACN (SAP)",
+  [TARGET_COLUMN_NAMES.REMAINING_QTY]: "S\u1ED0 L\u01AF\u1EE2NG C\xD2N L\u1EA0I",
+  [TARGET_COLUMN_NAMES.TEAM_PR_NOTE]: "TEAM PR NOTE",
+  [TARGET_COLUMN_NAMES.STATUS_PO]: "T\xCCNH TR\u1EA0NG PO",
+  [TARGET_COLUMN_NAMES.NOTE_PO]: "GHI CH\xDA T\xCCNH TR\u1EA0NG PO",
+  [TARGET_COLUMN_NAMES.PR_ITEM]: "PR LINE",
+  [TARGET_COLUMN_NAMES.ACTUAL_DATE]: "NG\xC0Y V\u1EC0 - KHO B\xC1O",
+  [TARGET_COLUMN_NAMES.ACTUAL_QTY]: "SL H\xC0NG V\u1EC0 TH\u1EF0C T\u1EBE - KHO B\xC1O",
+  [TARGET_COLUMN_NAMES.MATERIAL_CODE]: "M\xC3 V\u1EACT T\u01AF (SAP)",
+  [TARGET_COLUMN_NAMES.REQUISITIONER]: "NG\u01AF\u1EDCI Y\xCAU C\u1EA6U"
+};
+
+// ../frontend/components/Dashboard/utils/numberParsers.ts
+var parseNumber = (valStr) => {
+  if (valStr === null || valStr === void 0) return 0;
+  if (typeof valStr === "number") return Number.isNaN(valStr) ? 0 : valStr;
+  let s = String(valStr).trim();
+  if (!s) return 0;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) return 0;
+  if (/^-?\d+(\.\d+)?e[+-]?\d+$/i.test(s)) return Number(s);
+  const isNegative = s.startsWith("-");
+  s = s.replace(/[^\d.,]/g, "");
+  if (!s) return 0;
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma > -1 && lastDot > -1) {
+    if (lastDot > lastComma) {
+      s = s.replace(/,/g, "");
+    } else {
+      s = s.replace(/\./g, "").replace(",", ".");
+    }
+  } else if (lastComma > -1) {
+    const parts = s.split(",");
+    if (parts.length > 2 || parts.length === 2 && parts[1].length === 3) {
+      s = s.replace(/,/g, "");
+    } else {
+      s = s.replace(",", ".");
+    }
+  } else if (lastDot > -1) {
+    const parts = s.split(".");
+    if (parts.length > 2) {
+      s = s.replace(/\./g, "");
+    }
+  }
+  const result = Number.parseFloat(s);
+  if (Number.isNaN(result)) return 0;
+  return isNegative ? -result : result;
+};
+
+// ../frontend/components/Dashboard/utils/columnKeyResolver.ts
+var normalizeString = (str) => {
+  if (!str) return "";
+  return String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
+};
+var findColumnKey = (cols, target) => {
+  if (!cols || cols.length === 0) return "";
+  const normalizedTarget = normalizeString(target);
+  let match = cols.find((c) => {
+    const k = normalizeString(c.key);
+    const l = normalizeString(c.label);
+    return k === normalizedTarget || l === normalizedTarget;
+  });
+  if (!match) {
+    const candidates = cols.filter((c) => {
+      const k = normalizeString(c.key);
+      const l = normalizeString(c.label);
+      return k.includes(normalizedTarget) || l.includes(normalizedTarget);
+    });
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => normalizeString(a.key).length - normalizeString(b.key).length);
+      match = candidates[0];
+    }
+  }
+  return match ? match.key : "";
+};
+
+// ../frontend/components/Dashboard/utils/dateHelpers.ts
+var parseVNDate = (dateStr) => {
+  if (!dateStr) return null;
+  const str = String(dateStr).trim();
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if (dateOnly) return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+  if (str.includes("T") || str.match(/^\d{4}-\d{2}-\d{2}/)) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const parts = str.split(/[/.-]/);
+  if (parts.length >= 3) {
+    let year = parseInt(parts[2], 10);
+    if (parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    if (year < 100) year += 2e3;
+    return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+  }
+  return null;
+};
+
+// ../frontend/utils/productionMetrics.ts
+var IPO_MAC_DINH = "01. \u0110ANG S\u1EA2N XU\u1EA4T";
+var laHuy = (ipo) => /H(?:ỦY|UỶ)/.test(String(ipo ?? "").normalize("NFC").toUpperCase());
+var doneValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.min(Math.max(nhapKho, 0), Math.max(total, 0));
+var remainValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.max(total - Math.max(nhapKho, 0), 0);
+var QTY_ORDER_KEY = "so_luong_don_hang_tong";
+var QTY_IN_KEY = "so_luong_nhap_kho_luy_ke";
+var isQtyComplete = (row) => {
+  const order = parseNumber(row[QTY_ORDER_KEY]);
+  return order > 0 && parseNumber(row[QTY_IN_KEY]) >= order;
+};
+var daNhapDu = (total, nhapKho, cancelled = false, qtyDone = false) => !cancelled && (total > 0 && remainValue(total, nhapKho) <= 0 || qtyDone);
+var ngayDaDoc = /* @__PURE__ */ new Map();
+var parsePlanDate = (v) => {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const nho4 = ngayDaDoc.get(s);
+  if (nho4 !== void 0) return nho4 === null ? null : new Date(nho4);
+  const d = docNgayKeHoach(s);
+  if (ngayDaDoc.size > 5e4) ngayDaDoc.clear();
+  ngayDaDoc.set(s, d ? d.getTime() : null);
+  return d;
+};
+var docNgayKeHoach = (s) => {
+  if (/^\d{4}-\d{2}-\d{2}([ T]|$)/.test(s)) {
+    if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
+      const d3 = new Date(s);
+      if (!isNaN(d3.getTime())) return new Date(d3.getFullYear(), d3.getMonth(), d3.getDate());
+    }
+    const [y, m, d2] = s.slice(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d2);
+  }
+  const d = parseVNDate(s);
+  return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
+};
+var resolveDeadlineKeys = (columns) => ({
+  khnkTuanKey: findColumnKey(columns, "ngay_khnk_tuan") || "ngay_khnk_tuan",
+  khnkThangKey: findColumnKey(columns, "ngay_khnk_thang") || "ngay_khnk_thang",
+  ngayCanGiaoKey: findColumnKey(columns, "ngay_can_giao") || "ngay_can_giao",
+  // So khớp ĐÚNG tên (findColumnKey dò chuỗi con sẽ nhận nhầm ngay_can_giao)
+  ngayCanKey: columns.find((c) => c.key === "ngay_can")?.key ?? "ngay_can",
+  botDuAnKey: findColumnKey(columns, "bot_du_an") || "bot_du_an",
+  hexKey: findColumnKey(columns, "hex") || "hex"
+});
+var planMet = { tuan: /* @__PURE__ */ new Set(), thang: /* @__PURE__ */ new Set() };
+var setPlanMet = (d) => {
+  planMet = { tuan: new Set(d.tuan), thang: new Set(d.thang) };
+};
+var deadlineOf = (row, k) => {
+  const khnkTuan = parsePlanDate(row[k.khnkTuanKey]);
+  const khnkThang = parsePlanDate(row[k.khnkThangKey]);
+  const canGiao = parsePlanDate(row[k.ngayCanGiaoKey]);
+  const canPm = k.ngayCanKey ? parsePlanDate(row[k.ngayCanKey]) : null;
+  const botDuAn = k.botDuAnKey ? parsePlanDate(row[k.botDuAnKey]) : null;
+  const hex3 = k.hexKey ? String(row[k.hexKey] ?? "").trim() : "";
+  const tuanMet = !!hex3 && !!khnkTuan && planMet.tuan.has(hex3);
+  const thangMet = !!hex3 && !!khnkThang && planMet.thang.has(hex3);
+  const tuan = tuanMet ? null : khnkTuan;
+  const thang2 = thangMet ? null : khnkThang;
+  const date5 = tuan ?? thang2;
+  const source = tuan ? "tu\u1EA7n" : thang2 ? "th\xE1ng" : null;
+  return { date: date5, source, khnkTuan, khnkThang, canGiao, canPm, botDuAn, tuanMet, thangMet };
+};
+var normProjectName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+var projectAlias = /* @__PURE__ */ new Map();
+var projectVariants = /* @__PURE__ */ new Map();
+var serverAlias = /* @__PURE__ */ new Map();
+var serverVariants = /* @__PURE__ */ new Map();
+var setServerProjectAliases = (list) => {
+  const a = /* @__PURE__ */ new Map();
+  const v = /* @__PURE__ */ new Map();
+  for (const { k, c } of list) {
+    a.set(k, c);
+    const ck = normProjectName(c);
+    let set2 = v.get(ck);
+    if (!set2) {
+      set2 = /* @__PURE__ */ new Set();
+      v.set(ck, set2);
+    }
+    set2.add(k);
+  }
+  serverAlias = a;
+  serverVariants = v;
+  khoaTenDaDoi();
+};
+var canonicalProjectName2 = (name) => {
+  const t = String(name ?? "").trim().replace(/\s+/g, " ");
+  const k = normProjectName(t);
+  return projectAlias.get(k) ?? serverAlias.get(k) ?? t;
+};
+var khoaCongTrinh2 = /* @__PURE__ */ new Map();
+var khoaTenDaDoi = () => {
+  khoaCongTrinh2 = /* @__PURE__ */ new Map();
+};
+var projectMatchKey = (name) => {
+  const raw = typeof name === "string" ? name : String(name ?? "");
+  const nho4 = khoaCongTrinh2.get(raw);
+  if (nho4 !== void 0) return nho4;
+  const k = normProjectName(canonicalProjectName2(raw));
+  if (khoaCongTrinh2.size > 2e4) khoaCongTrinh2.clear();
+  khoaCongTrinh2.set(raw, k);
+  return k;
+};
+function canonicalizeProjectNames(rows, columns) {
+  const maKey = findColumnKey(columns, "ma_cong_trinh");
+  const tenKey = findColumnKey(columns, "ten_cong_trinh");
+  if (!maKey || !tenKey || rows.length === 0) return rows;
+  const counts = /* @__PURE__ */ new Map();
+  const maOf = rows.map((row) => normProjectName(row[maKey]));
+  rows.forEach((row, i) => {
+    const ma = maOf[i];
+    const ten = String(row[tenKey] ?? "").trim().replace(/\s+/g, " ");
+    if (!ma || !ten) return;
+    let m = counts.get(ma);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      counts.set(ma, m);
+    }
+    m.set(ten, (m.get(ten) ?? 0) + 1);
+  });
+  const canonical = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => {
+    let best = "", bestN = -1;
+    m.forEach((n, ten) => {
+      if (n > bestN || n === bestN && ten < best) {
+        best = ten;
+        bestN = n;
+      }
+    });
+    canonical.set(ma, best);
+  });
+  const nameCodes = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => m.forEach((_n, ten) => {
+    const k = normProjectName(ten);
+    let s = nameCodes.get(k);
+    if (!s) {
+      s = /* @__PURE__ */ new Set();
+      nameCodes.set(k, s);
+    }
+    s.add(ma);
+  }));
+  const singleCache = /* @__PURE__ */ new Map();
+  const single = (ten) => {
+    let r = singleCache.get(ten);
+    if (r === void 0) {
+      r = (nameCodes.get(normProjectName(ten))?.size ?? 0) <= 1;
+      singleCache.set(ten, r);
+    }
+    return r;
+  };
+  const canonicalNames = new Set([...canonical.values()].map(normProjectName));
+  const alias = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => {
+    const best = canonical.get(ma);
+    if (!single(best)) return;
+    m.forEach((_n, ten) => {
+      const k = normProjectName(ten);
+      if (ten !== best && !canonicalNames.has(k) && single(ten)) alias.set(k, best);
+    });
+  });
+  projectAlias = alias;
+  khoaTenDaDoi();
+  const variants = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => {
+    const best = canonical.get(ma);
+    if (!single(best)) return;
+    const k = normProjectName(best);
+    let set2 = variants.get(k);
+    if (!set2) {
+      set2 = /* @__PURE__ */ new Set();
+      variants.set(k, set2);
+    }
+    m.forEach((_n, ten) => {
+      if (single(ten)) set2.add(ten);
+    });
+  });
+  projectVariants = variants;
+  const codeOnly = /* @__PURE__ */ new Map();
+  rows.forEach((row, i) => {
+    const ma = maOf[i];
+    if (ma && !canonical.has(ma) && !codeOnly.has(ma)) codeOnly.set(ma, String(row[maKey]).trim().replace(/\s+/g, " "));
+  });
+  let changed = false;
+  const out = rows.map((row, i) => {
+    const ma = maOf[i];
+    const name = canonical.get(ma) ?? codeOnly.get(ma);
+    if (!name || row[tenKey] === name) return row;
+    const own2 = String(row[tenKey] ?? "").trim();
+    if (own2 && (!single(own2) || !single(name))) return row;
+    changed = true;
+    return { ...row, [tenKey]: name };
+  });
+  return changed ? out : rows;
+}
+var BOP_STAGE_ORDER = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
+var stageIndex = (stage) => stage ? BOP_STAGE_ORDER.indexOf(stage) : -1;
+var stageRank = (stage) => {
+  const i = stageIndex(stage);
+  return i === -1 ? 999 : i;
+};
+var DWELL_KEYS = ["<3 NG\xC0Y", "4-7 NG\xC0Y", "2 tu\u1EA7n", "3 tu\u1EA7n", "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn", "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y"];
+var DWELL_STUCK = "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn";
+var DWELL_NONE = "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y";
+var dwellBucket = (v) => {
+  const s = String(v ?? "").trim().toUpperCase();
+  if (!s || s === "0") return DWELL_NONE;
+  if (s.includes("<3")) return "<3 NG\xC0Y";
+  if (s.includes("4-7")) return "4-7 NG\xC0Y";
+  const w = s.match(/(\d+)\s*TUẦN/);
+  if (w) {
+    const n = Number(w[1]);
+    if (n >= 4) return DWELL_STUCK;
+    if (n === 3) return "3 tu\u1EA7n";
+    if (n === 2) return "2 tu\u1EA7n";
+    return "4-7 NG\xC0Y";
+  }
+  return DWELL_NONE;
+};
+var deaccent = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d");
+var normPerson = (v) => String(v ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toUpperCase();
+var isAccount = (raw) => /^[a-z0-9._]+$/.test(raw.trim()) && !raw.includes(" ");
+var fullWordsCache = /* @__PURE__ */ new Map();
+var fullWordsOf = (full) => {
+  let c = fullWordsCache.get(full);
+  if (!c) {
+    const fw = full.split(" ");
+    c = { fw, words: fw.map((w) => deaccent(w).toLowerCase()) };
+    fullWordsCache.set(full, c);
+  }
+  return c;
+};
+var personMatches = (short, shortRaw, full) => {
+  const { fw, words } = fullWordsOf(full);
+  if (isAccount(shortRaw)) {
+    const acc = shortRaw.toLowerCase().split(".")[0].replace(/\d+$/, "");
+    if (words.length < 2) return false;
+    const given = words[words.length - 1];
+    if (acc === words.join("") || acc === [given, ...words.slice(0, -1)].join("")) return true;
+    if (!acc.startsWith(given)) return false;
+    const rest = acc.slice(given.length).split("").sort().join("");
+    const initials = words.slice(0, -1).map((w) => w[0]).sort().join("");
+    return rest.length > 0 && rest === initials;
+  }
+  const sw = short.split(" ");
+  return fw.length > sw.length && fw.slice(fw.length - sw.length).join(" ") === short;
+};
+function canonicalizePersonNames(rows, columns) {
+  const maKey = findColumnKey(columns, "ma_cong_trinh");
+  const keys = ["ten_pm", "ten_pc"].map((k) => findColumnKey(columns, k)).filter(Boolean);
+  if (!maKey || keys.length === 0 || rows.length === 0) return rows;
+  const maOf = rows.map((row) => normProjectName(row[maKey]));
+  const normOf = /* @__PURE__ */ new Map();
+  const normCached = (raw) => {
+    let n = normOf.get(raw);
+    if (n === void 0) {
+      n = normPerson(raw);
+      normOf.set(raw, n);
+    }
+    return n;
+  };
+  const maps = keys.map((key) => {
+    const display = /* @__PURE__ */ new Map();
+    const perProject = /* @__PURE__ */ new Map();
+    const rawOf = /* @__PURE__ */ new Map();
+    rows.forEach((row, i) => {
+      const raw = String(row[key] ?? "").trim();
+      if (!raw) return;
+      const n = normCached(raw);
+      let d = display.get(n);
+      if (!d) {
+        d = /* @__PURE__ */ new Map();
+        display.set(n, d);
+      }
+      d.set(raw, (d.get(raw) ?? 0) + 1);
+      if (!rawOf.has(n)) rawOf.set(n, raw);
+      const ma = maOf[i];
+      let s = perProject.get(ma);
+      if (!s) {
+        s = /* @__PURE__ */ new Set();
+        perProject.set(ma, s);
+      }
+      s.add(n);
+    });
+    const best = (n) => {
+      let b = n, bn = -1;
+      display.get(n)?.forEach((c, raw) => {
+        if (c > bn) {
+          b = raw;
+          bn = c;
+        }
+      });
+      return b;
+    };
+    const fulls = [...display.keys()].filter((n) => n.includes(" "));
+    const pick2 = (n, pool2) => {
+      const raw = rawOf.get(n) ?? n;
+      const cands = [...pool2].filter((f) => f !== n && f.includes(" ") && personMatches(n, raw, f));
+      const top = cands.filter((f) => !cands.some((g) => g !== f && personMatches(f, f, g)));
+      return top.length === 1 ? top[0] : null;
+    };
+    const pickAll = /* @__PURE__ */ new Map();
+    const pickFulls = (n) => {
+      let r = pickAll.get(n);
+      if (r === void 0) {
+        r = pick2(n, fulls);
+        pickAll.set(n, r);
+      }
+      return r;
+    };
+    const perProjectAlias = /* @__PURE__ */ new Map();
+    perProject.forEach((names, ma) => {
+      const m = /* @__PURE__ */ new Map();
+      names.forEach((n) => {
+        const target = pick2(n, names) ?? pickFulls(n);
+        m.set(n, best(target ?? n));
+      });
+      perProjectAlias.set(ma, m);
+    });
+    return { key, perProjectAlias };
+  });
+  let changed = false;
+  const out = rows.map((row, i) => {
+    const ma = maOf[i];
+    let next = null;
+    for (const { key, perProjectAlias } of maps) {
+      const raw = String(row[key] ?? "").trim();
+      if (!raw) continue;
+      const name = perProjectAlias.get(ma)?.get(normCached(raw));
+      if (name && name !== row[key]) {
+        if (!next) next = { ...row };
+        next[key] = name;
+      }
+    }
+    if (!next) return row;
+    changed = true;
+    return next;
+  });
+  return changed ? out : rows;
+}
+
+// ../frontend/components/Dashboard/utils/filterMatch.ts
+var toFilterSet = (values) => values.length ? new Set(values) : null;
+var matchesFilter = (set2, row, key) => set2 === null || !!key && set2.has(String(row[key] || "").trim());
+var NO_DATA_LABEL = "(Ch\u01B0a c\xF3)";
+var categoryValue = (v) => {
+  const t = String(v ?? "").trim();
+  return !t || t.startsWith("#") ? NO_DATA_LABEL : t;
+};
+var matchesCategory = (set2, row, key) => set2 === null || !!key && set2.has(categoryValue(row[key]));
+var categoryOptions = (data, key) => {
+  if (!key) return [];
+  const raw = /* @__PURE__ */ new Set();
+  for (const row of data) raw.add(row[key]);
+  const set2 = /* @__PURE__ */ new Set();
+  for (const v of raw) set2.add(categoryValue(v));
+  const hasNoData = set2.delete(NO_DATA_LABEL);
+  const list = Array.from(set2).sort((a, b) => a.localeCompare(b, "vi"));
+  return hasNoData ? [...list, NO_DATA_LABEL] : list;
+};
+
+// ../frontend/components/Dashboard/core/stages.ts
+var ON_LINE_STAGES = [
+  "P012",
+  "P013",
+  "GCVT",
+  "P014",
+  "P016",
+  "P018",
+  "P020",
+  "P021"
+];
+var P002_STAGE = "P002";
+var ON_LINE_STAGE_SET = new Set(ON_LINE_STAGES);
+var laDongMra = (row) => row?.nguon_bop === "MRA";
+function remainBucketOf(statusUpper, stage, laMra = false) {
+  if (!laMra && statusUpper.includes("15. CH\u01AFA TRI\u1EC2N KHAI") || stage === "P001") return "notDeployed";
+  if (stage === P002_STAGE) return "p002";
+  if (stage && ON_LINE_STAGE_SET.has(stage)) return "onLine";
+  return "shortfall";
+}
+var extractStage = (value) => {
+  const match = String(value ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/);
+  return match ? match[1] : null;
+};
+
+// ../frontend/components/Construction/core/bopPivot.ts
+var KHONG_RO_CONG_DOAN = "(Kh\xF4ng r\xF5)";
+var stageOfBop = (i) => i.stage ?? KHONG_RO_CONG_DOAN;
+var khoCua = (i) => {
+  const nk = Math.max(i.inv, 0);
+  const xk = Math.max(i.xuat ?? 0, 0);
+  const conLai = Math.max(nk - xk, 0);
+  const ton = Math.min(i.tonKho ?? conLai, conLai);
+  return { nk, xk, ton, chenh: conLai - ton, xv: Math.max(xk - nk, 0) };
+};
+var laKho = (i, f, metric) => {
+  const k = khoCua(i);
+  if (f === "xv") return k.xv >= 0.01;
+  if (metric !== "count") return k[f] > 0;
+  if (k.nk <= 0) return false;
+  if (f === "nk") return true;
+  const conTon = k.ton >= 0.01, coChenh = k.chenh >= 0.01;
+  if (f === "ton") return conTon;
+  if (f === "xk") return !conTon && !coChenh;
+  return !conTon && coChenh;
+};
+var khoMuc = (i, metric) => metric === "count" ? { nk: laKho(i, "nk", metric) ? 1 : 0, xk: laKho(i, "xk", metric) ? 1 : 0, ton: laKho(i, "ton", metric) ? 1 : 0, chenh: laKho(i, "chenh", metric) ? 1 : 0, xv: laKho(i, "xv", metric) ? 1 : 0 } : khoCua(i);
+var mucCongDoan = (items, metric) => metric === "count" ? items.filter((i) => i.open) : items.filter((i) => i.open || i.remain > 0);
+var giaTriBop = (i, metric) => metric === "count" ? 1 : metric === "remain" ? i.remain : i.total;
+var khoRong = () => ({ nk: 0, xk: 0, ton: 0, chenh: 0, xv: 0 });
+var congKho = (e, v) => {
+  e.nk += v.nk;
+  e.xk += v.xk;
+  e.ton += v.ton;
+  e.chenh += v.chenh;
+  e.xv += v.xv;
+};
+var nhomMacDinh = (st) => st === "P001" ? "notDeployed" : st === "P002" ? "p002" : "onLine";
+var BOP_SET = new Set(BOP_STAGE_ORDER);
+function tinhPivotBop(items, khoItems, metric, khoaDong, nhomTheoCongDoan = false) {
+  const stageBucket = /* @__PURE__ */ new Map();
+  const dong2 = /* @__PURE__ */ new Map();
+  const colTot = {};
+  const colN = {};
+  let grand = 0;
+  for (const i of mucCongDoan(items, metric)) {
+    const v = giaTriBop(i, metric), st = stageOfBop(i);
+    if (!stageBucket.has(st)) stageBucket.set(st, nhomTheoCongDoan ? BOP_SET.has(st) ? remainBucketOf("", st) : null : i.bucket);
+    for (const k of khoaDong(i)) {
+      const d = dong2.get(k) ?? { cells: {}, total: 0, n: 0 };
+      d.cells[st] = (d.cells[st] ?? 0) + v;
+      d.total += v;
+      d.n++;
+      dong2.set(k, d);
+    }
+    colTot[st] = (colTot[st] ?? 0) + v;
+    colN[st] = (colN[st] ?? 0) + 1;
+    grand += v;
+  }
+  const coDinh = BOP_STAGE_ORDER.filter((st) => st !== "P022" && st !== "P025");
+  coDinh.forEach((st) => {
+    if (!stageBucket.has(st)) stageBucket.set(st, nhomMacDinh(st));
+  });
+  const stages = [...stageBucket.keys()].sort((x, y) => stageRank(x) - stageRank(y) || x.localeCompare(y));
+  const groups = [];
+  for (const st of stages) {
+    const bk = stageBucket.get(st) ?? null;
+    const last = groups[groups.length - 1];
+    if (last && last.bucket === bk) last.stages.push(st);
+    else groups.push({ bucket: bk, stages: [st] });
+  }
+  const kho = /* @__PURE__ */ new Map();
+  const khoTot = khoRong();
+  for (const i of khoItems) {
+    const v = khoMuc(i, metric);
+    if (!v.nk && !v.xk && !v.xv) continue;
+    for (const k of khoaDong(i)) {
+      const e = kho.get(k) ?? khoRong();
+      congKho(e, v);
+      kho.set(k, e);
+      if (!dong2.has(k)) dong2.set(k, { cells: {}, total: 0, n: 0 });
+    }
+    congKho(khoTot, v);
+  }
+  return { stages, groups, dong: dong2, colTot, colN, grand, kho, khoTot };
+}
+function mucBopTuDong(row, k) {
+  const total = parseNumber(row[k.triGiaKey]);
+  const nk = parseNumber(row[k.nhapKhoKey]);
+  const remain = remainValue(total, nk);
+  const stage = extractStage(row[k.bopKey]);
+  const status = String(row[k.tinhTrangKey] ?? "").toUpperCase();
+  const open2 = !isQtyComplete(row) && (remain > 0 || total <= 0);
+  return {
+    stage,
+    // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
+    bucket: open2 || remain > 0 ? remainBucketOf(status, stage, laDongMra(row)) : null,
+    open: open2,
+    total,
+    inv: doneValue(total, nk),
+    xuat: k.xuatKhoKey ? Math.max(parseNumber(row[k.xuatKhoKey]), 0) : 0,
+    tonKho: k.tonKhoKey ? Math.max(parseNumber(row[k.tonKhoKey]), 0) : void 0,
+    remain
+  };
+}
+function tinhBangCongTrinhBop(items, metric, cuoi) {
+  const p = tinhPivotBop(items, items, metric, (i) => [i.ct], true);
+  const donHang = /* @__PURE__ */ new Map();
+  for (const i of items) donHang.set(i.ct, (donHang.get(i.ct) ?? 0) + (metric === "count" ? 1 : Math.max(i.total, 0)));
+  const rows = [...donHang.entries()].map(([name, dh]) => {
+    const d = p.dong.get(name);
+    return { name, cells: d?.cells ?? {}, total: d?.total ?? 0, kho: p.kho.get(name) ?? khoRong(), donHang: dh };
+  });
+  rows.sort((a, b) => Number(a.name === cuoi) - Number(b.name === cuoi) || b.total - a.total || b.kho.nk - a.kho.nk || a.name.localeCompare(b.name, "vi"));
+  return { metric, stages: p.stages, groups: p.groups, rows, colTot: p.colTot, grand: p.grand, khoTot: p.khoTot, donHangTot: [...donHang.values()].reduce((a, b) => a + b, 0) };
+}
+
+// ../frontend/components/Dashboard/core/tongQuanSanXuat.ts
+function khoaSanXuat(productionColumns) {
+  return {
+    hexKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.HEX) || "hex",
+    tinhTrangKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TINH_TRANG) || "tinh_trang",
+    tinhTrangIpoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TINH_TRANG_IPO) || "tinh_trang_ipo",
+    valueKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.GIA_TRI_CON_LAI) || "gia_tri_don_hang_con_lai",
+    realValueKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.GIA_TRI_THUC_TE) || "gia_tri_con_lai",
+    congTrinhKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.CONG_TRINH) || "ten_cong_trinh",
+    xuongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.XUONG) || "xuong_chinh",
+    hangMucKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TEN_HANG_MUC) || "ten_hang_muc",
+    daysAtCurrentStageKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI) || "so_ngay_cd_hien_tai",
+    phanLoaiNhomSanPhamKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM) || "phan_loai_nhom_san_pham",
+    bopKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.BOP) || "bop",
+    triGiaDonHangTongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG) || "tri_gia_don_hang_tong",
+    thanhTienTinhPhieuKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU) || "thanh_tien_tinh_phieu",
+    thanhTienNhapKhoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO) || "thanh_tien_nhap_kho_luy_ke",
+    khachHangKey: findColumnKey(productionColumns, "khach_hang") || "khach_hang",
+    khuVucDuAnKey: findColumnKey(productionColumns, "khu_vuc_du_an") || "khu_vuc_du_an",
+    // Kho lũy kế theo HEX — cùng cột ConstructionOverview đưa vào cửa sổ công trình (phần Kho của bảng BOP)
+    xuatKhoKey: findColumnKey(productionColumns, "thanh_tien_xuat_kho_luy_ke") || "thanh_tien_xuat_kho_luy_ke",
+    tonKhoKey: findColumnKey(productionColumns, "thanh_tien_ton_kho_hien_tai") || "thanh_tien_ton_kho_hien_tai"
+  };
+}
+var DEFAULT_FILTERS = {
+  congTrinh: [],
+  xuong: [],
+  tinhTrang: [],
+  tinhTrangIpo: [IPO_MAC_DINH],
+  khachHang: [],
+  khuVucDuAn: [],
+  phanLoai: []
+};
+var NO_MATCH_PROJECT = "__KHONG_CO_CONG_TRINH__";
+function tinhScopedProjects(productionData, khachHang, khuVucDuAn, congTrinhKey, khachHangKey, khuVucDuAnKey) {
+  if (!congTrinhKey) return null;
+  if (khachHang.length === 0 && khuVucDuAn.length === 0) return null;
+  const khachHangSet = toFilterSet(khachHang);
+  const khuVucDuAnSet = toFilterSet(khuVucDuAn);
+  const set2 = /* @__PURE__ */ new Set();
+  for (const row of productionData) {
+    const ct = String(row[congTrinhKey] || "").trim();
+    if (!ct) continue;
+    if (!matchesCategory(khachHangSet, row, khachHangKey)) continue;
+    if (!matchesCategory(khuVucDuAnSet, row, khuVucDuAnKey)) continue;
+    set2.add(ct);
+  }
+  return set2;
+}
+function tinhEffectiveCongTrinh(scopedProjects, congTrinh) {
+  if (!scopedProjects) return congTrinh;
+  const list = congTrinh.length > 0 ? congTrinh.filter((ct) => scopedProjects.has(ct)) : Array.from(scopedProjects);
+  return list.length > 0 ? list : [NO_MATCH_PROJECT];
+}
+function tapLoc(applied, effectiveCongTrinh) {
+  return {
+    congTrinhSet: toFilterSet(effectiveCongTrinh),
+    explicitCongTrinhSet: toFilterSet(applied.congTrinh),
+    xuongSet: toFilterSet(applied.xuong),
+    tinhTrangSet: toFilterSet(applied.tinhTrang),
+    tinhTrangIpoSet: toFilterSet(applied.tinhTrangIpo),
+    phanLoaiSet: toFilterSet(applied.phanLoai),
+    rowKhSet: toFilterSet(applied.khachHang),
+    rowKvSet: toFilterSet(applied.khuVucDuAn)
+  };
+}
+function locFiltered(productionData, t, k) {
+  const khRowKey = k.khachHangKey ?? "khach_hang";
+  const kvRowKey = k.khuVucDuAnKey ?? "khu_vuc_du_an";
+  return productionData.filter(
+    (row) => matchesFilter(t.congTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesFilter(t.tinhTrangSet, row, k.tinhTrangKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey) && matchesCategory(t.phanLoaiSet, row, k.phanLoaiKey) && matchesCategory(t.rowKhSet, row, khRowKey) && matchesCategory(t.rowKvSet, row, kvRowKey)
+  );
+}
+function locCrossFilterBase(source, t, k) {
+  return source.filter(
+    (row) => matchesFilter(t.explicitCongTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesFilter(t.tinhTrangSet, row, k.tinhTrangKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey)
+  );
+}
+function locFunnel(productionData, t, k) {
+  const khRowKey = k.khachHangKey ?? "khach_hang";
+  const kvRowKey = k.khuVucDuAnKey ?? "khu_vuc_du_an";
+  return productionData.filter(
+    (row) => matchesFilter(t.congTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesCategory(t.phanLoaiSet, row, k.phanLoaiKey) && matchesCategory(t.rowKhSet, row, khRowKey) && matchesCategory(t.rowKvSet, row, kvRowKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey)
+  );
+}
+var distinctRaw = (data, key) => {
+  const raw = /* @__PURE__ */ new Set();
+  for (const row of data) raw.add(row[key]);
+  return raw;
+};
+var getUniqueOptions = (data, key) => {
+  if (!key) return [];
+  const set2 = /* @__PURE__ */ new Set();
+  for (const v of distinctRaw(data, key)) {
+    const t = String(v || "").trim();
+    if (t) set2.add(t);
+  }
+  return Array.from(set2).sort();
+};
+function luaChonSanXuat(productionData, k) {
+  return {
+    congTrinhOptions: getUniqueOptions(productionData, k.congTrinhKey),
+    xuongOptions: getUniqueOptions(productionData, k.xuongKey),
+    tinhTrangOptions: getUniqueOptions(productionData, k.tinhTrangKey),
+    tinhTrangIpoOptions: getUniqueOptions(productionData, k.tinhTrangIpoKey),
+    khachHangOptions: categoryOptions(productionData, k.khachHangKey),
+    khuVucDuAnOptions: categoryOptions(productionData, k.khuVucDuAnKey),
+    phanLoaiOptions: categoryOptions(productionData, k.phanLoaiNhomSanPhamKey)
+  };
+}
+var UNKNOWN_PROJECT = "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+function projectNameOf(value) {
+  return String(value ?? "").trim() || UNKNOWN_PROJECT;
+}
+var unknownProjectLast = (a, b) => Number(a.name === UNKNOWN_PROJECT) - Number(b.name === UNKNOWN_PROJECT);
+function hamGiaTri(k) {
+  const isCancelledRow = (row) => !!k.tinhTrangIpoKey && laHuy(row[k.tinhTrangIpoKey]);
+  const rowRemain = (row) => remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
+  const funnelValue = (row, metric) => {
+    if (isCancelledRow(row)) return 0;
+    if (metric !== "COUNT_HEX") return rowRemain(row);
+    const total = parseNumber(row[k.triGiaDonHangTongKey]);
+    const nk = k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0;
+    return daNhapDu(total, nk, false, isQtyComplete(row)) ? 0 : 1;
+  };
+  return { isCancelledRow, rowRemain, calculateMetricValue: funnelValue, funnelValue };
+}
+var statusOf = (row, k, mode) => {
+  let status = "";
+  if (mode === "BOP") {
+    status = k.bopKey ? String(row[k.bopKey] || "Ch\u01B0a x\xE1c \u0111\u1ECBnh").trim() : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+    if (!status) status = "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+  } else {
+    status = String(row[k.tinhTrangKey] || "").trim();
+  }
+  return status;
+};
+function tinhBottleneck(rows, k, mode) {
+  if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const { funnelValue } = hamGiaTri(k);
+  const agg = {};
+  rows.forEach((row) => {
+    const status = statusOf(row, k, mode);
+    if (!status || !funnelValue(row, "COUNT_HEX")) return;
+    if (!agg[status]) {
+      agg[status] = { name: status };
+      DWELL_KEYS.forEach((d2) => {
+        agg[status][d2] = 0;
+        agg[status][`gt:${d2}`] = 0;
+      });
+    }
+    const d = dwellBucket(row[k.daysAtCurrentStageKey]);
+    agg[status][d] = (agg[status][d] || 0) + 1;
+    agg[status][`gt:${d}`] = (agg[status][`gt:${d}`] || 0) + funnelValue(row, "SUM_GT_CON_LAI");
+  });
+  return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
+}
+function tinhTopBottlenecks(rows, k, mode) {
+  if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const { funnelValue } = hamGiaTri(k);
+  const counts = {};
+  const gt = {};
+  rows.forEach((row) => {
+    const status = statusOf(row, k, mode);
+    if (status && funnelValue(row, "COUNT_HEX") && dwellBucket(row[k.daysAtCurrentStageKey]) === DWELL_STUCK) {
+      counts[status] = (counts[status] || 0) + 1;
+      gt[status] = (gt[status] || 0) + funnelValue(row, "SUM_GT_CON_LAI");
+    }
+  });
+  return Object.entries(counts).map(([name, count]) => ({ name, count, gt: gt[name] || 0 })).sort((a, b) => b.gt - a.gt || b.count - a.count).slice(0, 6);
+}
+var COT_NHOM = { VECNI_FITTING: "vecniFitting", CHUYEN_KHAC: "chuyenKhac", CO_PHIEU_CHUA_SX: "coPhieuChuaSX", VUONG_SL: "vuongSL", CHUA_TRIEN_KHAI: "chuaTrienKhai" };
+function tinhCardMetrics(rows, k) {
+  const m = { coTheSX: 0, vecniFitting: 0, chuyenKhac: 0, coPhieuChuaSX: 0, chuaTheSX: 0, vuongSL: 0, chuaTrienKhai: 0, tongConLai: 0, chuaXepNhom: 0 };
+  if (!k.tinhTrangKey) return m;
+  const { funnelValue } = hamGiaTri(k);
+  rows.forEach((row) => {
+    const val = funnelValue(row, "SUM_GT_CON_LAI");
+    m.tongConLai += val;
+    const nhom = nhomCuaMa(maTinhTrang(row[k.tinhTrangKey]));
+    if (nhom) m[COT_NHOM[nhom]] += val;
+    else m.chuaXepNhom += val;
+  });
+  m.coTheSX = NHOM_CO_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
+  m.chuaTheSX = NHOM_CHUA_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
+  return m;
+}
+function tinhBangCongTrinh(rows, k, metric) {
+  if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return null;
+  const { isCancelledRow } = hamGiaTri(k);
+  const khoa = {
+    bopKey: k.bopKey,
+    tinhTrangKey: k.tinhTrangKey,
+    triGiaKey: k.triGiaDonHangTongKey,
+    nhapKhoKey: k.thanhTienNhapKhoKey,
+    // Trình duyệt (usePivotTables) không truyền 2 khoá này => tên cột chuẩn, như ConstructionOverview
+    xuatKhoKey: k.xuatKhoKey || "thanh_tien_xuat_kho_luy_ke",
+    tonKhoKey: k.tonKhoKey || "thanh_tien_ton_kho_hien_tai"
+  };
+  const items = [];
+  for (const row of rows) {
+    if (isCancelledRow(row)) continue;
+    items.push({ ...mucBopTuDong(row, khoa), ct: projectNameOf(row[k.congTrinhKey]) });
+  }
+  return tinhBangCongTrinhBop(items, metric === "COUNT" ? "count" : "remain", UNKNOWN_PROJECT);
+}
+function tinhPivotWorkshop(rows, k, metric) {
+  if (!k.tinhTrangKey || !k.xuongKey) return null;
+  const { calculateMetricValue } = hamGiaTri(k);
+  const uniqueWorkshops = Array.from(new Set(rows.map((r) => String(r[k.xuongKey] || "").trim()).filter(Boolean))).sort();
+  const pivotRows = [];
+  const seen = /* @__PURE__ */ new Set();
+  rows.forEach((r) => {
+    const bop = String(r[k.bopKey] || "").trim();
+    const status = String(r[k.tinhTrangKey] || "").trim();
+    if (status) {
+      const combinedKey = `${bop} ||| ${status}`;
+      if (!seen.has(combinedKey)) {
+        seen.add(combinedKey);
+        pivotRows.push({ bop, status, key: combinedKey });
+      }
+    }
+  });
+  pivotRows.sort((a, b) => {
+    const bopComp = a.bop.localeCompare(b.bop);
+    if (bopComp !== 0) return bopComp;
+    return a.status.localeCompare(b.status);
+  });
+  if (uniqueWorkshops.length === 0 || pivotRows.length === 0) return null;
+  const uniqueBops = Array.from(new Set(pivotRows.map((r) => r.bop)));
+  const matrix = {};
+  const rowTotals = {};
+  const colTotals = {};
+  const bopTotals = {};
+  const bopRowTotals = {};
+  let grandTotal = 0;
+  uniqueBops.forEach((b) => {
+    bopTotals[b] = {};
+    bopRowTotals[b] = 0;
+    uniqueWorkshops.forEach((w) => {
+      bopTotals[b][w] = 0;
+    });
+  });
+  pivotRows.forEach((r) => {
+    matrix[r.key] = {};
+    rowTotals[r.key] = 0;
+    uniqueWorkshops.forEach((w) => {
+      matrix[r.key][w] = 0;
+      colTotals[w] = colTotals[w] || 0;
+    });
+  });
+  rows.forEach((row) => {
+    const bop = String(row[k.bopKey] || "").trim();
+    const s = String(row[k.tinhTrangKey] || "").trim();
+    const w = String(row[k.xuongKey] || "").trim();
+    if (s && w) {
+      const combinedKey = `${bop} ||| ${s}`;
+      const val = calculateMetricValue(row, metric);
+      if (matrix[combinedKey] && matrix[combinedKey][w] !== void 0) {
+        matrix[combinedKey][w] += val;
+        rowTotals[combinedKey] += val;
+        colTotals[w] += val;
+        grandTotal += val;
+        if (bopTotals[bop] && bopTotals[bop][w] !== void 0) {
+          bopTotals[bop][w] += val;
+          bopRowTotals[bop] += val;
+        }
+      }
+    }
+  });
+  return { uniqueWorkshops, rows: pivotRows, uniqueBops, bopTotals, bopRowTotals, matrix, rowTotals, colTotals, grandTotal };
+}
+var bopCua = (row, k) => extractStage(row[k.bopKey]) ?? (String(row[k.bopKey] || "").trim() || "Ch\u01B0a x\xE1c \u0111\u1ECBnh");
+function tinhPivotFunnel(rows, k, metric) {
+  if (!k.bopKey) return null;
+  const { funnelValue } = hamGiaTri(k);
+  const agg = {};
+  let total = 0;
+  rows.forEach((row) => {
+    const bop = bopCua(row, k);
+    const val = funnelValue(row, metric);
+    agg[bop] = (agg[bop] || 0) + val;
+    total += val;
+  });
+  const bopOrder = BOP_STAGE_ORDER;
+  return {
+    data: Object.entries(agg).map(([name, value]) => ({ name, value })).sort((a, b) => {
+      const indexA = bopOrder.indexOf(a.name);
+      const indexB = bopOrder.indexOf(b.name);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return b.value - a.value;
+    }),
+    total
+  };
+}
+function tinhFunnelBreakdownByBop(rows, k, metric) {
+  const result = {};
+  if (!k.bopKey || !k.congTrinhKey) return result;
+  const { funnelValue } = hamGiaTri(k);
+  const agg = {};
+  const totals = {};
+  rows.forEach((row) => {
+    const bop = bopCua(row, k);
+    const project = projectNameOf(row[k.congTrinhKey]);
+    const val = funnelValue(row, metric);
+    if (!agg[bop]) agg[bop] = {};
+    agg[bop][project] = (agg[bop][project] || 0) + val;
+    totals[bop] = (totals[bop] || 0) + val;
+  });
+  Object.keys(agg).forEach((bop) => {
+    result[bop] = {
+      data: Object.entries(agg[bop]).map(([name, value]) => ({ name, value })).sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
+      total: totals[bop] || 0
+    };
+  });
+  const short = {};
+  ["P022", "P025"].forEach((bop) => Object.entries(agg[bop] ?? {}).forEach(([name, v]) => {
+    short[name] = (short[name] || 0) + v;
+  }));
+  if (Object.keys(short).length) {
+    result.P022_SHORT = {
+      data: Object.entries(short).map(([name, value]) => ({ name, value })).sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
+      total: (totals.P022 || 0) + (totals.P025 || 0)
+    };
+  }
+  return result;
+}
+function tinhPivotProject(rows, k, metric, excludeFabrics) {
+  if (!k.congTrinhKey || !k.tinhTrangKey) return null;
+  const { calculateMetricValue } = hamGiaTri(k);
+  const dataToUse = excludeFabrics ? rows.filter((r) => {
+    const hm = String(r[k.hangMucKey] || "").toLowerCase();
+    return !hm.includes("v\u1EA3i") && !hm.includes("g\u1ED1i");
+  }) : rows;
+  const uniqueStatuses = Array.from(new Set(dataToUse.map((r) => String(r[k.tinhTrangKey] || "").trim()).filter(Boolean))).sort();
+  const uniqueProjects = Array.from(new Set(dataToUse.map((r) => String(r[k.congTrinhKey] || "").trim()).filter(Boolean))).sort();
+  const matrix = {};
+  const rowTotals = {};
+  const colTotals = {};
+  let grandTotal = 0;
+  uniqueProjects.forEach((p) => {
+    matrix[p] = {};
+    rowTotals[p] = 0;
+    uniqueStatuses.forEach((s) => {
+      matrix[p][s] = 0;
+      colTotals[s] = colTotals[s] || 0;
+    });
+  });
+  dataToUse.forEach((row) => {
+    const p = String(row[k.congTrinhKey] || "").trim();
+    const s = String(row[k.tinhTrangKey] || "").trim();
+    if (p && s) {
+      const val = calculateMetricValue(row, metric);
+      if (matrix[p] && matrix[p][s] !== void 0) {
+        matrix[p][s] += val;
+        rowTotals[p] += val;
+        colTotals[s] += val;
+        grandTotal += val;
+      }
+    }
+  });
+  return { uniqueProjects, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
+}
+var UNIT = 1e3;
+var OTHERS = "Kh\xE1c";
+var TOP_CUSTOMERS = 6;
+function aggregateMix(rows, dimOf, ctOf, totalTrieuOf, metric) {
+  const m = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    const name = dimOf(r);
+    let e = m.get(name);
+    if (!e) {
+      e = { name, value: 0, items: 0, totalTy: 0, cts: /* @__PURE__ */ new Set() };
+      m.set(name, e);
+    }
+    const ty = totalTrieuOf(r) / UNIT;
+    e.items++;
+    e.totalTy += ty;
+    e.cts.add(ctOf(r));
+    e.value += metric === "count" ? 1 : ty;
+  }
+  return [...m.values()].filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
+}
+function summarizeMix(rows, ctOf, totalTrieuOf) {
+  const cts = /* @__PURE__ */ new Set();
+  let total = 0;
+  for (const r of rows) {
+    cts.add(ctOf(r));
+    total += totalTrieuOf(r);
+  }
+  return { cts: cts.size, items: rows.length, totalTy: total / UNIT };
+}
+var groupTopN = (list, topN, selected = []) => {
+  if (list.length <= topN) return list;
+  const head = list.filter((d, i) => i < topN || selected.includes(d.name));
+  const rest = list.filter((d) => !head.includes(d));
+  if (rest.length === 0) return head;
+  const others = { name: OTHERS, value: 0, items: 0, totalTy: 0, cts: /* @__PURE__ */ new Set() };
+  for (const d of rest) {
+    others.value += d.value;
+    others.items += d.items;
+    others.totalTy += d.totalTy;
+    d.cts.forEach((c) => others.cts.add(c));
+  }
+  return [...head, others];
+};
+var CODE_PREFIX = /^(\d+)\s*[.\-)]/;
+var orderMix = (list) => {
+  const isTail = (n) => n === NO_DATA_LABEL || n === OTHERS;
+  const head = list.filter((d) => !isTail(d.name));
+  const tail = list.filter((d) => isTail(d.name)).sort((a, b) => a.name === OTHERS ? 1 : b.name === OTHERS ? -1 : 0);
+  if (head.length > 0 && head.every((d) => CODE_PREFIX.test(d.name))) {
+    const code = (n) => Number(CODE_PREFIX.exec(n)[1]);
+    head.sort((a, b) => code(a.name) - code(b.name) || a.name.localeCompare(b.name, "vi"));
+  }
+  return [...head, ...tail];
+};
+function mixRecords(data, columns) {
+  const key = (target, fallback) => findColumnKey(columns, target) || fallback;
+  const kvK = key("khu_vuc_du_an", "khu_vuc_du_an");
+  const khK = key("khach_hang", "khach_hang");
+  const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, "phan_loai_nhom_san_pham");
+  const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, "tinh_trang_ipo");
+  const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, "tri_gia_don_hang_tong");
+  const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, "ten_cong_trinh");
+  const out = [];
+  for (const row of data) {
+    if (!String(row[ctK] ?? "").trim()) continue;
+    if (laHuy(row[ipoK])) continue;
+    out.push({
+      ct: projectMatchKey(row[ctK]),
+      kv: categoryValue(row[kvK]),
+      kh: categoryValue(row[khK]),
+      pl: categoryValue(row[plK]),
+      total: parseNumber(row[totK]),
+      row
+    });
+  }
+  return out;
+}
+var recCt = (r) => r.ct;
+var recTotal = (r) => r.total;
+function mixMatching(records, selection, exclude) {
+  const active = ["kv", "kh", "pl"].filter((x) => x !== exclude && selection[x].length > 0).map((x) => [x, new Set(selection[x])]);
+  return active.length ? records.filter((r) => active.every(([o, set2]) => set2.has(r[o]))) : records;
+}
+function mixBuild(records, selection, k, metric, topN) {
+  const list = aggregateMix(mixMatching(records, selection, k), (r) => r[k], recCt, recTotal, metric);
+  return orderMix(topN ? groupTopN(list, topN, selection[k]) : list);
+}
+function mixSummary(records, selection) {
+  return summarizeMix(mixMatching(records, selection), recCt, recTotal);
+}
+function tinhCoCauDonHang(records, selection, metric) {
+  return {
+    kv: mixBuild(records, selection, "kv", metric),
+    kh: mixBuild(records, selection, "kh", metric, TOP_CUSTOMERS),
+    pl: mixBuild(records, selection, "pl", metric),
+    summary: mixSummary(records, selection)
+  };
+}
+var TUY_CHON_MAC_DINH = {
+  workshopMetric: "SUM_GT_DON_HANG",
+  projectMetric: "SUM_GT_DON_HANG",
+  projectSummaryMetric: "VALUE",
+  excludeFabrics: false,
+  bottleneckViewMode: "BOP"
+};
+var mixJson = (l) => l.map((d) => ({ ...d, cts: [...d.cts] }));
+function tinhTongQuanSanXuat(productionData, productionColumns, applied, tuy) {
+  const k = khoaSanXuat(productionColumns);
+  const kLoc = { ...k, phanLoaiKey: k.phanLoaiNhomSanPhamKey };
+  const scoped = tinhScopedProjects(productionData, applied.khachHang, applied.khuVucDuAn, k.congTrinhKey, k.khachHangKey, k.khuVucDuAnKey);
+  const effectiveCongTrinh = tinhEffectiveCongTrinh(scoped, applied.congTrinh);
+  const t = tapLoc(applied, effectiveCongTrinh);
+  const filtered = locFiltered(productionData, t, kLoc);
+  const funnel = locFunnel(productionData, t, kLoc);
+  const crossBase = locCrossFilterBase(productionData, t, kLoc);
+  const mixMetric = tuy.workshopMetric === "COUNT_HEX" ? "count" : "value";
+  const coCau = tinhCoCauDonHang(mixRecords(crossBase, productionColumns), { kv: applied.khuVucDuAn, kh: applied.khachHang, pl: applied.phanLoai }, mixMetric);
+  return {
+    soDong: productionData.length,
+    luaChon: luaChonSanXuat(productionData, k),
+    scopedProjects: scoped ? [...scoped] : null,
+    effectiveCongTrinh,
+    cardMetrics: tinhCardMetrics(filtered, k),
+    bangCongTrinh: tinhBangCongTrinh(filtered, k, tuy.projectSummaryMetric),
+    pivotWorkshopData: tinhPivotWorkshop(filtered, k, tuy.workshopMetric),
+    pivotFunnelData: tinhPivotFunnel(funnel, k, tuy.workshopMetric),
+    funnelBreakdownByBop: tinhFunnelBreakdownByBop(funnel, k, tuy.workshopMetric),
+    pivotProjectData: tinhPivotProject(filtered, k, tuy.projectMetric, tuy.excludeFabrics),
+    bottleneckData: tinhBottleneck(filtered, k, tuy.bottleneckViewMode),
+    topBottlenecks: tinhTopBottlenecks(filtered, k, tuy.bottleneckViewMode),
+    coCau: { kv: mixJson(coCau.kv), kh: mixJson(coCau.kh), pl: mixJson(coCau.pl), summary: coCau.summary }
+  };
+}
+
+// ../frontend/components/Construction/core/banGhiCongTrinh.ts
+var NO_DATA = "(Ch\u01B0a c\xF3)";
+var NO_MONTH = "none";
+function taoBanGhi(data, columns, today) {
+  const key = (target, fallback) => findColumnKey(columns, target) || fallback;
+  const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, "ten_cong_trinh");
+  const pmK = key("ten_pm", "ten_pm");
+  const pcK = key("ten_pc", "ten_pc");
+  const kvK = key("khu_vuc_du_an", "khu_vuc_du_an");
+  const khK = key("khach_hang", "khach_hang");
+  const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, "phan_loai_nhom_san_pham");
+  const dlKeys = resolveDeadlineKeys(columns);
+  const stK = key(TARGET_COLUMN_NAMES.TINH_TRANG, "tinh_trang");
+  const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, "tinh_trang_ipo");
+  const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, "tri_gia_don_hang_tong");
+  const invK = key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, "thanh_tien_nhap_kho_luy_ke");
+  const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, "ma_cong_trinh");
+  const xkK = key("thanh_tien_xuat_kho_luy_ke", "thanh_tien_xuat_kho_luy_ke");
+  const tkK = key("thanh_tien_ton_kho_hien_tai", "thanh_tien_ton_kho_hien_tai");
+  const nctK = columns.find((c) => c.key === "nhom_ct")?.key ?? "nhom_ct";
+  const bopK = key(TARGET_COLUMN_NAMES.BOP, "bop");
+  const tdaK = columns.find((c) => c.key === "tinh_trang_du_an")?.key ?? "tinh_trang_du_an";
+  const projectKey = (row) => projectMatchKey(row[ctK]);
+  const txt = (v) => {
+    const t = String(v ?? "").trim();
+    return !t || t.startsWith("#") ? NO_DATA : t;
+  };
+  const out = [];
+  for (const row of data) {
+    const ct = String(row[ctK] ?? "").trim();
+    if (!ct) continue;
+    const ipo = String(row[ipoK] ?? "").toUpperCase();
+    const st = String(row[stK] ?? "").toUpperCase();
+    const totalRaw = parseNumber(row[totK]);
+    const invRaw = parseNumber(row[invK]);
+    let status;
+    if (laHuy(ipo)) status = "H\u1EE6Y";
+    else if (ipo.includes("HO\xC0N TH\xC0NH")) status = "HO\xC0N TH\xC0NH";
+    else if (ipo.includes("T\u1EA0M NG\u01AFNG")) status = "T\u1EA0M NG\u01AFNG";
+    else if (ipo.includes("C\u1EA6N X\u1EEC L\xDD")) status = "C\u1EA6N X\u1EEC L\xDD";
+    else if (laChuaTheSX(st)) status = "CH\u01AFA TKSX";
+    else status = "C\xD3 PHI\u1EBEU SX";
+    const dl = deadlineOf(row, dlKeys);
+    const d = dl.date;
+    const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : NO_MONTH;
+    const cancelled = status === "H\u1EE6Y";
+    const stockRaw = Math.max(parseNumber(row[tkK]), 0);
+    const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
+    const exported = cancelled ? 0 : exportedRecorded;
+    const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
+    const stockHuy = cancelled ? Math.min(stockRaw, Math.max(Math.max(invRaw, 0) - exportedRecorded, 0), Math.max(totalRaw, 0)) : 0;
+    const kho = cancelled ? { ton: stockHuy, chenh: 0, xv: 0 } : khoCua({ inv: done, xuat: exported, tonKho: stockRaw });
+    const qtyDone = isQtyComplete(row);
+    const open2 = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
+    out.push({
+      ct,
+      ctKey: projectKey(row),
+      pm: txt(row[pmK]),
+      pc: txt(row[pcK]),
+      kv: txt(row[kvK]),
+      kh: txt(row[khK]),
+      pl: txt(row[plK]),
+      nct: txt(row[nctK]),
+      tda: txt(row[tdaK]),
+      ma: String(row[maK] ?? "").trim().toUpperCase(),
+      deadline: d,
+      planMet: !d && (dl.tuanMet || dl.thangMet),
+      open: open2,
+      overdue: open2 && !!d && d.getTime() < today,
+      botDuAn: dl.botDuAn,
+      ipo: String(row[ipoK] ?? "").trim(),
+      month,
+      status,
+      total: cancelled ? 0 : totalRaw,
+      totalHuy: cancelled ? totalRaw : 0,
+      done,
+      exported,
+      exportedRecorded,
+      xuatVuot: kho.xv,
+      stock: kho.ton,
+      unmatched: kho.chenh,
+      stockCut: stockRaw - kho.ton,
+      qtyDone,
+      row,
+      mk: projectMatchKey(ct),
+      bucket: cancelled ? "cancelled" : remainBucketOf(st, extractStage(row[bopK]), laDongMra(row))
+    });
+  }
+  const nameCount = /* @__PURE__ */ new Map();
+  for (const r of out) {
+    let m = nameCount.get(r.ctKey);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      nameCount.set(r.ctKey, m);
+    }
+    m.set(r.ct, (m.get(r.ct) ?? 0) + 1);
+  }
+  const displayName2 = /* @__PURE__ */ new Map();
+  nameCount.forEach((m, k) => {
+    let best = "", bestN = -1;
+    m.forEach((n, name) => {
+      if (n > bestN || n === bestN && name < best) {
+        best = name;
+        bestN = n;
+      }
+    });
+    displayName2.set(k, best);
+  });
+  for (const r of out) r.ct = displayName2.get(r.ctKey) ?? r.ct;
+  return out;
+}
+var COT_CHU = ["ct", "pm", "pc", "kv", "kh", "pl", "nct", "tda", "ma", "ctKey", "month", "status", "ipo", "mk", "bucket"];
+var COT_SO = ["total", "totalHuy", "done", "exported", "exportedRecorded", "xuatVuot", "stock", "stockCut", "unmatched"];
+var ngayChuoi = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
+function nenBanGhi(recs) {
+  const tu = [];
+  const idx = /* @__PURE__ */ new Map();
+  const ma = (s) => {
+    let i = idx.get(s);
+    if (i === void 0) {
+      i = tu.length;
+      tu.push(s);
+      idx.set(s, i);
+    }
+    return i;
+  };
+  const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
+  const so7 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  return {
+    n: recs.length,
+    tu,
+    chu,
+    so: so7,
+    open: recs.map((r) => r.open ? 1 : 0),
+    qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
+    planMet: recs.map((r) => r.planMet ? 1 : 0),
+    deadline: recs.map((r) => ma(ngayChuoi(r.deadline))),
+    botDuAn: recs.map((r) => ma(ngayChuoi(r.botDuAn))),
+    hex: recs.map((r) => ma(String(r.row?.["hex"] ?? "").trim()))
+  };
+}
+
+// ../frontend/utils/workshopGroupsCore.ts
+var normWorkshop2 = (v) => String(v ?? "").trim().toUpperCase();
+var rawToGroup2 = /* @__PURE__ */ new Map();
+var setMapping = (mapping) => {
+  const m = /* @__PURE__ */ new Map();
+  Object.entries(mapping || {}).forEach(([raw, g]) => {
+    const r = normWorkshop2(raw), gg = normWorkshop2(g);
+    if (r && gg && r !== gg) m.set(r, gg);
+  });
+  rawToGroup2 = m;
+};
+var applyWorkshopMapping = (mapping) => setMapping(mapping);
+var workshopGroupOf2 = (raw) => {
+  const n = normWorkshop2(raw);
+  return rawToGroup2.get(n) ?? n;
+};
+function canonicalizeWorkshops(rows, columns) {
+  if (rows.length === 0) return rows;
+  const key = findColumnKey(columns, "xuong_chinh");
+  if (!key) return rows;
+  let changed = false;
+  const groupOf = /* @__PURE__ */ new Map();
+  const out = rows.map((row) => {
+    const v = row[key];
+    if (v == null || v === "") return row;
+    let g = groupOf.get(v);
+    if (g === void 0) {
+      const n = normWorkshop2(v);
+      g = rawToGroup2.get(n) ?? n;
+      groupOf.set(v, g);
+    }
+    if (!g || v === g) return row;
+    changed = true;
+    return { ...row, [key]: g };
+  });
+  return changed ? out : rows;
+}
+
+// ../frontend/components/Construction/core/ghepFileCongTrinh.ts
+var coSoFile = (d) => !!d && d.coBang && d.dong.length > 0;
+function ghepDongFile(app2, columns, hexKey, d) {
+  const theoHex = /* @__PURE__ */ new Map();
+  for (const r of app2) {
+    const h = String(r[hexKey] ?? "").trim();
+    if (h && !theoHex.has(h)) theoHex.set(h, r);
+  }
+  let doiNguoi = false, doiTen = false;
+  const ra = d.dong.map(([hex3, doi]) => {
+    const goc2 = theoHex.get(hex3);
+    if (!doi) return goc2 ?? { [hexKey]: hex3 };
+    const dong2 = goc2 ? { ...goc2 } : { [hexKey]: hex3 };
+    const laMra = goc2?.nguon_bop === "MRA";
+    for (const [k, v] of Object.entries(doi)) {
+      if (k === "bop" && laMra) dong2.bop_pc = v;
+      else if (k === "xuong_chinh") dong2[k] = v == null || v === "" ? v : workshopGroupOf2(v);
+      else if (k === "ten_cong_trinh") {
+        dong2[k] = v == null ? null : canonicalProjectName2(v);
+        doiTen = true;
+      } else {
+        if (k === "ma_cong_trinh") doiTen = true;
+        if (k === "ten_pm" || k === "ten_pc") doiNguoi = true;
+        dong2[k] = v;
+      }
+    }
+    return dong2;
+  });
+  const raTen = doiTen ? canonicalizeProjectNames(ra, columns) : ra;
+  return doiNguoi ? canonicalizePersonNames(raTen, columns) : raTen;
+}
+
+// ../frontend/components/Dashboard/core/viTriMra.ts
+var PHU_GCVT = false;
+var KHONG_PHU = /* @__PURE__ */ new Set(["P022", "P025"]);
+var NHAN_DU_PHONG = {
+  P012: "P012. C\xF3 phi\u1EBFu ch\u01B0a s\u1EA3n xu\u1EA5t",
+  P013: "P013. Ra ph\xF4i s\u01A1 ch\u1EBF",
+  P014: "P014. Tinh ch\u1EC9nh \u0111\u1ECBnh h\xECnh",
+  P016: "P016. L\u1EAFp r\xE1p tinh ch\u1EC9nh",
+  P018: "P018. S\u01A1n - l\xE0m m\xE0u",
+  P020: "P020. L\u1EAFp r\xE1p ho\xE0n thi\u1EC7n",
+  P021: "P021. \u0110\xF3ng g\xF3i ho\xE0n th\xE0nh"
+};
+var NGAY_MS = 864e5;
+function soNgayTuMoc(tuIso, nowMs) {
+  if (!tuIso) return "0";
+  const tu = Date.parse(tuIso);
+  if (!Number.isFinite(tu)) return "0";
+  const d = Math.floor((nowMs - tu) / NGAY_MS);
+  if (d <= 3) return "<3 NG\xC0Y";
+  if (d <= 7) return "4-7 NG\xC0Y";
+  if (d >= 56) return "T\u1EEA 8 TU\u1EA6N TR\u1EDE L\xCAN";
+  return `${Math.min(Math.ceil(d / 7), 7)} TU\u1EA6N`;
+}
+function nhanTheoMa(rows, bopKey) {
+  const dem2 = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const s = String(row[bopKey] ?? "").trim();
+    const st = extractStage(s);
+    if (!st) continue;
+    let m = dem2.get(st);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      dem2.set(st, m);
+    }
+    m.set(s, (m.get(s) || 0) + 1);
+  }
+  const nhan = /* @__PURE__ */ new Map();
+  for (const [st, m] of dem2) {
+    let tot = "";
+    let n = -1;
+    for (const [s, c] of m) if (c > n) {
+      tot = s;
+      n = c;
+    }
+    nhan.set(st, tot);
+  }
+  for (const [ma, s] of Object.entries(NHAN_DU_PHONG)) if (!nhan.has(ma)) nhan.set(ma, s);
+  return nhan;
+}
+function phuViTriMra(rows, cols, ban, nowMs, nhan) {
+  const map2 = ban?.map;
+  if (!map2 || !rows.length) return { rows, soPhu: 0 };
+  const k = khoaSanXuat(cols);
+  const bopKey = k.bopKey;
+  const soNgayKey = k.daysAtCurrentStageKey;
+  let nhanDung = nhan;
+  const phu2 = (row) => {
+    const hex3 = String(row[k.hexKey] ?? "").trim();
+    const v = hex3 ? map2[hex3] ?? map2[hex3.toUpperCase()] : void 0;
+    if (!v) return null;
+    if (laHuy(row[k.tinhTrangIpoKey]) || laHuy(row[k.tinhTrangKey])) return null;
+    const st = extractStage(row[bopKey]);
+    if (st && KHONG_PHU.has(st)) return null;
+    if (st === "GCVT" && !PHU_GCVT) return null;
+    if (!nhanDung) nhanDung = nhanTheoMa(rows, bopKey);
+    return {
+      ...row,
+      [bopKey]: nhanDung.get(v.ma) ?? NHAN_DU_PHONG[v.ma] ?? v.ma,
+      [soNgayKey]: soNgayTuMoc(v.tu, nowMs),
+      bop_pc: row[bopKey],
+      so_ngay_pc: row[soNgayKey],
+      nguon_bop: "MRA",
+      mra_cd: v.cd.join(", "),
+      mra_tu: v.tu
+    };
+  };
+  let out = null;
+  let soPhu = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const moi = phu2(rows[i]);
+    if (moi) {
+      if (!out) out = rows.slice(0, i);
+      soPhu++;
+    }
+    if (out) out.push(moi ?? rows[i]);
+  }
+  if (!out) return { rows, soPhu: 0 };
+  return { rows: out, soPhu };
+}
+
+// ../frontend/components/Dashboard/core/mayChu.ts
+var cotTuDuLieu = (rows) => {
+  const keys = /* @__PURE__ */ new Set();
+  for (const r of rows) for (const k of Object.keys(r)) if (k && k.trim() !== "") keys.add(k);
+  return [...keys].map((key) => ({ key, label: key }));
+};
+
 // src/routes/data.ts
 var ALL_DATA_GZIP_MAX = 8;
 var allDataGzipVkey = "";
@@ -77265,6 +79367,29 @@ var HEX_DETAIL_COLUMNS = [
   "trang_thai_gcn",
   "updated_at"
 ];
+var nhanBopHienCo = () => void 0;
+var dangKyNhanBop = (f) => {
+  nhanBopHienCo = f;
+};
+var nhanHex = null;
+var NHAN_HEX_MS = 36e5;
+async function nhanBopChoHex() {
+  const co2 = nhanBopHienCo();
+  if (co2) return co2;
+  if (nhanHex && Date.now() - nhanHex.luc < NHAN_HEX_MS) return nhanHex.nhan;
+  try {
+    const r = await timedQuery(
+      `SELECT bop, count(*)::int AS n FROM production_status_app WHERE bop IS NOT NULL AND btrim(bop) <> '' GROUP BY bop ORDER BY n DESC`,
+      [],
+      { timeoutMs: 8e3 }
+    );
+    nhanHex = { luc: Date.now(), nhan: nhanTheoMa(r.rows, "bop") };
+    return nhanHex.nhan;
+  } catch (e) {
+    console.warn("[production/hex] kh\xF4ng l\u1EA5y \u0111\u01B0\u1EE3c nh\xE3n BOP, d\xF9ng nh\xE3n d\u1EF1 ph\xF2ng", e);
+    return void 0;
+  }
+}
 app.get("/api/production/hex/:hex", async (req, res) => {
   try {
     const hex3 = String(req.params.hex || "").trim();
@@ -77276,7 +79401,12 @@ app.get("/api/production/hex/:hex", async (req, res) => {
       { timeoutMs: 15e3 }
     );
     if (!r.rows[0]) return res.status(404).json({ error: "Not found" });
-    res.json(r.rows[0]);
+    let row = r.rows[0];
+    const ban = await layBanDoViTri().catch(() => null);
+    if (ban && ban.ver !== "off" && ban.map[String(row.hex ?? "").trim()]) {
+      row = phuViTriMra([row], cotTuDuLieu([row]), ban, Date.now(), await nhanBopChoHex()).rows[0];
+    }
+    res.json(row);
   } catch (error61) {
     console.error("L\u1ED7i /api/production/hex:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -78196,7 +80326,7 @@ var SO_MA_DU = 4;
 var SO_SERI_LO = 7;
 var chuanHoa = (s) => (s ?? "").normalize("NFC").trim();
 var laDaXuat = (tkh) => chuanHoa(tkh).toUpperCase() === "\u0110\xC3 XU\u1EA4T";
-var laHuy = (tn, ipo) => /^h[uúủ]y$/i.test(chuanHoa(tn)) || chuanHoa(ipo).toUpperCase().includes("H\u1EE6Y");
+var laHuy2 = (tn, ipo) => /^h[uúủ]y$/i.test(chuanHoa(tn)) || chuanHoa(ipo).toUpperCase().includes("H\u1EE6Y");
 var laXuatTinh = (r) => chuanHoa(r.co).toUpperCase() === "T\xCDNH" && r.tt > 0;
 var MOT_NGAY = 864e5;
 var soNgay = (den, tu) => Math.round((Date.parse(den) - Date.parse(tu)) / MOT_NGAY);
@@ -78285,7 +80415,7 @@ var tinhPhanTich = (input2) => {
         themXt(xtCt, r.ct, r);
         const da = daOf(r.ct, r.ten);
         cong(xuatDa, da, r.tt);
-        if (!laHuy(r.tn, r.ipo) && r.d > (cuoiXuatDa.get(da) ?? "")) cuoiXuatDa.set(da, r.d);
+        if (!laHuy2(r.tn, r.ipo) && r.d > (cuoiXuatDa.get(da) ?? "")) cuoiXuatDa.set(da, r.d);
       }
     }
     if (r.hex && chuanHoa(r.co) === "" && kieuGhiChu(r.gc) === "GIAO") cong(giaoTrong, r.hex, r.sl || 0);
@@ -78487,7 +80617,7 @@ var tinhPhanTich = (input2) => {
   }
   const donDa = /* @__PURE__ */ new Map();
   for (const p of input2.psaNhom) {
-    if (laHuy(p.tn, p.ipo)) continue;
+    if (laHuy2(p.tn, p.ipo)) continue;
     const k = daOf(p.ct, p.ten), a = donDa.get(k) ?? { gtd: 0, nhapCap: 0, con: 0 };
     a.gtd += p.gtd;
     a.nhapCap += p.nhapCap;
@@ -78560,7 +80690,7 @@ var tinhPhanTich = (input2) => {
     const p = r.hex ? P.get(r.hex) : void 0;
     let nhom;
     if (!p) nhom = "khongPsa";
-    else if (laHuy(p.tn, p.ipo)) nhom = "huy";
+    else if (laHuy2(p.tn, p.ipo)) nhom = "huy";
     else {
       const n = p.sln || 0, x = XT.get(p.hex)?.sl ?? 0;
       const rx = n > 0 ? x / n : 0, rn = p.sld > 0 ? n / p.sld : 0;
@@ -78593,7 +80723,7 @@ var tinhPhanTich = (input2) => {
   const chuaXuatDuAn = [...cxDa.values()].sort((a, b) => b.t46 + b.t6 - (a.t46 + a.t6) || b.tong - a.tong).map((a) => ({ duAn: a.duAn, t01: lam(a.t01), t23: lam(a.t23), t46: lam(a.t46), t6: lam(a.t6), khong: lam(a.khong), thieuBo: lam(a.thieuBo), tong: lam(a.tong) }));
   const dongHuy = O.filter((t) => {
     const p = t.hex ? P.get(t.hex) : void 0;
-    return !!p && laHuy(p.tn, p.ipo);
+    return !!p && laHuy2(p.tn, p.ipo);
   });
   const huyGt = tong(dongHuy, (t) => t.v);
   const dongCuHuy = dongHuy.filter((t) => laCu(date5, t.nk));
@@ -78732,7 +80862,7 @@ var tinhPhanTich = (input2) => {
   const dsChuaVaoSo = [], dsRoiKho = [];
   for (const [h, rs] of nhapHex) {
     const p = P.get(h);
-    if (!p || laHuy(p.tn, p.ipo) || coDongXuat.has(h) || !hexSoNgoai.has(h)) continue;
+    if (!p || laHuy2(p.tn, p.ipo) || coDongXuat.has(h) || !hexSoNgoai.has(h)) continue;
     const zz = rs.filter((r) => r.sl === 0 && r.tt > 0);
     if (!zz.length || zz.reduce((m, r) => r.d > m ? r.d : m, "") < `${date5.slice(0, 4)}-01-01`) continue;
     const tt = tong(rs, (r) => r.tt), sl = tong(rs, (r) => r.sl || 0), tt0 = tong(zz, (r) => r.tt);
@@ -78749,7 +80879,7 @@ var tinhPhanTich = (input2) => {
   let daRoiKho = 0;
   for (const [h, a] of tonHex) {
     const p = P.get(h), giao = giaoTrong.get(h) ?? 0;
-    if (!p || !a.sl || !giao || laHuy(p.tn, p.ipo)) continue;
+    if (!p || !a.sl || !giao || laHuy2(p.tn, p.ipo)) continue;
     const r = Math.min(a.sl, Math.max(giao - (XT.get(h)?.sl ?? 0), 0));
     if (r > 0) {
       daRoiKho += r * a.v / a.sl;
@@ -79042,10 +81172,10 @@ var sqlMoTaPsa = (sapKey, xuong) => ({
     FROM production_status_app ORDER BY updated_at DESC NULLS LAST, id DESC`,
   params: []
 });
-var so = (x) => Number(x) || 0;
-var ghepDongTon = (t) => ({ sap: t.sap, hex: t.hex, ct: t.ct, ten: t.ten, nk: t.nk, sl: so(t.sl), v: so(t.v), tkh: t.tkh, gc: t.gc });
+var so2 = (x) => Number(x) || 0;
+var ghepDongTon = (t) => ({ sap: t.sap, hex: t.hex, ct: t.ct, ten: t.ten, nk: t.nk, sl: so2(t.sl), v: so2(t.v), tkh: t.tkh, gc: t.gc });
 var ghepDauVaoV5 = (date5, ngayChot, r) => {
-  const n = so;
+  const n = so2;
   const input2 = {
     date: date5,
     ngayChot,
@@ -79310,7 +81440,7 @@ var COT_MA = (nhanDu) => [
   { k: "du", nhan: nhanDu, kieu: "ty" }
 ];
 var COT_DON = [CT, TEN, HEX, HM, { k: "ipo", nhan: "T\xECnh tr\u1EA1ng IPO", kieu: "chu" }, { k: "gtd", nhan: "Gi\xE1 tr\u1ECB \u0111\u01A1n", kieu: "ty" }, { k: "nhapCap", nhan: "\u0110\xE3 nh\u1EADp", kieu: "ty" }, { k: "con", nhan: "Ch\u01B0a nh\u1EADp", kieu: "ty" }];
-var dung = (tieuDe, cot, dong2, gt, raDong, phu) => {
+var dung = (tieuDe, cot, dong2, gt, raDong, phu2) => {
   const sap = [...dong2].sort((a, b) => gt(b) - gt(a));
   return {
     tieuDe,
@@ -79319,7 +81449,7 @@ var dung = (tieuDe, cot, dong2, gt, raDong, phu) => {
     cot,
     rows: sap.slice(0, SO_DONG_TOI_DA).map(raDong),
     truncated: dong2.length > SO_DONG_TOI_DA,
-    ...phu ? { phu } : {}
+    ...phu2 ? { phu: phu2 } : {}
   };
 };
 var ngayNgan = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
@@ -79468,8 +81598,8 @@ var chiTietTonKhoV5 = (input2, yc, them = {}) => {
         return dung(`Nh\u1EADp${nhanPham}`, cot("Th\xE0nh ti\u1EC1n"), ds3, (r) => r.tt, dongLuong);
       }
       const ds2 = (them.xuat ?? a.xuat).filter((r) => r.d <= date5 && laXuatTinh(r) && hop(r) && (!yc.xuat60 || r.d >= a.d60));
-      const phu = coDuAn ? [{ nhan: "\u0110\xE3 nh\u1EADp", gt: lam(tong(a.nhap.filter((r) => r.ct && coDuAn.has(a.daOf(r.ct, r.ten))), (r) => r.tt)) }] : void 0;
-      return dung(`Xu\u1EA5t T\xCDNH${yc.xuat60 ? " 60 ng\xE0y" : ""}${nhanPham}`, cot("Th\xE0nh ti\u1EC1n"), ds2, (r) => r.tt, dongLuong, phu);
+      const phu2 = coDuAn ? [{ nhan: "\u0110\xE3 nh\u1EADp", gt: lam(tong(a.nhap.filter((r) => r.ct && coDuAn.has(a.daOf(r.ct, r.ten))), (r) => r.tt)) }] : void 0;
+      return dung(`Xu\u1EA5t T\xCDNH${yc.xuat60 ? " 60 ng\xE0y" : ""}${nhanPham}`, cot("Th\xE0nh ti\u1EC1n"), ds2, (r) => r.tt, dongLuong, phu2);
     }
     case "chua_doi_soat": {
       const tu = dauKy(a, yc.den);
@@ -79532,7 +81662,7 @@ var chiTietTonKhoV5 = (input2, yc, them = {}) => {
     case "don_chua_nhap": {
       const nguon = them.don ?? input2.psaNhom.map((p) => ({ hex: null, hm: null, ...p }));
       const conLaiDon = yc.loai === "don_chua_nhap";
-      const ds2 = nguon.filter((p) => !laHuy(p.tn, p.ipo) && coDuAn.has(a.daOf(p.ct, p.ten)) && (!conLaiDon || laDonCon(p)));
+      const ds2 = nguon.filter((p) => !laHuy2(p.tn, p.ipo) && coDuAn.has(a.daOf(p.ct, p.ten)) && (!conLaiDon || laDonCon(p)));
       const raDong = (p) => ({ ct: p.ct, ten: gon(p.ten), hex: p.hex, hm: p.hm, ipo: p.ipo, gtd: lam(p.gtd), nhapCap: lam(p.nhapCap), con: lam(p.con) });
       return conLaiDon ? dung(`\u0110\u01A1n ch\u01B0a nh\u1EADp${tieuDeNhom}`, COT_DON, ds2.filter((p) => p.con), (p) => p.con, raDong) : dung(`\u0110\u01A1n \u0111\xE3 nh\u1EADp${tieuDeNhom}`, COT_DON, ds2, (p) => p.nhapCap, raDong, [{ nhan: "Gi\xE1 tr\u1ECB \u0111\u01A1n", gt: lam(tong(ds2, (p) => p.gtd)) }]);
     }
@@ -80153,7 +82283,7 @@ var cacheChiTiet = createCache(16);
 var NHOM_SQL = sqlNhom("t.nhom_vat_tu");
 var CHAM_SQL = `UPPER(TRIM(t.cham_luan_chuyen_tren_3_thang)) = 'X'`;
 var TEN_SQL = sqlTen("t.ten_vat_tu");
-var so2 = (v) => {
+var so3 = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
@@ -80188,10 +82318,10 @@ var tinhTongHop = async (capNhat, loc) => {
   const diem = rows.map((row) => ({
     ngay: String(row.ngay),
     nhom: String(row.nhom),
-    giaTri: so2(row.gia_tri),
-    giaTriCham: so2(row.gia_tri_cham),
-    soMa: so2(row.so_ma),
-    soMaCham: so2(row.so_ma_cham)
+    giaTri: so3(row.gia_tri),
+    giaTriCham: so3(row.gia_tri_cham),
+    soMa: so3(row.so_ma),
+    soMaCham: so3(row.so_ma_cham)
   }));
   const ngay3 = [...new Set(diem.map((d) => d.ngay))].sort();
   return { capNhat, ngay: ngay3, nhom: xepNhom(diem), diem };
@@ -80250,7 +82380,7 @@ var tinhTenVatTu = async (nhom) => {
     if (!laThieuBang(e)) throw e;
     rows = [];
   }
-  const ten = rows.map((row) => ({ ten: String(row.ten), soMa: so2(row.so_ma), conTon: row.con_ton === true })).sort((a, b) => a.ten.localeCompare(b.ten, "vi"));
+  const ten = rows.map((row) => ({ ten: String(row.ten), soMa: so3(row.so_ma), conTon: row.con_ton === true })).sort((a, b) => a.ten.localeCompare(b.ten, "vi"));
   return { nhom, ten };
 };
 app.get("/api/ton-kho-vt/ten-vat-tu", async (req, res) => {
@@ -80675,20 +82805,20 @@ app.get("/api/khnk-sheet", async (_req, res) => {
 var CONG_DOAN = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
 var laCongDoan = (x) => typeof x === "string" && CONG_DOAN.includes(x);
 var SETUP_RONG = { congDoan: {}, xuongCua: {} };
-var chuanTen = (s) => String(s ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toUpperCase();
+var chuanTen2 = (s) => String(s ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toUpperCase();
 function docSetup(x) {
   const ra = { congDoan: {}, xuongCua: {} };
   if (!x || typeof x !== "object") return ra;
   const o = x;
   if (o.congDoan && typeof o.congDoan === "object") {
     for (const [k, v] of Object.entries(o.congDoan)) {
-      if (laCongDoan(k) && Array.isArray(v)) ra.congDoan[k] = [...new Set(v.map(chuanTen).filter(Boolean))];
+      if (laCongDoan(k) && Array.isArray(v)) ra.congDoan[k] = [...new Set(v.map(chuanTen2).filter(Boolean))];
     }
   }
   if (o.xuongCua && typeof o.xuongCua === "object") {
     for (const [k, v] of Object.entries(o.xuongCua)) {
-      const bp = chuanTen(k);
-      if (bp && Array.isArray(v)) ra.xuongCua[bp] = [...new Set(v.map(chuanTen).filter(Boolean))];
+      const bp = chuanTen2(k);
+      if (bp && Array.isArray(v)) ra.xuongCua[bp] = [...new Set(v.map(chuanTen2).filter(Boolean))];
     }
   }
   return ra;
@@ -80697,13 +82827,13 @@ var nguoiTuQuyen = (a) => ({ admin: a.active && a.role === "ADMIN", boPhan: a.de
 var khoaNhoHex = (moc2, verSanXuat) => moc2.coBang && verSanXuat != null && String(verSanXuat) !== "" ? `${moc2.khoa}|${String(verSanXuat)}` : null;
 function congDoanDuocNhap(nguoi, setup) {
   if (nguoi.admin) return [...CONG_DOAN];
-  const bp = chuanTen(nguoi.boPhan);
+  const bp = chuanTen2(nguoi.boPhan);
   if (!bp) return [];
   return CONG_DOAN.filter((c) => (setup.congDoan[c] ?? []).includes(bp));
 }
 function xuongDuocNhap(nguoi, setup) {
   if (nguoi.admin) return null;
-  const ds2 = setup.xuongCua[chuanTen(nguoi.boPhan)];
+  const ds2 = setup.xuongCua[chuanTen2(nguoi.boPhan)];
   return ds2 && ds2.length ? ds2 : null;
 }
 function lyDoCam(nguoi, setup, congDoan, xuongHex) {
@@ -80711,7 +82841,7 @@ function lyDoCam(nguoi, setup, congDoan, xuongHex) {
   if (nguoi.admin) return null;
   if (!congDoanDuocNhap(nguoi, setup).includes(congDoan)) return `B\u1ED9 ph\u1EADn ${nguoi.boPhan || "(ch\u01B0a c\xF3 b\u1ED9 ph\u1EADn)"} kh\xF4ng \u0111\u01B0\u1EE3c nh\u1EADp ${congDoan}`;
   const xs = xuongDuocNhap(nguoi, setup);
-  if (xs && !xs.includes(chuanTen(xuongHex))) return `HEX thu\u1ED9c x\u01B0\u1EDFng ${xuongHex || "(tr\u1ED1ng)"} \u2014 b\u1ED9 ph\u1EADn ch\u1EC9 nh\u1EADp x\u01B0\u1EDFng ${xs.join(", ")}`;
+  if (xs && !xs.includes(chuanTen2(xuongHex))) return `HEX thu\u1ED9c x\u01B0\u1EDFng ${xuongHex || "(tr\u1ED1ng)"} \u2014 b\u1ED9 ph\u1EADn ch\u1EC9 nh\u1EADp x\u01B0\u1EDFng ${xs.join(", ")}`;
   return null;
 }
 function docNgay(x) {
@@ -80736,7 +82866,7 @@ var nguoiNhapNho = async (req) => nguoiTuQuyen(await loadUserAccess(req.user.id)
 var setupNho = taoNhoCoHan(6e4, docSetupDb);
 var boPhanNho = taoNhoCoHan(3e5, async () => {
   const bp = await timedQuery(`SELECT DISTINCT department FROM users WHERE is_active AND COALESCE(TRIM(department), '') NOT IN ('', '0') ORDER BY 1`);
-  return [...new Set(bp.rows.map((x) => chuanTen(x.department)))];
+  return [...new Set(bp.rows.map((x) => chuanTen2(x.department)))];
 });
 var laThieuBang2 = (e) => e?.code === "42P01" && /bot_cong_doan/.test(String(e?.message ?? ""));
 var chuanHex = (h) => /^\d{6,15}$/.test(h) ? BigInt(h).toString() : null;
@@ -80896,7 +83026,7 @@ app.get("/api/bot-cong-doan/hex", authenticateJWT, async (req, res) => {
     const ds2 = COT_HEX.map(() => []);
     for (const x of rows) {
       const xuong = workshopGroupOf(x.xuong_chinh);
-      if (xs && !xs.includes(chuanTen(xuong))) continue;
+      if (xs && !xs.includes(chuanTen2(xuong))) continue;
       const total = Number(x.tri_gia_don_hang_tong) || 0, inv = Math.min(Number(x.thanh_tien_nhap_kho_luy_ke) || 0, total);
       const dong2 = [
         x.hex,
@@ -81314,7 +83444,7 @@ app.post(
 );
 
 // src/routes/auth.ts
-import crypto2 from "node:crypto";
+import crypto3 from "node:crypto";
 import bcrypt from "bcrypt";
 
 // src/server/mail.ts
@@ -81363,11 +83493,11 @@ function noiDungOtp(otp, phutHetHan, ten) {
 // src/routes/auth.ts
 var LOGIN_FAILED_MESSAGE = "Sai t\xEAn \u0111\u0103ng nh\u1EADp ho\u1EB7c m\u1EADt kh\u1EA9u, ho\u1EB7c t\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kh\xF3a";
 var dummyHashPromise = null;
-var getDummyHash = () => dummyHashPromise ??= bcrypt.hash(crypto2.randomBytes(16).toString("hex"), 12);
+var getDummyHash = () => dummyHashPromise ??= bcrypt.hash(crypto3.randomBytes(16).toString("hex"), 12);
 var safeEqual = (a, b) => {
   const ba = Buffer.from(a);
   const bb = Buffer.from(b);
-  return ba.length === bb.length && crypto2.timingSafeEqual(ba, bb);
+  return ba.length === bb.length && crypto3.timingSafeEqual(ba, bb);
 };
 app.post("/api/auth/login", loginLimiter, validateBody(loginSchema), async (req, res) => {
   try {
@@ -81410,7 +83540,7 @@ app.post("/api/auth/forgot-password", otpRequestLimiter, validateBody(forgotPass
     const result = await pool.query("SELECT id, email, full_name FROM users WHERE lower(trim(email)) = lower(trim($1)) AND is_active IS NOT FALSE LIMIT 1", [email3]);
     const user = result.rows[0];
     if (user) {
-      const otp = crypto2.randomInt(1e5, 1e6).toString();
+      const otp = crypto3.randomInt(1e5, 1e6).toString();
       const PHUT = 5;
       const expiresAt = new Date(Date.now() + PHUT * 60 * 1e3);
       await pool.query(
@@ -82559,9 +84689,9 @@ cachedGet("/api/detail", detailCache, (req) => sourceVersionKeys(String(req.quer
   if (dimension === "period") {
     if (!parseSafeDate(value)) throw new BadRequest("Invalid period value");
     const range = getPeriodRangeFromKey(value, granularity);
-    const iso2 = (d) => d.toISOString().slice(0, 10);
-    const start = dateFrom && iso2(dateFrom) > String(range.start).slice(0, 10) ? iso2(dateFrom) : range.start;
-    const end = dateTo && iso2(dateTo) < String(range.end).slice(0, 10) ? iso2(dateTo) : range.end;
+    const iso3 = (d) => d.toISOString().slice(0, 10);
+    const start = dateFrom && iso3(dateFrom) > String(range.start).slice(0, 10) ? iso3(dateFrom) : range.start;
+    const end = dateTo && iso3(dateTo) < String(range.end).slice(0, 10) ? iso3(dateTo) : range.end;
     if (!isStock && explicitDates.length > 0) {
       params.push(explicitDates);
       conditions.push(`${colBare(cfg.dateCol)} = ANY($${params.length}::date[])`);
@@ -82998,7 +85128,7 @@ var planMetOf = async (hexes) => {
   return out;
 };
 var stageOf = (bop) => String(bop ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/)?.[1] ?? null;
-var statusOf = (row) => VM_STATUSES.includes(row.status) ? row.status : row.is_resolved ? "closed" : "open";
+var statusOf2 = (row) => VM_STATUSES.includes(row.status) ? row.status : row.is_resolved ? "closed" : "open";
 var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null, planMet2) => {
   const perms = permsOf(actor, row.created_by, createdDepartment, row.handler);
   const hasProd = "p_ten_cong_trinh" in row;
@@ -83009,7 +85139,7 @@ var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? 
     category: row.category,
     content: row.content,
     isResolved: row.is_resolved,
-    status: statusOf(row),
+    status: statusOf2(row),
     priority: PRIORITIES.includes(row.priority) ? row.priority : "normal",
     createdBy: row.created_by,
     createdAt: row.created_at,
@@ -83455,7 +85585,7 @@ app.get("/api/vuong-mac/stats", authenticateJWT, requireActiveUser, async (req, 
     const projects = /* @__PURE__ */ new Map();
     const xuongs = /* @__PURE__ */ new Map();
     for (const row of openR.rows) {
-      const st = statusOf(row);
+      const st = statusOf2(row);
       const d = dueState(row, now);
       const active = st === "open" || st === "doing";
       s.byStatus[st] = (s.byStatus[st] ?? 0) + 1;
@@ -83590,7 +85720,7 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
     const handlerDisplay = /* @__PURE__ */ new Map();
     const oldest = [];
     for (const row of r.rows) {
-      const st = statusOf(row);
+      const st = statusOf2(row);
       const xuong = workshopGroupOf(row.xuong ?? row.p_xuong_chinh ?? "") || "Ch\u01B0a r\xF5";
       if (xuongList.length && !xuongList.includes(xuong) && !xuongList.includes(String(row.p_xuong_chinh ?? "").toUpperCase().trim())) continue;
       const stage = row.stage ?? stageOf(row.p_bop) ?? "Ch\u01B0a r\xF5";
@@ -83833,7 +85963,7 @@ app.put(
       }
       const { category, content, isResolved, resolvedNote, statusNote, priority, handler, bot, solution, note } = req.body;
       const noteClean = String(statusNote ?? resolvedNote ?? "").trim();
-      const cur = statusOf(old);
+      const cur = statusOf2(old);
       let target = req.body.status;
       if (!target && isResolved !== void 0) {
         target = isResolved ? cur === "closed" ? "closed" : "done" : old.accepted_at ? "doing" : "open";
@@ -84574,166 +86704,6 @@ function hieuChinhGio(deviceTs, lechMs, sauDoiGio, serverNow) {
   return { ts, co: co2 };
 }
 
-// src/server/xuong/state.ts
-var soSanhSuKien = (a, b) => a.ts - b.ts || a.serverTs - b.serverTs || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-function suKienConHieuLuc(events) {
-  const byId = new Map(events.map((e) => [e.id, e]));
-  const huyBiVoHieu = /* @__PURE__ */ new Set();
-  for (const e of events) {
-    if (e.loai !== "huy" || !e.suaCho) continue;
-    const dich = byId.get(e.suaCho);
-    if (dich?.loai === "huy") huyBiVoHieu.add(dich.id);
-  }
-  const biHuy = /* @__PURE__ */ new Set();
-  for (const e of events) {
-    if (e.loai !== "huy" || !e.suaCho || huyBiVoHieu.has(e.id)) continue;
-    const dich = byId.get(e.suaCho);
-    if (dich && dich.loai !== "huy") biHuy.add(dich.id);
-  }
-  return events.filter((e) => e.loai !== "huy" && !biHuy.has(e.id)).sort(soSanhSuKien);
-}
-var so3 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
-var THANH_PHAN = ["G\u1ED6", "SOFA", "KIM LO\u1EA0I", "K\xCDNH", "\u0110\xC1"];
-var dsChuoi = (v) => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
-function tuyenTheoThanhPhan(evts) {
-  const m = /* @__PURE__ */ new Map();
-  for (const e of suKienConHieuLuc(evts)) {
-    if (e.loai === "trien_khai") {
-      const tp2 = Array.isArray(e.duLieu?.thanhPhan) ? e.duLieu.thanhPhan : null;
-      if (tp2) for (const x of tp2) {
-        const t = dsChuoi(x?.tuyen);
-        if (t.length) m.set(String(x?.ten ?? ""), t);
-      }
-      else {
-        const t = dsChuoi(e.duLieu?.tuyen);
-        if (t.length) m.set("", t);
-      }
-    } else if (e.loai === "khai_bao_cd" && typeof e.duLieu?.thanhPhan === "string") {
-      const t = dsChuoi(e.duLieu?.tuyen);
-      if (t.length) m.set(e.duLieu.thanhPhan, t);
-    }
-  }
-  return [...m.entries()].map(([thanhPhan, tuyen]) => ({ thanhPhan, tuyen }));
-}
-function slGiaoDenDongBo(incoming, tuyen, congDoanId) {
-  const tong2 = incoming.reduce((a, e) => a + so3(e.soLuong), 0);
-  if (!congDoanId) return tong2;
-  const qua = tuyen.filter((t) => t.tuyen.includes(congDoanId));
-  if (qua.length < 2) return tong2;
-  const theoTp = new Map(qua.map((t) => [t.thanhPhan, 0]));
-  let chung = 0;
-  for (const e of incoming) {
-    let tp2 = null;
-    if (e.loai === "khai_bao_cd" && typeof e.duLieu?.thanhPhan === "string" && theoTp.has(e.duLieu.thanhPhan)) {
-      tp2 = e.duLieu.thanhPhan;
-    } else if (e.congDoanId) {
-      const nhanh = qua.filter((t) => {
-        const i = t.tuyen.indexOf(e.congDoanId);
-        return i >= 0 && i < t.tuyen.indexOf(congDoanId);
-      });
-      if (nhanh.length && nhanh.length < qua.length) tp2 = nhanh[0].thanhPhan;
-    }
-    if (tp2 === null) chung += so3(e.soLuong);
-    else theoTp.set(tp2, (theoTp.get(tp2) ?? 0) + so3(e.soLuong));
-  }
-  return chung + Math.min(...theoTp.values());
-}
-function laCuoiTuyen(tuyen, congDoanId) {
-  if (!congDoanId) return false;
-  const qua = tuyen.filter((t) => t.tuyen.includes(congDoanId));
-  return qua.length > 0 && qua.every((t) => t.tuyen[t.tuyen.length - 1] === congDoanId);
-}
-var nhanNgoaiApp = (e) => !!(e.congDoanNguonId || e.xuongNguon);
-function tinhTrangThai(cuaCongDoan, giaoDen2, tuyen = [], congDoanId = null) {
-  const own2 = suKienConHieuLuc(cuaCongDoan);
-  const incoming = suKienConHieuLuc(giaoDen2).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd");
-  const co2 = /* @__PURE__ */ new Set();
-  const slGiaoDen = slGiaoDenDongBo(incoming, tuyen, congDoanId);
-  let slNhan = 0;
-  let slNhanTrongApp = 0;
-  let slHoanThanh = 0;
-  let slGiao = 0;
-  let soNguoi = null;
-  let dangChayTu = null;
-  let tamNgung = false;
-  let daBatDau = false;
-  const doanChay = [];
-  const batDauChay = (e) => {
-    if (dangChayTu !== null) {
-      co2.add("bat_dau_hai_lan");
-    } else {
-      dangChayTu = e.ts;
-      doanChay.push({ start: e.ts, end: null });
-    }
-    if (e.soNguoi !== null && e.soNguoi !== void 0) soNguoi = e.soNguoi;
-    tamNgung = false;
-    daBatDau = true;
-  };
-  const dungChay = (e) => {
-    if (dangChayTu === null) return false;
-    doanChay[doanChay.length - 1].end = e.ts;
-    dangChayTu = null;
-    return true;
-  };
-  for (const e of own2) {
-    switch (e.loai) {
-      case "nhan":
-        slNhan += so3(e.soLuong);
-        if (!nhanNgoaiApp(e)) slNhanTrongApp += so3(e.soLuong);
-        break;
-      case "bat_dau":
-        batDauChay(e);
-        break;
-      case "tiep_tuc":
-        if (dangChayTu === null && !tamNgung) co2.add("tiep_tuc_khi_chua_tam_ngung");
-        batDauChay(e);
-        break;
-      case "tam_ngung":
-        if (!dungChay(e)) co2.add("tam_ngung_khi_khong_chay");
-        tamNgung = true;
-        break;
-      case "hoan_thanh":
-        if (!daBatDau) co2.add("hoan_thanh_chua_bat_dau");
-        slHoanThanh += so3(e.soLuong);
-        if (slHoanThanh >= slNhan) {
-          dungChay(e);
-          tamNgung = false;
-        }
-        break;
-      case "giao":
-        slGiao += so3(e.soLuong);
-        break;
-      default:
-        break;
-    }
-  }
-  if (slNhanTrongApp > slGiaoDen) co2.add("nhan_chua_thay_giao");
-  if (slGiao > slHoanThanh) co2.add("giao_vuot_hoan_thanh");
-  if (slHoanThanh > slNhan && slNhan > 0) co2.add("hoan_thanh_vuot_nhan");
-  let trangThai;
-  if (dangChayTu !== null) trangThai = "dang_lam";
-  else if (tamNgung) trangThai = "tam_ngung";
-  else if (slHoanThanh > slGiao && !laCuoiTuyen(tuyen, congDoanId)) trangThai = "cho_giao";
-  else if (slNhan > slHoanThanh) trangThai = "da_nhan";
-  else if (slGiaoDen > slNhan) trangThai = "cho_nhan";
-  else if (slNhan > 0 || slGiao > 0) trangThai = "xong";
-  else trangThai = "cho_nhan";
-  const tatCa = [...own2, ...incoming];
-  const suKienCuoi = tatCa.length ? Math.max(...tatCa.map((e) => e.ts)) : null;
-  return {
-    trangThai,
-    slGiaoDen,
-    slNhan,
-    slHoanThanh,
-    slGiao,
-    soNguoi,
-    dangChayTu,
-    suKienCuoi,
-    doanChay,
-    co: [...co2].sort()
-  };
-}
-
 // src/server/xuong/mraLichSu.ts
 var GIO = 36e5;
 var NGAY = 864e5;
@@ -85011,6 +86981,35 @@ function cuaSoTrongNgay(ngay3, lichCa, caTangCaDaKhai) {
   return out.sort((a, b) => a.start - b.start);
 }
 var lamTron = (h) => Math.round(h * 1e3) / 1e3;
+function hopKhoang(ds2) {
+  const out = [];
+  for (const [s, e] of ds2.filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0])) {
+    const cuoi = out[out.length - 1];
+    if (cuoi && s <= cuoi[1]) cuoi[1] = Math.max(cuoi[1], e);
+    else out.push([s, e]);
+  }
+  return out;
+}
+function doanNgoaiCa(doan, cuaSo, khung, now) {
+  const dau = cuaSo.length ? Math.min(...cuaSo.map((c) => c.start)) : null;
+  const het = cuaSo.length ? Math.max(...cuaSo.map((c) => c.end)) : null;
+  const trongKhung = (t) => t >= khung.start && t < khung.end;
+  const ngoaiCa = (t) => dau === null || het === null || t < dau || t > het;
+  const ra = [];
+  for (const d of doan) {
+    const ketThuc = Math.min(d.end ?? now, now);
+    if (ketThuc <= d.start) continue;
+    if (trongKhung(d.start) && ngoaiCa(d.start)) {
+      const toi = dau !== null && d.start < dau ? dau : khung.end;
+      ra.push([d.start, Math.min(ketThuc, toi, khung.end)]);
+    }
+    if (d.end !== null && d.end <= now && trongKhung(d.end) && ngoaiCa(d.end)) {
+      const tu = het !== null && d.end > het ? het : khung.start;
+      ra.push([Math.max(d.start, tu, khung.start), d.end]);
+    }
+  }
+  return hopKhoang(ra);
+}
 function phanBoGioCong(input2) {
   const ngung = new Set(input2.ngungTinh ?? []);
   const chuaXn = new Set(input2.chuaXacNhan ?? []);
@@ -85165,6 +87164,20 @@ function phanBoGioCong(input2) {
       }
     }
   }
+  let gioChayNgoaiCa = 0;
+  if (input2.khungNgay) {
+    const tatCa = [];
+    for (const k of keys) {
+      const ds2 = doanNgoaiCa(input2.doanChay[k], input2.cuaSo, input2.khungNgay, input2.now);
+      const h = ds2.reduce((a, [s, e]) => a + (e - s) / GIO_MS, 0);
+      if (h <= 0) continue;
+      out[k].gioNgoaiCa = lamTron(h);
+      coHangMuc(k, "chay_ngoai_ca");
+      tatCa.push(...ds2);
+    }
+    gioChayNgoaiCa = hopKhoang(tatCa).reduce((a, [s, e]) => a + (e - s) / GIO_MS, 0);
+    if (gioChayNgoaiCa > 0) coTo.add("chay_ngoai_ca");
+  }
   for (const k of keys) {
     out[k].gioChay = lamTron(out[k].gioChay);
     out[k].gioCongThuong = lamTron(out[k].gioCongThuong);
@@ -85185,6 +87198,7 @@ function phanBoGioCong(input2) {
       cho: lamTron(x.cho),
       theoHangMuc: Object.fromEntries(Object.entries(x.theoHangMuc).map(([k, v]) => [k, lamTron(v)]))
     }])),
+    ...gioChayNgoaiCa > 0 ? { gioChayNgoaiCa: lamTron(gioChayNgoaiCa) } : {},
     co: [...coTo].sort()
   };
 }
@@ -85311,7 +87325,7 @@ function xemHexDuoc(quanLy, toTruong, cdCuaTo, lq) {
 }
 
 // src/server/xuong/canXem.ts
-var CO_CHI_DE_BIET = ["quan_ly_ghi_ho", "tram", "nhan_du", "xong_het", "khai_ho", "phan_cong", "bao_xong"];
+var CO_CHI_DE_BIET = ["quan_ly_ghi_ho", "tram", "nhan_du", "xong_het", "khai_ho", "phan_cong"];
 var CHI_DE_BIET = new Set(CO_CHI_DE_BIET);
 var CAN_XEM_NGAY = 30;
 function sqlCanXuLy(a = "e") {
@@ -85734,6 +87748,23 @@ async function quanLyCuaXuong(xuongs) {
   }
   return out;
 }
+var PERM_QUAN_LY = "xuong_quan_ly";
+async function mocCheDoTo(toIds) {
+  if (!toIds.length) return [];
+  try {
+    const r = await poolMra.query(
+      `SELECT to_id, che_do, to_char(tu_ngay, 'YYYY-MM-DD') AS tu FROM xuong_to_che_do WHERE to_id = ANY($1::int[])`,
+      [toIds]
+    );
+    return r.rows.map((x) => ({ toId: Number(x.to_id), cheDo: x.che_do, tuNgay: String(x.tu) }));
+  } catch (e) {
+    if (isMissingSchema(e)) return [];
+    throw e;
+  }
+}
+var sqlDaChotCa = (a, toSql, caSql) => `EXISTS (SELECT 1 FROM xuong_su_kien ${a} WHERE ${a}.to_id = ${toSql} AND ${a}.loai IN ('quan_so','vao_ca') AND ${a}.du_lieu->>'loaiCa' = ${caSql}
+             AND (${a}.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+             AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h_${a} WHERE h_${a}.loai = 'huy' AND h_${a}.sua_cho = ${a}.id))`;
 var so4 = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 async function baoHangChoNhan(ds2, actorId) {
   try {
@@ -85805,19 +87836,18 @@ async function nhacSang(ngay3) {
       `SELECT t.id, t.ten_to FROM xuong_to t
        WHERE t.active AND EXISTS (SELECT 1 FROM xuong_to_cong_doan tc JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id
                                   WHERE tc.to_id = t.id AND (s.trang_thai IN ('dang_lam','tam_ngung','da_nhan') OR s.sl_giao_den > s.sl_nhan))
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' = 'chinh'
-                           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
-                           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))`,
+         AND NOT ${sqlDaChotCa("e", "t.id", "'chinh'")}`,
       [ngay3]
     );
-    const nguoi = await nguoiCuaTo(r.rows.map((x) => Number(x.id)));
+    const toIds = r.rows.map((x) => Number(x.id));
+    const [nguoi, cheDo] = await Promise.all([nguoiCuaTo(toIds), mocCheDoTo(toIds).then(cheDoTheoNgay)]);
     for (const x of r.rows) {
+      const tram = cheDo(Number(x.id), ngay3) === "tram";
       tins.push({
         kind: "xuong_quan_so",
         userIds: nguoi.get(Number(x.id)) ?? [],
         moiNgayMotLan: true,
-        title: `${x.ten_to}: ch\u01B0a ch\u1ED1t qu\xE2n s\u1ED1 ca ch\xEDnh`,
-        body: "M\u1EDF app MRA, \u0111i\u1EC3m danh / ch\u1ED1t qu\xE2n s\u1ED1 \u0111\u1EA7u ca \u2014 gi\u1EDD c\xF4ng c\u1EE7a t\u1ED5 t\xEDnh theo ng\u01B0\u1EDDi c\xF3 m\u1EB7t."
+        ...tram ? { title: `${x.ten_to}: ch\u01B0a ai qu\xE9t v\xE0o ca \u1EDF tr\u1EA1m`, body: "Ki\u1EC3m tra m\xE1y tr\u1EA1m \u2014 m\u1ED7i ng\u01B0\u1EDDi qu\xE9t th\u1EBB v\xE0o ca \u0111\u1EC3 t\xEDnh gi\u1EDD c\xF4ng." } : { title: `${x.ten_to}: ch\u01B0a ch\u1ED1t qu\xE2n s\u1ED1 ca ch\xEDnh`, body: "M\u1EDF app MRA, \u0111i\u1EC3m danh / ch\u1ED1t qu\xE2n s\u1ED1 \u0111\u1EA7u ca \u2014 gi\u1EDD c\xF4ng c\u1EE7a t\u1ED5 t\xEDnh theo ng\u01B0\u1EDDi c\xF3 m\u1EB7t." }
       });
     }
   }
@@ -85850,19 +87880,50 @@ async function nhacSang(ngay3) {
     });
   }
   const co2 = await poolMra.query(
-    `SELECT xuong, count(*)::int AS n FROM xuong_su_kien e WHERE ${sqlThaoTacCanXuLy("e", 24)} AND xuong IS NOT NULL
-     GROUP BY xuong`
+    `SELECT xuong, to_id, count(*)::int AS n FROM xuong_su_kien e WHERE ${sqlThaoTacCanXuLy("e", 24)} AND xuong IS NOT NULL
+     GROUP BY xuong, to_id`
   );
-  const ql = await quanLyCuaXuong(co2.rows.map((x) => String(x.xuong)));
+  const theoXuongCo = /* @__PURE__ */ new Map();
   for (const x of co2.rows) {
-    tins.push({
-      kind: "xuong_co",
-      userIds: ql.get(x.xuong) ?? [],
-      moiNgayMotLan: true,
-      url: "/#/setup?tab=xuong",
-      title: `X\u01B0\u1EDFng ${x.xuong}: c\xF3 thao t\xE1c c\u1EA7n xem`,
-      body: `${x.n} thao t\xE1c c\u1EA7n x\u1EED l\xFD trong 24 gi\u1EDD qua \u2014 Setup d\u1EEF li\u1EC7u \u2192 X\u01B0\u1EDFng \u2192 C\u1EA7n xem (gi\u1EDD m\xE1y l\u1EC7ch, g\u1EEDi h\u1ED9, giao v\u01B0\u1EE3t s\u1ED1 \u0111\xE3 xong\u2026).`
-    });
+    const k = String(x.xuong);
+    if (!theoXuongCo.has(k)) theoXuongCo.set(k, []);
+    theoXuongCo.get(k).push({ toId: x.to_id === null ? null : Number(x.to_id), n: Number(x.n) });
+  }
+  const ql = await quanLyCuaXuong([...theoXuongCo.keys()]);
+  const uids = [...new Set([...ql.values()].flat())];
+  const ttRows = uids.length ? (await poolMra.query(
+    `SELECT id, xuong, to_truong_user_id::text AS uid FROM xuong_to WHERE active AND to_truong_user_id = ANY($1::int[])`,
+    [uids.map(Number)]
+  )).rows : [];
+  const access = new Map(await Promise.all(uids.map(async (u) => [u, await loadUserAccess(u)])));
+  for (const [xg, ds2] of theoXuongCo) {
+    const theoSo = /* @__PURE__ */ new Map();
+    for (const u of ql.get(xg) ?? []) {
+      const a = access.get(u);
+      if (!a?.active) continue;
+      const admin = a.role === "ADMIN";
+      if (!admin && !a.perms.has(PERM_QUAN_LY)) continue;
+      const pv = phamViTheoQuyen(
+        /* @__PURE__ */ new Set([admin ? "*" : xg]),
+        ttRows.filter((t) => String(t.uid) === u).map((t) => ({ id: Number(t.id), xuong: String(t.xuong) })),
+        xg
+      );
+      if (!pv) continue;
+      const chiTo = pv.chiTo;
+      const n = ds2.filter((d) => !chiTo || d.toId !== null && chiTo.includes(d.toId)).reduce((s, d) => s + d.n, 0);
+      if (!n) continue;
+      theoSo.set(n, [...theoSo.get(n) ?? [], u]);
+    }
+    for (const [n, ids] of theoSo) {
+      tins.push({
+        kind: "xuong_co",
+        userIds: ids,
+        moiNgayMotLan: true,
+        url: `${URL_XUONG}?muc=quanLy&ql=can-xem&xuong=${encodeURIComponent(xg)}`,
+        title: `X\u01B0\u1EDFng ${xg}: c\xF3 thao t\xE1c c\u1EA7n xem`,
+        body: `${n} thao t\xE1c c\u1EA7n xem trong 24 gi\u1EDD qua`
+      });
+    }
   }
   await donAnhMoCoi();
   return guiTinXuong(tins);
@@ -85881,22 +87942,26 @@ async function donAnhMoCoi() {
 async function nhacChieu(ngay3) {
   const tins = [];
   const tc = await poolMra.query(
-    `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
+    `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca,
+            EXISTS (SELECT 1 FROM xuong_su_kien v WHERE v.to_id = t.id AND v.loai = 'vao_ca'
+                      AND (v.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+                      AND NOT EXISTS (SELECT 1 FROM xuong_su_kien hv WHERE hv.loai = 'huy' AND hv.sua_cho = v.id)) AS co_vao_ca
+     FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
      WHERE e.loai = 'tang_ca' AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien q WHERE q.to_id = t.id AND q.loai = 'quan_so' AND q.du_lieu->>'loaiCa' = e.du_lieu->>'loaiCa'
-                         AND (q.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
-                         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = q.id))`,
+       AND NOT ${sqlDaChotCa("q", "t.id", "e.du_lieu->>'loaiCa'")}`,
     [ngay3]
   );
-  const nguoiTc = await nguoiCuaTo([...new Set(tc.rows.map((x) => Number(x.id)))]);
+  const toTc = [...new Set(tc.rows.map((x) => Number(x.id)))];
+  const [nguoiTc, cheDoTc] = await Promise.all([nguoiCuaTo(toTc), mocCheDoTo(toTc).then(cheDoTheoNgay)]);
   for (const x of tc.rows) {
+    const tram = cheDoTc(Number(x.id), ngay3) === "tram";
+    if (tram && x.co_vao_ca) continue;
     tins.push({
       kind: "xuong_quan_so",
       userIds: nguoiTc.get(Number(x.id)) ?? [],
       moiNgayMotLan: true,
-      title: `${x.ten_to}: ch\u01B0a ch\u1ED1t qu\xE2n s\u1ED1 t\u0103ng ca`,
-      body: 'B\u1EA5m "Ch\u1ED1t qu\xE2n s\u1ED1" cho ca t\u0103ng ca \u0111\u1EC3 gi\u1EDD t\u0103ng ca \u0111\u01B0\u1EE3c ph\xE2n b\u1ED5 \u0111\xFAng.'
+      ...tram ? { title: `${x.ten_to}: ch\u01B0a ai qu\xE9t v\xE0o t\u0103ng ca \u1EDF tr\u1EA1m`, body: "Ki\u1EC3m tra m\xE1y tr\u1EA1m \u2014 m\u1ED7i ng\u01B0\u1EDDi qu\xE9t th\u1EBB v\xE0o t\u0103ng ca \u0111\u1EC3 t\xEDnh gi\u1EDD t\u0103ng ca." } : { title: `${x.ten_to}: ch\u01B0a ch\u1ED1t qu\xE2n s\u1ED1 t\u0103ng ca`, body: 'B\u1EA5m "Ch\u1ED1t qu\xE2n s\u1ED1" cho ca t\u0103ng ca \u0111\u1EC3 gi\u1EDD t\u0103ng ca \u0111\u01B0\u1EE3c ph\xE2n b\u1ED5 \u0111\xFAng.' }
     });
   }
   const xn = await poolMra.query(
@@ -85948,7 +88013,7 @@ var ANH_TOI_DA_BYTE = 1e6;
 // src/routes/xuong.ts
 app.use("/api/xuong", xuongLimiter);
 var PERM_XUONG = "xuong";
-var PERM_QUAN_LY = "xuong_quan_ly";
+var PERM_QUAN_LY2 = "xuong_quan_ly";
 var LO_TOI_DA = 200;
 var HUY_TRONG_MS = 24 * 36e5;
 var HUY_TRAM_TRONG_MS = 7 * 24 * 36e5;
@@ -85959,11 +88024,11 @@ var fail = (res, e, where) => {
   console.error(`L\u1ED7i ${where}:`, e);
   return res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
 };
-var coQuyenXuong = async (req) => await userHasPermission(req, PERM_XUONG) || await userHasPermission(req, PERM_QUAN_LY);
+var coQuyenXuong = async (req) => await userHasPermission(req, PERM_XUONG) || await userHasPermission(req, PERM_QUAN_LY2);
 async function xuongQuanLy(userId) {
   const access = await loadUserAccess(userId);
   if (access.role === "ADMIN") return /* @__PURE__ */ new Set(["*"]);
-  if (!access.perms.has(PERM_QUAN_LY)) return /* @__PURE__ */ new Set();
+  if (!access.perms.has(PERM_QUAN_LY2)) return /* @__PURE__ */ new Set();
   const r = await poolMra.query("SELECT xuong FROM xuong_quan_ly WHERE user_id = $1", [Number(userId)]);
   return new Set(r.rows.map((x) => String(x.xuong)));
 }
@@ -85982,6 +88047,38 @@ async function quyenXuongCua(userId) {
   return { ds: ds2, toTruong };
 }
 var phamViTuQuyen = (q, xuong) => phamViTheoQuyen(q.ds, q.toTruong, xuong);
+async function toCuaNguoi(db, userId, msnv) {
+  const m = msnv === void 0 ? await msnvCua(userId) : msnv;
+  const r = await db.query(
+    `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
+     UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv
+       WHERE $2::text IS NOT NULL AND upper(tv.mnv) = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
+    [Number(userId), m]
+  );
+  return new Set(r.rows.map((x) => Number(x.id)));
+}
+async function duocXemTo(userId, toId) {
+  if ((await toCuaNguoi(poolMra, userId)).has(toId)) return true;
+  const r = await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
+  if (!r.rows[0]) return false;
+  const pv = await phamViXem(userId, String(r.rows[0].xuong));
+  return !!pv && (pv.chiTo === null || pv.chiTo.includes(toId));
+}
+var KHONG_XEM_TO = "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y";
+var khoaCanLay = (pairs) => [...new Set(pairs.map(([h, c]) => `${h}|${c}`))].sort();
+async function khoaCap(client, pairs) {
+  for (const k of khoaCanLay(pairs)) await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [k]);
+}
+function truSoCapKhiHuy(soCap, d, dk) {
+  if (dk.huyDaLuu || !dk.cungLo && dk.dichDaHuy) return false;
+  const truong = d.loai === "nhan" ? "nhan" : d.loai === "hoan_thanh" ? "ht" : d.loai === "giao" ? "giao" : null;
+  const sl = num(d.so_luong);
+  if (!truong || !d.hex || !d.cong_doan_id || !sl) return false;
+  const c = soCap.get(`${d.hex}|${d.cong_doan_id}`);
+  if (!c) return false;
+  c[truong] = Math.max(0, c[truong] - sl);
+  return true;
+}
 var COT_SU_KIEN = `id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id, xuong_nguon,
   so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh, server_ts, user_id,
   user_id_khai, sent_by, device_id, sua_cho, nguon, nguoi_thao_tac_goc, co`;
@@ -86238,16 +88335,19 @@ app.post("/api/xuong/thiet-bi", async (req, res) => {
     const to = await poolMra.query(
       `SELECT t.id, t.xuong, t.ten_to, t.to_truong_user_id = $1 AS la_to_truong FROM xuong_to t
        WHERE t.active AND (t.to_truong_user_id = $1 OR EXISTS (
-         SELECT 1 FROM xuong_to_thanh_vien tv WHERE tv.to_id = t.id AND tv.mnv = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)))
+         SELECT 1 FROM xuong_to_thanh_vien tv WHERE tv.to_id = t.id AND $2::text <> '' AND upper(tv.mnv) = $2
+           AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)))
        ORDER BY t.xuong, t.ten_to`,
-      [userId, user?.msnv ?? ""]
+      [userId, String(user?.msnv ?? "").trim().toUpperCase()]
     );
     res.json({
       success: true,
       available: true,
       token: signXuongToken({ id: userId, username: user.username, role: access.role }, deviceId, access.tokenVersion ?? 0),
       deviceToken: signDeviceToken(deviceId),
-      user: { id: userId, username: user.username, fullName: user.full_name, msnv: user.msnv },
+      user: { id: userId, username: user.username, fullName: user.full_name || user.username, msnv: user.msnv },
+      // Cờ quản lý (giống hasPermission phía app): phiên Xưởng 8 giờ vẫn hiện menu Tổng quan / Quản lý khi không có token app
+      quanLy: access.role === "ADMIN" || access.perms.has(PERM_QUAN_LY2),
       to: to.rows.map((t) => ({ id: Number(t.id), xuong: t.xuong, ten: t.ten_to, toTruong: !!t.la_to_truong }))
     });
   } catch (e) {
@@ -86411,6 +88511,12 @@ app.post("/api/xuong/events", async (req, res) => {
       );
       const nguoiTrenMay = new Set(phien.rows.filter((x) => !x.thu_hoi).map((x) => Number(x.user_id)));
       if (!nguoiTrenMay.has(sentBy)) return { loi: "M\xE1y ch\u01B0a \u0111\u0103ng k\xFD ho\u1EB7c \u0111\xE3 b\u1ECB thu h\u1ED3i cho t\xE0i kho\u1EA3n n\xE0y" };
+      await khoaCap(client, hopLe.flatMap((e) => {
+        if (!["nhan", "hoan_thanh", "giao"].includes(e.loai) || !e.hex || !e.congDoanId) return [];
+        const p = [[e.hex, e.congDoanId]];
+        if (e.loai === "giao" && e.congDoanDenId) p.push([e.hex, e.congDoanDenId]);
+        return p;
+      }));
       const cds = [...new Set(hopLe.flatMap((e) => [e.congDoanId, e.congDoanDenId]).filter((x) => !!x))];
       const tos = [...new Set(hopLe.map((e) => e.toId).filter((x) => !!x))];
       const [cdRows, toRows] = await Promise.all([
@@ -86420,14 +88526,14 @@ app.post("/api/xuong/events", async (req, res) => {
       const xuongCd = new Map(cdRows.rows.map((x) => [String(x.id), String(x.xuong)]));
       const xuongTo = new Map(toRows.rows.map((x) => [Number(x.id), String(x.xuong)]));
       const huyIds = hopLe.filter((e) => e.loai === "huy").map((e) => e.suaCho);
-      const dichDb = huyIds.length ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai, co FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows : [];
+      const dichDb = huyIds.length ? (await client.query(
+        `SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai, co, so_luong, nguon, NOT (${sqlChuaHuy("e")}) AS da_huy
+             FROM xuong_su_kien e WHERE id = ANY($1::uuid[])`,
+        [huyIds]
+      )).rows : [];
       const dich = new Map(dichDb.map((x) => [String(x.id), x]));
-      const toCuaToi = new Set((await client.query(
-        `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
-         UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv
-           WHERE $2::text IS NOT NULL AND upper(tv.mnv) = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
-        [sentBy, msnvToi]
-      )).rows.map((x) => Number(x.id)));
+      const huyDaLuu = new Set(hopLe.some((e) => e.loai === "huy") ? (await client.query("SELECT id FROM xuong_su_kien WHERE id = ANY($1::uuid[])", [hopLe.filter((e) => e.loai === "huy").map((e) => e.id)])).rows.map((x) => String(x.id)) : []);
+      const toCuaToi = await toCuaNguoi(client, sentBy, msnvToi);
       const SAI_SO2 = 5e-4;
       const capSl = hopLe.filter((e) => ["nhan", "hoan_thanh", "giao"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
       const gioiHan = await gioiHanNhan(client, capSl.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
@@ -86442,6 +88548,7 @@ app.post("/api/xuong/events", async (req, res) => {
       }
       const hienSo = (n) => String(Math.round(Math.max(0, n) * 1e3) / 1e3).replace(".", ",");
       const ghi = [];
+      const daTruCho = /* @__PURE__ */ new Set();
       for (const e of hopLe) {
         let hex3 = e.hex ?? null;
         let congDoanId = e.congDoanId ?? null;
@@ -86475,6 +88582,12 @@ app.post("/api/xuong/events", async (req, res) => {
           congDoanId = d.cong_doan_id ?? null;
           toId = d.to_id === null || d.to_id === void 0 ? null : Number(d.to_id);
           xuong = d.xuong ?? null;
+          const tuDb = dich.has(e.suaCho);
+          if (!daTruCho.has(e.suaCho) && truSoCapKhiHuy(soCap, d, {
+            cungLo: !tuDb,
+            dichDaHuy: tuDb && (!!d.da_huy || d.nguon !== void 0 && d.nguon !== null && d.nguon !== "app"),
+            huyDaLuu: huyDaLuu.has(e.id)
+          })) daTruCho.add(e.suaCho);
         }
         const co2 = [];
         let duLieu = e.duLieu ?? null;
@@ -86712,11 +88825,14 @@ app.get("/api/xuong/anh/:id", async (req, res) => {
     fail(res, e, "/api/xuong/anh/:id");
   }
 });
+var TRONG_NGAY_CA = `device_ts_hieu_chinh >= ($2::date + time '06:00') AT TIME ZONE 'Asia/Ho_Chi_Minh'
+  AND device_ts_hieu_chinh < ($2::date + 1 + time '06:00') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
 app.get("/api/xuong/cong-viec", async (req, res) => {
   try {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.query.toId);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
+    if (!await duocXemTo(req.user.id, toId)) return res.status(403).json({ success: false, message: KHONG_XEM_TO });
     const [cdRows, mocTo] = await Promise.all([
       poolMra.query(
         `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
@@ -86751,12 +88867,11 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     const { st, toRow, evRows: evSt, info } = viec;
     const { ke: goiY, cuoi: cuoiTuyen } = viec.goiY;
     const xuongTo = toRow?.xuong ? String(toRow.xuong) : cdRows.rows[0]?.xuong ?? null;
-    const ngay3 = vnDayKey(/* @__PURE__ */ new Date());
+    const ngay3 = ngayCa(Date.now());
     const [hom, truoc, tcTruoc, lichCa] = await Promise.all([
       poolMra.query(
         `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
-         WHERE to_id = $1 AND loai IN ('quan_so','tang_ca','xac_nhan_cuoi_ngay')
-           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+         WHERE to_id = $1 AND loai IN ('quan_so','tang_ca','xac_nhan_cuoi_ngay') AND ${TRONG_NGAY_CA}
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY device_ts_hieu_chinh`,
         [toId, ngay3]
@@ -86764,7 +88879,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       poolMra.query(
         `SELECT DISTINCT ON (du_lieu->>'loaiCa') du_lieu->>'loaiCa' AS ca, du_lieu->>'soNguoi' AS so
          FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'quan_so'
-           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $2::date
+           AND device_ts_hieu_chinh < ($2::date + time '06:00') AT TIME ZONE 'Asia/Ho_Chi_Minh'
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY du_lieu->>'loaiCa', device_ts_hieu_chinh DESC`,
         [toId, ngay3]
@@ -86904,7 +89019,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     const coMatHomNay = {};
     if (chamCong) {
       const dd = ddR.rows;
-      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay3 || e.loai === "ra_ca");
+      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => ngayCa(e.ts) === ngay3 || e.loai === "ra_ca");
       for (const [ca, ds2] of Object.entries(doanCoMat(evs))) {
         coMatHomNay[ca] = (ds2 ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
       }
@@ -86952,7 +89067,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 });
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
-var PHIEN_BAN_TINH2 = "pb8";
+var PHIEN_BAN_TINH2 = "pb9";
 var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
@@ -87102,7 +89217,9 @@ async function gioCongToNgay(toId, ngay3, san = {}) {
       boChonTangCa: boChon,
       ngungTinh,
       chuaXacNhan,
-      now
+      now,
+      // Ngày ca 06:00 → 06:00 hôm sau: cờ "chạy ngoài giờ ca"
+      khungNgay: { start: Date.parse(`${ngay3}T06:00:00+07:00`), end: Date.parse(`${ngay3}T06:00:00+07:00`) + 24 * 36e5 }
     });
     return { pb, coMat: coMatTinh };
   }
@@ -87113,6 +89230,7 @@ app.get("/api/xuong/to/:id/gio-cong", async (req, res) => {
     const toId = Number(req.params.id);
     const ngay3 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
+    if (!await duocXemTo(req.user.id, toId)) return res.status(403).json({ success: false, message: KHONG_XEM_TO });
     const kq = await gioCongToNgay(toId, ngay3);
     if (!kq) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
     res.json({ success: true, available: true, toId, ngay: ngay3, ...kq });
@@ -87336,6 +89454,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     fail(res, e, "/api/xuong/hex/:hex");
   }
 });
+var TRANG_THAI_CO_TOI_DA = 300;
 app.get("/api/xuong/can-xem", async (req, res) => {
   try {
     const xuong = typeof req.query.xuong === "string" ? req.query.xuong.toUpperCase() : "";
@@ -87358,9 +89477,12 @@ app.get("/api/xuong/can-xem", async (req, res) => {
          WHERE thu_tu <= 300 ORDER BY server_ts DESC`,
         [xuong, chiTo]
       ),
+      // Hạng mục có cờ: bỏ hạng mục đã xong lâu (quá CAN_XEM_NGAY ngày); cờ lệch số lượng lên đầu rồi mới theo lúc cập nhật
       poolMra.query(`SELECT * FROM xuong_trang_thai t WHERE xuong = $1 AND co <> '{}'
+                    AND (t.trang_thai <> 'xong' OR t.su_kien_cuoi > now() - interval '${CAN_XEM_NGAY} days')
                     AND ($2::int[] IS NULL OR EXISTS (SELECT 1 FROM xuong_to_cong_doan tc WHERE tc.cong_doan_id = t.cong_doan_id AND tc.to_id = ANY($2::int[])))
-                  ORDER BY cap_nhat DESC LIMIT 300`, [xuong, chiTo])
+                  ORDER BY (t.co && ARRAY['nhan_chua_thay_giao', 'giao_vuot_hoan_thanh', 'hoan_thanh_vuot_nhan']::text[]) DESC, cap_nhat DESC
+                  LIMIT ${TRANG_THAI_CO_TOI_DA}`, [xuong, chiTo])
     ]);
     const info = await thongTinHangMuc([...new Set(st.rows.map((x) => String(x.hex)))]);
     res.json({
@@ -87368,6 +89490,8 @@ app.get("/api/xuong/can-xem", async (req, res) => {
       available: true,
       xuong,
       chiTo,
+      // Đủ 300 dòng: danh sách hạng mục có cờ đã bị cắt bớt
+      catBot: st.rows.length >= TRANG_THAI_CO_TOI_DA,
       suKien: sk.rows.map(({ thu_tu: _t, so_nhom: _n, ...x }) => x),
       // Tổng thật từng nhóm (danh sách chỉ giữ 300 dòng mới nhất mỗi nhóm)
       soCanXuLy: sk.rows.find((x) => x.can_xu_ly)?.so_nhom ?? 0,
@@ -87383,6 +89507,7 @@ app.get("/api/xuong/lich-su", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.query.toId);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
+    if (!await duocXemTo(req.user.id, toId)) return res.status(403).json({ success: false, message: KHONG_XEM_TO });
     const me2 = Number(req.user.id);
     const [r, quanLy] = await Promise.all([
       poolMra.query(
@@ -87440,6 +89565,7 @@ app.get("/api/xuong/gioi-han-nhan", async (req, res) => {
     const hex3 = String(req.query.hex ?? "");
     const toId = Number(req.query.toId);
     if (!HEX_RE.test(hex3) || !Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu m\xE3 h\u1EA1ng m\u1EE5c / t\u1ED5" });
+    if (!await duocXemTo(req.user.id, toId)) return res.status(403).json({ success: false, message: KHONG_XEM_TO });
     const cds = (await poolMra.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [toId])).rows.map((x) => String(x.cong_doan_id));
     const gh = await gioiHanNhan(poolMra, cds.map((cd) => [hex3, cd]));
     res.json({ success: true, available: true, congDoan: cds.map((cd) => ({ congDoanId: cd, ...gh.get(`${hex3}|${cd}`) })) });
@@ -87475,7 +89601,7 @@ app.get("/api/xuong/tim-hex", async (req, res) => {
     if (q.length < 3) return res.json({ success: true, available: true, ketQua: [] });
     const toId = Number(req.query.toId);
     const mau = `%${q}%`;
-    const cuaTo = Number.isInteger(toId) && toId > 0 ? (await poolMra.query(
+    const cuaTo = Number.isInteger(toId) && toId > 0 && await duocXemTo(req.user.id, toId) ? (await poolMra.query(
       `SELECT DISTINCT t.hex FROM xuong_trang_thai t
            WHERE t.hex LIKE $1 AND t.trang_thai <> 'xong'
              AND (t.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $2)) LIMIT 10`,
@@ -87546,7 +89672,7 @@ app.post("/api/xuong/thu-hoi/:userId", async (req, res) => {
 });
 
 // src/routes/xuongSetup.ts
-import crypto3 from "node:crypto";
+import crypto4 from "node:crypto";
 
 // src/server/xuong/chiSoHienTai.ts
 var quanSoThucTe = (chot, coMat) => {
@@ -87650,7 +89776,7 @@ function gomSoKhopTram(ds2, tenTo, tenNguoi2 = /* @__PURE__ */ new Map()) {
 }
 
 // src/server/xuong/nhapDu.ts
-var daNhapDu = (triGia, nhapKho, duSoLuong = false) => duSoLuong || triGia > 0 && Math.max(nhapKho, 0) >= triGia;
+var daNhapDu2 = (triGia, nhapKho, duSoLuong = false) => duSoLuong || triGia > 0 && Math.max(nhapKho, 0) >= triGia;
 async function hexDuSoLuong(pool2, hex3) {
   if (!hex3.length) return /* @__PURE__ */ new Set();
   const r = await pool2.query(
@@ -87678,6 +89804,72 @@ var cong2 = (a, b) => {
 };
 var lam3 = (n) => Math.round(n * 100) / 100;
 var minN = (a, b) => a > 0 && b > 0 ? Math.min(a, b) : a || b;
+async function tinhNgayTo(xuong, pbRows, toIds, tu, den, homNay, boHomNay) {
+  let banLuu = true;
+  const daLuu = /* @__PURE__ */ new Map();
+  const [luuR, lichCa] = await Promise.all([
+    poolMra.query(
+      `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua FROM xuong_gio_cong_ngay
+       WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date`,
+      [toIds, tu, den]
+    ).catch((e) => {
+      if (!isMissingSchema(e)) throw e;
+      banLuu = false;
+      return { rows: [] };
+    }),
+    lichCaCuaXuong(xuong)
+  ]);
+  for (const x of luuR.rows) daLuu.set(`${x.to_id}|${x.ngay}`, { v: String(x.v), kq: x.ket_qua });
+  const bamHienTai = dauLichCa(lichCa);
+  const ketQua = /* @__PURE__ */ new Map();
+  const canTinh = [];
+  for (const x of pbRows) {
+    if (boHomNay && x.ngay >= homNay) continue;
+    const k = `${x.to_id}|${x.ngay}`;
+    const luu = daLuu.get(k);
+    if (x.ngay < homNay && luu && luu.v === String(x.v) && luu.kq.bamLichCa === bamHienTai) ketQua.set(k, luu.kq);
+    else canTinh.push({ toId: Number(x.to_id), ngay: x.ngay, v: String(x.v) });
+  }
+  if (boHomNay && !banLuu) return { ketQua, banLuu, conThieu: canTinh.length, lichCa };
+  canTinh.sort((a, b) => a.ngay === homNay ? -1 : b.ngay === homNay ? 1 : b.ngay.localeCompare(a.ngay));
+  const lanNay = canTinh.slice(0, TINH_TOI_DA);
+  await runWithLimit(lanNay.map((c) => async () => {
+    const kq = await gioCongToNgay(c.toId, c.ngay, { v: c.v, xuong, lichCa });
+    if (!kq) return;
+    ketQua.set(`${c.toId}|${c.ngay}`, kq);
+    if (banLuu && c.ngay < homNay) {
+      await poolMra.query(
+        `INSERT INTO xuong_gio_cong_ngay (to_id, ngay, v, ket_qua) VALUES ($1, $2::date, $3, $4::jsonb)
+         ON CONFLICT (to_id, ngay) DO UPDATE SET v = EXCLUDED.v, ket_qua = EXCLUDED.ket_qua, tinh_luc = now()`,
+        [c.toId, c.ngay, c.v, JSON.stringify(kq)]
+      );
+    }
+  }), 2);
+  return { ketQua, banLuu, conThieu: Math.max(0, canTinh.length - lanNay.length), lichCa };
+}
+function khoangNgay(req, homNay) {
+  const den = typeof req.query.den === "string" && NGAY_RE2.test(req.query.den) ? req.query.den : homNay;
+  const tu = typeof req.query.tu === "string" && NGAY_RE2.test(req.query.tu) ? req.query.tu : den;
+  const soNgay2 = (Date.parse(den) - Date.parse(tu)) / 864e5;
+  return soNgay2 < 0 || soNgay2 > 185 ? null : { tu, den, soNgay: soNgay2 };
+}
+app.get("/api/xuong/bao-cao/tinh", async (req, res) => {
+  try {
+    const xuong = String(req.query.xuong ?? "").toUpperCase();
+    const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
+    if (!pv) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    const homNay = vnDayKey(/* @__PURE__ */ new Date());
+    const kn = khoangNgay(req, homNay);
+    if (!kn) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
+    const toIds = (await poolMra.query("SELECT id FROM xuong_to WHERE xuong = $1", [xuong])).rows.map((t) => Number(t.id)).filter((id) => !pv.chiTo || pv.chiTo.includes(id));
+    const pb = await poolMra.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
+                  WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date ORDER BY ngay`, [toIds, kn.tu, kn.den]);
+    const { conThieu, banLuu } = await tinhNgayTo(xuong, pb.rows, toIds, kn.tu, kn.den, homNay, true);
+    res.json({ success: true, conThieu, banLuu });
+  } catch (e) {
+    fail(res, e, "/api/xuong/bao-cao/tinh");
+  }
+});
 app.get("/api/xuong/bao-cao", async (req, res) => {
   try {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
@@ -87687,11 +89879,10 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const chiTo = pv.chiTo;
     await suaChoGiaoCuoiTuyenXuong(xuong);
     const homNay = vnDayKey(/* @__PURE__ */ new Date());
-    const den = typeof req.query.den === "string" && NGAY_RE2.test(req.query.den) ? req.query.den : homNay;
-    const tu = typeof req.query.tu === "string" && NGAY_RE2.test(req.query.tu) ? req.query.tu : den;
-    const soNgay2 = (Date.parse(den) - Date.parse(tu)) / 864e5;
-    const rutGon = soNgay2 > 62;
-    if (soNgay2 < 0 || soNgay2 > 185) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
+    const kn = khoangNgay(req, homNay);
+    if (!kn) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
+    const { tu, den } = kn;
+    const rutGon = kn.soNgay > 62;
     const toRows = (await poolMra.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows.filter((t) => !chiTo || chiTo.includes(Number(t.id)));
     const toIds = toRows.map((t) => Number(t.id));
     const trongKy = (cot) => sqlTrongKyVN(cot, "$2", "$3");
@@ -87781,44 +89972,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       poolMra.query("SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1", [xuong])
     ]);
     const cdRows = cdR.rows;
-    let banLuu = true;
-    const daLuu = /* @__PURE__ */ new Map();
-    const [luuR, lichCa] = await Promise.all([
-      poolMra.query(
-        `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua FROM xuong_gio_cong_ngay
-         WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date`,
-        [toIds, tu, den]
-      ).catch((e) => {
-        if (!isMissingSchema(e)) throw e;
-        banLuu = false;
-        return { rows: [] };
-      }),
-      lichCaCuaXuong(xuong)
-    ]);
-    for (const x of luuR.rows) daLuu.set(`${x.to_id}|${x.ngay}`, { v: String(x.v), kq: x.ket_qua });
-    const bamHienTai = dauLichCa(lichCa);
-    const ketQua = /* @__PURE__ */ new Map();
-    const canTinh = [];
-    for (const x of pb.rows) {
-      const k = `${x.to_id}|${x.ngay}`;
-      const luu = daLuu.get(k);
-      if (x.ngay < homNay && luu && luu.v === String(x.v) && luu.kq.bamLichCa === bamHienTai) ketQua.set(k, luu.kq);
-      else canTinh.push({ toId: Number(x.to_id), ngay: x.ngay, v: String(x.v) });
-    }
-    canTinh.sort((a, b) => a.ngay === homNay ? -1 : b.ngay === homNay ? 1 : b.ngay.localeCompare(a.ngay));
-    const lanNay = canTinh.slice(0, TINH_TOI_DA);
-    await runWithLimit(lanNay.map((c) => async () => {
-      const kq = await gioCongToNgay(c.toId, c.ngay, { v: c.v, xuong, lichCa });
-      if (!kq) return;
-      ketQua.set(`${c.toId}|${c.ngay}`, kq);
-      if (banLuu && c.ngay < homNay) {
-        await poolMra.query(
-          `INSERT INTO xuong_gio_cong_ngay (to_id, ngay, v, ket_qua) VALUES ($1, $2::date, $3, $4::jsonb)
-           ON CONFLICT (to_id, ngay) DO UPDATE SET v = EXCLUDED.v, ket_qua = EXCLUDED.ket_qua, tinh_luc = now()`,
-          [c.toId, c.ngay, c.v, JSON.stringify(kq)]
-        );
-      }
-    }), 2);
+    const { ketQua, banLuu, conThieu, lichCa } = await tinhNgayTo(xuong, pb.rows, toIds, tu, den, homNay, false);
     const ht = new Map(hienTai.rows.filter((x) => !x.la_tong).map((x) => [Number(x.to_id), x]));
     const htTong = hienTai.rows.find((x) => x.la_tong);
     const choNhan = await demChoNhan(poolMra, xuong, toIds, gioiHanNhan);
@@ -88186,13 +90340,19 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         )
       ]);
       const appNgay = /* @__PURE__ */ new Map();
+      const toAppNgay = /* @__PURE__ */ new Map();
+      const toActive = new Set(toRows.filter((t) => t.active).map((t) => Number(t.id)));
       for (const x of pb.rows) {
         const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
         if (!kq) continue;
         const a = appNgay.get(x.ngay) ?? { thuong: 0, tangCa: 0 };
         cong2(a, kq.gioNguoiTo);
         appNgay.set(x.ngay, a);
+        if (!toActive.has(Number(x.to_id))) continue;
+        if (!toAppNgay.has(x.ngay)) toAppNgay.set(x.ngay, /* @__PURE__ */ new Set());
+        toAppNgay.get(x.ngay).add(Number(x.to_id));
       }
+      const soToActive = toActive.size;
       const qsNgay2 = new Map(qs.rows.map((x) => [String(x.ngay), Number(x.so)]));
       const ngays = [.../* @__PURE__ */ new Set([...dd.rows.map((x) => String(x.ngay)), ...appNgay.keys()])].sort();
       chamCong = {
@@ -88207,7 +90367,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
             gioTc: d ? lam3(Number(d.tc)) : 0,
             quanSoApp: qsNgay2.get(n) ?? 0,
             gioThuongApp: a ? lam3(a.thuong) : 0,
-            gioTangCaApp: a ? lam3(a.tangCa) : 0
+            gioTangCaApp: a ? lam3(a.tangCa) : 0,
+            soToApp: toAppNgay.get(n)?.size ?? 0,
+            soToActive
           };
         })
       };
@@ -88422,7 +90584,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       tu,
       den,
       banLuu,
-      conThieu: Math.max(0, canTinh.length - lanNay.length),
+      conThieu,
       chamCong,
       hangMuc,
       hienTaiTong,
@@ -88572,10 +90734,13 @@ app.get("/api/xuong/setup", async (req, res) => {
       poolMra.query(`SELECT t.id, t.ten_to, t.active, t.to_truong_user_id FROM xuong_to t WHERE t.xuong = $1 ORDER BY t.ten_to`, [xuong]),
       poolMra.query(`SELECT tc.to_id, tc.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id WHERE t.xuong = $1`, [xuong]),
       // Thành viên tổ = tài khoản ghi cho tổ (xuong_to_thanh_vien) GỘP công nhân đang xếp ở tổ (Nhân sự, xuong_cong_nhan) —
-      // lưu tổ ghi cả 2 nơi, nên form hiện đủ người (bỏ 1 dòng = rời tổ ở cả 2)
+      // lưu tổ ghi cả 2 nơi, nên form hiện đủ người (bỏ 1 dòng = rời tổ ở cả 2). Người đã nghỉ / Nhân sự xếp tổ khác: bỏ;
+      // Nhân sự chưa xếp tổ vẫn giữ (để lần lưu sau không lặng lẽ đóng dòng thành viên của họ)
       poolMra.query(`SELECT to_id, mnv FROM (
                     SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
                     WHERE t.xuong = $1 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)
+                      AND NOT EXISTS (SELECT 1 FROM xuong_cong_nhan c WHERE c.mnv = upper(tv.mnv)
+                                        AND (NOT c.active OR (c.to_id IS NOT NULL AND c.to_id <> tv.to_id)))
                     UNION
                     SELECT c.to_id, c.mnv FROM xuong_cong_nhan c JOIN xuong_to t ON t.id = c.to_id WHERE t.xuong = $1 AND c.active
                   ) x ORDER BY mnv`, [xuong]),
@@ -88583,6 +90748,7 @@ app.get("/api/xuong/setup", async (req, res) => {
                   FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong]),
       poolMra.query(`SELECT q.user_id FROM xuong_quan_ly q WHERE q.xuong = $1`, [xuong])
     ]);
+    const choKhai = quanLyDuoc(ds2, xuong) ? await demChoKhai(xuong) : { so: 0, cuNhat: null };
     const nd = await nguoiDungTheoId([...to.rows.map((x) => x.to_truong_user_id), ...ql.rows.map((x) => x.user_id)]);
     for (const x of to.rows) Object.assign(x, (({ full_name, username, msnv, permissions, role }) => ({ full_name, username, msnv, permissions, role }))(
       nd.get(Number(x.to_truong_user_id)) ?? { full_name: null, username: null, msnv: null, permissions: null, role: null }
@@ -88638,7 +90804,8 @@ app.get("/api/xuong/setup", async (req, res) => {
         soTram: soTram2.get(Number(x.id)) ?? 0
       })),
       lichCa: lc.rows.map((x) => ({ xuong: x.xuong, loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] })),
-      quanLy: chiTo ? [] : ql.rows.map((x) => ({ userId: Number(x.user_id), ten: x.full_name || x.username }))
+      quanLy: chiTo ? [] : ql.rows.map((x) => ({ userId: Number(x.user_id), ten: x.full_name || x.username })),
+      choKhai
     });
   } catch (e) {
     fail(res, e, "/api/xuong/setup");
@@ -88688,7 +90855,10 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
       const nd = await nguoiDungTheoId(r.rows.map((x) => x.to_truong_user_id));
       for (const x of r.rows) x.to_truong = nd.get(Number(x.to_truong_user_id))?.full_name ?? null;
     }
-    const choNhanTo = (await demChoNhan(poolMra, xuong, null, gioiHanNhan)).theoTo;
+    const [choNhanTo, choKhai] = await Promise.all([
+      demChoNhan(poolMra, xuong, null, gioiHanNhan).then((x) => x.theoTo),
+      demChoKhai(xuong)
+    ]);
     const diemDanh = /* @__PURE__ */ new Map();
     if (r.rows.length && await coBangCongNhan()) {
       const ids = r.rows.map((x) => Number(x.id));
@@ -88740,6 +90910,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
       dsXuong,
       xuong,
       canXem: canXemXuong,
+      choKhai,
       to: r.rows.map((x) => ({
         id: Number(x.id),
         ten: x.ten_to,
@@ -88788,7 +90959,7 @@ app.post("/api/xuong/setup/cong-doan", async (req, res) => {
       );
       return res.json({ success: true, available: true, id: d.id });
     }
-    const id = `CD-${d.xuong}-${crypto3.randomBytes(3).toString("hex").toUpperCase()}`;
+    const id = `CD-${d.xuong}-${crypto4.randomBytes(3).toString("hex").toUpperCase()}`;
     await poolMra.query(
       `INSERT INTO xuong_cong_doan (id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [id, d.xuong, d.tenCd, d.cdTachMa ?? null, d.ten, d.thuTu, d.laBaoBi, d.active]
@@ -88807,7 +90978,9 @@ var toSchema = external_exports.object({
   thanhVien: external_exports.array(external_exports.string().trim().min(1).max(20)).max(300),
   active: external_exports.boolean(),
   /** Admin: cấp luôn quyền 'xuong' cho tổ trưởng chưa có */
-  capQuyen: external_exports.boolean().optional()
+  capQuyen: external_exports.boolean().optional(),
+  /** Đã xác nhận xếp lại người đang ở tổ khác / đã nghỉ (lần lưu trước trả canhBao) */
+  xacNhan: external_exports.boolean().optional()
 });
 app.post("/api/xuong/setup/to", async (req, res) => {
   try {
@@ -88821,6 +90994,23 @@ app.post("/api/xuong/setup/to", async (req, res) => {
     const kq = await withTransactionMra(async (client) => {
       const cds = d.congDoan.length ? (await client.query("SELECT id FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND xuong = $2", [d.congDoan, d.xuong])).rows : [];
       if (cds.length !== d.congDoan.length) return { loi: "C\xF4ng \u0111o\u1EA1n ph\u1EE5 tr\xE1ch ph\u1EA3i thu\u1ED9c x\u01B0\u1EDFng c\u1EE7a t\u1ED5" };
+      const lech = d.thanhVien.length ? (await client.query(
+        `SELECT c.mnv, c.ho_ten, c.active, c.to_id, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
+         WHERE c.mnv = ANY($1::text[]) AND (NOT c.active OR (c.to_id IS NOT NULL AND ($2::int IS NULL OR c.to_id <> $2::int)))
+         ORDER BY c.ho_ten`,
+        [d.thanhVien, d.id ?? null]
+      )).rows : [];
+      if (lech.length && !d.xacNhan) {
+        return {
+          canhBao: lech.map((x) => ({
+            mnv: String(x.mnv),
+            hoTen: String(x.ho_ten),
+            nghi: !x.active,
+            tenTo: x.active && x.ten_to ? String(x.ten_to) : null
+          }))
+        };
+      }
+      const chuyenTo = lech.filter((x) => x.active && x.to_id !== null).map((x) => String(x.mnv));
       let id = d.id;
       if (id) {
         const cu = await client.query("SELECT xuong FROM xuong_to WHERE id = $1", [id]);
@@ -88857,6 +91047,13 @@ app.post("/api/xuong/setup/to", async (req, res) => {
           [id, d.thanhVien]
         );
       }
+      if (chuyenTo.length) {
+        await client.query(
+          `UPDATE xuong_to_thanh_vien SET den_ngay = CURRENT_DATE - 1
+           WHERE to_id <> $1 AND upper(mnv) = ANY($2::text[]) AND (den_ngay IS NULL OR den_ngay >= CURRENT_DATE)`,
+          [id, chuyenTo]
+        );
+      }
       await client.query(
         `UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE to_id = $1 AND NOT (mnv = ANY($2::text[]))`,
         [id, d.thanhVien]
@@ -88865,14 +91062,23 @@ app.post("/api/xuong/setup/to", async (req, res) => {
         await client.query(
           `INSERT INTO xuong_cong_nhan (mnv, ho_ten, xuong, to_id, nguon)
            SELECT m, COALESCE(h, m), $2, $1, 'app' FROM unnest($3::text[], $4::text[]) AS u(m, h)
-           ON CONFLICT (mnv) DO UPDATE SET to_id = EXCLUDED.to_id, xuong = EXCLUDED.xuong, active = true, cap_nhat = now(),
-             ho_ten = CASE WHEN xuong_cong_nhan.ho_ten = xuong_cong_nhan.mnv THEN EXCLUDED.ho_ten ELSE xuong_cong_nhan.ho_ten END`,
-          [id, d.xuong, d.thanhVien, d.thanhVien.map((m) => hoTen.get(m) ?? null)]
+           ON CONFLICT (mnv) DO UPDATE SET to_id = EXCLUDED.to_id, xuong = EXCLUDED.xuong, active = xuong_cong_nhan.active OR $5::boolean,
+             cap_nhat = now(), ho_ten = CASE WHEN xuong_cong_nhan.ho_ten = xuong_cong_nhan.mnv THEN EXCLUDED.ho_ten ELSE xuong_cong_nhan.ho_ten END`,
+          [id, d.xuong, d.thanhVien, d.thanhVien.map((m) => hoTen.get(m) ?? null), !!d.xacNhan]
         );
       }
       return { id };
     });
     if ("loi" in kq) return res.status(400).json({ success: false, message: kq.loi });
+    if ("canhBao" in kq && kq.canhBao) {
+      const ds3 = kq.canhBao.slice(0, 8).map((x) => `${x.hoTen} (${x.mnv}) ${x.nghi ? "\u0111\xE3 ngh\u1EC9" : `\u0111ang \u1EDF ${x.tenTo ?? "t\u1ED5 kh\xE1c"}`}`);
+      return res.status(409).json({
+        success: false,
+        canXacNhan: true,
+        canhBao: kq.canhBao,
+        message: `${ds3.join("; ")}${kq.canhBao.length > 8 ? "\u2026" : ""} \u2014 x\xE1c nh\u1EADn \u0111\u1EC3 x\u1EBFp v\xE0o t\u1ED5 n\xE0y`
+      });
+    }
     if (d.capQuyen && d.toTruongUserId) {
       await pool.query(
         `UPDATE users SET permissions = array_append(COALESCE(permissions, '{}'), $2)
@@ -88983,7 +91189,7 @@ app.get("/api/xuong/setup/nguoi-dung", async (req, res) => {
 var dongServer = (p, userId) => {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   return {
-    id: crypto3.randomUUID(),
+    id: crypto4.randomUUID(),
     hex: null,
     cong_doan_id: null,
     to_id: null,
@@ -89018,6 +91224,7 @@ app.post("/api/xuong/huy", async (req, res) => {
       const d = (await client.query("SELECT id, loai, hex, cong_doan_id, to_id, xuong FROM xuong_su_kien WHERE id = $1", [id])).rows[0];
       if (!d) return { loi: "Kh\xF4ng t\xECm th\u1EA5y s\u1EF1 ki\u1EC7n", ma: 404 };
       if (!quanLyDuoc(await xuongQuanLy(me2), d.xuong ?? null)) return { loi: "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c hu\u1EF7 t\u1EEB m\xE1y t\xEDnh", ma: 403 };
+      if (d.loai === "trien_khai" || d.loai === "khai_bao_cd") return { loi: "D\xF9ng Hu\u1EF7 \u0111\u1EE3t \u1EDF Theo d\xF5i tri\u1EC3n khai", ma: 400 };
       const da = await client.query(`SELECT 1 FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = $1 LIMIT 1`, [id]);
       if (da.rows.length) return { loi: "S\u1EF1 ki\u1EC7n \u0111\xE3 \u0111\u01B0\u1EE3c hu\u1EF7", ma: 400 };
       await ghiVaTinhLai(client, [dongServer({
@@ -89041,21 +91248,64 @@ app.post("/api/xuong/hex-tom-tat", async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? [...new Set(req.body.hexes.map(String).filter((h) => HEX_RE.test(h)))].slice(0, 1e3) : [];
     if (!hexes.length) return res.json({ success: true, available: true, tomTat: {} });
-    const r = await poolMra.query(
-      `SELECT t.hex, t.xuong, t.trang_thai, c.cd_chi_tiet FROM xuong_trang_thai t
-       LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id WHERE t.hex = ANY($1::text[])`,
-      [hexes]
-    );
+    const doc = await docTrangThaiMra(hexes);
+    const r = { rows: doc.dong }, ev = { rows: doc.suKien };
     const tomTat = {};
+    const thuTu = /* @__PURE__ */ new Map();
+    const slHoanThanh = /* @__PURE__ */ new Map();
+    const iso3 = (v) => {
+      const t = v ? new Date(v).getTime() : NaN;
+      return Number.isFinite(t) ? new Date(t).toISOString() : null;
+    };
     for (const x of r.rows) {
       const k = String(x.hex);
-      tomTat[k] ??= { soCongDoan: 0, dangO: [] };
+      tomTat[k] ??= { soCongDoan: 0, dangO: [], daTrienKhai: 0, xong: false };
       tomTat[k].soCongDoan++;
-      if (x.trang_thai !== "xong") tomTat[k].dangO.push({ xuong: x.xuong, ten: x.cd_chi_tiet, trangThai: x.trang_thai });
+      slHoanThanh.set(`${k}|${x.cong_doan_id}`, Number(x.h ?? 0));
+      if (x.trang_thai === "xong") continue;
+      const tu = x.trang_thai === "dang_lam" ? iso3(x.dang_chay_tu) ?? iso3(x.su_kien_cuoi) : iso3(x.su_kien_cuoi) ?? iso3(x.dang_chay_tu);
+      const o = { xuong: x.xuong, ten: x.cd_chi_tiet, trangThai: x.trang_thai, tu };
+      thuTu.set(o, x.thu_tu === null || x.thu_tu === void 0 ? 999 : Number(x.thu_tu));
+      tomTat[k].dangO.push(o);
+    }
+    for (const t of Object.values(tomTat)) {
+      t.dangO.sort((a, b) => (thuTu.get(a) ?? 999) - (thuTu.get(b) ?? 999) || String(a.ten ?? "").localeCompare(String(b.ten ?? ""), "vi"));
+    }
+    const evTheoHex = /* @__PURE__ */ new Map();
+    for (const e of ev.rows.map(toSuKien)) {
+      const k = String(e.hex);
+      if (!evTheoHex.has(k)) evTheoHex.set(k, []);
+      evTheoHex.get(k).push(e);
+    }
+    for (const [hex3, ds2] of evTheoHex) {
+      const t = tomTat[hex3];
+      if (!t) continue;
+      const conHl = suKienConHieuLuc(ds2);
+      t.daTrienKhai = conHl.filter((e) => e.loai === "trien_khai").reduce((a, e) => a + (Number(e.soLuong) || 0), 0);
+      const daTrienKhai = t.daTrienKhai;
+      if (!daTrienKhai || t.dangO.length) continue;
+      const tuyen = tuyenTheoThanhPhan(ds2);
+      const coChoKhai = conHl.some((e) => e.loai === "trien_khai" && Array.isArray(e.duLieu?.thanhPhan) && e.duLieu.thanhPhan.some((tp2) => !tuyen.some((x) => x.thanhPhan === String(tp2.ten ?? ""))));
+      const cuoi = tuyen.map((x) => x.tuyen[x.tuyen.length - 1]).filter(Boolean);
+      if (coChoKhai) t.choKhai = true;
+      if (coChoKhai || !cuoi.length) continue;
+      const slXong = Math.min(...cuoi.map((cd) => slHoanThanh.get(`${hex3}|${cd}`) ?? 0));
+      t.slXong = slXong;
+      t.xong = slXong >= daTrienKhai - 5e-4;
     }
     res.json({ success: true, available: true, tomTat });
   } catch (e) {
     fail(res, e, "/api/xuong/hex-tom-tat");
+  }
+});
+app.get("/api/xuong/vi-tri-bop", async (req, res) => {
+  try {
+    const ban = await layBanDoViTri();
+    if (typeof req.query.ver === "string" && req.query.ver === ban.ver) return res.json({ success: true, same: true });
+    if (ban.ver === "off") return res.json({ success: true, ver: "off", map: {}, thongKe: { soHex: 0, chuaNoi: [], giuPc: 0 } });
+    res.json({ success: true, ver: ban.ver, tinhLuc: ban.tinhLuc, map: ban.map, thongKe: ban.thongKe });
+  } catch (e) {
+    fail(res, e, "/api/xuong/vi-tri-bop");
   }
 });
 var bangTuyenMacDinh = null;
@@ -89370,6 +91620,10 @@ async function choKhaiChiTiet(xuong, trienKhaiIds) {
   );
   return r.rows;
 }
+async function demChoKhai(xuong) {
+  const rows = await choKhaiChiTiet(xuong);
+  return { so: rows.length, cuNhat: rows.length ? String(rows[rows.length - 1].luc).slice(0, 10) : null };
+}
 app.get("/api/xuong/khai-chi-tiet", async (req, res) => {
   try {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
@@ -89474,13 +91728,16 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
          AND (e.du_lieu->>'xuong' = $1 OR EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(e.du_lieu->'thanhPhan') = 'array'
                THEN e.du_lieu->'thanhPhan' ELSE '[]'::jsonb END) tp WHERE upper(tp->>'xuong') = $1))
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       GROUP BY e.hex ORDER BY max(e.device_ts_hieu_chinh) DESC LIMIT 400`,
+       GROUP BY e.hex
+       ORDER BY (EXISTS (SELECT 1 FROM xuong_trang_thai s WHERE s.hex = e.hex)
+                 AND NOT EXISTS (SELECT 1 FROM xuong_trang_thai s WHERE s.hex = e.hex AND s.trang_thai <> 'xong')) ASC,
+                max(e.device_ts_hieu_chinh) DESC LIMIT 400`,
       [xuong, String(soNgay2)]
     );
     const dangCo = await poolMra.query(
       `SELECT hex, max(su_kien_cuoi) AS cuoi FROM xuong_trang_thai
        WHERE xuong = $1 AND (trang_thai <> 'xong' OR su_kien_cuoi >= now() - ($2 || ' days')::interval)
-       GROUP BY hex ORDER BY max(su_kien_cuoi) DESC NULLS LAST LIMIT 400`,
+       GROUP BY hex ORDER BY bool_and(trang_thai = 'xong') ASC, max(su_kien_cuoi) DESC NULLS LAST LIMIT 400`,
       [xuong, String(soNgay2)]
     );
     const daTk = new Set(tk.rows.map((x) => String(x.hex)));
@@ -89537,6 +91794,11 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
     }
     const cdCuaTo = pv.chiTo ? new Set(toCd.rows.filter((x) => pv.chiTo.includes(Number(x.to_id))).map((x) => String(x.cong_doan_id))) : null;
     const stMap = new Map(st.rows.map((x) => [`${x.hex}|${x.cong_doan_id}`, x]));
+    const capNhatCuoi = /* @__PURE__ */ new Map();
+    for (const x of st.rows) {
+      const t = x.su_kien_cuoi ? new Date(x.su_kien_cuoi).getTime() : NaN;
+      if (Number.isFinite(t) && t > (capNhatCuoi.get(String(x.hex)) ?? -Infinity)) capNhatCuoi.set(String(x.hex), t);
+    }
     const congDoan = (hex3, id) => {
       const c = cdMap.get(id);
       const s2 = stMap.get(`${hex3}|${id}`);
@@ -89596,6 +91858,7 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
         slXong,
         xong,
         dotTrienKhai: dotCua(hex3),
+        capNhatCuoi: capNhatCuoi.has(hex3) ? new Date(capNhatCuoi.get(hex3)).toISOString() : null,
         dangLam: tatCaCd.filter((c) => c.trangThai === "dang_lam").length,
         tamNgung: tatCaCd.filter((c) => c.trangThai === "tam_ngung").length,
         choNhan: tatCaCd.filter((c) => c.slGiaoDen > c.slNhan + 5e-4).length,
@@ -89692,7 +91955,8 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
         gioCaTv: lam4(trungVi(coChay.map((c) => c.gioCa)) ?? 0, 1),
         gioCaP75: lam4(phanVi(coChay.map((c) => c.gioCa), 0.75) ?? 0, 1),
         gioCa: lam4(cs.reduce((a, c) => a + c.gioCa, 0), 0),
-        ngayChayTv: lam4((trungVi(coChay.map((c) => c.gioChay)) ?? 0) / 24, 1),
+        // Ngày lịch thường mất: từ thao tác đầu tới lần xong / giao cuối (cùng cách tính mốc dự báo — duBao.ts)
+        ngayChayTv: lam4(trungVi(cs.filter((c) => c.xongCuoi !== null && c.xongCuoi > c.dau).map((c) => (c.xongCuoi - c.dau) / NGAY)) ?? 0, 1),
         gioTrenDvTv: lam4(trungVi(cs.filter((c) => c.slXong > 0 && c.gioCa > 0).map((c) => c.gioCa / c.slXong)) ?? 0, 3),
         soNgung: cs.reduce((a, c) => a + c.soNgung, 0),
         gioNgung: lam4(cs.reduce((a, c) => a + c.gioNgung, 0), 1),
@@ -89795,6 +92059,7 @@ function duBaoHangMuc(evts, moc2, xong, hanCuoi, now) {
   }
   let tot = null;
   const thieuMoc = /* @__PURE__ */ new Set();
+  let coMoc = false;
   for (const t of tuyen) {
     let can = 0;
     const conLai = [];
@@ -89808,6 +92073,7 @@ function duBaoHangMuc(evts, moc2, xong, hanCuoi, now) {
         continue;
       }
       nguon.add(m.nguon);
+      coMoc = true;
       const daQua = dauTai.has(cd) ? (now - dauTai.get(cd)) / NGAY : 0;
       can += dauTai.has(cd) ? Math.max(0.5, m.ngay - daQua) : m.ngay;
     }
@@ -89815,9 +92081,19 @@ function duBaoHangMuc(evts, moc2, xong, hanCuoi, now) {
   }
   if (!tot || !tot.conLai.length) return null;
   const conNgay = Math.max(0, (hanCuoi - now) / NGAY);
-  const muc = tot.can > conNgay ? "rot" : tot.can > conNgay * 0.8 ? "sat" : "kip";
+  const khongDuMoc = !coMoc;
+  const nguongSat = thieuMoc.size ? 0.5 : 0.8;
+  const muc = khongDuMoc ? "chua_ro" : tot.can > conNgay ? "rot" : tot.can > conNgay * nguongSat ? "sat" : "kip";
   const nguonMoc = tot.nguon.size > 1 ? "ca_hai" : tot.nguon.has("app") ? "app" : "mra";
-  return { canNgay: Math.round(tot.can * 10) / 10, conNgay: Math.round(conNgay * 10) / 10, muc, nguonMoc, thieuMoc: [...thieuMoc], conLai: tot.conLai };
+  return {
+    canNgay: Math.round(tot.can * 10) / 10,
+    conNgay: Math.round(conNgay * 10) / 10,
+    muc,
+    nguonMoc,
+    thieuMoc: [...thieuMoc],
+    khongDuMoc,
+    conLai: tot.conLai
+  };
 }
 
 // src/routes/xuongKeHoach.ts
@@ -89997,7 +92273,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
         const hex3 = String(x.hex);
         const nkTuan = nkMap.get(hex3);
         const slKh = Number(x.sl_kh) || 0;
-        if ((Number(x.kh) || 0) > 0 && daNhapDu(Number(x.kh), nkTuan?.tien ?? 0, slKh > 0 && (nkTuan?.sl ?? 0) >= slKh)) continue;
+        if ((Number(x.kh) || 0) > 0 && daNhapDu2(Number(x.kh), nkTuan?.tien ?? 0, slKh > 0 && (nkTuan?.sl ?? 0) >= slKh)) continue;
         const slTk = tkMap.get(hex3)?.sl ?? 0;
         const st = new Map((cdTheoHex.get(hex3) ?? []).map((c) => [String(c.congDoanId), c]));
         const xong = (cd) => {
@@ -90067,6 +92343,27 @@ async function quyenTo(req, toId) {
     [toId, msnv]
   );
   return { duoc: tv.rows.length > 0, quanLy: false, xuong };
+}
+async function dongBoThanhVien(client, ds2) {
+  if (!ds2.length) return;
+  const mnv = ds2.map((x) => x.mnv);
+  const toId = ds2.map((x) => x.toId);
+  await client.query(
+    `UPDATE xuong_to_thanh_vien tv SET den_ngay = CURRENT_DATE - 1
+     FROM unnest($1::text[], $2::int[]) AS u(m, t)
+     WHERE upper(tv.mnv) = u.m AND tv.to_id IS DISTINCT FROM u.t AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
+    [mnv, toId]
+  );
+  const mo = ds2.filter((x) => x.toId !== null);
+  if (!mo.length) return;
+  await client.query(
+    `INSERT INTO xuong_to_thanh_vien (to_id, mnv, tu_ngay)
+     SELECT u.t, u.m, CURRENT_DATE FROM unnest($1::text[], $2::int[]) AS u(m, t)
+     WHERE NOT EXISTS (SELECT 1 FROM xuong_to_thanh_vien x WHERE x.to_id = u.t AND upper(x.mnv) = u.m
+                         AND (x.den_ngay IS NULL OR x.den_ngay >= CURRENT_DATE))
+     ON CONFLICT (to_id, mnv, tu_ngay) DO UPDATE SET den_ngay = NULL`,
+    [mo.map((x) => x.mnv), mo.map((x) => x.toId)]
+  );
 }
 var dong = (x) => ({
   mnv: String(x.mnv),
@@ -90183,12 +92480,20 @@ app.post("/api/xuong/cong-nhan/sua", async (req, res) => {
       xuongMoi = String(to.xuong);
     }
     if (!quanLyDuoc(ds2, cu.xuong ?? null) || !quanLyDuoc(ds2, xuongMoi)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
-    const r = await poolMra.query(
-      `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
-         active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
-      [mnv, p.data.toId !== void 0, p.data.toId ?? null, xuongMoi, p.data.active ?? null, p.data.hoTen ?? null]
-    );
-    res.json({ success: true, available: true, congNhan: dong(r.rows[0]) });
+    const moi = await withTransactionMra(async (client) => {
+      const r = await client.query(
+        `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
+           active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
+        [mnv, p.data.toId !== void 0, p.data.toId ?? null, xuongMoi, p.data.active ?? null, p.data.hoTen ?? null]
+      );
+      const x = r.rows[0];
+      const doiTo = p.data.toId !== void 0 && (cu.to_id === null ? null : Number(cu.to_id)) !== (p.data.toId ?? null);
+      if (doiTo || p.data.active !== void 0 && p.data.active !== cu.active) {
+        await dongBoThanhVien(client, [{ mnv, toId: x.active && x.to_id !== null ? Number(x.to_id) : null }]);
+      }
+      return x;
+    });
+    res.json({ success: true, available: true, congNhan: dong(moi) });
   } catch (e) {
     fail(res, e, "/api/xuong/cong-nhan/sua");
   }
@@ -90239,6 +92544,20 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
     let nghi = 0;
     try {
       await client.query("BEGIN; SET LOCAL idle_in_transaction_session_timeout = 30000");
+      const truoc = new Map((await client.query(
+        "SELECT mnv, to_id, active FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])",
+        [hopLe.map((x) => x.mnv)]
+      )).rows.map((x) => [String(x.mnv), { toId: x.to_id === null ? null : Number(x.to_id), active: !!x.active }]));
+      const doiTo = /* @__PURE__ */ new Map();
+      for (const x of hopLe) {
+        const c = truoc.get(x.mnv);
+        if (x.toId === null) {
+          if (c && !c.active && c.toId !== null) doiTo.set(x.mnv, c.toId);
+          continue;
+        }
+        if (!c || !c.active || c.toId !== x.toId) doiTo.set(x.mnv, x.toId);
+        else doiTo.delete(x.mnv);
+      }
       for (let i = 0; i < hopLe.length; i += 500) {
         const lo = hopLe.slice(i, i + 500);
         await client.query(
@@ -90254,11 +92573,13 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
         const xs = [...new Set(hopLe.map((x) => x.xuong).filter((x) => !!x))];
         const r = await client.query(
           `UPDATE xuong_cong_nhan SET active = false, to_id = NULL, cap_nhat = now()
-           WHERE active AND xuong = ANY($1::text[]) AND NOT (mnv = ANY($2::text[]))`,
+           WHERE active AND xuong = ANY($1::text[]) AND NOT (mnv = ANY($2::text[])) RETURNING mnv`,
           [xs, hopLe.map((x) => x.mnv)]
         );
         nghi = r.rowCount ?? 0;
+        for (const x of r.rows) doiTo.set(String(x.mnv), null);
       }
+      await dongBoThanhVien(client, [...doiTo].map(([mnv, toId]) => ({ mnv, toId })));
       await client.query("COMMIT");
     } catch (e) {
       await client.query("ROLLBACK");
@@ -90597,24 +92918,6 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
       poolMra.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [t.toId])
     ]);
     const cdCuaTo = new Set(cdRows.rows.map((x) => String(x.cong_doan_id)));
-    const capLo = [...new Map(hopLe.filter((e) => ["nguoi_vao", "nhan", "hoan_thanh"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [pairKey(e.hex, e.congDoanId), [e.hex, e.congDoanId]])).values()];
-    const soCap = /* @__PURE__ */ new Map();
-    const lamDuoc = /* @__PURE__ */ new Set();
-    let ghNhan = /* @__PURE__ */ new Map();
-    if (capLo.length) {
-      const tt = await poolMra.query(
-        `SELECT t.hex, t.cong_doan_id, t.sl_giao_den, t.sl_nhan, t.sl_hoan_thanh FROM xuong_trang_thai t
-         JOIN unnest($1::text[], $2::text[]) AS c(hex, cd) ON c.hex = t.hex AND c.cd = t.cong_doan_id`,
-        [capLo.map((x) => x[0]), capLo.map((x) => x[1])]
-      );
-      for (const x of tt.rows) {
-        const k = pairKey(String(x.hex), String(x.cong_doan_id));
-        soCap.set(k, { den: Number(x.sl_giao_den), nhan: Number(x.sl_nhan), ht: Number(x.sl_hoan_thanh) });
-        if (Number(x.sl_nhan) > Number(x.sl_hoan_thanh) + SAI_SO) lamDuoc.add(k);
-      }
-      if (hopLe.some((e) => e.loai === "nhan")) ghNhan = await gioiHanNhan(poolMra, capLo.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
-    }
-    const ctx = { congNhan: new Set(cn.rows.map((x) => String(x.mnv))), cdCuaTo, lamDuoc };
     const duocKhai = hopLe.filter((e) => typeof e.duLieu?.khaiBoi === "string").map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x);
     const daVaoCa = new Set(hopLe.filter((e) => e.loai === "vao_ca" && typeof e.duLieu?.khaiBoi !== "string").map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x));
     if (duocKhai.length) {
@@ -90629,90 +92932,112 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
       );
       for (const x of r.rows) daVaoCa.add(String(x.mnv));
     }
-    const ghi = [];
-    for (const e of hopLe) {
-      const why = kiemTraSuKienTram(e, ctx);
-      if (why) {
-        tuChoi.push({ id: e.id, reason: why });
-        continue;
+    const ghi = await withTransactionMra(async (client) => {
+      await khoaCap(client, hopLe.filter((e) => (e.loai === "nhan" || e.loai === "hoan_thanh") && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]));
+      const capLo = [...new Map(hopLe.filter((e) => ["nguoi_vao", "nhan", "hoan_thanh"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [pairKey(e.hex, e.congDoanId), [e.hex, e.congDoanId]])).values()];
+      const soCap = /* @__PURE__ */ new Map();
+      const lamDuoc = /* @__PURE__ */ new Set();
+      let ghNhan = /* @__PURE__ */ new Map();
+      if (capLo.length) {
+        const tt = await client.query(
+          `SELECT t.hex, t.cong_doan_id, t.sl_giao_den, t.sl_nhan, t.sl_hoan_thanh FROM xuong_trang_thai t
+           JOIN unnest($1::text[], $2::text[]) AS c(hex, cd) ON c.hex = t.hex AND c.cd = t.cong_doan_id`,
+          [capLo.map((x) => x[0]), capLo.map((x) => x[1])]
+        );
+        for (const x of tt.rows) {
+          const k = pairKey(String(x.hex), String(x.cong_doan_id));
+          soCap.set(k, { den: Number(x.sl_giao_den), nhan: Number(x.sl_nhan), ht: Number(x.sl_hoan_thanh) });
+          if (Number(x.sl_nhan) > Number(x.sl_hoan_thanh) + SAI_SO) lamDuoc.add(k);
+        }
+        if (hopLe.some((e) => e.loai === "nhan")) ghNhan = await gioiHanNhan(client, capLo.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
       }
-      const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
-      const co2 = ["tram", ...gio.co];
-      if (e.duLieu?.ngoaiCa === true) co2.push("ngoai_ca");
-      let soLuong = null;
-      if (e.loai === "nhan" || e.loai === "hoan_thanh") {
-        const k = pairKey(e.hex, e.congDoanId);
-        const c = soCap.get(k) ?? { den: 0, nhan: 0, ht: 0 };
-        if (e.loai === "nhan") {
-          let con = c.den - c.nhan;
-          const g = ghNhan.get(`${e.hex}|${e.congDoanId}`);
-          if (g && g.moc !== null) con = Math.min(con, g.moc - g.daNhan - (c.nhan - (soCap.get(k)?.nhan ?? 0)));
-          if (con <= SAI_SO) {
-            tuChoi.push({ id: e.id, reason: "Kh\xF4ng c\xF2n h\xE0ng ch\u1EDD nh\u1EADn \u1EDF h\u1EA1ng m\u1EE5c n\xE0y" });
+      const ctx = { congNhan: new Set(cn.rows.map((x) => String(x.mnv))), cdCuaTo, lamDuoc };
+      const ghi2 = [];
+      for (const e of hopLe) {
+        const why = kiemTraSuKienTram(e, ctx);
+        if (why) {
+          tuChoi.push({ id: e.id, reason: why });
+          continue;
+        }
+        const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
+        const co2 = ["tram", ...gio.co];
+        if (e.duLieu?.ngoaiCa === true) co2.push("ngoai_ca");
+        let soLuong = null;
+        if (e.loai === "nhan" || e.loai === "hoan_thanh") {
+          const k = pairKey(e.hex, e.congDoanId);
+          const c = soCap.get(k) ?? { den: 0, nhan: 0, ht: 0 };
+          if (e.loai === "nhan") {
+            let con = c.den - c.nhan;
+            const g = ghNhan.get(`${e.hex}|${e.congDoanId}`);
+            if (g && g.moc !== null) con = Math.min(con, g.moc - g.daNhan - (c.nhan - (soCap.get(k)?.nhan ?? 0)));
+            if (con <= SAI_SO) {
+              tuChoi.push({ id: e.id, reason: "Kh\xF4ng c\xF2n h\xE0ng ch\u1EDD nh\u1EADn \u1EDF h\u1EA1ng m\u1EE5c n\xE0y" });
+              continue;
+            }
+            soLuong = lamTron3(con);
+            c.nhan += soLuong;
+            lamDuoc.add(k);
+            co2.push("nhan_du");
+          } else {
+            const con = c.nhan - c.ht;
+            if (con <= SAI_SO) {
+              tuChoi.push({ id: e.id, reason: "H\u1EA1ng m\u1EE5c \u0111\xE3 xong h\u1EBFt s\u1ED1 \u0111\xE3 nh\u1EADn" });
+              continue;
+            }
+            soLuong = lamTron3(con);
+            c.ht += soLuong;
+            lamDuoc.delete(k);
+            co2.push("xong_het");
+          }
+          soCap.set(k, c);
+        }
+        if (typeof e.duLieu?.khaiBoi === "string") {
+          if (e.loai === "vao_ca") {
+            tuChoi.push({ id: e.id, reason: "M\u1ED7i ng\u01B0\u1EDDi t\u1EF1 qu\xE9t th\u1EBB v\xE0o ca" });
             continue;
           }
-          soLuong = lamTron3(con);
-          c.nhan += soLuong;
-          lamDuoc.add(k);
-          co2.push("nhan_du");
-        } else {
-          const con = c.nhan - c.ht;
-          if (con <= SAI_SO) {
-            tuChoi.push({ id: e.id, reason: "H\u1EA1ng m\u1EE5c \u0111\xE3 xong h\u1EBFt s\u1ED1 \u0111\xE3 nh\u1EADn" });
+          if (e.loai === "nguoi_vao" && !daVaoCa.has(mnvCua({ duLieu: e.duLieu }))) {
+            tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi n\xE0y ch\u01B0a \u0111i\u1EC3m danh v\xE0o ca" });
             continue;
           }
-          soLuong = lamTron3(con);
-          c.ht += soLuong;
-          lamDuoc.delete(k);
-          co2.push("xong_het");
+          const kb = chuanMnv(e.duLieu.khaiBoi);
+          if (!ctx.congNhan.has(kb) && !await laCongNhan(kb)) {
+            tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi khai kh\xF4ng c\xF3 trong danh s\xE1ch" });
+            continue;
+          }
+          e.duLieu.khaiBoi = kb;
+          co2.push("khai_ho");
         }
-        soCap.set(k, c);
+        ghi2.push({
+          id: e.id,
+          loai: e.loai,
+          hex: e.hex ?? null,
+          cong_doan_id: e.congDoanId ?? null,
+          to_id: t.toId,
+          xuong: t.xuong,
+          so_luong: soLuong,
+          cong_doan_den_id: null,
+          cong_doan_nguon_id: null,
+          xuong_nguon: null,
+          so_nguoi: null,
+          ly_do_tam_ngung: null,
+          tien_do: null,
+          ghi_chu: null,
+          du_lieu: e.duLieu,
+          device_ts: new Date(e.deviceTs).toISOString(),
+          lech_ms: e.lechMs === void 0 || e.lechMs === null ? null : Math.round(e.lechMs),
+          device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
+          user_id: t.sentBy,
+          user_id_khai: null,
+          sent_by: t.sentBy,
+          device_id: t.deviceId,
+          sua_cho: null,
+          co: co2
+        });
       }
-      if (typeof e.duLieu?.khaiBoi === "string") {
-        if (e.loai === "vao_ca") {
-          tuChoi.push({ id: e.id, reason: "M\u1ED7i ng\u01B0\u1EDDi t\u1EF1 qu\xE9t th\u1EBB v\xE0o ca" });
-          continue;
-        }
-        if (e.loai === "nguoi_vao" && !daVaoCa.has(mnvCua({ duLieu: e.duLieu }))) {
-          tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi n\xE0y ch\u01B0a \u0111i\u1EC3m danh v\xE0o ca" });
-          continue;
-        }
-        const kb = chuanMnv(e.duLieu.khaiBoi);
-        if (!ctx.congNhan.has(kb) && !await laCongNhan(kb)) {
-          tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi khai kh\xF4ng c\xF3 trong danh s\xE1ch" });
-          continue;
-        }
-        e.duLieu.khaiBoi = kb;
-        co2.push("khai_ho");
-      }
-      ghi.push({
-        id: e.id,
-        loai: e.loai,
-        hex: e.hex ?? null,
-        cong_doan_id: e.congDoanId ?? null,
-        to_id: t.toId,
-        xuong: t.xuong,
-        so_luong: soLuong,
-        cong_doan_den_id: null,
-        cong_doan_nguon_id: null,
-        xuong_nguon: null,
-        so_nguoi: null,
-        ly_do_tam_ngung: null,
-        tien_do: null,
-        ghi_chu: null,
-        du_lieu: e.duLieu,
-        device_ts: new Date(e.deviceTs).toISOString(),
-        lech_ms: e.lechMs === void 0 || e.lechMs === null ? null : Math.round(e.lechMs),
-        device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
-        user_id: t.sentBy,
-        user_id_khai: null,
-        sent_by: t.sentBy,
-        device_id: t.deviceId,
-        sua_cho: null,
-        co: co2
-      });
-    }
-    if (ghi.length) await withTransactionMra((client) => ghiVaTinhLai(client, ghi));
+      if (ghi2.length) await ghiVaTinhLai(client, ghi2);
+      return ghi2;
+    });
     poolMra.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
     });
     res.json({ success: true, available: true, saved: ghi.map((x) => String(x.id)), rejected: tuChoi, serverNow, token: giaHan(req, t) });
@@ -90801,6 +93126,26 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     fail(res, e, "/api/xuong/to/:id/phan-cong");
   }
 });
+function coMatSuaNgay(ddTram, ddTay) {
+  const laTram = new Set(ddTram);
+  const tatCa = [...ddTram, ...ddTay].sort((a, b) => a.ts - b.ts);
+  const nguonVao = /* @__PURE__ */ new Map();
+  for (const e of tatCa) {
+    if (e.loai !== "vao_ca") continue;
+    for (const n of nguoiTrongSuKien(e.duLieu)) {
+      const k = `${String(e.duLieu?.loaiCa ?? "")}|${n.mnv}|${Math.min(n.luc ?? e.ts, e.ts + 3 * 36e5)}`;
+      if (laTram.has(e)) nguonVao.set(k, "tram");
+      else if (!nguonVao.has(k)) nguonVao.set(k, "diem_danh_app");
+    }
+  }
+  return Object.entries(doanCoMat(tatCa)).flatMap(([loaiCa, ds2]) => (ds2 ?? []).map((d) => ({
+    mnv: d.mnv,
+    start: d.start,
+    end: d.end,
+    loaiCa,
+    nguon: nguonVao.get(`${loaiCa}|${d.mnv}|${d.start}`) ?? "tram"
+  }))).sort((a, b) => a.start - b.start);
+}
 app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
   try {
     if (!await coBangTram()) return chuaBat2(res);
@@ -90816,12 +93161,14 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
     const dau = Date.parse(`${ngay3}T05:00:00+07:00`);
     const cuoi = dau + 25 * 36e5;
-    const evs = await soTramCuaTo(toId, dau, cuoi);
+    const { evs, ddTay: tayKhoang } = await soCuaTo(toId, dau, cuoi, true);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay3);
     const hl = suKienConHieuLuc(evs);
     const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay3);
-    const coMat = Object.values(doanCoMat(dd)).flat().filter((d) => !!d);
+    const cheDo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay3);
+    const ddTay = cheDo === "tram" ? tayKhoang.filter((e) => ngayCa(e.ts) === ngay3) : [];
+    const coMat = coMatSuaNgay(dd, ddTay);
     const mnvs = [.../* @__PURE__ */ new Set([...doan.map((d) => d.mnv), ...coMat.map((d) => d.mnv)])];
     const [ten, info] = await Promise.all([
       mnvs.length ? poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] }),
@@ -90839,7 +93186,7 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
       ngay: ngay3,
       serverNow: now,
       gioTheoNguon,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay3),
+      cheDo,
       // Huỷ / ghi hộ: tổ trưởng của tổ (sự kiện trạm trong 7 ngày) hoặc quản lý xưởng
       suaDuoc: quanLy || laToTruong,
       nguoi: mnvs.sort().map((m) => {
@@ -90848,7 +93195,8 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
         return {
           mnv: m,
           hoTen: hoTen.get(m) ?? m,
-          coMat: cm.map((d) => ({ start: d.start, end: d.end })),
+          // Kèm loại ca từng đoạn (ra ca ghi hộ đúng ca đang mở) và nguồn: 'diem_danh_app' là điểm danh tay — màn không cho huỷ
+          coMat: cm.map((d) => ({ start: d.start, end: d.end, loaiCa: d.loaiCa, nguon: d.nguon })),
           doan: ds2.map((d) => ({ ...d, tenHangMuc: info.get(d.hex)?.ten_hang_muc ?? null })),
           co: coSuaNgay(ds2, cm, now)
         };
@@ -90864,1569 +93212,6 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
 // src/routes/tongQuan.ts
 import { createHash as createHash5 } from "crypto";
 import { gzipSync as gzipSync3, gunzipSync } from "zlib";
-
-// ../frontend/types.ts
-var TARGET_COLUMN_NAMES = {
-  HEX: "hex",
-  CONG_TRINH: "ten_cong_trinh",
-  XUONG: "xuong_chinh",
-  TINH_TRANG: "tinh_trang",
-  TINH_TRANG_IPO: "tinh_trang_ipo",
-  // New Column
-  BOP: "bop",
-  GIA_TRI_CON_LAI: "gia_tri_don_hang_con_lai",
-  GIA_TRI_THUC_TE: "gia_tri_con_lai",
-  // New columns for Project Summary Section
-  TRI_GIA_DON_HANG_TONG: "tri_gia_don_hang_tong",
-  THANH_TIEN_TINH_PHIEU: "thanh_tien_tinh_phieu",
-  THANH_TIEN_NHAP_KHO: "thanh_tien_nhap_kho_luy_ke",
-  // Cột cũ của Production View
-  INVENTORY_AMOUNT: "thanh_tien_nhap_kho",
-  // Cột mới chính xác cho Inventory View
-  EXPORT_AMOUNT: "thanh_tien_xuat_kho",
-  // Correct column for Export View
-  EXPORT_QUANTITY: "so_luong_xuat_kho",
-  // ✅ MỚI: cột số lượng (khác với EXPORT_AMOUNT là cột tiền)
-  GIA_TRI_TON_KHO: "gia_tri",
-  // For Stock View // Correct column for Export View
-  MA_ID_SAP: "ma_id_sap",
-  // For counting unique items in Stock
-  NHAP_KHO_TUAN: "nhap_kho_tuan",
-  // Cột mới theo yêu cầu
-  // Inventory Specific Date Columns
-  NAM: "nam",
-  THANG: "thang",
-  NGAY: "ngay",
-  DATE: "date",
-  // New Column for Inventory Overview
-  TUAN: "tuan",
-  // New Column for Weekly Analysis
-  TEN_HANG_MUC: "ten_hang_muc",
-  PHAN_LOAI_NHOM_SAN_PHAM: "phan_loai_nhom_san_pham",
-  // ✅ MỚI
-  // Production Days Columns
-  SO_NGAY_CD_HIEN_TAI: "so_ngay_cd_hien_tai",
-  // KHSX Specific Columns
-  THANH_TIEN_KE_HOACH: "thanh_tien_ke_hoach",
-  PHAN_LOAI_KH: "phan_loai_kh",
-  NGAY_KHNK: "ngay_khnk",
-  MA_CONG_TRINH: "ma_cong_trinh",
-  // Order Data Specific Columns
-  NGAY_NHAN_TU_PM: "ngay_nhan_tu_pm",
-  // TKBV Specific Columns
-  NGAY_NHAN: "ngay_nhan",
-  // PTHSP Specific Columns
-  NGAY_HOAN_THANH: "ngay_hoan_thanh",
-  THANH_TIEN_PTHSP: "thanh_tien",
-  // Material View Columns
-  SO_PR: "so_pr",
-  SO_PO: "so_po",
-  TRACKING_NO: "trackingno",
-  TEN_VAT_TU: "ten_vat_tu",
-  NHOM_VT: "nhom_vt",
-  // Material Dashboard Columns
-  SL_YEU_CAU: "so_luong_yeu_cau",
-  SL_DA_NHAN: "so_luong_da_nhan_sap",
-  STATUS: "trang_thai",
-  STATUS_SAP: "trang_thai_sap",
-  PR_ITEM: "pr_line",
-  MATERIAL_CODE: "ma_vat_tu_sap",
-  BASE_UNIT: "dvt",
-  REQUEST_DATE: "ngay_pr",
-  EST_DELIVERY: "ngay_du_kien_giao_hang_pmh_nhap",
-  REMAINING_QTY: "so_luong_con_lai",
-  STATUS_PO: "tinh_trang_po",
-  NOTE_PO: "ghi_chu_tinh_trang_po",
-  PR_LINE_COMBINED: "pr_line_1",
-  ACTUAL_DATE: "ngay_ve",
-  ACTUAL_QTY: "sl_hang_ve_thuc_te",
-  TEAM_PR_NOTE: "team_pr_note",
-  REQUISITIONER: "nguoi_yeu_cau",
-  // Weekly Analysis New Columns
-  DUNG_KE_HOACH: "dung_ke_hoach",
-  THUC_HIEN_DUNG_KE_HOACH_1_PHAN: "thuc_hien_dung_ke_hoach_1_phan",
-  ROT_KE_HOACH: "rot_ke_hoach",
-  THUC_HIEN_ROT_KE_HOACH_1_PHAN: "thuc_hien_rot_ke_hoach_1_phan",
-  NHAP_KHO_TRUOC_KE_HOACH: "nhap_kho_truoc_ke_hoach",
-  VUOT_KE_HOACH: "vuot_ke_hoach",
-  NHAP_KHO_NGOAI_KE_HOACH: "nhap_kho_ngoai_ke_hoach",
-  // Attendance Columns
-  SO_LUONG_CONG_NHAN: "so_luong_cong_nhan",
-  GIO_CONG_HC: "gio_cong_hanh_chinh",
-  GIO_CONG_TC: "gio_cong_tang_ca",
-  DINH_BIEN: "dinh_bien"
-};
-var PRODUCTION_DEFAULT_VIEW_COLUMNS = [
-  TARGET_COLUMN_NAMES.HEX,
-  TARGET_COLUMN_NAMES.CONG_TRINH,
-  TARGET_COLUMN_NAMES.XUONG,
-  TARGET_COLUMN_NAMES.TEN_HANG_MUC,
-  TARGET_COLUMN_NAMES.TINH_TRANG_IPO,
-  TARGET_COLUMN_NAMES.TINH_TRANG,
-  TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI,
-  TARGET_COLUMN_NAMES.GIA_TRI_THUC_TE,
-  TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO,
-  TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG,
-  TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU
-];
-var PERMISSION_GROUPS = [
-  {
-    id: "g_dashboard",
-    label: "T\u1ED5ng quan",
-    items: [
-      { id: "dashboard", label: "T\u1ED5ng quan" },
-      { id: "hex_lookup", label: "Tra c\u1EE9u hex" },
-      { id: "vuong_mac", label: "V\u01B0\u1EDBng m\u1EAFc s\u1EA3n xu\u1EA5t (qu\u1EA3n l\xFD)" }
-    ]
-  },
-  {
-    id: "g_xuong",
-    label: "X\u01B0\u1EDFng (ch\u1EA5m c\xF4ng \u0111o\u1EA1n)",
-    items: [
-      { id: "xuong", label: "T\u1ED5 tr\u01B0\u1EDFng \u2014 ghi thao t\xE1c \u1EDF x\u01B0\u1EDFng (app MRA /xuong)" },
-      { id: "xuong_quan_ly", label: "Qu\u1EA3n l\xFD x\u01B0\u1EDFng \u2014 hu\u1EF7 / xem c\u1EA7n xem" }
-    ]
-  },
-  {
-    id: "g_construction",
-    label: "C\xF4ng tr\xECnh",
-    items: [
-      { id: "construction_overview", label: "T\u1ED5ng quan c\xF4ng tr\xECnh" },
-      { id: "construction_setup", label: "Setup d\u1EEF li\u1EC7u (ph\xE2n lo\u1EA1i c\xF4ng tr\xECnh)" }
-    ]
-  },
-  {
-    id: "g_charts",
-    label: "Qu\u1EA3n tr\u1ECB (Bi\u1EC3u \u0111\u1ED3)",
-    items: [
-      { id: "chart_order", label: "1. \u0110\u01A1n h\xE0ng m\u1EDBi (P001)" },
-      { id: "chart_tkbv", label: "2. Tri\u1EC3n khai BV (P002)" },
-      { id: "chart_pthsp", label: "3. \u0110\xE3 t\xEDnh phi\u1EBFu (P012)" },
-      { id: "chart_inventory", label: "4. Nh\u1EADp kho (P022)" },
-      { id: "chart_export", label: "5. Xu\u1EA5t kho (P025)" },
-      { id: "chart_stock", label: "6. T\u1ED3n kho" },
-      { id: "chart_stock_vt", label: "7. T\u1ED3n kho v\u1EADt t\u01B0" }
-    ]
-  },
-  {
-    id: "g_data",
-    label: "D\u1EEF li\u1EC7u",
-    items: [
-      { id: "production", label: "D\u1EEF li\u1EC7u S\u1EA3n xu\u1EA5t" },
-      { id: "yearly_plan_data", label: "D\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch n\u0103m" },
-      { id: "orders", label: "D\u1EEF li\u1EC7u \u0110\u01A1n h\xE0ng t\u1ED5ng" },
-      { id: "inventory", label: "D\u1EEF li\u1EC7u Nh\u1EADp kho" },
-      { id: "export", label: "D\u1EEF li\u1EC7u Xu\u1EA5t kho" },
-      { id: "stock", label: "D\u1EEF li\u1EC7u T\u1ED3n kho" },
-      { id: "attendance", label: "D\u1EEF li\u1EC7u \u0110i\u1EC3m danh" },
-      { id: "khsx", label: "K\u1EBF ho\u1EA1ch SX" },
-      { id: "analysis", label: "Ph\xE2n t\xEDch KH-TH" },
-      { id: "tkbv", label: "D\u1EEF li\u1EC7u TKBV" },
-      { id: "pthsp", label: "D\u1EEF li\u1EC7u PTHSP" },
-      { id: "materials", label: "V\u1EADt t\u01B0" },
-      { id: "data_log", label: "Nh\u1EADt k\xFD c\u1EADp nh\u1EADt" }
-    ]
-  },
-  {
-    id: "g_system",
-    label: "H\u1EC7 th\u1ED1ng",
-    items: [
-      { id: "users", label: "Qu\u1EA3n tr\u1ECB User" },
-      { id: "table_column_setup", label: "Setup c\u1ED9t d\u1EEF li\u1EC7u" }
-      // MỚI
-    ]
-  }
-];
-var ITEM_ACTIONS = {
-  dashboard: [
-    { id: "dashboard_overview", label: "B\xE1o c\xE1o T\u1ED5ng quan" },
-    { id: "dashboard_financial", label: "S\u1ED1 li\u1EC7u T\xE0i ch\xEDnh" },
-    { id: "dashboard_bottleneck", label: "B\xE1o c\xE1o \u0110i\u1EC3m ngh\u1EBDn" }
-  ],
-  production: [
-    { id: "production_edit", label: "Ch\u1EC9nh s\u1EEDa d\u1EEF li\u1EC7u" },
-    { id: "production_export", label: "Xu\u1EA5t Excel" }
-  ],
-  yearly_plan_data: [
-    { id: "yearly_plan_data_export", label: "Xu\u1EA5t Excel" }
-  ],
-  orders: [
-    { id: "orders_import", label: "Import D\u1EEF li\u1EC7u" },
-    { id: "orders_view_price", label: "Xem Gi\xE1 tr\u1ECB \u0110\u01A1n h\xE0ng" }
-  ],
-  materials: [
-    { id: "materials_view_price", label: "Xem Gi\xE1/NCC" },
-    { id: "materials_edit", label: "C\u1EADp nh\u1EADt tr\u1EA1ng th\xE1i" }
-  ],
-  inventory: [
-    { id: "inventory_edit", label: "\u0110i\u1EC1u ch\u1EC9nh kho" }
-  ],
-  analysis: [
-    { id: "analysis_export", label: "Xu\u1EA5t b\xE1o c\xE1o KH-TH" }
-  ]
-};
-var ALL_ITEM_IDS = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.id));
-var ALL_ACTION_IDS = Object.values(ITEM_ACTIONS).flatMap((a) => a.map((x) => x.id));
-
-// ../frontend/components/Dashboard/constants.ts
-var STATUS_GROUPS = {
-  VECNI_FITTING: ["01", "02.*"],
-  // tên cũ; thực đo Đóng gói / KĐB
-  CHUYEN_KHAC: ["03.*", "04.*", "05.*", "06.*", "07.*", "16.*"],
-  CO_PHIEU_CHUA_SX: ["11"],
-  VUONG_SL: ["12", "13"],
-  CHUA_TRIEN_KHAI: ["14.*", "15"]
-};
-var NHOM_CO_THE_SX = ["VECNI_FITTING", "CHUYEN_KHAC", "CO_PHIEU_CHUA_SX"];
-var NHOM_CHUA_THE_SX = ["VUONG_SL", "CHUA_TRIEN_KHAI"];
-var maTinhTrang = (status) => /^\d{2}(?:\.\d+)?/.exec(String(status ?? "").trim())?.[0] ?? "";
-var khopMa = (ma, mau) => mau.endsWith(".*") ? ma === mau.slice(0, -2) || ma.startsWith(mau.slice(0, -1)) : ma === mau;
-var nhomCuaMa = (ma) => Object.keys(STATUS_GROUPS).find((n) => STATUS_GROUPS[n].some((m) => khopMa(ma, m))) ?? null;
-var laChuaTheSX = (status) => {
-  const n = nhomCuaMa(maTinhTrang(status));
-  return !!n && NHOM_CHUA_THE_SX.includes(n);
-};
-var MATERIAL_LIST_COLUMNS = [
-  TARGET_COLUMN_NAMES.STATUS,
-  TARGET_COLUMN_NAMES.CONG_TRINH,
-  TARGET_COLUMN_NAMES.SO_PR,
-  TARGET_COLUMN_NAMES.TEN_VAT_TU,
-  TARGET_COLUMN_NAMES.SL_YEU_CAU,
-  TARGET_COLUMN_NAMES.BASE_UNIT,
-  TARGET_COLUMN_NAMES.REQUEST_DATE,
-  TARGET_COLUMN_NAMES.EST_DELIVERY,
-  TARGET_COLUMN_NAMES.SL_DA_NHAN,
-  TARGET_COLUMN_NAMES.REMAINING_QTY,
-  TARGET_COLUMN_NAMES.TEAM_PR_NOTE,
-  TARGET_COLUMN_NAMES.STATUS_PO,
-  TARGET_COLUMN_NAMES.NOTE_PO,
-  TARGET_COLUMN_NAMES.PR_ITEM,
-  TARGET_COLUMN_NAMES.ACTUAL_DATE,
-  TARGET_COLUMN_NAMES.ACTUAL_QTY,
-  TARGET_COLUMN_NAMES.MATERIAL_CODE,
-  TARGET_COLUMN_NAMES.REQUISITIONER
-];
-var MATERIAL_LIST_COLUMN_LABELS = {
-  [TARGET_COLUMN_NAMES.STATUS]: "TR\u1EA0NG TH\xC1I",
-  [TARGET_COLUMN_NAMES.CONG_TRINH]: "T\xCAN C\xD4NG TR\xCCNH",
-  [TARGET_COLUMN_NAMES.SO_PR]: "S\u1ED0 PR",
-  [TARGET_COLUMN_NAMES.TEN_VAT_TU]: "T\xCAN V\u1EACT T\u01AF",
-  [TARGET_COLUMN_NAMES.SL_YEU_CAU]: "S\u1ED0 L\u01AF\u1EE2NG Y\xCAU C\u1EA6U",
-  [TARGET_COLUMN_NAMES.BASE_UNIT]: "\u0110VT",
-  [TARGET_COLUMN_NAMES.REQUEST_DATE]: "NG\xC0Y PR",
-  [TARGET_COLUMN_NAMES.EST_DELIVERY]: "NG\xC0Y D\u1EF0 KI\u1EBEN GIAO H\xC0NG PMH NH\u1EACP",
-  [TARGET_COLUMN_NAMES.SL_DA_NHAN]: "S\u1ED0 L\u01AF\u1EE2NG \u0110\xC3 NH\u1EACN (SAP)",
-  [TARGET_COLUMN_NAMES.REMAINING_QTY]: "S\u1ED0 L\u01AF\u1EE2NG C\xD2N L\u1EA0I",
-  [TARGET_COLUMN_NAMES.TEAM_PR_NOTE]: "TEAM PR NOTE",
-  [TARGET_COLUMN_NAMES.STATUS_PO]: "T\xCCNH TR\u1EA0NG PO",
-  [TARGET_COLUMN_NAMES.NOTE_PO]: "GHI CH\xDA T\xCCNH TR\u1EA0NG PO",
-  [TARGET_COLUMN_NAMES.PR_ITEM]: "PR LINE",
-  [TARGET_COLUMN_NAMES.ACTUAL_DATE]: "NG\xC0Y V\u1EC0 - KHO B\xC1O",
-  [TARGET_COLUMN_NAMES.ACTUAL_QTY]: "SL H\xC0NG V\u1EC0 TH\u1EF0C T\u1EBE - KHO B\xC1O",
-  [TARGET_COLUMN_NAMES.MATERIAL_CODE]: "M\xC3 V\u1EACT T\u01AF (SAP)",
-  [TARGET_COLUMN_NAMES.REQUISITIONER]: "NG\u01AF\u1EDCI Y\xCAU C\u1EA6U"
-};
-
-// ../frontend/components/Dashboard/utils/numberParsers.ts
-var parseNumber = (valStr) => {
-  if (valStr === null || valStr === void 0) return 0;
-  if (typeof valStr === "number") return Number.isNaN(valStr) ? 0 : valStr;
-  let s = String(valStr).trim();
-  if (!s) return 0;
-  if (/^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) return 0;
-  if (/^-?\d+(\.\d+)?e[+-]?\d+$/i.test(s)) return Number(s);
-  const isNegative = s.startsWith("-");
-  s = s.replace(/[^\d.,]/g, "");
-  if (!s) return 0;
-  const lastComma = s.lastIndexOf(",");
-  const lastDot = s.lastIndexOf(".");
-  if (lastComma > -1 && lastDot > -1) {
-    if (lastDot > lastComma) {
-      s = s.replace(/,/g, "");
-    } else {
-      s = s.replace(/\./g, "").replace(",", ".");
-    }
-  } else if (lastComma > -1) {
-    const parts = s.split(",");
-    if (parts.length > 2 || parts.length === 2 && parts[1].length === 3) {
-      s = s.replace(/,/g, "");
-    } else {
-      s = s.replace(",", ".");
-    }
-  } else if (lastDot > -1) {
-    const parts = s.split(".");
-    if (parts.length > 2) {
-      s = s.replace(/\./g, "");
-    }
-  }
-  const result = Number.parseFloat(s);
-  if (Number.isNaN(result)) return 0;
-  return isNegative ? -result : result;
-};
-
-// ../frontend/components/Dashboard/utils/columnKeyResolver.ts
-var normalizeString = (str) => {
-  if (!str) return "";
-  return String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
-};
-var findColumnKey = (cols, target) => {
-  if (!cols || cols.length === 0) return "";
-  const normalizedTarget = normalizeString(target);
-  let match = cols.find((c) => {
-    const k = normalizeString(c.key);
-    const l = normalizeString(c.label);
-    return k === normalizedTarget || l === normalizedTarget;
-  });
-  if (!match) {
-    const candidates = cols.filter((c) => {
-      const k = normalizeString(c.key);
-      const l = normalizeString(c.label);
-      return k.includes(normalizedTarget) || l.includes(normalizedTarget);
-    });
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => normalizeString(a.key).length - normalizeString(b.key).length);
-      match = candidates[0];
-    }
-  }
-  return match ? match.key : "";
-};
-
-// ../frontend/components/Dashboard/utils/dateHelpers.ts
-var parseVNDate = (dateStr) => {
-  if (!dateStr) return null;
-  const str = String(dateStr).trim();
-  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
-  if (dateOnly) return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
-  if (str.includes("T") || str.match(/^\d{4}-\d{2}-\d{2}/)) {
-    const d = new Date(str);
-    if (!isNaN(d.getTime())) return d;
-  }
-  const parts = str.split(/[/.-]/);
-  if (parts.length >= 3) {
-    let year = parseInt(parts[2], 10);
-    if (parts[0].length === 4) {
-      year = parseInt(parts[0], 10);
-      return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    }
-    if (year < 100) year += 2e3;
-    return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-  }
-  return null;
-};
-
-// ../frontend/utils/productionMetrics.ts
-var IPO_MAC_DINH = "01. \u0110ANG S\u1EA2N XU\u1EA4T";
-var laHuy2 = (ipo) => /H(?:ỦY|UỶ)/.test(String(ipo ?? "").normalize("NFC").toUpperCase());
-var doneValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.min(Math.max(nhapKho, 0), Math.max(total, 0));
-var remainValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.max(total - Math.max(nhapKho, 0), 0);
-var QTY_ORDER_KEY = "so_luong_don_hang_tong";
-var QTY_IN_KEY = "so_luong_nhap_kho_luy_ke";
-var isQtyComplete = (row) => {
-  const order = parseNumber(row[QTY_ORDER_KEY]);
-  return order > 0 && parseNumber(row[QTY_IN_KEY]) >= order;
-};
-var daNhapDu2 = (total, nhapKho, cancelled = false, qtyDone = false) => !cancelled && (total > 0 && remainValue(total, nhapKho) <= 0 || qtyDone);
-var ngayDaDoc = /* @__PURE__ */ new Map();
-var parsePlanDate = (v) => {
-  const s = String(v ?? "").trim();
-  if (!s) return null;
-  const nho4 = ngayDaDoc.get(s);
-  if (nho4 !== void 0) return nho4 === null ? null : new Date(nho4);
-  const d = docNgayKeHoach(s);
-  if (ngayDaDoc.size > 5e4) ngayDaDoc.clear();
-  ngayDaDoc.set(s, d ? d.getTime() : null);
-  return d;
-};
-var docNgayKeHoach = (s) => {
-  if (/^\d{4}-\d{2}-\d{2}([ T]|$)/.test(s)) {
-    if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
-      const d3 = new Date(s);
-      if (!isNaN(d3.getTime())) return new Date(d3.getFullYear(), d3.getMonth(), d3.getDate());
-    }
-    const [y, m, d2] = s.slice(0, 10).split("-").map(Number);
-    return new Date(y, m - 1, d2);
-  }
-  const d = parseVNDate(s);
-  return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
-};
-var resolveDeadlineKeys = (columns) => ({
-  khnkTuanKey: findColumnKey(columns, "ngay_khnk_tuan") || "ngay_khnk_tuan",
-  khnkThangKey: findColumnKey(columns, "ngay_khnk_thang") || "ngay_khnk_thang",
-  ngayCanGiaoKey: findColumnKey(columns, "ngay_can_giao") || "ngay_can_giao",
-  // So khớp ĐÚNG tên (findColumnKey dò chuỗi con sẽ nhận nhầm ngay_can_giao)
-  ngayCanKey: columns.find((c) => c.key === "ngay_can")?.key ?? "ngay_can",
-  botDuAnKey: findColumnKey(columns, "bot_du_an") || "bot_du_an",
-  hexKey: findColumnKey(columns, "hex") || "hex"
-});
-var planMet = { tuan: /* @__PURE__ */ new Set(), thang: /* @__PURE__ */ new Set() };
-var setPlanMet = (d) => {
-  planMet = { tuan: new Set(d.tuan), thang: new Set(d.thang) };
-};
-var deadlineOf = (row, k) => {
-  const khnkTuan = parsePlanDate(row[k.khnkTuanKey]);
-  const khnkThang = parsePlanDate(row[k.khnkThangKey]);
-  const canGiao = parsePlanDate(row[k.ngayCanGiaoKey]);
-  const canPm = k.ngayCanKey ? parsePlanDate(row[k.ngayCanKey]) : null;
-  const botDuAn = k.botDuAnKey ? parsePlanDate(row[k.botDuAnKey]) : null;
-  const hex3 = k.hexKey ? String(row[k.hexKey] ?? "").trim() : "";
-  const tuanMet = !!hex3 && !!khnkTuan && planMet.tuan.has(hex3);
-  const thangMet = !!hex3 && !!khnkThang && planMet.thang.has(hex3);
-  const tuan = tuanMet ? null : khnkTuan;
-  const thang2 = thangMet ? null : khnkThang;
-  const date5 = tuan ?? thang2;
-  const source = tuan ? "tu\u1EA7n" : thang2 ? "th\xE1ng" : null;
-  return { date: date5, source, khnkTuan, khnkThang, canGiao, canPm, botDuAn, tuanMet, thangMet };
-};
-var normProjectName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
-var projectAlias = /* @__PURE__ */ new Map();
-var projectVariants = /* @__PURE__ */ new Map();
-var serverAlias = /* @__PURE__ */ new Map();
-var serverVariants = /* @__PURE__ */ new Map();
-var setServerProjectAliases = (list) => {
-  const a = /* @__PURE__ */ new Map();
-  const v = /* @__PURE__ */ new Map();
-  for (const { k, c } of list) {
-    a.set(k, c);
-    const ck = normProjectName(c);
-    let set2 = v.get(ck);
-    if (!set2) {
-      set2 = /* @__PURE__ */ new Set();
-      v.set(ck, set2);
-    }
-    set2.add(k);
-  }
-  serverAlias = a;
-  serverVariants = v;
-  khoaTenDaDoi();
-};
-var canonicalProjectName2 = (name) => {
-  const t = String(name ?? "").trim().replace(/\s+/g, " ");
-  const k = normProjectName(t);
-  return projectAlias.get(k) ?? serverAlias.get(k) ?? t;
-};
-var khoaCongTrinh2 = /* @__PURE__ */ new Map();
-var khoaTenDaDoi = () => {
-  khoaCongTrinh2 = /* @__PURE__ */ new Map();
-};
-var projectMatchKey = (name) => {
-  const raw = typeof name === "string" ? name : String(name ?? "");
-  const nho4 = khoaCongTrinh2.get(raw);
-  if (nho4 !== void 0) return nho4;
-  const k = normProjectName(canonicalProjectName2(raw));
-  if (khoaCongTrinh2.size > 2e4) khoaCongTrinh2.clear();
-  khoaCongTrinh2.set(raw, k);
-  return k;
-};
-function canonicalizeProjectNames(rows, columns) {
-  const maKey = findColumnKey(columns, "ma_cong_trinh");
-  const tenKey = findColumnKey(columns, "ten_cong_trinh");
-  if (!maKey || !tenKey || rows.length === 0) return rows;
-  const counts = /* @__PURE__ */ new Map();
-  const maOf = rows.map((row) => normProjectName(row[maKey]));
-  rows.forEach((row, i) => {
-    const ma = maOf[i];
-    const ten = String(row[tenKey] ?? "").trim().replace(/\s+/g, " ");
-    if (!ma || !ten) return;
-    let m = counts.get(ma);
-    if (!m) {
-      m = /* @__PURE__ */ new Map();
-      counts.set(ma, m);
-    }
-    m.set(ten, (m.get(ten) ?? 0) + 1);
-  });
-  const canonical = /* @__PURE__ */ new Map();
-  counts.forEach((m, ma) => {
-    let best = "", bestN = -1;
-    m.forEach((n, ten) => {
-      if (n > bestN || n === bestN && ten < best) {
-        best = ten;
-        bestN = n;
-      }
-    });
-    canonical.set(ma, best);
-  });
-  const nameCodes = /* @__PURE__ */ new Map();
-  counts.forEach((m, ma) => m.forEach((_n, ten) => {
-    const k = normProjectName(ten);
-    let s = nameCodes.get(k);
-    if (!s) {
-      s = /* @__PURE__ */ new Set();
-      nameCodes.set(k, s);
-    }
-    s.add(ma);
-  }));
-  const singleCache = /* @__PURE__ */ new Map();
-  const single = (ten) => {
-    let r = singleCache.get(ten);
-    if (r === void 0) {
-      r = (nameCodes.get(normProjectName(ten))?.size ?? 0) <= 1;
-      singleCache.set(ten, r);
-    }
-    return r;
-  };
-  const canonicalNames = new Set([...canonical.values()].map(normProjectName));
-  const alias = /* @__PURE__ */ new Map();
-  counts.forEach((m, ma) => {
-    const best = canonical.get(ma);
-    if (!single(best)) return;
-    m.forEach((_n, ten) => {
-      const k = normProjectName(ten);
-      if (ten !== best && !canonicalNames.has(k) && single(ten)) alias.set(k, best);
-    });
-  });
-  projectAlias = alias;
-  khoaTenDaDoi();
-  const variants = /* @__PURE__ */ new Map();
-  counts.forEach((m, ma) => {
-    const best = canonical.get(ma);
-    if (!single(best)) return;
-    const k = normProjectName(best);
-    let set2 = variants.get(k);
-    if (!set2) {
-      set2 = /* @__PURE__ */ new Set();
-      variants.set(k, set2);
-    }
-    m.forEach((_n, ten) => {
-      if (single(ten)) set2.add(ten);
-    });
-  });
-  projectVariants = variants;
-  const codeOnly = /* @__PURE__ */ new Map();
-  rows.forEach((row, i) => {
-    const ma = maOf[i];
-    if (ma && !canonical.has(ma) && !codeOnly.has(ma)) codeOnly.set(ma, String(row[maKey]).trim().replace(/\s+/g, " "));
-  });
-  let changed = false;
-  const out = rows.map((row, i) => {
-    const ma = maOf[i];
-    const name = canonical.get(ma) ?? codeOnly.get(ma);
-    if (!name || row[tenKey] === name) return row;
-    const own2 = String(row[tenKey] ?? "").trim();
-    if (own2 && (!single(own2) || !single(name))) return row;
-    changed = true;
-    return { ...row, [tenKey]: name };
-  });
-  return changed ? out : rows;
-}
-var BOP_STAGE_ORDER = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
-var stageIndex = (stage) => stage ? BOP_STAGE_ORDER.indexOf(stage) : -1;
-var stageRank = (stage) => {
-  const i = stageIndex(stage);
-  return i === -1 ? 999 : i;
-};
-var DWELL_KEYS = ["<3 NG\xC0Y", "4-7 NG\xC0Y", "2 tu\u1EA7n", "3 tu\u1EA7n", "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn", "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y"];
-var DWELL_STUCK = "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn";
-var DWELL_NONE = "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y";
-var dwellBucket = (v) => {
-  const s = String(v ?? "").trim().toUpperCase();
-  if (!s || s === "0") return DWELL_NONE;
-  if (s.includes("<3")) return "<3 NG\xC0Y";
-  if (s.includes("4-7")) return "4-7 NG\xC0Y";
-  const w = s.match(/(\d+)\s*TUẦN/);
-  if (w) {
-    const n = Number(w[1]);
-    if (n >= 4) return DWELL_STUCK;
-    if (n === 3) return "3 tu\u1EA7n";
-    if (n === 2) return "2 tu\u1EA7n";
-    return "4-7 NG\xC0Y";
-  }
-  return DWELL_NONE;
-};
-var deaccent = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d");
-var normPerson = (v) => String(v ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toUpperCase();
-var isAccount = (raw) => /^[a-z0-9._]+$/.test(raw.trim()) && !raw.includes(" ");
-var fullWordsCache = /* @__PURE__ */ new Map();
-var fullWordsOf = (full) => {
-  let c = fullWordsCache.get(full);
-  if (!c) {
-    const fw = full.split(" ");
-    c = { fw, words: fw.map((w) => deaccent(w).toLowerCase()) };
-    fullWordsCache.set(full, c);
-  }
-  return c;
-};
-var personMatches = (short, shortRaw, full) => {
-  const { fw, words } = fullWordsOf(full);
-  if (isAccount(shortRaw)) {
-    const acc = shortRaw.toLowerCase().split(".")[0].replace(/\d+$/, "");
-    if (words.length < 2) return false;
-    const given = words[words.length - 1];
-    if (acc === words.join("") || acc === [given, ...words.slice(0, -1)].join("")) return true;
-    if (!acc.startsWith(given)) return false;
-    const rest = acc.slice(given.length).split("").sort().join("");
-    const initials = words.slice(0, -1).map((w) => w[0]).sort().join("");
-    return rest.length > 0 && rest === initials;
-  }
-  const sw = short.split(" ");
-  return fw.length > sw.length && fw.slice(fw.length - sw.length).join(" ") === short;
-};
-function canonicalizePersonNames(rows, columns) {
-  const maKey = findColumnKey(columns, "ma_cong_trinh");
-  const keys = ["ten_pm", "ten_pc"].map((k) => findColumnKey(columns, k)).filter(Boolean);
-  if (!maKey || keys.length === 0 || rows.length === 0) return rows;
-  const maOf = rows.map((row) => normProjectName(row[maKey]));
-  const normOf = /* @__PURE__ */ new Map();
-  const normCached = (raw) => {
-    let n = normOf.get(raw);
-    if (n === void 0) {
-      n = normPerson(raw);
-      normOf.set(raw, n);
-    }
-    return n;
-  };
-  const maps = keys.map((key) => {
-    const display = /* @__PURE__ */ new Map();
-    const perProject = /* @__PURE__ */ new Map();
-    const rawOf = /* @__PURE__ */ new Map();
-    rows.forEach((row, i) => {
-      const raw = String(row[key] ?? "").trim();
-      if (!raw) return;
-      const n = normCached(raw);
-      let d = display.get(n);
-      if (!d) {
-        d = /* @__PURE__ */ new Map();
-        display.set(n, d);
-      }
-      d.set(raw, (d.get(raw) ?? 0) + 1);
-      if (!rawOf.has(n)) rawOf.set(n, raw);
-      const ma = maOf[i];
-      let s = perProject.get(ma);
-      if (!s) {
-        s = /* @__PURE__ */ new Set();
-        perProject.set(ma, s);
-      }
-      s.add(n);
-    });
-    const best = (n) => {
-      let b = n, bn = -1;
-      display.get(n)?.forEach((c, raw) => {
-        if (c > bn) {
-          b = raw;
-          bn = c;
-        }
-      });
-      return b;
-    };
-    const fulls = [...display.keys()].filter((n) => n.includes(" "));
-    const pick2 = (n, pool2) => {
-      const raw = rawOf.get(n) ?? n;
-      const cands = [...pool2].filter((f) => f !== n && f.includes(" ") && personMatches(n, raw, f));
-      const top = cands.filter((f) => !cands.some((g) => g !== f && personMatches(f, f, g)));
-      return top.length === 1 ? top[0] : null;
-    };
-    const pickAll = /* @__PURE__ */ new Map();
-    const pickFulls = (n) => {
-      let r = pickAll.get(n);
-      if (r === void 0) {
-        r = pick2(n, fulls);
-        pickAll.set(n, r);
-      }
-      return r;
-    };
-    const perProjectAlias = /* @__PURE__ */ new Map();
-    perProject.forEach((names, ma) => {
-      const m = /* @__PURE__ */ new Map();
-      names.forEach((n) => {
-        const target = pick2(n, names) ?? pickFulls(n);
-        m.set(n, best(target ?? n));
-      });
-      perProjectAlias.set(ma, m);
-    });
-    return { key, perProjectAlias };
-  });
-  let changed = false;
-  const out = rows.map((row, i) => {
-    const ma = maOf[i];
-    let next = null;
-    for (const { key, perProjectAlias } of maps) {
-      const raw = String(row[key] ?? "").trim();
-      if (!raw) continue;
-      const name = perProjectAlias.get(ma)?.get(normCached(raw));
-      if (name && name !== row[key]) {
-        if (!next) next = { ...row };
-        next[key] = name;
-      }
-    }
-    if (!next) return row;
-    changed = true;
-    return next;
-  });
-  return changed ? out : rows;
-}
-
-// ../frontend/components/Dashboard/utils/filterMatch.ts
-var toFilterSet = (values) => values.length ? new Set(values) : null;
-var matchesFilter = (set2, row, key) => set2 === null || !!key && set2.has(String(row[key] || "").trim());
-var NO_DATA_LABEL = "(Ch\u01B0a c\xF3)";
-var categoryValue = (v) => {
-  const t = String(v ?? "").trim();
-  return !t || t.startsWith("#") ? NO_DATA_LABEL : t;
-};
-var matchesCategory = (set2, row, key) => set2 === null || !!key && set2.has(categoryValue(row[key]));
-var categoryOptions = (data, key) => {
-  if (!key) return [];
-  const raw = /* @__PURE__ */ new Set();
-  for (const row of data) raw.add(row[key]);
-  const set2 = /* @__PURE__ */ new Set();
-  for (const v of raw) set2.add(categoryValue(v));
-  const hasNoData = set2.delete(NO_DATA_LABEL);
-  const list = Array.from(set2).sort((a, b) => a.localeCompare(b, "vi"));
-  return hasNoData ? [...list, NO_DATA_LABEL] : list;
-};
-
-// ../frontend/components/Dashboard/core/stages.ts
-var ON_LINE_STAGES = [
-  "P012",
-  "P013",
-  "GCVT",
-  "P014",
-  "P016",
-  "P018",
-  "P020",
-  "P021"
-];
-var P002_STAGE = "P002";
-var ON_LINE_STAGE_SET = new Set(ON_LINE_STAGES);
-function remainBucketOf(statusUpper, stage) {
-  if (statusUpper.includes("15. CH\u01AFA TRI\u1EC2N KHAI") || stage === "P001") return "notDeployed";
-  if (stage === P002_STAGE) return "p002";
-  if (stage && ON_LINE_STAGE_SET.has(stage)) return "onLine";
-  return "shortfall";
-}
-var extractStage = (value) => {
-  const match = String(value ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/);
-  return match ? match[1] : null;
-};
-
-// ../frontend/components/Construction/core/bopPivot.ts
-var KHONG_RO_CONG_DOAN = "(Kh\xF4ng r\xF5)";
-var stageOfBop = (i) => i.stage ?? KHONG_RO_CONG_DOAN;
-var khoCua = (i) => {
-  const nk = Math.max(i.inv, 0);
-  const xk = Math.max(i.xuat ?? 0, 0);
-  const conLai = Math.max(nk - xk, 0);
-  const ton = Math.min(i.tonKho ?? conLai, conLai);
-  return { nk, xk, ton, chenh: conLai - ton, xv: Math.max(xk - nk, 0) };
-};
-var laKho = (i, f, metric) => {
-  const k = khoCua(i);
-  if (f === "xv") return k.xv >= 0.01;
-  if (metric !== "count") return k[f] > 0;
-  if (k.nk <= 0) return false;
-  if (f === "nk") return true;
-  const conTon = k.ton >= 0.01, coChenh = k.chenh >= 0.01;
-  if (f === "ton") return conTon;
-  if (f === "xk") return !conTon && !coChenh;
-  return !conTon && coChenh;
-};
-var khoMuc = (i, metric) => metric === "count" ? { nk: laKho(i, "nk", metric) ? 1 : 0, xk: laKho(i, "xk", metric) ? 1 : 0, ton: laKho(i, "ton", metric) ? 1 : 0, chenh: laKho(i, "chenh", metric) ? 1 : 0, xv: laKho(i, "xv", metric) ? 1 : 0 } : khoCua(i);
-var mucCongDoan = (items, metric) => metric === "count" ? items.filter((i) => i.open) : items.filter((i) => i.open || i.remain > 0);
-var giaTriBop = (i, metric) => metric === "count" ? 1 : metric === "remain" ? i.remain : i.total;
-var khoRong = () => ({ nk: 0, xk: 0, ton: 0, chenh: 0, xv: 0 });
-var congKho = (e, v) => {
-  e.nk += v.nk;
-  e.xk += v.xk;
-  e.ton += v.ton;
-  e.chenh += v.chenh;
-  e.xv += v.xv;
-};
-var nhomMacDinh = (st) => st === "P001" ? "notDeployed" : st === "P002" ? "p002" : "onLine";
-var BOP_SET = new Set(BOP_STAGE_ORDER);
-function tinhPivotBop(items, khoItems, metric, khoaDong, nhomTheoCongDoan = false) {
-  const stageBucket = /* @__PURE__ */ new Map();
-  const dong2 = /* @__PURE__ */ new Map();
-  const colTot = {};
-  const colN = {};
-  let grand = 0;
-  for (const i of mucCongDoan(items, metric)) {
-    const v = giaTriBop(i, metric), st = stageOfBop(i);
-    if (!stageBucket.has(st)) stageBucket.set(st, nhomTheoCongDoan ? BOP_SET.has(st) ? remainBucketOf("", st) : null : i.bucket);
-    for (const k of khoaDong(i)) {
-      const d = dong2.get(k) ?? { cells: {}, total: 0, n: 0 };
-      d.cells[st] = (d.cells[st] ?? 0) + v;
-      d.total += v;
-      d.n++;
-      dong2.set(k, d);
-    }
-    colTot[st] = (colTot[st] ?? 0) + v;
-    colN[st] = (colN[st] ?? 0) + 1;
-    grand += v;
-  }
-  const coDinh = BOP_STAGE_ORDER.filter((st) => st !== "P022" && st !== "P025");
-  coDinh.forEach((st) => {
-    if (!stageBucket.has(st)) stageBucket.set(st, nhomMacDinh(st));
-  });
-  const stages = [...stageBucket.keys()].sort((x, y) => stageRank(x) - stageRank(y) || x.localeCompare(y));
-  const groups = [];
-  for (const st of stages) {
-    const bk = stageBucket.get(st) ?? null;
-    const last = groups[groups.length - 1];
-    if (last && last.bucket === bk) last.stages.push(st);
-    else groups.push({ bucket: bk, stages: [st] });
-  }
-  const kho = /* @__PURE__ */ new Map();
-  const khoTot = khoRong();
-  for (const i of khoItems) {
-    const v = khoMuc(i, metric);
-    if (!v.nk && !v.xk && !v.xv) continue;
-    for (const k of khoaDong(i)) {
-      const e = kho.get(k) ?? khoRong();
-      congKho(e, v);
-      kho.set(k, e);
-      if (!dong2.has(k)) dong2.set(k, { cells: {}, total: 0, n: 0 });
-    }
-    congKho(khoTot, v);
-  }
-  return { stages, groups, dong: dong2, colTot, colN, grand, kho, khoTot };
-}
-function mucBopTuDong(row, k) {
-  const total = parseNumber(row[k.triGiaKey]);
-  const nk = parseNumber(row[k.nhapKhoKey]);
-  const remain = remainValue(total, nk);
-  const stage = extractStage(row[k.bopKey]);
-  const status = String(row[k.tinhTrangKey] ?? "").toUpperCase();
-  const open2 = !isQtyComplete(row) && (remain > 0 || total <= 0);
-  return {
-    stage,
-    // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
-    bucket: open2 || remain > 0 ? remainBucketOf(status, stage) : null,
-    open: open2,
-    total,
-    inv: doneValue(total, nk),
-    xuat: k.xuatKhoKey ? Math.max(parseNumber(row[k.xuatKhoKey]), 0) : 0,
-    tonKho: k.tonKhoKey ? Math.max(parseNumber(row[k.tonKhoKey]), 0) : void 0,
-    remain
-  };
-}
-function tinhBangCongTrinhBop(items, metric, cuoi) {
-  const p = tinhPivotBop(items, items, metric, (i) => [i.ct], true);
-  const donHang = /* @__PURE__ */ new Map();
-  for (const i of items) donHang.set(i.ct, (donHang.get(i.ct) ?? 0) + (metric === "count" ? 1 : Math.max(i.total, 0)));
-  const rows = [...donHang.entries()].map(([name, dh]) => {
-    const d = p.dong.get(name);
-    return { name, cells: d?.cells ?? {}, total: d?.total ?? 0, kho: p.kho.get(name) ?? khoRong(), donHang: dh };
-  });
-  rows.sort((a, b) => Number(a.name === cuoi) - Number(b.name === cuoi) || b.total - a.total || b.kho.nk - a.kho.nk || a.name.localeCompare(b.name, "vi"));
-  return { metric, stages: p.stages, groups: p.groups, rows, colTot: p.colTot, grand: p.grand, khoTot: p.khoTot, donHangTot: [...donHang.values()].reduce((a, b) => a + b, 0) };
-}
-
-// ../frontend/components/Dashboard/core/tongQuanSanXuat.ts
-function khoaSanXuat(productionColumns) {
-  return {
-    hexKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.HEX) || "hex",
-    tinhTrangKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TINH_TRANG) || "tinh_trang",
-    tinhTrangIpoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TINH_TRANG_IPO) || "tinh_trang_ipo",
-    valueKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.GIA_TRI_CON_LAI) || "gia_tri_don_hang_con_lai",
-    realValueKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.GIA_TRI_THUC_TE) || "gia_tri_con_lai",
-    congTrinhKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.CONG_TRINH) || "ten_cong_trinh",
-    xuongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.XUONG) || "xuong_chinh",
-    hangMucKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TEN_HANG_MUC) || "ten_hang_muc",
-    daysAtCurrentStageKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI) || "so_ngay_cd_hien_tai",
-    phanLoaiNhomSanPhamKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM) || "phan_loai_nhom_san_pham",
-    bopKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.BOP) || "bop",
-    triGiaDonHangTongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG) || "tri_gia_don_hang_tong",
-    thanhTienTinhPhieuKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU) || "thanh_tien_tinh_phieu",
-    thanhTienNhapKhoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO) || "thanh_tien_nhap_kho_luy_ke",
-    khachHangKey: findColumnKey(productionColumns, "khach_hang") || "khach_hang",
-    khuVucDuAnKey: findColumnKey(productionColumns, "khu_vuc_du_an") || "khu_vuc_du_an",
-    // Kho lũy kế theo HEX — cùng cột ConstructionOverview đưa vào cửa sổ công trình (phần Kho của bảng BOP)
-    xuatKhoKey: findColumnKey(productionColumns, "thanh_tien_xuat_kho_luy_ke") || "thanh_tien_xuat_kho_luy_ke",
-    tonKhoKey: findColumnKey(productionColumns, "thanh_tien_ton_kho_hien_tai") || "thanh_tien_ton_kho_hien_tai"
-  };
-}
-var DEFAULT_FILTERS = {
-  congTrinh: [],
-  xuong: [],
-  tinhTrang: [],
-  tinhTrangIpo: [IPO_MAC_DINH],
-  khachHang: [],
-  khuVucDuAn: [],
-  phanLoai: []
-};
-var NO_MATCH_PROJECT = "__KHONG_CO_CONG_TRINH__";
-function tinhScopedProjects(productionData, khachHang, khuVucDuAn, congTrinhKey, khachHangKey, khuVucDuAnKey) {
-  if (!congTrinhKey) return null;
-  if (khachHang.length === 0 && khuVucDuAn.length === 0) return null;
-  const khachHangSet = toFilterSet(khachHang);
-  const khuVucDuAnSet = toFilterSet(khuVucDuAn);
-  const set2 = /* @__PURE__ */ new Set();
-  for (const row of productionData) {
-    const ct = String(row[congTrinhKey] || "").trim();
-    if (!ct) continue;
-    if (!matchesCategory(khachHangSet, row, khachHangKey)) continue;
-    if (!matchesCategory(khuVucDuAnSet, row, khuVucDuAnKey)) continue;
-    set2.add(ct);
-  }
-  return set2;
-}
-function tinhEffectiveCongTrinh(scopedProjects, congTrinh) {
-  if (!scopedProjects) return congTrinh;
-  const list = congTrinh.length > 0 ? congTrinh.filter((ct) => scopedProjects.has(ct)) : Array.from(scopedProjects);
-  return list.length > 0 ? list : [NO_MATCH_PROJECT];
-}
-function tapLoc(applied, effectiveCongTrinh) {
-  return {
-    congTrinhSet: toFilterSet(effectiveCongTrinh),
-    explicitCongTrinhSet: toFilterSet(applied.congTrinh),
-    xuongSet: toFilterSet(applied.xuong),
-    tinhTrangSet: toFilterSet(applied.tinhTrang),
-    tinhTrangIpoSet: toFilterSet(applied.tinhTrangIpo),
-    phanLoaiSet: toFilterSet(applied.phanLoai),
-    rowKhSet: toFilterSet(applied.khachHang),
-    rowKvSet: toFilterSet(applied.khuVucDuAn)
-  };
-}
-function locFiltered(productionData, t, k) {
-  const khRowKey = k.khachHangKey ?? "khach_hang";
-  const kvRowKey = k.khuVucDuAnKey ?? "khu_vuc_du_an";
-  return productionData.filter(
-    (row) => matchesFilter(t.congTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesFilter(t.tinhTrangSet, row, k.tinhTrangKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey) && matchesCategory(t.phanLoaiSet, row, k.phanLoaiKey) && matchesCategory(t.rowKhSet, row, khRowKey) && matchesCategory(t.rowKvSet, row, kvRowKey)
-  );
-}
-function locCrossFilterBase(source, t, k) {
-  return source.filter(
-    (row) => matchesFilter(t.explicitCongTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesFilter(t.tinhTrangSet, row, k.tinhTrangKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey)
-  );
-}
-function locFunnel(productionData, t, k) {
-  const khRowKey = k.khachHangKey ?? "khach_hang";
-  const kvRowKey = k.khuVucDuAnKey ?? "khu_vuc_du_an";
-  return productionData.filter(
-    (row) => matchesFilter(t.congTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesCategory(t.phanLoaiSet, row, k.phanLoaiKey) && matchesCategory(t.rowKhSet, row, khRowKey) && matchesCategory(t.rowKvSet, row, kvRowKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey)
-  );
-}
-var distinctRaw = (data, key) => {
-  const raw = /* @__PURE__ */ new Set();
-  for (const row of data) raw.add(row[key]);
-  return raw;
-};
-var getUniqueOptions = (data, key) => {
-  if (!key) return [];
-  const set2 = /* @__PURE__ */ new Set();
-  for (const v of distinctRaw(data, key)) {
-    const t = String(v || "").trim();
-    if (t) set2.add(t);
-  }
-  return Array.from(set2).sort();
-};
-function luaChonSanXuat(productionData, k) {
-  return {
-    congTrinhOptions: getUniqueOptions(productionData, k.congTrinhKey),
-    xuongOptions: getUniqueOptions(productionData, k.xuongKey),
-    tinhTrangOptions: getUniqueOptions(productionData, k.tinhTrangKey),
-    tinhTrangIpoOptions: getUniqueOptions(productionData, k.tinhTrangIpoKey),
-    khachHangOptions: categoryOptions(productionData, k.khachHangKey),
-    khuVucDuAnOptions: categoryOptions(productionData, k.khuVucDuAnKey),
-    phanLoaiOptions: categoryOptions(productionData, k.phanLoaiNhomSanPhamKey)
-  };
-}
-var UNKNOWN_PROJECT = "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-function projectNameOf(value) {
-  return String(value ?? "").trim() || UNKNOWN_PROJECT;
-}
-var unknownProjectLast = (a, b) => Number(a.name === UNKNOWN_PROJECT) - Number(b.name === UNKNOWN_PROJECT);
-function hamGiaTri(k) {
-  const isCancelledRow = (row) => !!k.tinhTrangIpoKey && laHuy2(row[k.tinhTrangIpoKey]);
-  const rowRemain = (row) => remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
-  const funnelValue = (row, metric) => {
-    if (isCancelledRow(row)) return 0;
-    if (metric !== "COUNT_HEX") return rowRemain(row);
-    const total = parseNumber(row[k.triGiaDonHangTongKey]);
-    const nk = k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0;
-    return daNhapDu2(total, nk, false, isQtyComplete(row)) ? 0 : 1;
-  };
-  return { isCancelledRow, rowRemain, calculateMetricValue: funnelValue, funnelValue };
-}
-var statusOf2 = (row, k, mode) => {
-  let status = "";
-  if (mode === "BOP") {
-    status = k.bopKey ? String(row[k.bopKey] || "Ch\u01B0a x\xE1c \u0111\u1ECBnh").trim() : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-    if (!status) status = "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-  } else {
-    status = String(row[k.tinhTrangKey] || "").trim();
-  }
-  return status;
-};
-function tinhBottleneck(rows, k, mode) {
-  if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
-  const { funnelValue } = hamGiaTri(k);
-  const agg = {};
-  rows.forEach((row) => {
-    const status = statusOf2(row, k, mode);
-    if (!status || !funnelValue(row, "COUNT_HEX")) return;
-    if (!agg[status]) {
-      agg[status] = { name: status };
-      DWELL_KEYS.forEach((d2) => {
-        agg[status][d2] = 0;
-        agg[status][`gt:${d2}`] = 0;
-      });
-    }
-    const d = dwellBucket(row[k.daysAtCurrentStageKey]);
-    agg[status][d] = (agg[status][d] || 0) + 1;
-    agg[status][`gt:${d}`] = (agg[status][`gt:${d}`] || 0) + funnelValue(row, "SUM_GT_CON_LAI");
-  });
-  return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
-}
-function tinhTopBottlenecks(rows, k, mode) {
-  if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
-  const { funnelValue } = hamGiaTri(k);
-  const counts = {};
-  const gt = {};
-  rows.forEach((row) => {
-    const status = statusOf2(row, k, mode);
-    if (status && funnelValue(row, "COUNT_HEX") && dwellBucket(row[k.daysAtCurrentStageKey]) === DWELL_STUCK) {
-      counts[status] = (counts[status] || 0) + 1;
-      gt[status] = (gt[status] || 0) + funnelValue(row, "SUM_GT_CON_LAI");
-    }
-  });
-  return Object.entries(counts).map(([name, count]) => ({ name, count, gt: gt[name] || 0 })).sort((a, b) => b.gt - a.gt || b.count - a.count).slice(0, 6);
-}
-var COT_NHOM = { VECNI_FITTING: "vecniFitting", CHUYEN_KHAC: "chuyenKhac", CO_PHIEU_CHUA_SX: "coPhieuChuaSX", VUONG_SL: "vuongSL", CHUA_TRIEN_KHAI: "chuaTrienKhai" };
-function tinhCardMetrics(rows, k) {
-  const m = { coTheSX: 0, vecniFitting: 0, chuyenKhac: 0, coPhieuChuaSX: 0, chuaTheSX: 0, vuongSL: 0, chuaTrienKhai: 0, tongConLai: 0, chuaXepNhom: 0 };
-  if (!k.tinhTrangKey) return m;
-  const { funnelValue } = hamGiaTri(k);
-  rows.forEach((row) => {
-    const val = funnelValue(row, "SUM_GT_CON_LAI");
-    m.tongConLai += val;
-    const nhom = nhomCuaMa(maTinhTrang(row[k.tinhTrangKey]));
-    if (nhom) m[COT_NHOM[nhom]] += val;
-    else m.chuaXepNhom += val;
-  });
-  m.coTheSX = NHOM_CO_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
-  m.chuaTheSX = NHOM_CHUA_THE_SX.reduce((a, n) => a + m[COT_NHOM[n]], 0);
-  return m;
-}
-function tinhBangCongTrinh(rows, k, metric) {
-  if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return null;
-  const { isCancelledRow } = hamGiaTri(k);
-  const khoa = {
-    bopKey: k.bopKey,
-    tinhTrangKey: k.tinhTrangKey,
-    triGiaKey: k.triGiaDonHangTongKey,
-    nhapKhoKey: k.thanhTienNhapKhoKey,
-    // Trình duyệt (usePivotTables) không truyền 2 khoá này => tên cột chuẩn, như ConstructionOverview
-    xuatKhoKey: k.xuatKhoKey || "thanh_tien_xuat_kho_luy_ke",
-    tonKhoKey: k.tonKhoKey || "thanh_tien_ton_kho_hien_tai"
-  };
-  const items = [];
-  for (const row of rows) {
-    if (isCancelledRow(row)) continue;
-    items.push({ ...mucBopTuDong(row, khoa), ct: projectNameOf(row[k.congTrinhKey]) });
-  }
-  return tinhBangCongTrinhBop(items, metric === "COUNT" ? "count" : "remain", UNKNOWN_PROJECT);
-}
-function tinhPivotWorkshop(rows, k, metric) {
-  if (!k.tinhTrangKey || !k.xuongKey) return null;
-  const { calculateMetricValue } = hamGiaTri(k);
-  const uniqueWorkshops = Array.from(new Set(rows.map((r) => String(r[k.xuongKey] || "").trim()).filter(Boolean))).sort();
-  const pivotRows = [];
-  const seen = /* @__PURE__ */ new Set();
-  rows.forEach((r) => {
-    const bop = String(r[k.bopKey] || "").trim();
-    const status = String(r[k.tinhTrangKey] || "").trim();
-    if (status) {
-      const combinedKey = `${bop} ||| ${status}`;
-      if (!seen.has(combinedKey)) {
-        seen.add(combinedKey);
-        pivotRows.push({ bop, status, key: combinedKey });
-      }
-    }
-  });
-  pivotRows.sort((a, b) => {
-    const bopComp = a.bop.localeCompare(b.bop);
-    if (bopComp !== 0) return bopComp;
-    return a.status.localeCompare(b.status);
-  });
-  if (uniqueWorkshops.length === 0 || pivotRows.length === 0) return null;
-  const uniqueBops = Array.from(new Set(pivotRows.map((r) => r.bop)));
-  const matrix = {};
-  const rowTotals = {};
-  const colTotals = {};
-  const bopTotals = {};
-  const bopRowTotals = {};
-  let grandTotal = 0;
-  uniqueBops.forEach((b) => {
-    bopTotals[b] = {};
-    bopRowTotals[b] = 0;
-    uniqueWorkshops.forEach((w) => {
-      bopTotals[b][w] = 0;
-    });
-  });
-  pivotRows.forEach((r) => {
-    matrix[r.key] = {};
-    rowTotals[r.key] = 0;
-    uniqueWorkshops.forEach((w) => {
-      matrix[r.key][w] = 0;
-      colTotals[w] = colTotals[w] || 0;
-    });
-  });
-  rows.forEach((row) => {
-    const bop = String(row[k.bopKey] || "").trim();
-    const s = String(row[k.tinhTrangKey] || "").trim();
-    const w = String(row[k.xuongKey] || "").trim();
-    if (s && w) {
-      const combinedKey = `${bop} ||| ${s}`;
-      const val = calculateMetricValue(row, metric);
-      if (matrix[combinedKey] && matrix[combinedKey][w] !== void 0) {
-        matrix[combinedKey][w] += val;
-        rowTotals[combinedKey] += val;
-        colTotals[w] += val;
-        grandTotal += val;
-        if (bopTotals[bop] && bopTotals[bop][w] !== void 0) {
-          bopTotals[bop][w] += val;
-          bopRowTotals[bop] += val;
-        }
-      }
-    }
-  });
-  return { uniqueWorkshops, rows: pivotRows, uniqueBops, bopTotals, bopRowTotals, matrix, rowTotals, colTotals, grandTotal };
-}
-var bopCua = (row, k) => extractStage(row[k.bopKey]) ?? (String(row[k.bopKey] || "").trim() || "Ch\u01B0a x\xE1c \u0111\u1ECBnh");
-function tinhPivotFunnel(rows, k, metric) {
-  if (!k.bopKey) return null;
-  const { funnelValue } = hamGiaTri(k);
-  const agg = {};
-  let total = 0;
-  rows.forEach((row) => {
-    const bop = bopCua(row, k);
-    const val = funnelValue(row, metric);
-    agg[bop] = (agg[bop] || 0) + val;
-    total += val;
-  });
-  const bopOrder = BOP_STAGE_ORDER;
-  return {
-    data: Object.entries(agg).map(([name, value]) => ({ name, value })).sort((a, b) => {
-      const indexA = bopOrder.indexOf(a.name);
-      const indexB = bopOrder.indexOf(b.name);
-      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-      if (indexA !== -1) return -1;
-      if (indexB !== -1) return 1;
-      return b.value - a.value;
-    }),
-    total
-  };
-}
-function tinhFunnelBreakdownByBop(rows, k, metric) {
-  const result = {};
-  if (!k.bopKey || !k.congTrinhKey) return result;
-  const { funnelValue } = hamGiaTri(k);
-  const agg = {};
-  const totals = {};
-  rows.forEach((row) => {
-    const bop = bopCua(row, k);
-    const project = projectNameOf(row[k.congTrinhKey]);
-    const val = funnelValue(row, metric);
-    if (!agg[bop]) agg[bop] = {};
-    agg[bop][project] = (agg[bop][project] || 0) + val;
-    totals[bop] = (totals[bop] || 0) + val;
-  });
-  Object.keys(agg).forEach((bop) => {
-    result[bop] = {
-      data: Object.entries(agg[bop]).map(([name, value]) => ({ name, value })).sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
-      total: totals[bop] || 0
-    };
-  });
-  const short = {};
-  ["P022", "P025"].forEach((bop) => Object.entries(agg[bop] ?? {}).forEach(([name, v]) => {
-    short[name] = (short[name] || 0) + v;
-  }));
-  if (Object.keys(short).length) {
-    result.P022_SHORT = {
-      data: Object.entries(short).map(([name, value]) => ({ name, value })).sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
-      total: (totals.P022 || 0) + (totals.P025 || 0)
-    };
-  }
-  return result;
-}
-function tinhPivotProject(rows, k, metric, excludeFabrics) {
-  if (!k.congTrinhKey || !k.tinhTrangKey) return null;
-  const { calculateMetricValue } = hamGiaTri(k);
-  const dataToUse = excludeFabrics ? rows.filter((r) => {
-    const hm = String(r[k.hangMucKey] || "").toLowerCase();
-    return !hm.includes("v\u1EA3i") && !hm.includes("g\u1ED1i");
-  }) : rows;
-  const uniqueStatuses = Array.from(new Set(dataToUse.map((r) => String(r[k.tinhTrangKey] || "").trim()).filter(Boolean))).sort();
-  const uniqueProjects = Array.from(new Set(dataToUse.map((r) => String(r[k.congTrinhKey] || "").trim()).filter(Boolean))).sort();
-  const matrix = {};
-  const rowTotals = {};
-  const colTotals = {};
-  let grandTotal = 0;
-  uniqueProjects.forEach((p) => {
-    matrix[p] = {};
-    rowTotals[p] = 0;
-    uniqueStatuses.forEach((s) => {
-      matrix[p][s] = 0;
-      colTotals[s] = colTotals[s] || 0;
-    });
-  });
-  dataToUse.forEach((row) => {
-    const p = String(row[k.congTrinhKey] || "").trim();
-    const s = String(row[k.tinhTrangKey] || "").trim();
-    if (p && s) {
-      const val = calculateMetricValue(row, metric);
-      if (matrix[p] && matrix[p][s] !== void 0) {
-        matrix[p][s] += val;
-        rowTotals[p] += val;
-        colTotals[s] += val;
-        grandTotal += val;
-      }
-    }
-  });
-  return { uniqueProjects, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
-}
-var UNIT = 1e3;
-var OTHERS = "Kh\xE1c";
-var TOP_CUSTOMERS = 6;
-function aggregateMix(rows, dimOf, ctOf, totalTrieuOf, metric) {
-  const m = /* @__PURE__ */ new Map();
-  for (const r of rows) {
-    const name = dimOf(r);
-    let e = m.get(name);
-    if (!e) {
-      e = { name, value: 0, items: 0, totalTy: 0, cts: /* @__PURE__ */ new Set() };
-      m.set(name, e);
-    }
-    const ty = totalTrieuOf(r) / UNIT;
-    e.items++;
-    e.totalTy += ty;
-    e.cts.add(ctOf(r));
-    e.value += metric === "count" ? 1 : ty;
-  }
-  return [...m.values()].filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
-}
-function summarizeMix(rows, ctOf, totalTrieuOf) {
-  const cts = /* @__PURE__ */ new Set();
-  let total = 0;
-  for (const r of rows) {
-    cts.add(ctOf(r));
-    total += totalTrieuOf(r);
-  }
-  return { cts: cts.size, items: rows.length, totalTy: total / UNIT };
-}
-var groupTopN = (list, topN, selected = []) => {
-  if (list.length <= topN) return list;
-  const head = list.filter((d, i) => i < topN || selected.includes(d.name));
-  const rest = list.filter((d) => !head.includes(d));
-  if (rest.length === 0) return head;
-  const others = { name: OTHERS, value: 0, items: 0, totalTy: 0, cts: /* @__PURE__ */ new Set() };
-  for (const d of rest) {
-    others.value += d.value;
-    others.items += d.items;
-    others.totalTy += d.totalTy;
-    d.cts.forEach((c) => others.cts.add(c));
-  }
-  return [...head, others];
-};
-var CODE_PREFIX = /^(\d+)\s*[.\-)]/;
-var orderMix = (list) => {
-  const isTail = (n) => n === NO_DATA_LABEL || n === OTHERS;
-  const head = list.filter((d) => !isTail(d.name));
-  const tail = list.filter((d) => isTail(d.name)).sort((a, b) => a.name === OTHERS ? 1 : b.name === OTHERS ? -1 : 0);
-  if (head.length > 0 && head.every((d) => CODE_PREFIX.test(d.name))) {
-    const code = (n) => Number(CODE_PREFIX.exec(n)[1]);
-    head.sort((a, b) => code(a.name) - code(b.name) || a.name.localeCompare(b.name, "vi"));
-  }
-  return [...head, ...tail];
-};
-function mixRecords(data, columns) {
-  const key = (target, fallback) => findColumnKey(columns, target) || fallback;
-  const kvK = key("khu_vuc_du_an", "khu_vuc_du_an");
-  const khK = key("khach_hang", "khach_hang");
-  const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, "phan_loai_nhom_san_pham");
-  const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, "tinh_trang_ipo");
-  const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, "tri_gia_don_hang_tong");
-  const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, "ten_cong_trinh");
-  const out = [];
-  for (const row of data) {
-    if (!String(row[ctK] ?? "").trim()) continue;
-    if (laHuy2(row[ipoK])) continue;
-    out.push({
-      ct: projectMatchKey(row[ctK]),
-      kv: categoryValue(row[kvK]),
-      kh: categoryValue(row[khK]),
-      pl: categoryValue(row[plK]),
-      total: parseNumber(row[totK]),
-      row
-    });
-  }
-  return out;
-}
-var recCt = (r) => r.ct;
-var recTotal = (r) => r.total;
-function mixMatching(records, selection, exclude) {
-  const active = ["kv", "kh", "pl"].filter((x) => x !== exclude && selection[x].length > 0).map((x) => [x, new Set(selection[x])]);
-  return active.length ? records.filter((r) => active.every(([o, set2]) => set2.has(r[o]))) : records;
-}
-function mixBuild(records, selection, k, metric, topN) {
-  const list = aggregateMix(mixMatching(records, selection, k), (r) => r[k], recCt, recTotal, metric);
-  return orderMix(topN ? groupTopN(list, topN, selection[k]) : list);
-}
-function mixSummary(records, selection) {
-  return summarizeMix(mixMatching(records, selection), recCt, recTotal);
-}
-function tinhCoCauDonHang(records, selection, metric) {
-  return {
-    kv: mixBuild(records, selection, "kv", metric),
-    kh: mixBuild(records, selection, "kh", metric, TOP_CUSTOMERS),
-    pl: mixBuild(records, selection, "pl", metric),
-    summary: mixSummary(records, selection)
-  };
-}
-var TUY_CHON_MAC_DINH = {
-  workshopMetric: "SUM_GT_DON_HANG",
-  projectMetric: "SUM_GT_DON_HANG",
-  projectSummaryMetric: "VALUE",
-  excludeFabrics: false,
-  bottleneckViewMode: "BOP"
-};
-var mixJson = (l) => l.map((d) => ({ ...d, cts: [...d.cts] }));
-function tinhTongQuanSanXuat(productionData, productionColumns, applied, tuy) {
-  const k = khoaSanXuat(productionColumns);
-  const kLoc = { ...k, phanLoaiKey: k.phanLoaiNhomSanPhamKey };
-  const scoped = tinhScopedProjects(productionData, applied.khachHang, applied.khuVucDuAn, k.congTrinhKey, k.khachHangKey, k.khuVucDuAnKey);
-  const effectiveCongTrinh = tinhEffectiveCongTrinh(scoped, applied.congTrinh);
-  const t = tapLoc(applied, effectiveCongTrinh);
-  const filtered = locFiltered(productionData, t, kLoc);
-  const funnel = locFunnel(productionData, t, kLoc);
-  const crossBase = locCrossFilterBase(productionData, t, kLoc);
-  const mixMetric = tuy.workshopMetric === "COUNT_HEX" ? "count" : "value";
-  const coCau = tinhCoCauDonHang(mixRecords(crossBase, productionColumns), { kv: applied.khuVucDuAn, kh: applied.khachHang, pl: applied.phanLoai }, mixMetric);
-  return {
-    soDong: productionData.length,
-    luaChon: luaChonSanXuat(productionData, k),
-    scopedProjects: scoped ? [...scoped] : null,
-    effectiveCongTrinh,
-    cardMetrics: tinhCardMetrics(filtered, k),
-    bangCongTrinh: tinhBangCongTrinh(filtered, k, tuy.projectSummaryMetric),
-    pivotWorkshopData: tinhPivotWorkshop(filtered, k, tuy.workshopMetric),
-    pivotFunnelData: tinhPivotFunnel(funnel, k, tuy.workshopMetric),
-    funnelBreakdownByBop: tinhFunnelBreakdownByBop(funnel, k, tuy.workshopMetric),
-    pivotProjectData: tinhPivotProject(filtered, k, tuy.projectMetric, tuy.excludeFabrics),
-    bottleneckData: tinhBottleneck(filtered, k, tuy.bottleneckViewMode),
-    topBottlenecks: tinhTopBottlenecks(filtered, k, tuy.bottleneckViewMode),
-    coCau: { kv: mixJson(coCau.kv), kh: mixJson(coCau.kh), pl: mixJson(coCau.pl), summary: coCau.summary }
-  };
-}
-
-// ../frontend/components/Construction/core/banGhiCongTrinh.ts
-var NO_DATA = "(Ch\u01B0a c\xF3)";
-var NO_MONTH = "none";
-function taoBanGhi(data, columns, today) {
-  const key = (target, fallback) => findColumnKey(columns, target) || fallback;
-  const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, "ten_cong_trinh");
-  const pmK = key("ten_pm", "ten_pm");
-  const pcK = key("ten_pc", "ten_pc");
-  const kvK = key("khu_vuc_du_an", "khu_vuc_du_an");
-  const khK = key("khach_hang", "khach_hang");
-  const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, "phan_loai_nhom_san_pham");
-  const dlKeys = resolveDeadlineKeys(columns);
-  const stK = key(TARGET_COLUMN_NAMES.TINH_TRANG, "tinh_trang");
-  const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, "tinh_trang_ipo");
-  const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, "tri_gia_don_hang_tong");
-  const invK = key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, "thanh_tien_nhap_kho_luy_ke");
-  const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, "ma_cong_trinh");
-  const xkK = key("thanh_tien_xuat_kho_luy_ke", "thanh_tien_xuat_kho_luy_ke");
-  const tkK = key("thanh_tien_ton_kho_hien_tai", "thanh_tien_ton_kho_hien_tai");
-  const nctK = columns.find((c) => c.key === "nhom_ct")?.key ?? "nhom_ct";
-  const bopK = key(TARGET_COLUMN_NAMES.BOP, "bop");
-  const tdaK = columns.find((c) => c.key === "tinh_trang_du_an")?.key ?? "tinh_trang_du_an";
-  const projectKey = (row) => projectMatchKey(row[ctK]);
-  const txt = (v) => {
-    const t = String(v ?? "").trim();
-    return !t || t.startsWith("#") ? NO_DATA : t;
-  };
-  const out = [];
-  for (const row of data) {
-    const ct = String(row[ctK] ?? "").trim();
-    if (!ct) continue;
-    const ipo = String(row[ipoK] ?? "").toUpperCase();
-    const st = String(row[stK] ?? "").toUpperCase();
-    const totalRaw = parseNumber(row[totK]);
-    const invRaw = parseNumber(row[invK]);
-    let status;
-    if (laHuy2(ipo)) status = "H\u1EE6Y";
-    else if (ipo.includes("HO\xC0N TH\xC0NH")) status = "HO\xC0N TH\xC0NH";
-    else if (ipo.includes("T\u1EA0M NG\u01AFNG")) status = "T\u1EA0M NG\u01AFNG";
-    else if (ipo.includes("C\u1EA6N X\u1EEC L\xDD")) status = "C\u1EA6N X\u1EEC L\xDD";
-    else if (laChuaTheSX(st)) status = "CH\u01AFA TKSX";
-    else status = "C\xD3 PHI\u1EBEU SX";
-    const dl = deadlineOf(row, dlKeys);
-    const d = dl.date;
-    const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : NO_MONTH;
-    const cancelled = status === "H\u1EE6Y";
-    const stockRaw = Math.max(parseNumber(row[tkK]), 0);
-    const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
-    const exported = cancelled ? 0 : exportedRecorded;
-    const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
-    const stockHuy = cancelled ? Math.min(stockRaw, Math.max(Math.max(invRaw, 0) - exportedRecorded, 0), Math.max(totalRaw, 0)) : 0;
-    const kho = cancelled ? { ton: stockHuy, chenh: 0, xv: 0 } : khoCua({ inv: done, xuat: exported, tonKho: stockRaw });
-    const qtyDone = isQtyComplete(row);
-    const open2 = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
-    out.push({
-      ct,
-      ctKey: projectKey(row),
-      pm: txt(row[pmK]),
-      pc: txt(row[pcK]),
-      kv: txt(row[kvK]),
-      kh: txt(row[khK]),
-      pl: txt(row[plK]),
-      nct: txt(row[nctK]),
-      tda: txt(row[tdaK]),
-      ma: String(row[maK] ?? "").trim().toUpperCase(),
-      deadline: d,
-      planMet: !d && (dl.tuanMet || dl.thangMet),
-      open: open2,
-      overdue: open2 && !!d && d.getTime() < today,
-      botDuAn: dl.botDuAn,
-      ipo: String(row[ipoK] ?? "").trim(),
-      month,
-      status,
-      total: cancelled ? 0 : totalRaw,
-      totalHuy: cancelled ? totalRaw : 0,
-      done,
-      exported,
-      exportedRecorded,
-      xuatVuot: kho.xv,
-      stock: kho.ton,
-      unmatched: kho.chenh,
-      stockCut: stockRaw - kho.ton,
-      qtyDone,
-      row,
-      mk: projectMatchKey(ct),
-      bucket: cancelled ? "cancelled" : remainBucketOf(st, extractStage(row[bopK]))
-    });
-  }
-  const nameCount = /* @__PURE__ */ new Map();
-  for (const r of out) {
-    let m = nameCount.get(r.ctKey);
-    if (!m) {
-      m = /* @__PURE__ */ new Map();
-      nameCount.set(r.ctKey, m);
-    }
-    m.set(r.ct, (m.get(r.ct) ?? 0) + 1);
-  }
-  const displayName2 = /* @__PURE__ */ new Map();
-  nameCount.forEach((m, k) => {
-    let best = "", bestN = -1;
-    m.forEach((n, name) => {
-      if (n > bestN || n === bestN && name < best) {
-        best = name;
-        bestN = n;
-      }
-    });
-    displayName2.set(k, best);
-  });
-  for (const r of out) r.ct = displayName2.get(r.ctKey) ?? r.ct;
-  return out;
-}
-var COT_CHU = ["ct", "pm", "pc", "kv", "kh", "pl", "nct", "tda", "ma", "ctKey", "month", "status", "ipo", "mk", "bucket"];
-var COT_SO = ["total", "totalHuy", "done", "exported", "exportedRecorded", "xuatVuot", "stock", "stockCut", "unmatched"];
-var ngayChuoi = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
-function nenBanGhi(recs) {
-  const tu = [];
-  const idx = /* @__PURE__ */ new Map();
-  const ma = (s) => {
-    let i = idx.get(s);
-    if (i === void 0) {
-      i = tu.length;
-      tu.push(s);
-      idx.set(s, i);
-    }
-    return i;
-  };
-  const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
-  const so7 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
-  return {
-    n: recs.length,
-    tu,
-    chu,
-    so: so7,
-    open: recs.map((r) => r.open ? 1 : 0),
-    qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
-    planMet: recs.map((r) => r.planMet ? 1 : 0),
-    deadline: recs.map((r) => ma(ngayChuoi(r.deadline))),
-    botDuAn: recs.map((r) => ma(ngayChuoi(r.botDuAn))),
-    hex: recs.map((r) => ma(String(r.row?.["hex"] ?? "").trim()))
-  };
-}
-
-// ../frontend/utils/workshopGroupsCore.ts
-var normWorkshop2 = (v) => String(v ?? "").trim().toUpperCase();
-var rawToGroup2 = /* @__PURE__ */ new Map();
-var setMapping = (mapping) => {
-  const m = /* @__PURE__ */ new Map();
-  Object.entries(mapping || {}).forEach(([raw, g]) => {
-    const r = normWorkshop2(raw), gg = normWorkshop2(g);
-    if (r && gg && r !== gg) m.set(r, gg);
-  });
-  rawToGroup2 = m;
-};
-var applyWorkshopMapping = (mapping) => setMapping(mapping);
-var workshopGroupOf2 = (raw) => {
-  const n = normWorkshop2(raw);
-  return rawToGroup2.get(n) ?? n;
-};
-function canonicalizeWorkshops(rows, columns) {
-  if (rows.length === 0) return rows;
-  const key = findColumnKey(columns, "xuong_chinh");
-  if (!key) return rows;
-  let changed = false;
-  const groupOf = /* @__PURE__ */ new Map();
-  const out = rows.map((row) => {
-    const v = row[key];
-    if (v == null || v === "") return row;
-    let g = groupOf.get(v);
-    if (g === void 0) {
-      const n = normWorkshop2(v);
-      g = rawToGroup2.get(n) ?? n;
-      groupOf.set(v, g);
-    }
-    if (!g || v === g) return row;
-    changed = true;
-    return { ...row, [key]: g };
-  });
-  return changed ? out : rows;
-}
-
-// ../frontend/components/Construction/core/ghepFileCongTrinh.ts
-var coSoFile = (d) => !!d && d.coBang && d.dong.length > 0;
-function ghepDongFile(app2, columns, hexKey, d) {
-  const theoHex = /* @__PURE__ */ new Map();
-  for (const r of app2) {
-    const h = String(r[hexKey] ?? "").trim();
-    if (h && !theoHex.has(h)) theoHex.set(h, r);
-  }
-  let doiNguoi = false, doiTen = false;
-  const ra = d.dong.map(([hex3, doi]) => {
-    const goc2 = theoHex.get(hex3);
-    if (!doi) return goc2 ?? { [hexKey]: hex3 };
-    const dong2 = goc2 ? { ...goc2 } : { [hexKey]: hex3 };
-    for (const [k, v] of Object.entries(doi)) {
-      if (k === "xuong_chinh") dong2[k] = v == null || v === "" ? v : workshopGroupOf2(v);
-      else if (k === "ten_cong_trinh") {
-        dong2[k] = v == null ? null : canonicalProjectName2(v);
-        doiTen = true;
-      } else {
-        if (k === "ma_cong_trinh") doiTen = true;
-        if (k === "ten_pm" || k === "ten_pc") doiNguoi = true;
-        dong2[k] = v;
-      }
-    }
-    return dong2;
-  });
-  const raTen = doiTen ? canonicalizeProjectNames(ra, columns) : ra;
-  return doiNguoi ? canonicalizePersonNames(raTen, columns) : raTen;
-}
-
-// ../frontend/components/Dashboard/core/mayChu.ts
-var cotTuDuLieu = (rows) => {
-  const keys = /* @__PURE__ */ new Set();
-  for (const r of rows) for (const k of Object.keys(r)) if (k && k.trim() !== "") keys.add(k);
-  return [...keys].map((key) => ({ key, label: key }));
-};
-
-// src/routes/tongQuan.ts
 var dsChuoi2 = external_exports.array(external_exports.string().max(300)).max(3e3);
 var BodySchema = external_exports.object({
   filters: external_exports.object({
@@ -92492,13 +93277,36 @@ async function sanXuatChuan(ver, verSanXuat) {
   chuanDang = { ver, p };
   return p;
 }
+var nhanBop = null;
+var phu = null;
+var nhanDangCo = () => nhanBop?.nhan;
+dangKyNhanBop(nhanDangCo);
+async function sanXuatPhu(verChuan, verSanXuat, ban, ngayVN) {
+  const c = await sanXuatChuan(verChuan, verSanXuat);
+  if (!ban || ban.ver === "off") return c;
+  if (nhanBop?.ver !== verChuan) nhanBop = { ver: verChuan, nhan: nhanTheoMa(c.rows, "bop") };
+  const khoa = JSON.stringify([verChuan, ban.ver, ngayVN]);
+  if (phu?.khoa === khoa) return phu.bang;
+  const { rows } = phuViTriMra(c.rows, c.cols, ban, Date.now(), nhanBop.nhan);
+  const bang = { ver: c.ver, rows, cols: c.cols };
+  phu = { khoa, bang };
+  return bang;
+}
 var dangDung2 = /* @__PURE__ */ new Map();
 async function phienBanChuan() {
-  await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
+  const [, ban] = await Promise.all([
+    Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]),
+    layBanDoViTri().catch((e) => {
+      console.warn("[tong-quan] kh\xF4ng l\u1EA5y \u0111\u01B0\u1EE3c v\u1ECB tr\xED MRA", e);
+      return null;
+    })
+  ]);
   const versions = await getVersions();
   const verSanXuat = versions.production ?? "";
   const verChuan = JSON.stringify([verSanXuat, projectAliasesVersion(), workshopGroupsVersion()]);
-  return { versions, verSanXuat, verChuan };
+  const verMra = ban && ban.ver !== "off" ? ban.ver : "";
+  const ngayVN = vnDayKey(/* @__PURE__ */ new Date());
+  return { versions, verSanXuat, verChuan, ban, verMra, ngayVN };
 }
 var nhoKetQua = (k, buf) => {
   ketQuaNho.set(k, buf);
@@ -92508,7 +93316,7 @@ var nhoKetQua = (k, buf) => {
     ketQuaNho.delete(cu);
   }
 };
-var PHIEN_BAN_TINH3 = "r3";
+var PHIEN_BAN_TINH3 = "r4";
 function layHoacDung(khoa, ver, luuDb, dung2) {
   khoa = `${PHIEN_BAN_TINH3}:${khoa}`;
   const k = `${khoa}|${ver}`;
@@ -92535,31 +93343,36 @@ function layHoacDung(khoa, ver, luuDb, dung2) {
   return p;
 }
 async function tongQuanSanXuat(filters, tuy) {
-  const { verSanXuat, verChuan } = await phienBanChuan();
+  const { verSanXuat, verChuan, ban, verMra, ngayVN } = await phienBanChuan();
   const khoa = `tongquan|${createHash5("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
   const macDinh = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
-  return layHoacDung(khoa, verChuan, macDinh, async () => {
+  const ver = JSON.stringify([verChuan, verMra, verMra ? ngayVN : ""]);
+  return layHoacDung(khoa, ver, macDinh && !verMra, async () => {
     const tDoc = Date.now();
-    const { rows, cols } = await sanXuatChuan(verChuan, verSanXuat);
+    const { rows, cols } = await sanXuatPhu(verChuan, verSanXuat, ban, ngayVN);
     const tTinh = Date.now();
     const kq = tinhTongQuanSanXuat(rows, cols, filters, tuy);
-    const buf = gzipSync3(JSON.stringify({ success: true, ver: verChuan, ...kq }));
+    const buf = gzipSync3(JSON.stringify({ success: true, ver: verChuan, verMra, ...kq }));
     return { buf, timing: `bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}` };
   });
 }
 async function tongQuanCongTrinh() {
-  const [{ versions, verSanXuat, verChuan }, moc2] = await Promise.all([phienBanChuan(), layMocFile()]);
-  const ver = JSON.stringify([verChuan, versions.inventory ?? "", moc2.khoa]);
-  return layHoacDung("tongquan-congtrinh", ver, true, async () => {
+  const [{ versions, verSanXuat, verChuan, ban, verMra, ngayVN }, moc2] = await Promise.all([phienBanChuan(), layMocFile()]);
+  const ver = JSON.stringify([verChuan, versions.inventory ?? "", moc2.khoa, verMra, verMra ? ngayVN : ""]);
+  return layHoacDung("tongquan-congtrinh", ver, !verMra, async () => {
     const tDoc = Date.now();
-    const [{ rows, cols }, planMet2, file2] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet(), layFileCongTrinh(moc2)]);
+    const [{ rows, cols }, planMet2, file2] = await Promise.all([
+      sanXuatPhu(verChuan, verSanXuat, ban, ngayVN),
+      layPlanMet(),
+      layFileCongTrinh(moc2)
+    ]);
     const theoFile = coSoFile(file2.body);
     const tTinh = Date.now();
     setPlanMet(planMet2);
     const dong2 = theoFile ? ghepDongFile(rows, cols, "hex", file2.body) : rows;
     const banGhi = nenBanGhi(taoBanGhi(dong2, cols, Date.now()));
     const nguon = theoFile ? { theoFile: true, capNhat: file2.body.capNhat, soFile: file2.body.soFile } : { theoFile: false };
-    const buf = gzipSync3(JSON.stringify({ success: true, ver, banGhi, nguon }));
+    const buf = gzipSync3(JSON.stringify({ success: true, ver, verMra, banGhi, nguon }));
     return { buf, timing: `bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}` };
   });
 }
@@ -93470,7 +94283,7 @@ var SUY_NGHI = () => process.env.HOI_DAP_AI_SUY_NGHI ?? "low";
 var MAX_NGAY = () => Number(process.env.HOI_DAP_AI_MAX_NGAY) || 1e3;
 var CO_TEN_RIENG = /* @__PURE__ */ new Set(["ten_pm", "ten_pc", "khach_hang", "handler", "created_by", "nguoi_yeu_cau", "nguoi_tao", "nguoi_trien_khai", "nha_cung_cap", "ten_cong_trinh", "ma_cong_trinh"]);
 var THU = ["Ch\u1EE7 nh\u1EADt", "Th\u1EE9 hai", "Th\u1EE9 ba", "Th\u1EE9 t\u01B0", "Th\u1EE9 n\u0103m", "Th\u1EE9 s\xE1u", "Th\u1EE9 b\u1EA3y"];
-var iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+var iso2 = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 var boDau = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 var tuCua = (s) => new Set(boDau(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 2));
 function chonViDu(cau, bangs, sx, soVd = 8) {
@@ -93518,7 +94331,7 @@ function taoLoiDan(bangs, sx, gt, homNay, cau = "") {
       dong2.push(`- sx:${c.id}: ${c.ten} [${c.kieu}]${ds2.length ? ` gi\xE1 tr\u1ECB: ${ds2.join(" | ")}` : ""}`);
     });
   }
-  const hn = iso(homNay);
+  const hn = iso2(homNay);
   return `B\u1EA1n chuy\u1EC3n c\xE2u h\u1ECFi ti\u1EBFng Vi\u1EC7t v\u1EC1 s\u1ED1 li\u1EC7u c\u1EE7a nh\xE0 m\xE1y n\u1ED9i th\u1EA5t th\xE0nh 1 truy v\u1EA5n JSON theo danh m\u1EE5c b\xEAn d\u01B0\u1EDBi. B\u1EA1n KH\xD4NG c\xF3 s\u1ED1 li\u1EC7u v\xE0 KH\xD4NG tr\u1EA3 l\u1EDDi s\u1ED1 li\u1EC7u \u2014 ch\u1EC9 d\u1ECBch c\xE2u.
 H\xF4m nay: ${hn} (${THU[homNay.getDay()]}). Tu\u1EA7n b\u1EAFt \u0111\u1EA7u th\u1EE9 hai. "Th\xE1ng n\xE0y" = t\u1EEB ng\xE0y 1 t\u1EDBi h\xF4m nay.
 
@@ -93588,7 +94401,7 @@ var LoiAI = class extends Error {
 async function hoiAI(loiDan, cau, khoaCache) {
   const hit = cache3.get(khoaCache);
   if (hit && Date.now() - hit.at < 864e5) return hit.kq;
-  const hn = iso(/* @__PURE__ */ new Date());
+  const hn = iso2(/* @__PURE__ */ new Date());
   if (hn !== ngay2) {
     ngay2 = hn;
     dem = 0;
@@ -93765,10 +94578,10 @@ function dieuKienLoc(b, l, co2, p) {
     }
   }
   const coMaCt = !laSx(c.id) && b.cot.some((x) => x.id === "ma_cong_trinh");
-  const giongChu = (phu) => {
+  const giongChu = (phu2) => {
     const a = thamSo(ds2.map(thich));
     const k = `${khongDau(e)} LIKE ANY(${a}::text[])`;
-    return phu && c.kieu === "ct" && coMaCt ? `(${k} OR ${khongDau(sqlCot(timCot(b, "ma_cong_trinh", co2)))} LIKE ANY(${a}::text[]))` : k;
+    return phu2 && c.kieu === "ct" && coMaCt ? `(${k} OR ${khongDau(sqlCot(timCot(b, "ma_cong_trinh", co2)))} LIKE ANY(${a}::text[]))` : k;
   };
   const bangChu = () => {
     if (c.kieu === "xuong") return `UPPER(TRIM(COALESCE(${e}, ''))) = ANY(${thamSo(expandWorkshops(ds2))}::text[])`;

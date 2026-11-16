@@ -84,8 +84,12 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
       onUnreadChange(Math.max(0, items.filter(x => !x.readAt).length - 1));
     }
     if (n.vuongMacId) onOpenItem(n.vuongMacId, n.hex);
-    // Thông báo mục Xưởng: mở màn tổ trưởng (thao tác cần xem: thẻ Xưởng trên máy tính)
-    else if (n.kind.startsWith('xuong_')) location.href = n.kind === 'xuong_co' ? '/#/mra' : '/xuong';
+    // Thông báo mục Xưởng: mở màn tổ trưởng; thao tác cần xem: mở thẳng Quản lý → Cần xem trong app MRA
+    // (dùng url thông báo nếu máy chủ trả về, hộp thư chưa lưu url thì mở mục Cần xem của xưởng đang chọn)
+    else if (n.kind.startsWith('xuong_')) {
+      const url = (n as AppNotification & { url?: string | null }).url;
+      location.href = n.kind === 'xuong_co' ? (url || '/xuong?muc=quanLy&ql=can-xem') : '/xuong';
+    }
   };
 
   const today = dayKey(new Date());

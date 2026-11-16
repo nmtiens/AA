@@ -4,6 +4,7 @@ import { userService, getToken } from '../services/userService';
 import { AUTH_EXPIRED_EVENT } from '../services/authFetch';
 import { claimDataCache, clearDataCache, cacheCoGia } from '../services/dataService';
 import { useToast } from './ToastContext';
+import { donXuongKhiDoiNguoi, nhoNguoiCuoiXuong } from '../services/xuongClock';
 
 interface AuthContextType {
   user: User | null;
@@ -119,6 +120,8 @@ useEffect(() => {
       const result = await userService.login(username, password);
 
       if (result.success && result.user && result.token) {
+        // Máy đang giữ phiên Xưởng của người khác: bỏ token / phiên / tổ của người đó (giữ mã máy + hàng đợi)
+        donXuongKhiDoiNguoi(result.user.id);
         await claimDataCache(result.user);
         setUser(result.user);
 
@@ -155,6 +158,8 @@ useEffect(() => {
     clearAllStorage();
     // Token mục Xưởng (30 ngày) gắn với người dùng: đăng xuất chủ động thì bỏ luôn để người cầm máy sau không dùng
     // nhầm tên người trước. Hàng đợi thao tác chưa gửi + mã thiết bị giữ nguyên (services/xuongQueue.ts).
+    // Nhớ id người trước khi xoá phiên: đăng nhập lại cùng người thì giữ tổ đang chọn
+    nhoNguoiCuoiXuong();
     try { localStorage.removeItem('xuong_token'); localStorage.removeItem('xuong_phien'); } catch { /* bỏ qua */ }
     // Cache không có cột giá: giữ lại (dữ liệu chung của mọi tài khoản) để lần đăng nhập sau khỏi tải lại
     if (cacheCoGia()) void clearDataCache();

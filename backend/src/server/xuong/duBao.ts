@@ -18,11 +18,14 @@ export interface DuBao {
   canNgay: number;
   /** Ngày lịch còn lại tới hết ngày KHNK (hoặc hết tuần kế hoạch) */
   conNgay: number;
-  muc: 'rot' | 'sat' | 'kip';
+  /** 'chua_ro' = mọi công đoạn còn lại đều thiếu mốc — không kết luận kịp / rớt (giữ tình trạng gốc) */
+  muc: 'rot' | 'sat' | 'kip' | 'chua_ro';
   /** Nguồn mốc đã dùng */
   nguonMoc: 'app' | 'mra' | 'ca_hai';
   /** Công đoạn còn lại chưa có mốc (không cộng được — dự báo có thể thấp hơn thực tế) */
   thieuMoc: string[];
+  /** Mọi công đoạn còn lại (mọi nhánh) đều thiếu mốc: chưa đủ số liệu để dự báo, canNgay = 0 không có nghĩa */
+  khongDuMoc: boolean;
   /** Công đoạn còn lại theo thứ tự (nhánh dài nhất) */
   conLai: string[];
 }
@@ -75,6 +78,7 @@ export function duBaoHangMuc(
   let tot: { can: number; conLai: string[]; nguon: Set<string> } | null = null;
   // Công đoạn còn lại thiếu mốc ở MỌI nhánh (nhánh thiếu mốc bị cộng thấp, có thể không phải nhánh dài nhất)
   const thieuMoc = new Set<string>();
+  let coMoc = false; // có ít nhất một công đoạn còn lại có mốc
   for (const t of tuyen) {
     let can = 0; const conLai: string[] = []; const nguon = new Set<string>();
     for (const cd of t.tuyen) {
@@ -82,7 +86,7 @@ export function duBaoHangMuc(
       conLai.push(cd);
       const m = moc.get(cd);
       if (!m) { thieuMoc.add(cd); continue; }
-      nguon.add(m.nguon);
+      nguon.add(m.nguon); coMoc = true;
       const daQua = dauTai.has(cd) ? (now - dauTai.get(cd)!) / NGAY : 0;
       // Đang làm lâu hơn mốc: vẫn tính tối thiểu nửa ngày cho phần còn lại
       can += dauTai.has(cd) ? Math.max(0.5, m.ngay - daQua) : m.ngay;
@@ -91,7 +95,13 @@ export function duBaoHangMuc(
   }
   if (!tot || !tot.conLai.length) return null;
   const conNgay = Math.max(0, (hanCuoi - now) / NGAY);
-  const muc = tot.can > conNgay ? 'rot' : tot.can > conNgay * 0.8 ? 'sat' : 'kip';
+  const khongDuMoc = !coMoc;
+  // Thiếu mốc một phần: số cần có thể thấp hơn thực tế => báo sát hạn sớm hơn (quá nửa số ngày còn)
+  const nguongSat = thieuMoc.size ? 0.5 : 0.8;
+  const muc: DuBao['muc'] = khongDuMoc ? 'chua_ro' : tot.can > conNgay ? 'rot' : tot.can > conNgay * nguongSat ? 'sat' : 'kip';
   const nguonMoc = tot.nguon.size > 1 ? 'ca_hai' : tot.nguon.has('app') ? 'app' : 'mra';
-  return { canNgay: Math.round(tot.can * 10) / 10, conNgay: Math.round(conNgay * 10) / 10, muc, nguonMoc, thieuMoc: [...thieuMoc], conLai: tot.conLai };
+  return {
+    canNgay: Math.round(tot.can * 10) / 10, conNgay: Math.round(conNgay * 10) / 10, muc, nguonMoc,
+    thieuMoc: [...thieuMoc], khongDuMoc, conLai: tot.conLai,
+  };
 }

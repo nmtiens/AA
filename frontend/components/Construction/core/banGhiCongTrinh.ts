@@ -11,7 +11,7 @@ import { TARGET_COLUMN_NAMES } from '../../../types';
 import { findColumnKey } from '../../Dashboard/utils/columnKeyResolver';
 import { parseNumber } from '../../Dashboard/utils/numberParsers';
 import { deadlineOf, resolveDeadlineKeys, isQtyComplete, projectMatchKey, laHuy } from '../../../utils/productionMetrics';
-import { extractStage, remainBucketOf, type RemainBucket } from '../../Dashboard/core/stages';
+import { extractStage, laDongMra, remainBucketOf, type RemainBucket } from '../../Dashboard/core/stages';
 import { laChuaTheSX } from '../../Dashboard/constants';
 import { khoCua } from './bopPivot';
 
@@ -139,7 +139,7 @@ export function taoBanGhi(data: DataRow[], columns: ColumnDefinition[], today: n
       qtyDone,
       row,
       mk: projectMatchKey(ct),
-      bucket: cancelled ? 'cancelled' : remainBucketOf(st, extractStage(row[bopK])),
+      bucket: cancelled ? 'cancelled' : remainBucketOf(st, extractStage(row[bopK]), laDongMra(row)),
     });
   }
 

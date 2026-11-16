@@ -6,7 +6,7 @@
 // ============================================================================
 
 /** Cờ chỉ để biết (không phải lỗi): quản lý ghi hộ + các cờ ghi chú của trạm quét / phân công đầu ca */
-export const CO_CHI_DE_BIET: readonly string[] = ['quan_ly_ghi_ho', 'tram', 'nhan_du', 'xong_het', 'khai_ho', 'phan_cong', 'bao_xong'];
+export const CO_CHI_DE_BIET: readonly string[] = ['quan_ly_ghi_ho', 'tram', 'nhan_du', 'xong_het', 'khai_ho', 'phan_cong'];
 const CHI_DE_BIET = new Set(CO_CHI_DE_BIET);
 
 /** Danh sách Cần xem lấy thao tác trong bấy nhiêu ngày */

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Play, Pause, Circle, Inbox, PackageCheck, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { xuongSetupApi, taiAnhXuong, type ChiTietHex, type CongDoanHex, type ThoiGianXuong } from '../../services/xuongSetupApi';
-import { hhmm, gioVN, moTaSuKien } from '../../services/xuongModel';
+import { hhmm, gioVN, moTaSuKien, tenCo } from '../../services/xuongModel';
 import { khung, table, thead, thC, tdB, tdSo, trong0 } from '../shared/bangBaoCao';
 import { fmtQty } from '../../utils/format';
 
@@ -32,6 +32,9 @@ export function khoangThoiGian(ms: number): string {
   return `${p} phút`;
 }
 const so = (n: number) => fmtQty(n);
+/** Cờ chỉ để biết (quản lý ghi hộ, trạm quét, phân công…): hiện chữ xám, không phải cảnh báo — khớp CO_CHI_DE_BIET ở
+ *  backend/src/server/xuong/canXem.ts (không tính vào Cần xem) */
+const CO_CHI_DE_BIET = new Set(['quan_ly_ghi_ho', 'tram', 'nhan_du', 'xong_het', 'khai_ho', 'phan_cong']);
 /** Giờ: 1 chữ số lẻ (như báo cáo) */
 const so1 = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 1 });
 const ngayGio = (ms: number) => `${hhmm(ms)} ${gioVN(ms).ngay.split('-').reverse().join('/')}`;
@@ -107,9 +110,17 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
   // Xếp theo tuyến của hạng mục (thứ tự hàng đi), ngoài tuyến / MRA theo thứ tự công đoạn trong danh mục
   const ds = [...d.congDoan].sort((a, b) => (a.xuong ?? '').localeCompare(b.xuong ?? '')
     || (a.viTriTuyen ?? 999) - (b.viTriTuyen ?? 999) || (a.thuTu ?? 0) - (b.thuTu ?? 0) || (a.ten ?? '').localeCompare(b.ten ?? ''));
-  const co = (c: CongDoanHex) => c.co.length > 0 && (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700"><AlertTriangle size="1em" aria-hidden /> {c.co.join(', ')}</span>
-  );
+  const co = (c: CongDoanHex) => {
+    const canh = c.co.filter(x => !CO_CHI_DE_BIET.has(x));
+    const biet = c.co.filter(x => CO_CHI_DE_BIET.has(x));
+    if (!c.co.length) return null;
+    return (
+      <span className="inline-flex flex-wrap items-center gap-x-2 text-xs">
+        {canh.length > 0 && <span className="inline-flex items-center gap-1 font-medium text-red-700"><AlertTriangle size="1em" aria-hidden /> {canh.map(tenCo).join(' · ')}</span>}
+        {biet.length > 0 && <span className="text-slate-500">{biet.map(tenCo).join(' · ')}</span>}
+      </span>
+    );
+  };
   const coMra = ds.some(c => c.nguon === 'mra');
   const nhanMra = (c: CongDoanHex) => c.nguon === 'mra' && (
     <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">Lịch sử MRA</span>

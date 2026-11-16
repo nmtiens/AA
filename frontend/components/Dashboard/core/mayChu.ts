@@ -13,6 +13,8 @@ export { canonicalizeProjectNames, canonicalizePersonNames, setServerProjectAlia
 export { taoBanGhi, nenBanGhi } from '../../Construction/core/banGhiCongTrinh';
 export { canonicalizeWorkshops, applyWorkshopMapping } from '../../../utils/workshopGroupsCore';
 export { ghepDongFile, coSoFile } from '../../Construction/core/ghepFileCongTrinh';
+// Phủ vị trí công đoạn MRA lên bop / so_ngay_cd_hien_tai (xem core/viTriMra.ts)
+export { phuViTriMra, nhanTheoMa, soNgayTuMoc, demNguonBop, NHAN_DU_PHONG, type BanDoMra, type ViTriMra } from './viTriMra';
 
 /** Cột như trình duyệt dựng từ dữ liệu tải về (khoá = tên trường; lõi chỉ tìm cột theo khoá) */
 export const cotTuDuLieu = (rows: DataRow[]): ColumnDefinition[] => {

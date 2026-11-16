@@ -36,8 +36,12 @@ export function ghepDongFile(app: readonly DataRow[], columns: ColumnDefinition[
     const goc = theoHex.get(hex);
     if (!doi) return goc ?? { [hexKey]: hex };
     const dong: DataRow = goc ? { ...goc } : { [hexKey]: hex };
+    // Dòng đã phủ vị trí MRA (nguon_bop = 'MRA', core/viTriMra.ts — phủ TRƯỚC khi ghép file): BOP file là BOP kiểm tay PC
+    // => ghi vào bop_pc, giữ bop = công đoạn MRA (khớp nhãn MRA, mra_cd, số ngày ở công đoạn)
+    const laMra = goc?.nguon_bop === 'MRA';
     for (const [k, v] of Object.entries(doi)) {
-      if (k === 'xuong_chinh') dong[k] = v == null || v === '' ? v as null : workshopGroupOf(v);
+      if (k === 'bop' && laMra) dong.bop_pc = v as DataRow[string];
+      else if (k === 'xuong_chinh') dong[k] = v == null || v === '' ? v as null : workshopGroupOf(v);
       else if (k === 'ten_cong_trinh') { dong[k] = v == null ? null : canonicalProjectName(v); doiTen = true; }
       else {
         if (k === 'ma_cong_trinh') doiTen = true;

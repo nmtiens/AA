@@ -137,6 +137,26 @@ describe('guiHangDoi', () => {
     const kq = await q.guiHangDoi((async () => traLoi(200, { success: true, available: false })) as unknown as typeof fetch);
     expect(kq.conLai).toBe(1);
   });
+
+  it('403 gắn với người: người 7 bị dừng, người 9 đăng nhập cùng tab vẫn gọi máy chủ', async () => {
+    let nguoi: number | null = 7;
+    const h = q.taoHangDoi({ dbName: 'xuong_test_403', duongDan: '/api/xuong/events', khoaThietBi: 'xuong_device_token',
+      auth: () => ({ Authorization: 'Bearer tok' }), nguoiGui: () => nguoi });
+    await h.themSuKien({ loai: 'bat_dau', hex: '250301895', congDoanId: 'CD1', toId: 1 }, 7);
+    const f403 = vi.fn(async () => traLoi(403, { success: false }));
+    expect((await h.guiHangDoi(f403 as unknown as typeof fetch)).loi).toBe('mat_quyen');
+    expect((await h.guiHangDoi(f403 as unknown as typeof fetch)).loi).toBe('mat_quyen');
+    expect(f403).toHaveBeenCalledTimes(1);
+    nguoi = 9;
+    await h.themSuKien({ loai: 'bat_dau', hex: '250301895', congDoanId: 'CD1', toId: 1 }, 9);
+    const f = vi.fn(async (_u: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init!.body));
+      return traLoi(200, { success: true, saved: body.events.map((e: { id: string }) => e.id), rejected: [] });
+    });
+    const kq = await h.guiHangDoi(f as unknown as typeof fetch);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(kq).toMatchObject({ daGui: 1, loi: null });
+  });
 });
 
 describe('ảnh tiến độ (D24 Postgres, R11)', () => {
@@ -214,5 +234,22 @@ describe('tiện ích', () => {
   it('xinLuuBen: trình duyệt không hỗ trợ → null', async () => {
     vi.stubGlobal('navigator', {});
     expect(await q.xinLuuBen()).toBeNull();
+  });
+});
+
+describe('donXuongKhiDoiNguoi — đổi người trên máy', () => {
+  it('đăng xuất rồi cùng người đăng nhập lại: giữ tổ đang chọn; người khác: bỏ', async () => {
+    const c = await import('./xuongClock');
+    localStorage.setItem(c.XUONG_PHIEN_KEY, JSON.stringify({ user: { id: 7 } }));
+    localStorage.setItem(c.XUONG_TO_KEY, '3');
+    c.nhoNguoiCuoiXuong();
+    localStorage.removeItem('xuong_token'); localStorage.removeItem(c.XUONG_PHIEN_KEY);
+    expect(c.donXuongKhiDoiNguoi(7)).toBe(false);
+    expect(localStorage.getItem(c.XUONG_TO_KEY)).toBe('3');
+    localStorage.setItem(c.XUONG_PHIEN_KEY, JSON.stringify({ user: { id: 7 } }));
+    c.nhoNguoiCuoiXuong();
+    localStorage.removeItem(c.XUONG_PHIEN_KEY);
+    expect(c.donXuongKhiDoiNguoi(9)).toBe(true);
+    expect(localStorage.getItem(c.XUONG_TO_KEY)).toBeNull();
   });
 });

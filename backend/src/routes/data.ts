@@ -16,6 +16,8 @@ import { dungGoi } from '../server/goiBang.js';
 import { kichLamNong } from '../server/lamNong.js';
 import { giuHamSong } from '../server/sharedCache.js';
 import { khoaFileNho } from './congTrinh.js';
+import { layBanDoViTri } from '../server/xuong/viTriBop.js';
+import { phuViTriMra, cotTuDuLieu, nhanTheoMa } from '@tong-quan/core';
 
 // ============================================================================
 // /api/all-data: ~150 MB JSON (12 bảng). Trước đây mỗi request đều JSON.stringify + gzip lại toàn bộ
@@ -312,6 +314,32 @@ const HEX_DETAIL_COLUMNS = [
   'updated_at',
 ];
 
+// Nhãn BOP theo mã do routes/tongQuan.ts tính (nhanDangCo) — đăng ký ngược vào đây để không import vòng
+type NhanBop = ReturnType<typeof nhanTheoMa>;
+let nhanBopHienCo: () => NhanBop | undefined = () => undefined;
+export const dangKyNhanBop = (f: () => NhanBop | undefined) => { nhanBopHienCo = f; };
+
+// Instance chưa tính Tổng quan (nhanBopHienCo() = undefined): lấy chuỗi bop phổ biến nhất mỗi công đoạn bằng 1 lệnh
+// GROUP BY (sắp theo số dòng giảm dần => nhanTheoMa chọn chuỗi đứng đầu), nhớ 1 giờ. Không có lệnh này thì phủ 1 dòng
+// rơi về NHAN_DU_PHONG, chuỗi khác bảng / phễu. Lỗi => undefined (dùng bảng dự phòng).
+let nhanHex: { luc: number; nhan: NhanBop } | null = null;
+const NHAN_HEX_MS = 3_600_000;
+async function nhanBopChoHex(): Promise<NhanBop | undefined> {
+  const co = nhanBopHienCo();
+  if (co) return co;
+  if (nhanHex && Date.now() - nhanHex.luc < NHAN_HEX_MS) return nhanHex.nhan;
+  try {
+    const r = await timedQuery(
+      `SELECT bop, count(*)::int AS n FROM production_status_app WHERE bop IS NOT NULL AND btrim(bop) <> '' GROUP BY bop ORDER BY n DESC`,
+      [], { timeoutMs: 8000 });
+    nhanHex = { luc: Date.now(), nhan: nhanTheoMa(r.rows, 'bop') };
+    return nhanHex.nhan;
+  } catch (e) {
+    console.warn('[production/hex] không lấy được nhãn BOP, dùng nhãn dự phòng', e);
+    return undefined;
+  }
+}
+
 app.get('/api/production/hex/:hex', async (req: Request, res: Response) => {
   try {
     const hex = String(req.params.hex || '').trim();
@@ -323,7 +351,13 @@ app.get('/api/production/hex/:hex', async (req: Request, res: Response) => {
       { timeoutMs: 15000 }
     );
     if (!r.rows[0]) return res.status(404).json({ error: 'Not found' });
-    res.json(r.rows[0]);
+    let row: Record<string, unknown> = r.rows[0];
+    // Phủ vị trí MRA như Tổng quan (bop / so_ngay_cd_hien_tai, giữ bop_pc / so_ngay_pc); MRA lỗi => theo PC
+    const ban = await layBanDoViTri().catch(() => null);
+    if (ban && ban.ver !== 'off' && ban.map[String(row.hex ?? '').trim()]) {
+      row = phuViTriMra([row], cotTuDuLieu([row]), ban, Date.now(), await nhanBopChoHex()).rows[0];
+    }
+    res.json(row);
   } catch (error) {
     console.error('Lỗi /api/production/hex:', error);
     res.status(500).json({ error: 'Internal Server Error' });

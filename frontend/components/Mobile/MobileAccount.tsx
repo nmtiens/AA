@@ -5,16 +5,18 @@ import {
 } from '../../services/notificationService';
 import { useAuth } from '../../context/AuthContext';
 import { pushSupported, isPushOn, enablePush, disablePush } from '../../services/vuongMacMobileApi';
-import { BG, CARD, InstallBanner, initials } from './mobileUi';
+import { BG, CARD, InstallBanner, initials, BottomSheet, btnPrimary, btnSecondary } from './mobileUi';
 import NotifyDiagnostics from './NotifyDiagnostics';
 import { docBoCuc, luuBoCuc, type BoCuc } from './xuong/cheDoDienThoai';
+import { tinhTrangHangDoi, guiLaiNgay } from '../../services/xuongQueue';
+import { moTaSuKien } from '../../services/xuongModel';
 
 // ============================================================================
 // Màn "Tài khoản": thông tin người dùng, cỡ chữ, thông báo nhắc hạn BOT, cài app,
 // mở bản máy tính, đăng xuất.
 // ============================================================================
 
-export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLoggedOut, flash, appXuong = false }: {
+export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLoggedOut, flash, appXuong = false, tenDuPhong }: {
   sizeIdx: number;
   sizeLabels: string[];
   onSizeChange: (i: number) => void;
@@ -22,6 +24,8 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
   flash: (msg: string) => void;
   /** Dùng trong app Xưởng (/xuong): chỉ loại thông báo Xưởng, mời cài app Xưởng (2 app riêng, không dẫn qua lại) */
   appXuong?: boolean;
+  /** Phiên app đã hết nhưng còn phiên Xưởng: tên / tài khoản lấy từ phiên Xưởng */
+  tenDuPhong?: { ten: string; username: string };
 }) {
   const { user, logout } = useAuth();
   const [pushOn, setPushOn] = useState(false);
@@ -62,13 +66,52 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
     }
   };
 
-  const doLogout = () => {
+  const dangXuat = () => { setHoiDangXuat(null); logout(); onLoggedOut(); };
+
+  // App Xưởng: còn thao tác chưa gửi của mình thì hỏi trước (gửi ngay / vẫn đăng xuất, giữ lại chờ gửi / huỷ)
+  // tuChoi: thao tác máy chủ không ghi được sau lần Gửi ngay — hiện để người làm ghi lại, chưa tự đăng xuất
+  const [hoiDangXuat, setHoiDangXuat] = useState<{
+    so: number; dangGui: boolean; loi: string; tuChoi?: Array<{ id: string; reason: string; hex: string | null; moTa: string }>;
+  } | null>(null);
+  const doLogout = async () => {
+    if (appXuong) {
+      let so = 0;
+      try { so = (await tinhTrangHangDoi()).soCho; } catch { /* không đọc được hàng đợi: hỏi như thường */ }
+      if (so > 0) { setHoiDangXuat({ so, dangGui: false, loi: '' }); return; }
+    }
     if (!window.confirm('Đăng xuất khỏi ứng dụng?')) return;
-    logout();
-    onLoggedOut();
+    dangXuat();
+  };
+  const guiRoiDangXuat = async () => {
+    setHoiDangXuat(h => h && { ...h, dangGui: true, loi: '' });
+    try {
+      const kq = await guiLaiNgay();
+      if (kq.conLai === 0 && kq.tuChoi.length) {
+        // Hàng đợi đã bỏ các thao tác này: liệt kê để ghi lại, đăng xuất khi người dùng đã xem
+        setHoiDangXuat({
+          so: 0, dangGui: false, loi: '',
+          tuChoi: kq.tuChoi.map(x => ({
+            id: x.id, reason: x.reason, hex: x.suKien?.hex ?? null,
+            moTa: x.suKien ? moTaSuKien({ loai: x.suKien.loai, soLuong: x.suKien.soLuong }) : '',
+          })),
+        });
+        return;
+      }
+      if (kq.conLai === 0) {
+        flash('Đã gửi hết thao tác');
+        dangXuat();
+        return;
+      }
+      const loi = kq.loi === 'mat_quyen' ? 'Tài khoản chưa được cấp quyền Xưởng — báo quản lý.'
+        : kq.loi === 'dang_nhap_lai' ? 'Phiên đăng nhập đã hết — chưa gửi được.'
+        : 'Chưa gửi được (mất sóng hoặc máy chủ bận).';
+      setHoiDangXuat({ so: kq.conLai, dangGui: false, loi });
+    } catch {
+      setHoiDangXuat(h => h && { ...h, dangGui: false, loi: 'Chưa gửi được.' });
+    }
   };
 
-  const name = user?.fullName || user?.username || '';
+  const name = user?.fullName || user?.username || tenDuPhong?.ten || '';
 
   return (
     <div className={`min-h-[100dvh] ${BG} space-y-4 px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-[calc(env(safe-area-inset-top)+16px)]`}>
@@ -82,7 +125,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
         <div className="min-w-0">
           <p className="truncate text-lg font-semibold text-slate-900">{name || '—'}</p>
           <p className="truncate text-base text-slate-500">
-            {user?.username}{user?.department ? ` · ${user.department}` : ''}{user?.role === 'ADMIN' ? ' · Quản trị' : ''}
+            {user?.username ?? tenDuPhong?.username}{user?.department ? ` · ${user.department}` : ''}{user?.role === 'ADMIN' ? ' · Quản trị' : ''}
           </p>
         </div>
       </section>
@@ -177,6 +220,44 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
           <LogOut size="1.125em" /> Đăng xuất
         </button>
       </section>
+
+      {hoiDangXuat?.tuChoi && (
+        <BottomSheet title="Có thao tác không ghi được" onClose={dangXuat}
+          footer={<button className={btnPrimary} onClick={dangXuat}>Đã xem — đăng xuất</button>}>
+          <p className="text-base text-slate-800">Đã gửi xong, nhưng máy chủ không ghi <b>{hoiDangXuat.tuChoi.length}</b> thao tác dưới đây. Ghi lại các việc này sau khi đăng nhập.</p>
+          <ul className="mt-2 space-y-2">
+            {hoiDangXuat.tuChoi.map(x => (
+              <li key={x.id} className="rounded-xl bg-red-50 p-3 text-base text-red-700">
+                {x.hex ? `${x.hex}` : 'Thao tác'}{x.moTa ? ` (${x.moTa})` : ''}: {x.reason}
+              </li>
+            ))}
+          </ul>
+        </BottomSheet>
+      )}
+      {hoiDangXuat && !hoiDangXuat.tuChoi && (
+        <BottomSheet title="Còn thao tác chưa gửi" onClose={() => setHoiDangXuat(null)}
+          footer={(
+            <div className="space-y-2">
+              <button className={btnPrimary} disabled={hoiDangXuat.dangGui} onClick={guiRoiDangXuat}>
+                {hoiDangXuat.dangGui ? 'Đang gửi…' : 'Gửi ngay'}
+              </button>
+              <button className={`${btnSecondary} w-full`} disabled={hoiDangXuat.dangGui} onClick={dangXuat}>
+                Vẫn đăng xuất — giữ lại chờ gửi
+              </button>
+              <button className={`${btnSecondary} w-full`} disabled={hoiDangXuat.dangGui} onClick={() => setHoiDangXuat(null)}>
+                Huỷ
+              </button>
+            </div>
+          )}>
+          <p className="text-base text-slate-800">
+            Máy còn <b>{hoiDangXuat.so}</b> thao tác của bạn chưa gửi lên máy chủ.
+          </p>
+          <p className="mt-2 text-sm text-slate-600">
+            Nếu vẫn đăng xuất, thao tác được giữ trên máy và chỉ gửi khi bạn đăng nhập lại trên máy này.
+          </p>
+          {hoiDangXuat.loi && <p className="mt-2 text-base text-red-600" role="alert">{hoiDangXuat.loi}</p>}
+        </BottomSheet>
+      )}
     </div>
   );
 }

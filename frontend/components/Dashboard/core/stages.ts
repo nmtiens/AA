@@ -26,11 +26,16 @@ export const TOTAL_STAGE = 'TOTAL';
 //   P002                                         -> Chưa tính phiếu
 //   GCVT, P012 -> P021                           -> Đang trên chuyền
 //   còn lại (P022 / P025 nhưng nhập kho chưa đủ) -> Nhập kho chưa đủ
+// laMra: dòng đã phủ vị trí MRA (nguon_bop = 'MRA', core/viTriMra.ts) — hạng mục ĐÃ triển khai ở xưởng, nên bỏ
+// tình trạng PC "15. CHƯA TRIỂN KHAI" và chỉ xét công đoạn, để khớp phễu (tinhPivotFunnel chỉ đếm theo bop).
 export type RemainBucket = 'notDeployed' | 'p002' | 'onLine' | 'shortfall';
 const ON_LINE_STAGE_SET = new Set<string>(ON_LINE_STAGES);
 
-export function remainBucketOf(statusUpper: string, stage: string | null): RemainBucket {
-  if (statusUpper.includes('15. CHƯA TRIỂN KHAI') || stage === 'P001') return 'notDeployed';
+/** Dòng sản xuất đã phủ vị trí MRA (core/viTriMra.ts) */
+export const laDongMra = (row: { nguon_bop?: unknown } | null | undefined): boolean => row?.nguon_bop === 'MRA';
+
+export function remainBucketOf(statusUpper: string, stage: string | null, laMra = false): RemainBucket {
+  if ((!laMra && statusUpper.includes('15. CHƯA TRIỂN KHAI')) || stage === 'P001') return 'notDeployed';
   if (stage === P002_STAGE) return 'p002';
   if (stage && ON_LINE_STAGE_SET.has(stage)) return 'onLine';
   return 'shortfall';

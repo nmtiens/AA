@@ -9,10 +9,10 @@ import { dangKyThietBi, xoaTokenXuong, xuongApi, type ToCuaToi, type DanhMucXuon
 import {
   themSuKien, guiHangDoi, tinhTrangHangDoi, danhSachCho, xinLuuBen, themAnh, LoiLuuMay, LoiQuaNhieuAnh, type SuKienNhap, type SuKienCho,
 } from '../../../services/xuongQueue';
-import { doLech } from '../../../services/xuongClock';
+import { doLech, docLanDoLech } from '../../../services/xuongClock';
 import {
   apDung, caCanChot, caHienTai, chiaDeu, denGioXacNhan, gioVN, hhmm, hienSl, khoa, khoaDong, nhomDangLam, soNguoiRanh,
-  apDungDiemDanh, coMatLuc, daDiemDanh, mocTrongNgay,
+  apDungDiemDanh, coMatLuc, daDiemDanh, mocTrongNgay, ngoaiGioCa, caTangCaGanNhat, ngayCa,
   TEN_CA, tenLyDo, moTaSuKien, type CongViec, type DongViec, type LoaiCa, type MaLyDo,
 } from '../../../services/xuongModel';
 import XuongDong, { type TrangThaiGui } from './XuongDong';
@@ -23,7 +23,7 @@ import { PhanCongSheet, TiepTucSheet } from './PhanCong';
 import type { CongNhanTo } from '../../../services/xuongModel';
 import {
   QuanSoSheet, BatDauSheet, TamNgungSheet, TienDoSheet, GiaoSheet, NhanSheet, TangCaSheet, XacNhanSheet, ChiaNguoiSheet, LichSuSheet, GoMaSheet,
-  ChonToSheet, ThanhViec, type NhanKetQua, type XacNhanDong, type AnhChup,
+  ChonToSheet, ThanhViec, NgoaiCaSheet, type NhanKetQua, type XacNhanDong, type AnhChup,
 } from './XuongSheets';
 import { NUT_CHINH, NUT_DONG, NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 import { LogoAA } from '../../LogoAA';
@@ -35,6 +35,8 @@ import { LogoAA } from '../../LogoAA';
 // ============================================================================
 
 type Tab = 'choNhan' | 'dangLam' | 'choGiao';
+/** Bắt đầu / Tiếp tục chờ làm tiếp sau khi khai tăng ca */
+type ChayLai = { r: DongViec; loai: 'bat_dau' | 'tiep_tuc' };
 type Sheet =
   | { loai: 'quanSo'; ca: LoaiCa; sau?: { nhan: string; chay: (quanSoMoi?: number) => void } }
   | { loai: 'tamNgung'; r: DongViec }
@@ -42,7 +44,8 @@ type Sheet =
   | { loai: 'giao'; r: DongViec; cheDo: 'xong' | 'giao' }
   | { loai: 'nhan'; hex: string; ten: string | null }
   | { loai: 'hex'; hex: string }
-  | { loai: 'tangCa' } | { loai: 'xacNhan' } | { loai: 'chiaNguoi' } | { loai: 'lichSu' }
+  | { loai: 'tangCa'; ca?: LoaiCa | null; sau?: ChayLai } | { loai: 'xacNhan' } | { loai: 'chiaNguoi' } | { loai: 'lichSu' }
+  | { loai: 'ngoaiCa'; chay: () => void; khoa: string; sau: ChayLai }
   | { loai: 'goMa' } | { loai: 'quet' } | { loai: 'chonTo' }
   | { loai: 'trienKhai'; hex: string | null }
   | { loai: 'batDau'; r: DongViec; suKien: 'bat_dau' | 'tiep_tuc'; quanSo: number | null }
@@ -56,13 +59,14 @@ const KHOA_DM = 'xuong_danh_muc';
 const docLS = <T,>(k: string): T | null => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) as T : null; } catch { return null; } };
 const ghiLS = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* bỏ qua */ } };
 
-interface Phien { user: { id: number; fullName: string | null; username: string }; to: ToCuaToi[] }
+/** quanLy: cờ quản lý xưởng máy chủ trả lúc đăng ký máy — giữ menu quản lý khi phiên đăng nhập app đã hết (chỉ còn token Xưởng) */
+interface Phien { user: { id: number; fullName: string | null; username: string }; to: ToCuaToi[]; quanLy?: boolean }
 
 /** Tổ quản lý chọn ở Tổng quan để xem / thao tác hộ (D25); `lan` đổi mỗi lần chọn để chọn lại cùng tổ vẫn mở */
 export interface ToMo { id: number; ten: string; xuong: string; lan: number }
 
-/** Nút phụ trên dòng hạng mục: hẹp, chữ được xuống 2 dòng ("Tạm / ngưng") để nút chính đủ 1 dòng */
-const NUT_PHU_DOC = 'flex min-h-14 w-[4.75rem] shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white px-1 text-center text-base font-medium leading-tight text-slate-800 active:bg-slate-100';
+/** Nút phụ trên dòng hạng mục (tối đa 1 nút phụ): hẹp vừa chữ, chữ to thì rộng ra / xuống hàng (hàng nút flex-wrap) */
+const NUT_PHU_DOC = 'flex min-h-14 min-w-[4.75rem] shrink-0 basis-auto items-center justify-center rounded-2xl border border-slate-300 bg-white px-3 text-center text-base font-medium leading-tight text-slate-800 active:bg-slate-100';
 
 export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   moTo: ToMo | null;
@@ -74,14 +78,17 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   onSoTo?: (n: number) => void;
 }) {
   const { hasPermission, user } = useAuth();
-  // Quản lý / kế hoạch xưởng: triển khai gọn trên điện thoại (7A). Backend kiểm lại quyền theo xưởng.
-  const laQuanLy = hasPermission('xuong_quan_ly');
   const quetDeTrienKhai = useRef(false);
   // Quản lý xem / thao tác hộ một tổ không phải của mình (D25)
   const [toNgoai, setToNgoai] = useState<ToCuaToi | null>(null);
   const toNgoaiRef = useRef<ToCuaToi | null>(null);
   toNgoaiRef.current = toNgoai;
   const [phien, setPhien] = useState<Phien | null>(() => docLS<Phien>(KHOA_PHIEN));
+  const phienRef = useRef(phien);
+  phienRef.current = phien;
+  // Quản lý / kế hoạch xưởng: triển khai gọn trên điện thoại (7A). Backend kiểm lại quyền theo xưởng.
+  // Phiên app hết hạn (user = null, chỉ còn token Xưởng): lấy cờ quản lý lưu lúc đăng ký máy
+  const laQuanLy = hasPermission('xuong_quan_ly') || (!user && phien?.quanLy === true);
   const [dangKy, setDangKy] = useState<'dang' | 'ok' | 'loi'>('dang');
   const [loiDangKy, setLoiDangKy] = useState('');
   const [canDangNhap, setCanDangNhap] = useState(() => !getToken() && !localStorage.getItem('xuong_token'));
@@ -95,7 +102,9 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   const daChonTab = useRef<number | null>(null);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [online, setOnline] = useState(() => navigator.onLine);
-  const [hangDoi, setHangDoi] = useState({ soCho: 0, canhBao: false });
+  const [hangDoi, setHangDoi] = useState<{ soCho: number; canhBao: boolean; cuaNguoiKhac: Array<{ ten: string; so: number }> }>({ soCho: 0, canhBao: false, cuaNguoiKhac: [] });
+  // Lỗi lượt gửi gần nhất (hàng đợi): 'mat_mang' | 'qua_tai' | 'loi_server' | 'mat_quyen' — nhãn thanh gửi nói đúng tình trạng
+  const [loiGui, setLoiGui] = useState<string | null>(null);
   const [choGui, setChoGui] = useState<Set<string>>(new Set());
   const [vuaGui, setVuaGui] = useState<Set<string>>(new Set());
   const [tuChoi, setTuChoi] = useState<Array<{ id: string; reason: string; hex: string | null; moTa: string }>>([]);
@@ -117,7 +126,7 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
     setDangKy('dang');
     const kq = await dangKyThietBi();
     if (kq.ok && kq.user && kq.to) {
-      const p: Phien = { user: kq.user, to: kq.to };
+      const p: Phien = { user: kq.user, to: kq.to, quanLy: kq.quanLy === true };
       setPhien(p); ghiLS(KHOA_PHIEN, p);
       // Giữ tổ đang ghi hộ (quản lý chọn ở Tổng quan trước khi đăng ký máy xong — mạng chậm)
       setToId(id => (id && (kq.to!.some(t => t.id === id) || toNgoaiRef.current?.id === id) ? id : kq.to![0]?.id ?? null));
@@ -162,6 +171,9 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   const veToCuaToi = () => { setToNgoai(null); setToId(phien?.to[0]?.id ?? null); setHienRanh(false); };
 
   // ---------- Tải việc của tổ ----------
+  // onTongQuan đổi mỗi lần vẽ (hàm viết tại chỗ) — giữ qua ref để taiCv không đổi theo
+  const onTongQuanRef = useRef(onTongQuan);
+  onTongQuanRef.current = onTongQuan;
   const taiCv = useCallback(async () => {
     if (!toId) return;
     const r = await xuongApi.congViec(toId);
@@ -171,12 +183,20 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       ghiLS(KHOA_CV(toId), { cv: r.data, luc: Date.now() });
     } else if (r.status === 401) {
       xoaTokenXuong(); setCanDangNhap(true);
+    } else if (r.status === 403 && toNgoaiRef.current?.id === toId) {
+      // Tổ ngoài không còn quyền xem: về tổ của mình, không hiện bản lưu cũ của tổ đó; không có tổ riêng (quản lý) thì
+      // về Tổng quan — không để màn trống
+      const toCuaToi = phienRef.current?.to[0]?.id ?? null;
+      setCv(null); setCvLuc(null); setTaiLoi('');
+      setToNgoai(null); setToId(toCuaToi); setHienRanh(false);
+      flash(toCuaToi === null ? 'Không có quyền xem tổ này' : 'Không có quyền xem tổ này — về tổ của bạn');
+      if (toCuaToi === null) onTongQuanRef.current();
     } else {
       const cu = docLS<{ cv: CongViec; luc: number }>(KHOA_CV(toId));
       if (cu) { setCv(c => c ?? cu.cv); setCvLuc(l => l ?? cu.luc); }
       setTaiLoi(r.status === 0 ? '' : (r.message || 'Không tải được việc của tổ'));
     }
-  }, [toId]);
+  }, [toId, flash]);
 
   useEffect(() => {
     if (dangKy !== 'ok' || !toId) return;
@@ -199,7 +219,7 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   const capNhatHangDoi = useCallback(async () => {
     try {
       const [t, ds] = await Promise.all([tinhTrangHangDoi(), danhSachCho()]);
-      setHangDoi({ soCho: t.soCho, canhBao: t.canhBao });
+      setHangDoi({ soCho: t.soCho, canhBao: t.canhBao, cuaNguoiKhac: t.cuaNguoiKhac ?? [] });
       const keys = new Set(ds.filter(e => e.hex && e.congDoanId).map(e => khoa(e.hex!, e.congDoanId!)));
       const xong = [...choGuiTruoc.current].filter(k => !keys.has(k));
       if (xong.length) {
@@ -214,23 +234,36 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   const gui = useCallback(async () => {
     const kq = await guiHangDoi();
     if (kq.loi === 'dang_nhap_lai') { xoaTokenXuong(); setCanDangNhap(true); }
+    // Lỗi đã biết thì giữ để thanh gửi nói đúng; 'cho_lai' (đang chờ tới lượt thử) giữ lỗi cũ; gửi được / hết lỗi thì xoá
+    if (kq.loi && ['mat_mang', 'qua_tai', 'loi_server', 'mat_quyen'].includes(kq.loi) && !kq.daGui) setLoiGui(kq.loi);
+    else if (!kq.loi || kq.daGui > 0) setLoiGui(null);
+    if ((kq.anhBo ?? 0) > 0) flash(`${kq.anhBo} ảnh lỗi không gửi được — đã bỏ, thao tác vẫn ghi`);
     if (kq.tuChoi.length) {
       setTuChoi(a => [...a, ...kq.tuChoi.map(x => ({
         id: x.id, reason: x.reason, hex: x.suKien?.hex ?? null, moTa: x.suKien ? moTaSuKien({ loai: x.suKien.loai, soLuong: x.suKien.soLuong }) : '',
       }))]);
       navigator.vibrate?.([80, 60, 80]);
+      flash('Có thao tác không ghi được');
     }
     await capNhatHangDoi();
     if (kq.daGui > 0 || kq.tuChoi.length) taiCv();
-  }, [capNhatHangDoi, taiCv]);
+  }, [capNhatHangDoi, taiCv, flash]);
 
   useEffect(() => {
     if (dangKy !== 'ok') return;
     capNhatHangDoi(); gui();
-    const t = setInterval(() => { setNow(Date.now()); if (navigator.onLine) gui(); }, 20_000);
+    // Đo lại lệch giờ mỗi giờ (máy để lâu đồng hồ trôi) — giữ cờ chua_do_lech / doi_gio_may đúng
+    const t = setInterval(() => {
+      setNow(Date.now());
+      if (!navigator.onLine) return;
+      const lan = docLanDoLech();
+      if (lan === null || Date.now() - lan > 3_600_000) doLech();
+      gui();
+    }, 20_000);
     const len = () => { setOnline(true); doLech(); gui(); taiCv(); };
     const mat = () => setOnline(false);
-    const hien = () => { if (document.visibilityState === 'visible') { setNow(Date.now()); gui(); taiCv(); } };
+    // Trang hiện lại (mở lại app sau khi khoá máy / đổi giờ máy): đo lệch trước khi gửi
+    const hien = () => { if (document.visibilityState === 'visible') { setNow(Date.now()); doLech(); gui(); taiCv(); } };
     window.addEventListener('online', len); window.addEventListener('offline', mat);
     document.addEventListener('visibilitychange', hien);
     return () => {
@@ -295,11 +328,17 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   const guiCua = (r: DongViec): TrangThaiGui => (choGui.has(khoaDong(r)) ? 'cho' : vuaGui.has(khoaDong(r)) ? 'da_gui' : null);
   const toHienTai = phien?.to.find(t => t.id === toId) ?? (toNgoai && toNgoai.id === toId ? toNgoai : null);
   const laToNgoai = !!toHienTai && !phien?.to.some(t => t.id === toHienTai.id);
+  // Ngoài mọi cửa sổ ca (Chủ nhật / quá giờ hết ca chính) mà chưa khai tăng ca — không áp tổ trạm
+  const laNgoaiCa = !!cv && !laTram && ngoaiGioCa(cv, now);
+  const daHoiNgoaiCa = useRef('');
+  // Bắt đầu / Tiếp tục đang chờ: khai tăng ca từ hộp "Ngoài giờ ca" xong thì chạy lại (ở lượt vẽ sau, cv đã có ca tăng ca)
+  const [chayLai, setChayLai] = useState<ChayLai | null>(null);
 
   // Điểm danh BẮT BUỘC khi vào ca: ca chưa điểm danh (xưởng không điểm danh theo tên: chưa chốt quân số ca) thì mọi
   // thao tác ghi (nhận, bắt đầu / tiếp tục, xong, giao, tạm ngưng) mở Điểm danh trước, lưu xong tự làm tiếp thao tác vừa bấm
+  // Quản lý ghi hộ tổ khác: không ép điểm danh (vẫn có băng / nút để tự điểm danh hộ)
   const canQuanSo = (nhan: string, chay: (quanSoMoi?: number) => void) => {
-    if (caChot) setSheet(cv?.chamCong ? { loai: 'diemDanh', ca: caChot, sau: { nhan, chay } } : { loai: 'quanSo', ca: caChot, sau: { nhan, chay } });
+    if (caChot && !laToNgoai) setSheet(cv?.chamCong ? { loai: 'diemDanh', ca: caChot, sau: { nhan, chay } } : { loai: 'quanSo', ca: caChot, sau: { nhan, chay } });
     else chay();
   };
   /** Mở cửa sổ thao tác ghi — qua bước điểm danh ca trước (canQuanSo) */
@@ -350,10 +389,26 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
 
   // Mỗi lần chạy hạng mục (bắt đầu / tiếp tục) phải khai số người làm: chốt quân số ca trước (nếu chưa), rồi cửa sổ
   // khai số người — gợi ý số người đang rảnh (quân số − người các hạng mục khác đang chạy), tiếp tục thì số cũ.
-  const batDau = (r: DongViec, loai: 'bat_dau' | 'tiep_tuc') => canQuanSo(loai === 'bat_dau' ? 'bắt đầu' : 'tiếp tục', quanSoMoi => {
-    const q = quanSoMoi ?? quanSo;
-    setSheet({ loai: 'batDau', r, suKien: loai, quanSo: typeof q === 'number' ? q : null });
-  });
+  const batDau = (r: DongViec, loai: 'bat_dau' | 'tiep_tuc') => {
+    const tiep = () => canQuanSo(loai === 'bat_dau' ? 'bắt đầu' : 'tiếp tục', quanSoMoi => {
+      const q = quanSoMoi ?? quanSo;
+      setSheet({ loai: 'batDau', r, suKien: loai, quanSo: typeof q === 'number' ? q : null });
+    });
+    // Ngoài giờ ca chưa khai tăng ca: hỏi một lần / tổ / ngày ca (khai tăng ca hay vẫn ghi) — chỉ tính là đã hỏi khi
+    // người dùng đã chọn, đóng hộp thì lần sau hỏi lại
+    const k = `${toId}|${ngayCa(Date.now())}`;
+    if (laNgoaiCa && daHoiNgoaiCa.current !== k) {
+      setSheet({ loai: 'ngoaiCa', chay: tiep, khoa: k, sau: { r, loai } });
+      return;
+    }
+    tiep();
+  };
+  useEffect(() => {
+    if (!chayLai) return;
+    setChayLai(null);
+    batDau(chayLai.r, chayLai.loai);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chayLai]);
   const ghiBatDau = (r: DongViec, loai: 'bat_dau' | 'tiep_tuc', soNguoi: number, nguoi: string[] | null = null, them: CongNhanTo[] = []) => {
     setSheet(null);
     // Người đang ở hạng mục khác chuyển sang: bỏ khỏi hạng mục cũ (một người chỉ ở một hạng mục)
@@ -432,12 +487,14 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       .then(ok => { if (ok && !(cv?.choNhan ?? []).some(x => khoaDong(x) !== khoa(hex, p.congDoanId))) setTab('dangLam'); });
   };
 
-  const chiaNguoi = (m: Record<string, number>, ten: Record<string, string[]> | null = null) => {
+  const chiaNguoi = (m: Record<string, number>, ten: Record<string, string[]> | null = null, them: CongNhanTo[] = []) => {
     const phanBo = nhom.dangChay.map(r => ({
       hex: r.hex, congDoanId: r.congDoanId, soNguoi: m[khoaDong(r)] ?? 0, ...(ten ? { nguoi: ten[khoaDong(r)] ?? [] } : {}),
     }));
     ghi([{ loai: 'chia_nguoi', toId: toId!, duLieu: { phanBo } }], `Chia người cho ${phanBo.length} hạng mục`,
-      c => phanBo.reduce<CongViec>((acc, p) => apDung(acc, khoa(p.hex, p.congDoanId), x => ({ ...x, soNguoi: p.soNguoi, ...(ten ? { nguoi: p.nguoi ?? [] } : {}) })), c));
+      c => phanBo.reduce<CongViec>((acc, p) => apDung(acc, khoa(p.hex, p.congDoanId), x => ({ ...x, soNguoi: p.soNguoi, ...(ten ? { nguoi: p.nguoi ?? [] } : {}) })),
+        // Người tổ khác / người mới thêm lúc chia: thêm vào danh sách để hiện tên
+        { ...c, congNhan: [...(c.congNhan ?? []), ...them.filter(t => !(c.congNhan ?? []).some(x => x.mnv === t.mnv))] }));
     setHienRanh(false);
   };
 
@@ -457,11 +514,14 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   };
 
   const khaiTangCa = (p: { loaiCa: LoaiCa; soNguoi: number; boChon: string[]; nguoi: string[] | null }) => {
-    // Theo tên: người tăng ca có mặt từ đầu ca tăng ca (khai muộn thì từ lúc khai)
+    // Theo tên: lần khai đầu của ca thì người tăng ca có mặt từ đầu ca tăng ca (khai muộn không mất giờ công);
+    // các lần khai sau (thêm người) tính từ lúc bấm, nhưng không sớm hơn đầu ca
     const lich = cv?.lichCa.find(x => x.loaiCa === p.loaiCa);
-    const tu = lich && cv ? Math.max(mocTrongNgay(cv.ngay, lich.gioBatDau), Date.now()) : Date.now();
-    const vao = (p.nguoi ?? []).map(mnv => ({ mnv, luc: lich && cv && Date.now() < mocTrongNgay(cv.ngay, lich.gioBatDau) ? mocTrongNgay(cv.ngay, lich.gioBatDau) : tu }));
-    ghi([
+    const dauCa = lich && cv ? mocTrongNgay(cv.ngay, lich.gioBatDau) : null;
+    const lanDau = !(cv?.coMat?.[p.loaiCa]?.length);
+    const tu = dauCa === null ? Date.now() : lanDau ? dauCa : Math.max(dauCa, Date.now());
+    const vao = (p.nguoi ?? []).map(mnv => ({ mnv, luc: tu }));
+    return ghi([
       { loai: 'tang_ca', toId: toId!, soNguoi: p.soNguoi, duLieu: { loaiCa: p.loaiCa, boChon: p.boChon } },
       ...(vao.length ? [{ loai: 'vao_ca', toId: toId!, duLieu: { loaiCa: p.loaiCa, nguoi: vao } }] : []),
       { loai: 'quan_so', toId: toId!, soNguoi: p.soNguoi, duLieu: { loaiCa: p.loaiCa, soNguoi: p.soNguoi } },
@@ -493,8 +553,10 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
               duLieu: { mnv, tram: true, ghiLui: true } });
           }
         } else {
+          // Không sớm hơn lúc hạng mục bắt đầu chạy, không muộn hơn bây giờ
+          const luc = Math.min(Date.now(), Math.max(x.dungLuc, x.r.dangChayTu ? Date.parse(x.r.dangChayTu) : 0));
           evs.push({ loai: 'tam_ngung', hex: x.r.hex, congDoanId: x.r.congDoanId, toId: toId!, lyDoTamNgung: 'khac',
-            ghiChu: `Đã dừng lúc ${hhmm(x.dungLuc)} (xác nhận cuối ngày)`, lucXayRa: x.dungLuc, duLieu: { ghiLui: true } });
+            ghiChu: `Đã dừng lúc ${hhmm(luc)} (xác nhận cuối ngày)`, lucXayRa: luc, duLieu: { ghiLui: true } });
         }
       }
       const anhCho = anhCua.get(x);
@@ -574,7 +636,8 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
 
   // ---------- Màn chính ----------
   const soTab = { choNhan: cv?.choNhan.length ?? 0, dangLam: cv?.dangLam.length ?? 0, choGiao: cv?.choGiao.length ?? 0 };
-  const nhacXacNhan = !!cv && denGioXacNhan(now) && !cv.daXacNhanHomNay && nhom.dangChay.length > 0;
+  const denGioNhac = !!cv && denGioXacNhan(now, cv.lichCa, cv.tangCa);
+  const nhacXacNhan = !!cv && denGioNhac && !cv.daXacNhanHomNay && nhom.dangChay.length > 0;
   const dongHex = sheet?.loai === 'hex' && cv ? [...cv.choNhan, ...cv.dangLam, ...cv.choGiao].filter(r => r.hex === sheet.hex) : [];
 
   const nutDong = (r: DongViec, o: 'choNhan' | 'dangLam' | 'choGiao') => {
@@ -585,14 +648,14 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       return <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc }, 'nhận')}>Nhận {hienSl(td !== null ? Math.min(con, td) : con)}</button>;
     }
     if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'giao' }, 'giao')}>Giao {hienSl(r.slHoanThanh - r.slGiao)}</button>;
+    // Tối đa 2 nút / dòng; "Cập nhật tiến độ" ở cửa sổ hạng mục (chạm Quét / Gõ mã) và trong Tạm ngưng
     if (laTram) {
-      // Trạm: hàng chạy khi có người quét vào; tổ trưởng vẫn ghi Xong / Giao, tiến độ
+      // Trạm: hàng chạy khi có người quét vào; tổ trưởng vẫn ghi Xong / Giao
       if (r.trangThai === 'da_nhan') return <p className="flex min-h-14 flex-1 items-center text-base text-slate-600">Quét thẻ + phiếu ở trạm để bắt đầu</p>;
       // Tạm ngưng: Tiếp tục = chọn người vào lại hàng ngay trên app (chọn sẵn nhóm lần trước) — khỏi ra trạm quét
       if (r.trangThai === 'tam_ngung') return (<>
         <button className={NUT_DONG} onClick={() => setSheet({ loai: 'tiepTuc', r })}>Tiếp tục</button>
         <button className={NUT_PHU_DOC} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>Xong</button>
-        <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
       </>);
       return (<>
         <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>{r.cuoiTuyen ? 'Xong' : 'Xong — giao'}</button>
@@ -600,14 +663,11 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
         {r.trangThai === 'dang_lam' && (r.nguoi ?? []).length > 0 && (
           <button className={NUT_PHU_DOC} onClick={() => setSheet({ loai: 'tamNgung', r })}>Tạm ngưng</button>
         )}
-        <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
       </>);
     }
     if (r.trangThai === 'dang_lam') return (<>
       <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>{r.cuoiTuyen ? 'Xong' : 'Xong — giao'}</button>
-      {/* Nút phụ hẹp để "Xong — giao" đủ 1 dòng */}
       <button className={NUT_PHU_DOC} onClick={() => moThaoTac({ loai: 'tamNgung', r }, 'tạm ngưng')}>Tạm ngưng</button>
-      <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
     </>);
     // Xong thẳng từ tạm ngưng: Tiếp tục rồi mới Xong sẽ tạo đoạn chạy không có thật, lệch giờ công
     if (r.trangThai === 'tam_ngung') return (<>
@@ -640,11 +700,19 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
     );
   };
 
-  const thanhGui = !online
-    ? { ten: hangDoi.soCho ? `Mất sóng · ${hangDoi.soCho} thao tác chờ gửi` : 'Mất sóng', icon: <WifiOff size="1em" aria-hidden />, mau: hangDoi.canhBao ? MAU.loi : MAU.ngung }
-    : hangDoi.soCho
-      ? { ten: `Đang gửi ${hangDoi.soCho} thao tác`, icon: <Loader2 size="1em" className="animate-spin motion-reduce:animate-none" aria-hidden />, mau: hangDoi.canhBao ? MAU.loi : MAU.cho }
-      : { ten: 'Đã gửi hết', icon: <Check size="1em" aria-hidden />, mau: MAU.chay };
+  // Thanh gửi nói đúng tình trạng: mất sóng / máy chủ lỗi (tự thử lại) / mất quyền (cần quản lý) / đang gửi.
+  // canhBao = thao tác cũ nhất đã chờ quá 4 giờ
+  const soCho = hangDoi.soCho;
+  const canhBao = hangDoi.canhBao;
+  const thanhGui = !online || (soCho && loiGui === 'mat_mang')
+    ? { ten: soCho ? `Mất sóng · ${soCho} thao tác chờ gửi${canhBao ? ' — tìm chỗ có sóng' : ''}` : 'Mất sóng', icon: <WifiOff size="1em" aria-hidden />, mau: canhBao ? MAU.loi : MAU.ngung }
+    : !soCho
+      ? { ten: 'Đã gửi hết', icon: <Check size="1em" aria-hidden />, mau: MAU.chay }
+      : loiGui === 'mat_quyen'
+        ? { ten: `Tài khoản chưa được cấp quyền Xưởng — báo quản lý · ${soCho} thao tác đang giữ trên máy`, icon: <AlertTriangle size="1em" aria-hidden />, mau: MAU.loi }
+        : loiGui === 'loi_server' || loiGui === 'qua_tai'
+          ? { ten: `Chưa gửi được ${soCho} thao tác — máy giữ lại, tự thử lại${canhBao ? ' — báo quản lý' : ''}`, icon: <AlertTriangle size="1em" aria-hidden />, mau: canhBao ? MAU.loi : MAU.ngung }
+          : { ten: `Đang gửi ${soCho} thao tác`, icon: <Loader2 size="1em" className="animate-spin motion-reduce:animate-none" aria-hidden />, mau: canhBao ? MAU.loi : MAU.cho };
 
   return (
     <div className={`min-h-full ${BG}`} style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${10 + (hoanTac ? 5 : 0) + (hienRanh && canChia ? 5 : 0)}rem)` }}>
@@ -663,13 +731,17 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
               <h1 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'MRA'}</h1>
             )}
             <p className={`mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-0.5 text-base font-medium ${thanhGui.mau.nen} ${thanhGui.mau.chu}`} aria-live="polite">
-              {thanhGui.icon} {thanhGui.ten}{hangDoi.canhBao ? ' — quá 4 giờ, tìm chỗ có sóng' : ''}
+              {thanhGui.icon} {thanhGui.ten}
             </p>
+            {/* Thao tác của người khác bấm trên máy này: chỉ gửi khi người đó đăng nhập */}
+            {hangDoi.cuaNguoiKhac.map(x => (
+              <p key={x.ten} className={`mt-1 text-base ${MAU.ngung.chu}`}>Còn {x.so} thao tác của {x.ten} — chờ người đó đăng nhập</p>
+            ))}
             {/* Quản lý ghi hộ tổ khác: 1 dòng gọn (trước là băng riêng 2 nút, đẩy danh sách việc xuống thanh đáy) */}
             {laToNgoai && (
               <p className={`flex flex-wrap items-center gap-x-2 text-base ${MAU.ngung.chu}`}>
                 <span>Ghi hộ · xưởng {toHienTai?.xuong}</span>
-                {!!phien?.to.length && <button className="min-h-11 font-medium underline underline-offset-4" onClick={veToCuaToi}>Tổ của tôi</button>}
+                {!!phien?.to.length && <button className="inline-flex min-h-14 items-center font-medium underline underline-offset-4" onClick={veToCuaToi}>Tổ của tôi</button>}
               </p>
             )}
           </div>
@@ -743,6 +815,16 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
             </div>
           );
         })()}
+        {/* Ngoài giờ ca mà tổ còn hạng mục chạy: giờ công không được tính — khai tăng ca (không chặn Xong / Tạm ngưng / Giao) */}
+        {cv && laNgoaiCa && nhom.dangChay.length > 0 && (
+          <button className={`flex min-h-14 w-full items-center gap-2 rounded-2xl border px-3 py-2 text-left ${MAU.loi.vien} ${MAU.loi.nen} active:opacity-80`}
+            onClick={() => setSheet({ loai: 'tangCa', ca: caTangCaGanNhat(cv, now) })}>
+            <AlertTriangle size="1.1em" className={`shrink-0 ${MAU.loi.chu}`} aria-hidden />
+            <span className={`min-w-0 flex-1 text-base font-semibold ${MAU.loi.chu}`}>Ngoài giờ ca — chưa khai tăng ca, giờ công sẽ không được tính</span>
+            <span className={`flex shrink-0 items-center text-base font-medium underline underline-offset-4 ${MAU.loi.chu}`}>
+              Khai tăng ca<ChevronRight size="1.1em" aria-hidden /></span>
+          </button>
+        )}
         {nhacXacNhan && (
           <div className={`flex items-center justify-between gap-3 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3`}>
             <p className={`text-base font-semibold ${MAU.ngung.chu}`}>Xác nhận cuối ngày ({nhom.dangChay.length} hạng mục đang chạy)</p>
@@ -752,22 +834,24 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
 
         {cv && (
           <ThanhViec muc={[
+            // Thứ tự theo tần suất dùng; Lịch sử, Triển khai ở cuối.
+            // Tổ trạm: điểm danh tay (người quên thẻ / trạm chưa có — người đã điểm danh hiện ở trạm để người khai chọn
+            // làm chung) và phân công đầu ca (giữ như hôm qua — công nhân không phải quét phiếu) lên đầu
+            ...(laTram && ca ? [{ ten: 'Điểm danh', icon: 'diemDanh' as const, onClick: () => setSheet({ loai: 'diemDanh', ca }),
+              phu: daDiemDanh(cv, ca) ? `${coMatLuc(cv, ca, now).length} có mặt` : undefined }] : []),
+            ...(laTram ? [{ ten: 'Phân công', icon: 'phanCong' as const, onClick: () => setSheet({ loai: 'phanCong' }) }] : []),
             // Chia người: sửa số người / người từng hạng mục bất cứ lúc nào
-            ...(!laTram && typeof quanSo === 'number' && nhom.dangChay.length ? [{ ten: 'Chia người', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'chiaNguoi' }) }] : []),
+            ...(!laTram && typeof quanSo === 'number' && nhom.dangChay.length ? [{ ten: 'Chia người', icon: 'chia' as const, onClick: () => setSheet({ loai: 'chiaNguoi' }) }] : []),
             // Không điểm danh tên: nút chốt quân số (điểm danh tên đã có ô riêng ở trên)
             ...(ca && !cv.chamCong && !laTram ? [{ ten: `Quân số ${TEN_CA[ca].toLowerCase()}`, icon: 'quanso' as const, onClick: () => setSheet({ loai: 'quanSo', ca }),
               phu: typeof quanSo === 'number' ? `${quanSo} người` : 'chưa chốt', noi: typeof quanSo !== 'number' }] : []),
             { ten: 'Tăng ca', icon: 'tangca' as const, onClick: () => setSheet({ loai: 'tangCa' }), phu: cv.tangCa.length ? cv.tangCa.map(l => TEN_CA[l]).join(', ') : undefined },
-            { ten: 'Cuối ngày', icon: 'xacnhan' as const, onClick: () => setSheet({ loai: 'xacNhan' }), phu: cv.daXacNhanHomNay ? '✓' : undefined },
-            { ten: 'Lịch sử', icon: 'lichsu' as const, onClick: () => setSheet({ loai: 'lichSu' }) },
+            // Cuối ngày: chỉ khi có hạng mục đang chạy hoặc đã xác nhận (kèm ✓)
+            ...(nhom.dangChay.length || cv.daXacNhanHomNay
+              ? [{ ten: 'Cuối ngày', icon: 'xacnhan' as const, onClick: () => setSheet({ loai: 'xacNhan' }), phu: cv.daXacNhanHomNay ? '✓' : undefined }] : []),
             // Trạm quét (chạy thật hoặc tuần song song): xem / sửa lượt quét từng người
-            // Tổ trạm: phân công đầu ca (giữ như hôm qua) — công nhân không phải quét phiếu
-            // Tổ trạm: tổ trưởng vẫn điểm danh tay được (người quên thẻ / trạm chưa có) — người đã điểm danh hiện ở trạm để
-            // người khai chọn làm chung
-            ...(laTram && ca ? [{ ten: 'Điểm danh', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'diemDanh', ca }),
-              phu: daDiemDanh(cv, ca) ? `${coMatLuc(cv, ca, now).length} có mặt` : undefined }] : []),
-            ...(laTram ? [{ ten: 'Phân công', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'phanCong' }) }] : []),
-            ...(cv.cheDo && cv.cheDo !== 'cu' ? [{ ten: 'Sửa ngày', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'suaNgay' }) }] : []),
+            ...(cv.cheDo && cv.cheDo !== 'cu' ? [{ ten: 'Sửa lượt quét', icon: 'suaQuet' as const, onClick: () => setSheet({ loai: 'suaNgay' }) }] : []),
+            { ten: 'Lịch sử', icon: 'lichsu' as const, onClick: () => setSheet({ loai: 'lichSu' }) },
             ...(laQuanLy ? [{ ten: 'Triển khai', icon: 'trienkhai' as const, onClick: () => setSheet({ loai: 'trienKhai', hex: null }) }] : []),
           ]} />
         )}
@@ -778,11 +862,20 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
         <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-200/70 p-1" role="tablist">
           {([['choNhan', 'Chờ nhận'], ['dangLam', 'Đang làm'], ['choGiao', 'Chờ giao']] as [Tab, string][]).map(([t, ten]) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-              className={`min-h-12 rounded-xl px-1 text-base ${tab === t ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-700'}`}>
+              className={`min-h-14 rounded-xl px-1 text-base ${tab === t ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-700'}`}>
               {ten} <span className="tabular-nums">{soTab[t]}</span>
             </button>
           ))}
         </div>
+        {/* Thao tác bị máy chủ từ chối: băng đỏ dính, luôn thấy khi cuộn — chạm để lên đầu xem chi tiết */}
+        {tuChoi.length > 0 && (
+          <button className={`mt-2 flex min-h-14 w-full items-center gap-2 rounded-2xl border px-3 text-left text-base font-semibold ${MAU.loi.vien} ${MAU.loi.nen} ${MAU.loi.chu} active:opacity-80`}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <AlertTriangle size="1.1em" className="shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">{tuChoi.length} thao tác KHÔNG ghi được</span>
+            <span className="shrink-0 underline underline-offset-4">Xem</span>
+          </button>
+        )}
       </div>
 
       <main className="mx-auto max-w-3xl space-y-4 px-4">
@@ -865,6 +958,12 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
                 return <XuongDong key={khoaDong(r)} r={r} now={now} tenCongDoan={tenCd(r.congDoanId)} gui={guiCua(r)} congNhan={cv.congNhan}>{nutDong(r, o)}</XuongDong>;
               })}
             </ul>
+            {/* Cập nhật tiến độ % (QT3 / QT4) — chỉ ở đây và trong Tạm ngưng (dòng hạng mục tối đa 2 nút) */}
+            {dongHex.filter(r => r.trangThai === 'dang_lam' || r.trangThai === 'tam_ngung').map(r => (
+              <button key={khoaDong(r)} className={`${NUT_PHU} mt-3 w-full`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>
+                Cập nhật tiến độ{dongHex.length > 1 && tenCd(r.congDoanId) ? ` · ${tenCd(r.congDoanId)}` : ''}
+              </button>
+            ))}
             <div className="mt-3 flex gap-3">
               <button className={`${NUT_PHU} flex-1`} onClick={() => moThaoTac({ loai: 'nhan', hex: sheet.hex, ten: dongHex[0]?.tenHangMuc ?? null }, 'nhận')}>Nhận thêm vào tổ</button>
               <button className={`${NUT_PHU} flex-1`} onClick={() => setSheet(null)}>Đóng</button>
@@ -872,8 +971,20 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
           </div>
         </div>
       )}
-      {sheet?.loai === 'tangCa' && cv && <TangCaSheet cv={cv} dangChay={nhom.dangChay} onKhai={khaiTangCa} onClose={() => setSheet(null)} />}
-      {sheet?.loai === 'xacNhan' && cv && <XacNhanSheet cv={cv} dangChay={nhom.dangChay} anhBat={!!cv.anhBat} onXacNhan={xacNhan} onClose={() => setSheet(null)} />}
+      {sheet?.loai === 'tangCa' && cv && (
+        <TangCaSheet cv={cv} dangChay={nhom.dangChay} caBanDau={sheet.ca ?? null} onClose={() => setSheet(null)}
+          onKhai={async p => {
+            const sau = sheet.sau;
+            // Mở từ hộp "Ngoài giờ ca": khai xong làm tiếp Bắt đầu / Tiếp tục vừa bấm
+            if ((await khaiTangCa(p)) && sau) setChayLai(sau);
+          }} />
+      )}
+      {sheet?.loai === 'ngoaiCa' && cv && (
+        <NgoaiCaSheet
+          onKhai={() => { daHoiNgoaiCa.current = sheet.khoa; setSheet({ loai: 'tangCa', ca: caTangCaGanNhat(cv, now), sau: sheet.sau }); }}
+          onVanGhi={() => { daHoiNgoaiCa.current = sheet.khoa; sheet.chay(); }} onClose={() => setSheet(null)} />
+      )}
+      {sheet?.loai === 'xacNhan' && cv && <XacNhanSheet cv={cv} dangChay={nhom.dangChay} anhBat={!!cv.anhBat} chuaHetCa={!denGioNhac} onXacNhan={xacNhan} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'chiaNguoi' && <ChiaNguoiSheet dangChay={nhom.dangChay} quanSo={quanSo ?? 0} cv={cv} ca={ca} now={now} onLuu={chiaNguoi} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'phanCong' && toId && (
         <PhanCongSheet toId={toId} onGhi={async (evs, moTa) => !!(await ghi(evs, moTa))} onClose={() => setSheet(null)} />

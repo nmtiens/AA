@@ -78,7 +78,8 @@ app.get('/api/xuong/phan-tich', async (req: Request, res: Response) => {
         soHm: cs.length, slXong: lam(cs.reduce((a, c) => a + c.slXong, 0), 1),
         gioCaTv: lam(trungVi(coChay.map(c => c.gioCa)) ?? 0, 1), gioCaP75: lam(phanVi(coChay.map(c => c.gioCa), 0.75) ?? 0, 1),
         gioCa: lam(cs.reduce((a, c) => a + c.gioCa, 0), 0),
-        ngayChayTv: lam((trungVi(coChay.map(c => c.gioChay)) ?? 0) / 24, 1),
+        // Ngày lịch thường mất: từ thao tác đầu tới lần xong / giao cuối (cùng cách tính mốc dự báo — duBao.ts)
+        ngayChayTv: lam(trungVi(cs.filter(c => c.xongCuoi !== null && c.xongCuoi > c.dau).map(c => (c.xongCuoi! - c.dau) / NGAY)) ?? 0, 1),
         gioTrenDvTv: lam(trungVi(cs.filter(c => c.slXong > 0 && c.gioCa > 0).map(c => c.gioCa / c.slXong)) ?? 0, 3),
         soNgung: cs.reduce((a, c) => a + c.soNgung, 0), gioNgung: lam(cs.reduce((a, c) => a + c.gioNgung, 0), 1),
         hmNgung: cs.filter(c => c.soNgung > 0).length,

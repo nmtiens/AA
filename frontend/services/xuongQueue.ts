@@ -1,4 +1,4 @@
-import { lechLucBam, authXuong, XUONG_DEVICE_KEY } from './xuongClock';
+import { lechLucBam, authXuong, idNguoiDangDung, XUONG_DEVICE_KEY } from './xuongClock';
 
 // ============================================================================
 // HÀNG ĐỢI SỰ KIỆN MỤC XƯỞNG TRÊN MÁY (nguyên tắc 5, R3, R13, C3 — docs/designs/xuong-checkin.md)
@@ -7,6 +7,9 @@ import { lechLucBam, authXuong, XUONG_DEVICE_KEY } from './xuongClock';
 //   (đã lưu hoặc bị từ chối hẳn); phần còn lại giữ nguyên để gửi lại.
 // - 429 / lỗi server / mất mạng: chờ tăng dần có jitter (1 giây → tối đa 60 giây), không mất sự kiện.
 // - 401 (token hết hạn / bị thu hồi): dừng, GIỮ hàng đợi, báo cần đăng nhập lại.
+// - 403 (tài khoản chưa có quyền Xưởng): dừng, giữ hàng đợi, không tự thử lại tới khi mở lại app / bấm Gửi lại.
+// - Ảnh bị máy chủ từ chối (400 / 413): bỏ đúng ảnh đó, sự kiện vẫn gửi với ảnh còn lại.
+// - Hàng đợi app tổ chỉ gửi thao tác của người đang đăng nhập; của người khác giữ lại chờ người đó đăng nhập.
 // - Ghi IndexedDB lỗi (đầy bộ nhớ / bị chặn): ném LoiLuuMay — giao diện phải báo "chưa lưu được trên máy",
 //   không được giả vờ đã lưu.
 // ============================================================================
@@ -98,10 +101,46 @@ export interface KetQuaGui {
   /** Bị server từ chối hẳn — đã bỏ khỏi máy, giao diện cần báo cho người bấm */
   tuChoi: Array<{ id: string; reason: string; suKien?: SuKienCho }>;
   conLai: number;
-  /** 'mat_mang' | 'qua_tai' | 'dang_nhap_lai' | 'loi_server' | 'cho_lai' | null */
+  /** 'mat_mang' | 'qua_tai' | 'dang_nhap_lai' | 'loi_server' | 'mat_quyen' | 'cho_lai' | null */
   loi: string | null;
   /** ms tới lần thử kế tiếp (khi lỗi tạm thời) */
   thuLaiSau: number | null;
+  /** Số ảnh máy chủ từ chối (400 / 413) — đã bỏ khỏi máy, sự kiện vẫn gửi */
+  anhBo: number;
+}
+
+/** Tuỳ chọn một lượt gửi */
+export interface TuyChonGui {
+  /** Bấm "Gửi lại": bỏ qua thời gian chờ (choToi) và lần dừng vì mất quyền */
+  boQuaCho?: boolean;
+}
+
+/** Thao tác của người khác đang nằm trên máy (chưa gửi được dưới tên người đang đăng nhập) */
+export interface NhomNguoiKhac { userId: number | null; ten: string; so: number }
+
+const KHOA_TEN_NGUOI = 'xuong_ten_nguoi';
+const tenNguoi = (userId: number | null): string => {
+  if (userId === null) return 'người chưa rõ';
+  try {
+    const m = JSON.parse(localStorage.getItem(KHOA_TEN_NGUOI) || '{}') as Record<string, string>;
+    if (m[String(userId)]) return m[String(userId)];
+  } catch { /* bỏ qua */ }
+  return `tài khoản #${userId}`;
+};
+
+/**
+ * Tách hàng đợi: phần của người đang đăng nhập (gửi được) và phần của người khác theo từng người.
+ * nguoi = null (chưa rõ người — vd máy trạm): coi cả hàng là của mình.
+ */
+export function tachTheoNguoi(ds: SuKienCho[], nguoi: number | null): { cuaToi: SuKienCho[]; cuaNguoiKhac: NhomNguoiKhac[] } {
+  if (nguoi === null) return { cuaToi: ds, cuaNguoiKhac: [] };
+  const cuaToi: SuKienCho[] = [];
+  const dem = new Map<number | null, number>();
+  for (const e of ds) {
+    if (e.userId === nguoi) cuaToi.push(e);
+    else dem.set(e.userId ?? null, (dem.get(e.userId ?? null) ?? 0) + 1);
+  }
+  return { cuaToi, cuaNguoiKhac: [...dem].map(([userId, so]) => ({ userId, ten: tenNguoi(userId), so })) };
 }
 
 /** Cấu hình một hàng đợi: app tổ trưởng (mặc định) hoặc máy trạm quét (kho IndexedDB, API, token riêng) */
@@ -116,6 +155,8 @@ export interface CauHinhHangDoi {
   auth: () => Record<string, string>;
   /** Sau mỗi lô máy chủ nhận (vd lưu token trạm được gia hạn) */
   sauLo?: (body: Record<string, unknown>) => void;
+  /** Id người đang đăng nhập: có thì chỉ gửi sự kiện của người đó (app tổ). Không có: gửi cả hàng (máy trạm). */
+  nguoiGui?: () => number | null;
 }
 
 export function taoHangDoi(ch: CauHinhHangDoi) {
@@ -191,10 +232,11 @@ export function taoHangDoi(ch: CauHinhHangDoi) {
    * duLieu.anhCho bằng duLieu.anh = [id ảnh] (lưu lại sự kiện, xoá ảnh khỏi máy). Lỗi mạng: ném để lượt gửi dừng và
    * thử lại sau — sự kiện + ảnh vẫn giữ trên máy. Máy chủ chưa bật ảnh (chưa chạy SQL): bỏ ảnh, vẫn gửi sự kiện.
    */
-  async function taiAnhCuaLo(lo: SuKienCho[], fetchImpl: typeof fetch): Promise<void> {
+  async function taiAnhCuaLo(lo: SuKienCho[], fetchImpl: typeof fetch): Promise<number> {
     const can = lo.filter(e => Array.isArray(e.duLieu?.anhCho) && (e.duLieu!.anhCho as unknown[]).length);
-    if (!can.length) return;
+    if (!can.length) return 0;
     const db = await moDb();
+    let anhBo = 0;
     for (const ev of can) {
       const ids = (ev.duLieu!.anhCho as string[]);
       const khoa: string[] = [];
@@ -205,27 +247,42 @@ export function taoHangDoi(ch: CauHinhHangDoi) {
         const r = await fetchImpl(`/api/xuong/anh?id=${encodeURIComponent(a.id)}&hex=${encodeURIComponent(a.hex)}`, {
           method: 'POST', headers: { 'Content-Type': a.kieu, ...ch.auth() }, body: a.blob,
         });
-        if (r.status === 401) throw Object.assign(new Error('401'), { status: 401 });
-        if (!r.ok) throw new Error(`anh ${r.status}`);
+        if (r.status === 401 || r.status === 403) throw Object.assign(new Error(String(r.status)), { status: r.status });
+        // Ảnh hỏng / quá lớn: máy chủ không bao giờ nhận — xoá ảnh này khỏi máy ngay, gửi ảnh còn lại
+        if (r.status === 400 || r.status === 413) {
+          const tx = db.transaction(STORE_ANH, 'readwrite');
+          tx.objectStore(STORE_ANH).delete(id);
+          await xongTx(tx);
+          anhBo++;
+          continue;
+        }
+        if (!r.ok) throw Object.assign(new Error(`anh ${r.status}`), { status: r.status });
         const b = await r.json() as { bat?: boolean; khoa?: string };
         if (!b.bat || !b.khoa) { tat = true; break; }
         khoa.push(b.khoa);
       }
       const { anhCho: _bo, ...conLai } = ev.duLieu as Record<string, unknown>;
-      const moi: SuKienCho = { ...ev, duLieu: tat ? conLai : { ...conLai, anh: khoa } };
+      const moi: SuKienCho = { ...ev, duLieu: tat || !khoa.length ? conLai : { ...conLai, anh: khoa } };
       const tx = db.transaction([STORE, STORE_ANH], 'readwrite');
       tx.objectStore(STORE).put(moi);
       for (const id of ids) tx.objectStore(STORE_ANH).delete(id);
       await xongTx(tx);
       Object.assign(ev, moi);
     }
+    return anhBo;
   }
 
-  /** Số sự kiện chờ gửi và tuổi sự kiện cũ nhất (ms) — thanh trạng thái, cảnh báo đỏ khi quá 4 giờ */
-  async function tinhTrangHangDoi(now = Date.now()): Promise<{ soCho: number; tuoiCuNhatMs: number | null; canhBao: boolean }> {
-    const ds = await danhSachCho();
+  /** Người đang đăng nhập (máy trạm: null — gửi cả hàng) */
+  const nguoiHienTai = () => (ch.nguoiGui ? ch.nguoiGui() : null);
+
+  /**
+   * Số sự kiện chờ gửi của người đang đăng nhập và tuổi sự kiện cũ nhất (ms) — thanh trạng thái, cảnh báo đỏ khi
+   * quá 4 giờ. cuaNguoiKhac: thao tác của người khác còn trên máy (chờ người đó đăng nhập).
+   */
+  async function tinhTrangHangDoi(now = Date.now()): Promise<{ soCho: number; tuoiCuNhatMs: number | null; canhBao: boolean; cuaNguoiKhac: NhomNguoiKhac[] }> {
+    const { cuaToi: ds, cuaNguoiKhac } = tachTheoNguoi(await danhSachCho(), nguoiHienTai());
     const tuoi = ds.length ? now - ds[0].queuedAt : null;
-    return { soCho: ds.length, tuoiCuNhatMs: tuoi, canhBao: tuoi !== null && tuoi > CANH_BAO_SAU_MS };
+    return { soCho: ds.length, tuoiCuNhatMs: tuoi, canhBao: tuoi !== null && tuoi > CANH_BAO_SAU_MS, cuaNguoiKhac };
   }
 
   async function xoaIds(ids: string[]) {
@@ -239,34 +296,56 @@ export function taoHangDoi(ch: CauHinhHangDoi) {
 
   let lanThatBai = 0;
   let choToi = 0;
+  /** Người đã bị 403 (mất quyền): lượt gửi tự động của người đó không gọi máy chủ, chờ mở lại app hoặc bấm Gửi lại.
+   *  Gắn với người — người khác đăng nhập cùng tab vẫn gửi bình thường */
+  let matQuyen: { nguoi: number | null } | null = null;
+  /** Người của lượt gửi trước: đổi người thì bỏ thời gian chờ / số lần lỗi của người trước */
+  let nguoiTruoc: number | null | undefined;
   let dangGui: Promise<KetQuaGui> | null = null;
 
-  /** Gửi hàng đợi. Gọi lúc mở app, khi có mạng lại, sau mỗi lần bấm. Gọi chồng nhau thì dùng chung một lượt. */
-  function guiHangDoi(fetchImpl: typeof fetch = fetch, ngauNhien: () => number = Math.random): Promise<KetQuaGui> {
+  /**
+   * Gửi hàng đợi. Gọi lúc mở app, khi có mạng lại, sau mỗi lần bấm. Gọi chồng nhau thì dùng chung một lượt.
+   * tuyChon.boQuaCho (nút "Gửi lại"): gửi ngay, không chờ hết thời gian chờ / lần dừng vì mất quyền.
+   */
+  function guiHangDoi(fetchImpl: typeof fetch = fetch, ngauNhien: () => number = Math.random, tuyChon: TuyChonGui = {}): Promise<KetQuaGui> {
     if (dangGui) return dangGui;
     dangGui = (async (): Promise<KetQuaGui> => {
       const tuChoi: KetQuaGui['tuChoi'] = [];
       let daGui = 0;
+      let anhBo = 0;
+      const nguoi = nguoiHienTai();
+      // Chỉ thao tác của người đang đăng nhập; của người khác để nguyên trên máy (không gửi, không xoá)
+      const cuaToi = async () => tachTheoNguoi(await danhSachCho(), nguoi).cuaToi;
       const now = Date.now();
+      if (nguoiTruoc !== undefined && nguoi !== nguoiTruoc) { choToi = 0; lanThatBai = 0; matQuyen = null; }
+      nguoiTruoc = nguoi;
+      if (tuyChon.boQuaCho) { choToi = 0; matQuyen = null; }
+      if (matQuyen && matQuyen.nguoi === nguoi) return { daGui, tuChoi, conLai: (await cuaToi()).length, loi: 'mat_quyen', thuLaiSau: null, anhBo };
       if (now < choToi) {
-        return { daGui, tuChoi, conLai: (await danhSachCho()).length, loi: 'cho_lai', thuLaiSau: choToi - now };
+        return { daGui, tuChoi, conLai: (await cuaToi()).length, loi: 'cho_lai', thuLaiSau: choToi - now, anhBo };
       }
       const deviceToken = (() => { try { return localStorage.getItem(ch.khoaThietBi); } catch { return null; } })();
       const loiTam = async (loi: string): Promise<KetQuaGui> => {
         const cho = thoiGianChoLai(lanThatBai, ngauNhien());
         lanThatBai++;
         choToi = Date.now() + cho;
-        return { daGui, tuChoi, conLai: (await danhSachCho()).length, loi, thuLaiSau: cho };
+        return { daGui, tuChoi, conLai: (await cuaToi()).length, loi, thuLaiSau: cho, anhBo };
       };
+      // 403: dừng, giữ nguyên hàng đợi, không hẹn giờ thử lại
+      const dungMatQuyen = (conLai: number): KetQuaGui => { matQuyen = { nguoi }; return { daGui, tuChoi, conLai, loi: 'mat_quyen', thuLaiSau: null, anhBo }; };
       for (;;) {
-        const ds = await danhSachCho();
-        if (!ds.length) { lanThatBai = 0; return { daGui, tuChoi, conLai: 0, loi: null, thuLaiSau: null }; }
-        if (!deviceToken) return { daGui, tuChoi, conLai: ds.length, loi: 'dang_nhap_lai', thuLaiSau: null };
+        const ds = await cuaToi();
+        if (!ds.length) { lanThatBai = 0; return { daGui, tuChoi, conLai: 0, loi: null, thuLaiSau: null, anhBo }; }
+        if (!deviceToken) return { daGui, tuChoi, conLai: ds.length, loi: 'dang_nhap_lai', thuLaiSau: null, anhBo };
         const lo = ds.slice(0, LO_TOI_DA);
         try {
-          await taiAnhCuaLo(lo, fetchImpl);
+          anhBo += await taiAnhCuaLo(lo, fetchImpl);
         } catch (e) {
-          if ((e as { status?: number }).status === 401) return { daGui, tuChoi, conLai: ds.length, loi: 'dang_nhap_lai', thuLaiSau: null };
+          const st = (e as { status?: number }).status;
+          if (st === 401) return { daGui, tuChoi, conLai: ds.length, loi: 'dang_nhap_lai', thuLaiSau: null, anhBo };
+          if (st === 403) return dungMatQuyen(ds.length);
+          if (st === 429) return loiTam('qua_tai');
+          if (st !== undefined) return loiTam('loi_server');
           return loiTam('mat_mang');
         }
         const gui = lo.map(({ queuedAt: _q, ...e }) => e);
@@ -280,7 +359,8 @@ export function taoHangDoi(ch: CauHinhHangDoi) {
         } catch {
           return loiTam('mat_mang');
         }
-        if (r.status === 401) return { daGui, tuChoi, conLai: ds.length, loi: 'dang_nhap_lai', thuLaiSau: null };
+        if (r.status === 401) return { daGui, tuChoi, conLai: ds.length, loi: 'dang_nhap_lai', thuLaiSau: null, anhBo };
+        if (r.status === 403) return dungMatQuyen(ds.length);
         if (r.status === 429) return loiTam('qua_tai');
         if (!r.ok) return loiTam('loi_server');
         const body = await r.json().catch(() => null) as { saved?: string[]; rejected?: Array<{ id: string; reason: string }>; available?: boolean; [k: string]: unknown } | null;
@@ -303,7 +383,7 @@ export function taoHangDoi(ch: CauHinhHangDoi) {
 }
 
 // Hàng đợi của app tổ trưởng (/api/xuong/events)
-const macDinh = taoHangDoi({ dbName: DB_NAME, duongDan: '/api/xuong/events', khoaThietBi: XUONG_DEVICE_KEY, auth: authXuong });
+const macDinh = taoHangDoi({ dbName: DB_NAME, duongDan: '/api/xuong/events', khoaThietBi: XUONG_DEVICE_KEY, auth: authXuong, nguoiGui: idNguoiDangDung });
 /** Ghi một lần bấm vào hàng đợi trên máy. Ném LoiLuuMay nếu không ghi được. */
 export const themSuKien = macDinh.themSuKien;
 /** Mọi sự kiện đang chờ gửi, cũ trước */
@@ -316,6 +396,8 @@ export const themAnh = macDinh.themAnh;
 export const tinhTrangHangDoi = macDinh.tinhTrangHangDoi;
 /** Gửi hàng đợi. Gọi lúc mở app, khi có mạng lại, sau mỗi lần bấm. Gọi chồng nhau thì dùng chung một lượt. */
 export const guiHangDoi = macDinh.guiHangDoi;
+/** Nút "Gửi lại": gửi ngay, bỏ qua thời gian chờ và lần dừng vì mất quyền */
+export const guiLaiNgay = () => macDinh.guiHangDoi(fetch, Math.random, { boQuaCho: true });
 
 
 /** Xin trình duyệt giữ bộ nhớ lâu dài (không tự xoá khi máy đầy). null = trình duyệt không hỗ trợ. */

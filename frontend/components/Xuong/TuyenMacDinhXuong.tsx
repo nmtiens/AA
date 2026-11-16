@@ -23,7 +23,10 @@ export default function TuyenMacDinhXuong({ xuong, bao }: { xuong: string; bao: 
     setDang(true);
     const r = await xuongSetupApi.dsTuyenMacDinh(xuong);
     setDang(false);
-    if (r.ok) { setD(r.data); setLoi(''); } else setLoi(r.message);
+    if (r.ok) {
+      setD(r.data); setLoi('');
+      if (!r.data.coBang) console.warn('[Tuyến mặc định] máy chủ chưa tạo bảng — chạy backend/sql/supabase/2026-11-04_xuong_tuyen_mac_dinh.sql');
+    } else setLoi(r.message);
   }, [xuong]);
   useEffect(() => { setSua(null); tai(); }, [tai]);
 
@@ -53,11 +56,11 @@ export default function TuyenMacDinhXuong({ xuong, bao }: { xuong: string; bao: 
   return (
     <div className={KHUNG}>
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
-        <p className="text-sm text-slate-600">Triển khai trên điện thoại dùng tuyến mặc định của nhóm sản phẩm; nhóm chưa khai thì dùng tuyến lần triển khai gần nhất của nhóm đó.</p>
+        <p className="text-sm text-slate-600">Nhóm chưa khai: dùng tuyến lần triển khai gần nhất</p>
         <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
       </div>
       {loi && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
-      {d && !d.coBang && <p className="m-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Chưa lưu được tuyến mặc định: máy chủ chưa tạo bảng (chạy file SQL 2026-11-04_xuong_tuyen_mac_dinh.sql).</p>}
+      {d && !d.coBang && <p className="m-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Chức năng này chưa được bật trên máy chủ — báo người quản trị app.</p>}
       {d && d.nhom.length === 0 && <p className="px-4 py-6 text-sm text-slate-500">Xưởng {xuong} chưa có nhóm sản phẩm nào trong dữ liệu sản xuất.</p>}
       <ul className="divide-y divide-slate-100">
         {(d?.nhom ?? []).map(n => {

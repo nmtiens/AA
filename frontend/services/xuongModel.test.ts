@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nguoiChonSan, chonSanDiemDanh, taoLocMaLap,
+  nguoiChonSan, chonSanDiemDanh, taoLocMaLap, nhomCuChuaDiemDanh, ngayCa, denGioXacNhan, ngoaiGioCa, caTangCaGanNhat, mocTron30,
   gioVN, caCanChot, caHienTai, apDung, nhomDangLam, soNguoiRanh, chiaDeu, trichHex, thoiLuong, hhmm, mocTrongNgay,
   choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon, apDungDiemDanh,
   type DongViec, type LichCa,
@@ -55,12 +55,26 @@ describe('nguoiChonSan', () => {
   const coMat = { chinh: [
     { mnv: 'A', vao: 0, ra: null }, { mnv: 'B', vao: 0, ra: null }, { mnv: 'C', vao: 0, ra: null },
   ] };
-  const cv = { coMat } as unknown as Parameters<typeof nguoiChonSan>[2];
+  const congNhan = ['A', 'B', 'C', 'D'].map(mnv => ({ mnv, hoTen: mnv, toKhac: null }));
+  const cv = { coMat, congNhan } as unknown as Parameters<typeof nguoiChonSan>[2];
   it('Bắt đầu: người có mặt chưa làm hạng mục khác', () => {
     expect(nguoiChonSan({ nguoi: [] }, false, cv, 'chinh', 10, new Map([['B', '260000001']]))).toEqual(['A', 'C']);
   });
   it('Tiếp tục: giữ nhóm lần trước', () => {
     expect(nguoiChonSan({ nguoi: ['B'] }, true, cv, 'chinh', 10, new Map())).toEqual(['B']);
+  });
+  it('Tiếp tục: ca đã điểm danh thì bỏ người nhóm cũ chưa có mặt hôm nay', () => {
+    expect(nguoiChonSan({ nguoi: ['B', 'D'] }, true, cv, 'chinh', 10, new Map())).toEqual(['B']);
+    expect(nhomCuChuaDiemDanh({ nguoi: ['B', 'D'] }, cv, 'chinh', 10)).toEqual(['D']);
+  });
+  it('Tiếp tục: người mượn tổ khác / người mới (không thuộc tổ, không điểm danh) vẫn giữ trong nhóm cũ', () => {
+    const cv2 = { coMat, congNhan: [...congNhan, { mnv: 'M', hoTen: 'M', toKhac: 'Tổ 2' }] } as unknown as Parameters<typeof nguoiChonSan>[2];
+    expect(nguoiChonSan({ nguoi: ['B', 'M', 'X'] }, true, cv2, 'chinh', 10, new Map())).toEqual(['B', 'M', 'X']);
+    expect(nhomCuChuaDiemDanh({ nguoi: ['B', 'D', 'M'] }, cv2, 'chinh', 10)).toEqual(['D']);
+  });
+  it('Tiếp tục: ca chưa điểm danh tên thì giữ cả nhóm cũ', () => {
+    expect(nguoiChonSan({ nguoi: ['B', 'D'] }, true, { coMat: {} } as never, 'chinh', 10, new Map())).toEqual(['B', 'D']);
+    expect(nhomCuChuaDiemDanh({ nguoi: ['B', 'D'] }, { coMat: {} }, 'chinh', 10)).toEqual([]);
   });
   it('Tiếp tục chưa có nhóm cũ / chưa điểm danh tên: như Bắt đầu', () => {
     expect(nguoiChonSan({ nguoi: [] }, true, cv, 'chinh', 10, new Map())).toEqual(['A', 'B', 'C']);
@@ -95,6 +109,52 @@ describe('caCanChot (3A)', () => {
   it('caHienTai: đã chốt hết → ca gần nhất đã bắt đầu', () => {
     expect(caHienTai({ quanSo: { chinh: 12, ca1: 4 }, tangCa: ['ca1'], lichCa: LICH }, luc('2026-10-12', '17:00'))).toBe('ca1');
     expect(caHienTai({ quanSo: { chinh: 12 }, tangCa: [], lichCa: LICH }, luc('2026-10-12', '17:00'))).toBe('chinh');
+  });
+  it('ca qua đêm: 01:00 hôm sau không bắt điểm danh ca chính', () => {
+    // Đã khai ca 4, chốt ca chính hôm trước — sau 0 giờ: ca 4 (nếu chưa chốt) hoặc không ca nào, KHÔNG phải ca chính
+    expect(caCanChot({ quanSo: { chinh: 12 }, tangCa: ['ca4'], lichCa: LICH }, luc('2026-10-13', '01:00'))).toBe('ca4');
+    expect(caCanChot({ quanSo: { chinh: 12, ca4: 5 }, tangCa: ['ca4'], lichCa: LICH }, luc('2026-10-13', '01:00'))).toBeNull();
+    // Máy chủ đã sang ngày mới (chưa có quân số / tăng ca): vẫn không đòi ca chính
+    expect(caCanChot({ quanSo: {}, tangCa: [], lichCa: LICH }, luc('2026-10-13', '01:00'))).toBeNull();
+    // Từ 06:00 lại là ca chính của ngày mới
+    expect(caCanChot({ quanSo: {}, tangCa: [], lichCa: LICH }, luc('2026-10-13', '06:30'))).toBe('chinh');
+  });
+  it('ngayCa: trước 06:00 thuộc ngày hôm trước', () => {
+    expect(ngayCa(luc('2026-10-13', '01:00'))).toBe('2026-10-12');
+    expect(ngayCa(luc('2026-10-13', '06:00'))).toBe('2026-10-13');
+  });
+});
+
+describe('denGioXacNhan / ngoài giờ ca', () => {
+  it('nhắc từ 15 phút trước giờ hết ca muộn nhất', () => {
+    expect(denGioXacNhan(luc('2026-10-12', '15:29'), LICH, [])).toBe(false);
+    expect(denGioXacNhan(luc('2026-10-12', '15:30'), LICH, [])).toBe(true);
+    // Khai ca 1 (hết 18:15): 16:00 chưa nhắc, 18:00 nhắc
+    expect(denGioXacNhan(luc('2026-10-12', '16:00'), LICH, ['ca1'])).toBe(false);
+    expect(denGioXacNhan(luc('2026-10-12', '18:00'), LICH, ['ca1'])).toBe(true);
+    // Ca 4 qua đêm (hết 02:00 hôm sau): 23:00 chưa nhắc
+    expect(denGioXacNhan(luc('2026-10-12', '23:00'), LICH, ['ca4'])).toBe(false);
+    // ...nhưng vẫn được nhắc trước nửa đêm (mốc kẹp 23:45)
+    expect(denGioXacNhan(luc('2026-10-12', '23:50'), LICH, ['ca4'])).toBe(true);
+  });
+  it('chưa có lịch ca: từ 15h30; sau 0 giờ không nhắc', () => {
+    expect(denGioXacNhan(luc('2026-10-12', '15:30'))).toBe(true);
+    expect(denGioXacNhan(luc('2026-10-13', '01:00'), LICH, [])).toBe(false);
+  });
+  it('ngoaiGioCa: quá hết ca chính 20 phút chưa khai tăng ca; Chủ nhật chưa khai', () => {
+    expect(ngoaiGioCa({ tangCa: [], lichCa: LICH }, luc('2026-10-12', '16:00'))).toBe(false);
+    expect(ngoaiGioCa({ tangCa: [], lichCa: LICH }, luc('2026-10-12', '16:10'))).toBe(true);
+    expect(ngoaiGioCa({ tangCa: ['ca1'], lichCa: LICH }, luc('2026-10-12', '17:00'))).toBe(false);
+    expect(ngoaiGioCa({ tangCa: [], lichCa: LICH }, luc('2026-10-11', '09:00'))).toBe(true);
+    expect(ngoaiGioCa({ tangCa: ['chu_nhat'], lichCa: LICH }, luc('2026-10-11', '09:00'))).toBe(false);
+  });
+  it('caTangCaGanNhat: Chủ nhật → chu_nhat; ngày thường → ca đang phủ giờ', () => {
+    expect(caTangCaGanNhat({ lichCa: LICH }, luc('2026-10-11', '09:00'))).toBe('chu_nhat');
+    expect(caTangCaGanNhat({ lichCa: LICH }, luc('2026-10-12', '17:00'))).toBe('ca1');
+    expect(caTangCaGanNhat({ lichCa: LICH }, luc('2026-10-12', '16:05'))).toBe('ca1');
+  });
+  it('mocTron30: mốc tròn 30 phút trong khoảng', () => {
+    expect(mocTron30(luc('2026-10-12', '07:40'), luc('2026-10-12', '09:10')).map(hhmm)).toEqual(['08:00', '08:30', '09:00']);
   });
 });
 

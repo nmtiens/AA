@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Plus, Pencil, X, Check, AlertTriangle, Trash2, RefreshCw, Search, QrCode } from 'lucide-react';
 import InTheQr from './InTheQr';
+import XuongHexChiTiet from './XuongHexChiTiet';
 import {
   xuongSetupApi, type SetupXuong, type ToSetup, type NguoiDung, type CongDoanSetup, type LichCaSetup,
 } from '../../services/xuongSetupApi';
@@ -146,11 +147,17 @@ function SuaTo({ d, to, bao, xong, huy }: { d: SetupXuong; to: ToSetup | null; b
   const canCap = !!tt && !tt.coQuyenXuong;
   const submit = async () => {
     setLuu(true);
-    const r = await xuongSetupApi.luuTo({
+    const goiLuu = (xacNhan?: boolean) => xuongSetupApi.luuTo({
       id: to?.id, xuong: d.xuong!, ten: ten.trim(), toTruongUserId: tt?.id ?? null, congDoan: [...cds],
       thanhVien: tv.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean), active,
-      capQuyen: d.admin && canCap && capQuyen ? true : undefined,
+      capQuyen: d.admin && canCap && capQuyen ? true : undefined, xacNhan,
     });
+    let r = await goiLuu();
+    // Có người đang ở tổ khác / đã nghỉ: hỏi trước khi chuyển họ sang tổ này
+    if (!r.ok && r.status === 409) {
+      if (!window.confirm(`${r.message}?`)) { setLuu(false); return; }
+      r = await goiLuu(true);
+    }
     setLuu(false);
     if (r.ok) { bao(true, to ? 'Đã lưu tổ' : 'Đã thêm tổ'); xong(); } else bao(false, r.message);
   };
@@ -181,8 +188,9 @@ function SuaTo({ d, to, bao, xong, huy }: { d: SetupXuong; to: ToSetup | null; b
         </div>
       </div>
       {to && to.cheDo !== undefined && <CheDoTo to={to} bao={bao} xong={xong} />}
-      <label className="block text-sm font-medium text-slate-700">Thành viên (mã NV, mỗi dòng một mã — lưu tổ là xếp luôn vào tổ ở Nhân sự: chấm công, trạm quét, in QR; bỏ 1 dòng = rời tổ)
+      <label className="block text-sm font-medium text-slate-700">Thành viên (mã NV, mỗi dòng 1 mã)
         <textarea className={`${INPUT} mt-1 h-24 font-mono`} value={tv} onChange={e => setTv(e.target.value)} placeholder="AAF00123" />
+        <span className="mt-1 block text-xs font-normal text-slate-500">Lưu = xếp vào tổ ở Nhân sự; xoá dòng = rời tổ</span>
       </label>
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} /> Tổ đang hoạt động</label>
@@ -287,7 +295,6 @@ export function XuongCongDoanSetup({ d, bao, tai }: MucProps) {
     <div className={KHUNG}>
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
         <p className="text-base font-semibold text-slate-900">{d.congDoan.length} công đoạn · xưởng {d.xuong}</p>
-        <p className="text-xs text-slate-500">Thứ tự dùng để gợi ý công đoạn kế khi hạng mục chưa có tuyến triển khai.</p>
         <div className="ml-auto flex gap-2">
           <button type="button" className={BTN} onClick={them}><Plus size={14} /> Thêm công đoạn</button>
           <button type="button" className={BTN_CHINH} disabled={!doi.size} onClick={luu}><Check size={14} /> Lưu {doi.size || ''}</button>
@@ -400,7 +407,6 @@ export function XuongQuanLySetup({ d, bao, tai }: MucProps) {
     <div className={`${KHUNG} max-w-3xl`}>
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="text-base font-semibold text-slate-900">Quản lý xưởng {d.xuong}</p>
-        <p className="text-xs text-slate-500">Quản lý: triển khai hạng mục, cấu hình tổ / công đoạn / lịch ca, xem "Cần xem", huỷ thao tác sai của tổ bất kỳ lúc nào.</p>
       </div>
       <ul className="divide-y divide-slate-100">
         {d.quanLy.length === 0 && <li className="px-4 py-3 text-sm text-slate-500">Chưa có quản lý (admin luôn quản lý mọi xưởng).</li>}
@@ -431,15 +437,59 @@ export function XuongQuanLySetup({ d, bao, tai }: MucProps) {
 // Cần xem: sự kiện và hạng mục có cờ trong 30 ngày; quản lý huỷ được từ máy tính (R7)
 // ---------------------------------------------------------------------------
 type Dong = Record<string, unknown>;
+const ngayGioCo = (s: unknown) => { const t = Date.parse(String(s)); return `${hhmm(t)} ${gioVN(t).ngay.split('-').reverse().slice(0, 2).join('/')}`; };
+/** Mô tả đủ một thao tác có cờ ("Nhận 10 cái", "Bắt đầu 3 người"…) */
+const moTaDong = (x: Dong) => moTaSuKien({ loai: String(x.loai), soLuong: x.so_luong as number | null, soNguoi: x.so_nguoi as number | null,
+  lyDo: x.ly_do_tam_ngung as string | null, duLieu: x.du_lieu as Record<string, unknown> | null });
+
+/** Hỏi lý do rồi huỷ thao tác (lý do không bắt buộc). null = người dùng bấm Thôi, không huỷ */
+export async function huyCoLyDo(id: string) {
+  const lyDo = window.prompt('Huỷ thao tác này? Ghi lý do (không bắt buộc):', '');
+  if (lyDo === null) return null;
+  return xuongSetupApi.huy(id, lyDo.trim() || undefined);
+}
+
+/**
+ * Một thao tác cần xem (dùng ở Tổng quan trên điện thoại): dòng 1 lúc · tổ · công đoạn, dòng 2 thao tác + mã hex,
+ * dòng 3 cờ. onHuy không truyền = chỉ xem.
+ */
+export function DongCanXem({ x, tenTo, tenCd, onHuy, dangHuy = false, nut = BTN }: {
+  x: Dong; tenTo?: (id: unknown) => string; tenCd?: (id: unknown) => string;
+  onHuy?: () => void; dangHuy?: boolean;
+  /** Lớp nút Huỷ (điện thoại dùng nút to) */
+  nut?: string;
+}) {
+  const dau = [ngayGioCo(x.device_ts_hieu_chinh), x.to_id ? tenTo?.(x.to_id) : '', x.cong_doan_id ? tenCd?.(x.cong_doan_id) : ''].filter(Boolean);
+  return (
+    <div className="space-y-1.5">
+      <p className="text-base tabular-nums text-slate-600">{dau.join(' · ')}</p>
+      <p className="text-base text-slate-900">
+        {moTaDong(x)}{x.hex ? <span className="tabular-nums"> · {String(x.hex)}</span> : null}
+      </p>
+      <p className="text-base text-amber-800">{((x.co as string[]) ?? []).map(tenCo).join(' · ')}</p>
+      {onHuy && <button type="button" className={nut} disabled={dangHuy} onClick={onHuy}>Huỷ thao tác</button>}
+    </div>
+  );
+}
+
+// Cờ "xong khi chưa bắt đầu": thiếu giờ công của lượt đó — tô đậm cho dễ thấy
+const CO_THIEU_GIO = 'hoan_thanh_chua_bat_dau';
+const ONhanCo = ({ c }: { c: string }) => (
+  <span className={`mr-1 inline-block rounded px-1.5 py-0.5 text-xs ${c === CO_THIEU_GIO ? 'bg-red-50 font-semibold text-red-700' : 'bg-amber-50 text-amber-800'}`}
+    title={c === CO_THIEU_GIO ? 'Thiếu giờ công' : undefined}>{tenCo(c)}</span>
+);
+
 export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
   xuong: string; congDoan: CongDoanSetup[]; to: ToSetup[]; bao: Bao;
   /** Tổ trưởng: chỉ xem, không huỷ (huỷ từ máy tính chỉ quản lý; tổ trưởng huỷ ở Lịch sử trong app) */
   chiXem?: boolean;
 }) {
-  const [d, setD] = useState<{ suKien: Dong[]; trangThai: Dong[]; soCanXuLy?: number; soChiDeBiet?: number } | null>(null);
+  const [d, setD] = useState<{ suKien: Dong[]; trangThai: Dong[]; soCanXuLy?: number; soChiDeBiet?: number; catBot?: boolean } | null>(null);
   const [loi, setLoi] = useState('');
   // Mặc định chỉ cờ cần xử lý — cờ chỉ để biết (quản lý ghi hộ…) nhiều, làm chìm lỗi thật
   const [boLoc, setBoLoc] = useState('can_xu_ly');
+  // Dòng hạng mục có cờ đang mở chi tiết (hex|công đoạn — như Tra cứu HEX)
+  const [moHex, setMoHex] = useState<string | null>(null);
   const tai = () => { setLoi(''); xuongSetupApi.canXem(xuong).then(r => (r.ok ? setD(r.data) : setLoi(r.message))); };
   useEffect(tai, [xuong]);
   const tenCd = (id: unknown) => congDoan.find(c => c.id === id)?.ten ?? (id ? String(id) : '');
@@ -453,6 +503,8 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
   const ds = (d?.suKien ?? []).filter(x => !boLoc || (boLoc === 'can_xu_ly' ? canXuLy(x) : ((x.co as string[]) ?? []).includes(boLoc)));
   // Máy chủ giữ 300 dòng mới nhất mỗi nhóm
   const catBot = boLoc === 'can_xu_ly' ? soCanXuLy > ds.length : !boLoc && soMoiCo > ds.length;
+  // Hạng mục có cờ: máy chủ giữ 300 dòng (lệch số lượng lên đầu) và báo catBot; máy chủ cũ chưa báo thì đếm dòng
+  const catBotTt = d?.catBot ?? (d?.trangThai.length ?? 0) >= 300;
   const ngayGio = (s: unknown) => { const t = Date.parse(String(s)); return `${hhmm(t)} ${gioVN(t).ngay.split('-').reverse().join('/')}`; };
   if (loi) return <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{loi}</p>;
   if (!d) return <div className="flex justify-center py-10 text-slate-400"><RefreshCw className="animate-spin" size={18} /></div>;
@@ -480,15 +532,13 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
               {ds.map(x => (
                 <tr key={String(x.id)} className="hover:bg-slate-50">
                   <td className={`${TD} whitespace-nowrap tabular-nums`}>{ngayGio(x.device_ts_hieu_chinh)}</td>
-                  <td className={TD}>{moTaSuKien({ loai: String(x.loai), soLuong: x.so_luong as number | null, soNguoi: x.so_nguoi as number | null,
-                    lyDo: x.ly_do_tam_ngung as string | null, duLieu: x.du_lieu as Record<string, unknown> | null })}</td>
+                  <td className={TD}>{moTaDong(x)}</td>
                   <td className={TD}><span className="tabular-nums">{String(x.hex ?? '—')}</span>{x.cong_doan_id ? ` · ${tenCd(x.cong_doan_id)}` : ''}{x.to_id ? ` · ${tenTo(x.to_id)}` : ''}</td>
                   <td className={TD}>{((x.co as string[]) ?? []).map(c => <span key={c} className="mr-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">{tenCo(c)}</span>)}</td>
                   <td className={`${TD} text-right`}>
                     {!chiXem && <button type="button" className={BTN} onClick={async () => {
-                      const lyDo = window.prompt('Huỷ thao tác này? Ghi lý do (không bắt buộc):', '');
-                      if (lyDo === null) return;
-                      const r = await xuongSetupApi.huy(String(x.id), lyDo || undefined);
+                      const r = await huyCoLyDo(String(x.id));
+                      if (!r) return;
                       if (r.ok) { bao(true, 'Đã huỷ thao tác'); tai(); } else bao(false, r.message);
                     }}>Huỷ</button>}
                   </td>
@@ -500,23 +550,48 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
         )}
       </div>
       <div className={KHUNG}>
-        <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Hạng mục có cờ <span className="text-sm font-normal text-slate-500">· {d.trangThai.length}</span></p>
+        <div className="flex flex-wrap items-baseline gap-x-3 border-b border-slate-100 px-4 py-3">
+          <p className="text-base font-semibold text-slate-900">Hạng mục có cờ · {d.trangThai.length}</p>
+          {catBotTt && <span className="text-xs text-slate-500">Chỉ hiện 300 hạng mục (ưu tiên lệch số lượng)</span>}
+        </div>
         {d.trangThai.length === 0 ? <p className="px-4 py-6 text-sm text-slate-500">Không có.</p> : (
           <div className={khung}><table className={`${table} min-w-[36rem] rmd:min-w-0`}>
-            <thead className={thead}><tr><th className={TH}>Hạng mục</th><th className={TH}>Công đoạn</th><th className={TH}>Số lượng</th><th className={TH}>Cờ</th></tr></thead>
+            <thead className={thead}><tr>
+              <th className={TH}>Hạng mục</th><th className={TH}>Công đoạn</th><th className={TH}>Số lượng</th><th className={TH}>Cờ</th>{!chiXem && <th className={TH} />}
+            </tr></thead>
             <tbody>
-              {d.trangThai.map(x => (
-                <tr key={`${x.hex}|${x.congDoanId}`} className="hover:bg-slate-50">
-                  <td className={TD}><span className="tabular-nums">{String(x.hex)}</span> {String(x.tenHangMuc ?? '')}</td>
-                  <td className={TD}>{tenCd(x.congDoanId)}</td>
-                  <td className={`${TD} tabular-nums`}>Giao tới {fmtQty(x.slGiaoDen)} · Nhận {fmtQty(x.slNhan)} · Xong {fmtQty(x.slHoanThanh)} · Giao {fmtQty(x.slGiao)}</td>
-                  <td className={TD}>{((x.co as string[]) ?? []).map(c => <span key={c} className="mr-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">{tenCo(c)}</span>)}</td>
-                </tr>
-              ))}
+              {d.trangThai.map(x => {
+                const hex = String(x.hex);
+                const k = `${hex}|${String(x.congDoanId)}`;
+                const mo = moHex === k;
+                return (
+                  <FragmentHex key={k} mo={mo && !chiXem} hex={hex} soCot={chiXem ? 4 : 5}>
+                    <tr className="hover:bg-slate-50">
+                      <td className={TD}><span className="tabular-nums">{hex}</span> {String(x.tenHangMuc ?? '')}</td>
+                      <td className={TD}>{tenCd(x.congDoanId)}</td>
+                      <td className={`${TD} tabular-nums`}>Giao tới {fmtQty(x.slGiaoDen)} · Nhận {fmtQty(x.slNhan)} · Xong {fmtQty(x.slHoanThanh)} · Giao {fmtQty(x.slGiao)}</td>
+                      <td className={TD}>{((x.co as string[]) ?? []).map(c => <ONhanCo key={c} c={c} />)}</td>
+                      {!chiXem && <td className={`${TD} text-right`}>
+                        <button type="button" className={BTN} aria-expanded={mo} onClick={() => setMoHex(mo ? null : k)}>{mo ? 'Đóng' : 'Xem'}</button>
+                      </td>}
+                    </tr>
+                  </FragmentHex>
+                );
+              })}
             </tbody>
           </table></div>
         )}
       </div>
     </div>
+  );
+}
+
+/** Dòng hạng mục có cờ + chi tiết hạng mục (cùng màn Tra cứu HEX) mở ngay bên dưới */
+function FragmentHex({ mo, hex, soCot, children }: { mo: boolean; hex: string; soCot: number; children: ReactNode }) {
+  return (
+    <>
+      {children}
+      {mo && <tr><td colSpan={soCot} className="border-b border-r border-slate-300 bg-slate-50 p-3"><XuongHexChiTiet hex={hex} /></td></tr>}
+    </>
   );
 }

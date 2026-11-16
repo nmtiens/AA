@@ -45,6 +45,18 @@ describe('duBaoHangMuc', () => {
     assert.deepEqual(thieu.thieuMoc, ['HAN']);
   });
 
+  it('thiếu mốc: hết mốc => chưa rõ (không xếp kịp); thiếu một phần => sát hạn khi quá nửa số ngày còn', () => {
+    const evts = [tk([{ ten: 'GỖ', tuyen: ['CAT', 'LAP'] }])];
+    const het = duBaoHangMuc(evts, moc({}), () => false, NOW + 10 * NGAY, NOW)!;
+    assert.equal(het.khongDuMoc, true);
+    assert.equal(het.muc, 'chua_ro');
+    const motPhan = duBaoHangMuc(evts, moc({ CAT: 6 }), () => false, NOW + 10 * NGAY, NOW)!;
+    assert.equal(motPhan.khongDuMoc, false);
+    assert.deepEqual(motPhan.thieuMoc, ['LAP']);
+    assert.equal(motPhan.muc, 'sat'); // 6 > 0.5 × 10
+    assert.equal(duBaoHangMuc(evts, moc({ CAT: 4 }), () => false, NOW + 10 * NGAY, NOW)!.muc, 'kip');
+  });
+
   it('không có tuyến (nhận thẳng) hoặc đã xong hết => không dự báo', () => {
     assert.equal(duBaoHangMuc([ev({ loai: 'nhan', congDoanId: 'CAT', soLuong: 1 })], moc({ CAT: 1 }), () => false, NOW + NGAY, NOW), null);
     assert.equal(duBaoHangMuc([tk([{ ten: 'GỖ', tuyen: ['CAT'] }])], moc({ CAT: 1 }), () => true, NOW + NGAY, NOW), null);

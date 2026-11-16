@@ -28,8 +28,8 @@ export function PhanCongSheet({ toId, onGhi, onClose }: {
     void tramQuanLyApi(authXuong).phanCong(toId).then(r => {
       if (!r.ok) { setLoi(r.status === 0 ? 'Đang mất sóng — phân công cần có sóng.' : r.message); return; }
       setData(r.data);
-      // Mặc định: đang ở hàng nào giữ hàng đó; chưa ở hàng thì gợi ý hàng hôm trước
-      setChon(Object.fromEntries(r.data.nguoi.map(n => [n.mnv, n.dangO?.key ?? n.homQua?.key ?? KHONG])));
+      // Mặc định: đang ở hàng nào giữ hàng đó, chưa ở hàng thì chưa phân (hàng hôm qua chỉ là nhãn, bấm "Giữ như hôm qua" mới áp)
+      setChon(Object.fromEntries(r.data.nguoi.map(n => [n.mnv, n.dangO?.key ?? KHONG])));
     });
   }, [toId]);
 
@@ -37,7 +37,9 @@ export function PhanCongSheet({ toId, onGhi, onClose }: {
   // Thay đổi so với hiện tại; giữ nguyên hàng đang "tự gán" cũng ghi lại = xác nhận
   const doi = (data?.nguoi ?? []).filter(n => (chon[n.mnv] ?? KHONG) !== (n.dangO?.key ?? KHONG)
     || (n.dangO?.nguon === 'tu_gan' && chon[n.mnv] === n.dangO.key));
-  const giuHomQua = () => setChon(c => ({ ...c, ...Object.fromEntries((data?.nguoi ?? []).filter(n => n.homQua).map(n => [n.mnv, n.homQua!.key])) }));
+  // Hàng hôm qua còn làm được (hàng đã xong / không còn trong danh sách thì bỏ qua — không ghi sự kiện thiếu hạng mục)
+  const homQua = (data?.nguoi ?? []).filter(n => n.homQua && hang.has(n.homQua.key));
+  const giuHomQua = () => setChon(c => ({ ...c, ...Object.fromEntries(homQua.map(n => [n.mnv, n.homQua!.key])) }));
 
   const luu = async () => {
     if (!doi.length) { onClose(); return; }
@@ -59,8 +61,8 @@ export function PhanCongSheet({ toId, onGhi, onClose }: {
     <BottomSheet title="Phân công đầu ca" onClose={onClose}
       footer={data?.suaDuoc ? (
         <div className="grid grid-cols-2 gap-3">
-          <button className={NUT_PHU} onClick={giuHomQua}><History size="1.1em" /> Giữ như hôm qua</button>
-          <button className={NUT_CHINH} disabled={dang} onClick={() => void luu()}>{doi.length ? `Lưu (${doi.length} thay đổi)` : 'Đóng'}</button>
+          <button className={NUT_PHU} disabled={!homQua.length} onClick={giuHomQua}><History size="1.1em" /> Giữ như hôm qua ({homQua.length} người)</button>
+          <button className={NUT_CHINH} disabled={dang} onClick={() => void luu()}>{doi.length ? `Lưu phân công (${doi.length} người)` : 'Đóng'}</button>
         </div>
       ) : undefined}>
       {loi && <p className="text-base text-red-700" role="alert">{loi}</p>}
@@ -68,7 +70,6 @@ export function PhanCongSheet({ toId, onGhi, onClose }: {
         <>
           <p className="pb-3 text-base text-slate-600">
             {coMat}/{data.nguoi.length} người có mặt. Chọn hàng cho từng người — người chưa vào ca được tính từ lúc họ quét thẻ / có mặt.
-            Không chọn thì sau 30 phút hệ thống tự gán theo hàng hôm trước.
           </p>
           {!data.hangMuc.length && <p className="pb-3 text-base text-amber-800">Tổ chưa có hàng nào đang làm được — Nhận hàng trước.</p>}
           <ul className="space-y-2 pb-4">

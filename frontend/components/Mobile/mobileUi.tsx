@@ -187,11 +187,15 @@ export function InstallBanner({ force = false, tieuDe = 'Cài ứng dụng lên 
   );
 }
 
-/** Toast nhỏ phía trên thanh menu dưới */
-export function Toast({ text }: { text: string }) {
+/**
+ * Toast nhỏ phía trên thanh menu dưới (viTri 'tren': ngay dưới thanh tiêu đề — khỏi che nút ở đáy màn).
+ * Không nhận chạm (pointer-events-none) để không chặn nút nằm bên dưới, vd nút Quét phiếu.
+ */
+export function Toast({ text, viTri = 'duoi' }: { text: string; viTri?: 'tren' | 'duoi' }) {
   if (!text) return null;
+  const cho = viTri === 'tren' ? 'top-[calc(env(safe-area-inset-top)+4.5rem)]' : 'bottom-[calc(env(safe-area-inset-bottom)+5.5rem)]';
   return createPortal(
-    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-base text-white shadow-lg">
+    <div role="status" className={`pointer-events-none fixed ${cho} left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-base text-white shadow-lg`}>
       {text}
     </div>,
     document.body

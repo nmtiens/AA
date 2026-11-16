@@ -61,12 +61,10 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
     <div className="space-y-4">
       <p className="text-sm text-slate-600">Công đoạn bắt đầu từ {ngayVi(t.tu)} tới {ngayVi(t.den)}{d.chiTo ? ', chỉ công đoạn tổ của bạn' : ''}.</p>
 
-      <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3">
         <The ten="Hạng mục đã qua xưởng" giaTri={so(t.soHm, 0)} phu={`${so(t.soHmXong, 0)} đã xong · ${so(t.soCap, 0)} lượt công đoạn`} />
         <The ten="Ngày trong xưởng (thường mất)" giaTri={`${so(t.ngayTv)} ngày`} phu={`Nên hẹn: ${so(t.ngayP75)} ngày`} />
-        <The ten="Giờ trong ca (tổng)" giaTri={so(t.gioCa, 0)} phu="cộng mọi công đoạn" />
         <The ten="Tạm ngưng" giaTri={`${so(t.soNgung, 0)} lần`} phu={`${so(t.gioNgung / 24, 0)} ngày lịch cộng dồn`} />
-        <The ten="Công đoạn có số liệu" giaTri={so((d.congDoan ?? []).length, 0)} phu="xem bảng bên dưới" />
       </div>
 
       {!coBieuDo && (
@@ -141,8 +139,8 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
         <table className={`${BANG} w-full min-w-[44rem] rmd:min-w-0`}>
           <thead className={bang.thead}><tr>
             <th className={TH}>Công đoạn</th><th className={`${TH}`}>Hạng mục</th><th className={`${TH}`}>SL xong</th>
-            <th className={`${TH}`}>Giờ trong ca (thường mất)</th><th className={`${TH}`}>Giờ nên hẹn</th><th className={`${TH}`}>Ngày lịch (thường mất)</th>
-            <th className={`${TH}`}>Giờ / đơn vị (thường mất)</th><th className={`${TH}`}>Tạm ngưng</th>
+            <th className={`${TH}`}>Giờ trong ca (thường mất)</th><th className={`${TH}`}>Giờ nên hẹn</th><th className={`${TH}`}>Ngày lịch thường mất (đầu tới xong)</th>
+            <th className={`${TH}`} title="Giờ trong ca chia số lượng xong — chưa nhân số người">Giờ trong ca / đơn vị (thường mất)</th><th className={`${TH}`}>Tạm ngưng</th>
           </tr></thead>
           <tbody>
             {(d.congDoan ?? []).map(c => (

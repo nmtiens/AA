@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Search } from 'lucide-react';
 import {
@@ -7,7 +7,10 @@ import {
 } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
 import { searchHex, fetchHexNotes, type HexHit } from '../../services/vuongMacMobileApi';
-import { NoteContent } from '../Dashboard/components/modals/HexDetailModal';
+import { NoteContent, dongXuongMra, NhanMra, DongNguonBop } from '../Dashboard/components/modals/HexDetailModal';
+import { phuViTriMra, nhanTheoMa, type BanDoMra } from '../Dashboard/core/viTriMra';
+import type { DataRow } from '../../types';
+import { xuongSetupApi } from '../../services/xuongSetupApi';
 import { searchHexBulk } from './hexBulkApi';
 import { FormSheet, StatusPill } from '../VuongMac/sheets';
 import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../utils/money';
@@ -97,6 +100,26 @@ const orderByCodes = (hits: HexHit[], codes: string[]) => {
     .map(x => x.h);
 };
 
+// Bản đồ vị trí MRA (GET /api/xuong/vi-tri-bop): tìm HEX đọc bảng PC (hex-search) nên tự phủ như Tổng quan.
+// Giữ 1 bản cho cả phiên, hỏi lại kèm ver (máy chủ trả same khi chưa đổi); lỗi => giữ bản cũ / theo PC.
+let banMraNho: BanDoMra | null = null;
+const taiBanMra = async (): Promise<BanDoMra | null> => {
+  const r = await xuongSetupApi.viTriBop(banMraNho?.ver);
+  if (r.ok && 'map' in r.data) banMraNho = { ver: r.data.ver, map: r.data.map };
+  return banMraNho;
+};
+/**
+ * Dòng BOP đã phủ MRA của 1 kết quả tìm (cùng luật core/viTriMra: bỏ HỦY, P022/P025, GCVT); không phủ => null.
+ * nhan: nhãn BOP theo mã lấy từ MỌI kết quả tìm (chuỗi PC thật), để không chỉ dựa vào 1 dòng rồi rơi về nhãn dự phòng.
+ */
+const dongMra = (h: HexHit, ban: BanDoMra | null, nhan?: Map<string, string>): DataRow | null => {
+  if (!ban) return null;
+  const r = phuViTriMra([{
+    hex: h.hex, bop: h.bop ?? '', tinh_trang: h.tinhTrang ?? '', tinh_trang_ipo: h.tinhTrangIpo ?? '', so_ngay_cd_hien_tai: '',
+  }], [], ban, Date.now(), nhan);
+  return r.soPhu ? r.rows[0] : null;
+};
+
 function Field({ label, value, className = '' }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className={className}>
@@ -171,6 +194,19 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
   const [openHex, setOpenHex] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, Detail | 'loading'>>({});
   const [xuongMo, setXuongMo] = useState<Set<string>>(new Set());
+  // Vị trí công đoạn ở xưởng (MRA) theo hex: chuỗi ngắn, null = không có, 'loi' = chưa tải được
+  const [mra, setMra] = useState<Record<string, string | null | 'loi'>>({});
+  const [banMra, setBanMra] = useState<BanDoMra | null>(banMraNho);
+  // Nhãn BOP theo mã từ các kết quả tìm (chuỗi PC phổ biến nhất) — chỉ tính khi bản đồ MRA đang bật
+  const nhanHits = useMemo(
+    () => (banMra && banMra.ver !== 'off' && hits.length ? nhanTheoMa(hits.map(x => ({ bop: x.bop ?? '' })), 'bop') : undefined),
+    [hits, banMra],
+  );
+  useEffect(() => {
+    let huy = false;
+    taiBanMra().then(b => { if (!huy) setBanMra(b); }, () => { /* lỗi mạng: theo PC */ });
+    return () => { huy = true; };
+  }, []);
   const [addFor, setAddFor] = useState<HexHit | null>(null);
   const [toast, setToast] = useState('');
   const reqId = useRef(0);
@@ -268,6 +304,9 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
   const openDetail = (hex: string) => {
     setOpenHex(hex);
     if (!details[hex]) loadDetail(hex);
+    if (!(hex in mra) || mra[hex] === 'loi') {
+      xuongSetupApi.tomTat([hex]).then(r => setMra(m => ({ ...m, [hex]: r.ok ? dongXuongMra(r.data.tomTat[hex]) : 'loi' })));
+    }
   };
 
   const go = (delta: number) => {
@@ -320,6 +359,9 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
   // Phần chi tiết khi mở một hex (dùng chung 2 kiểu hiển thị)
   const renderDetail = (h: HexHit) => {
     const d = details[h.hex];
+    const m = dongMra(h, banMra, nhanHits);
+    // Có bản đồ MRA (đang bật) => dòng không phủ ghi rõ "theo kiểm tay PC"
+    const mraBat = !!banMra && banMra.ver !== 'off';
     return (
       <div className="space-y-4 pt-3 text-sm text-slate-700">
         {/* Các cột thông tin, xếp ngang */}
@@ -328,7 +370,14 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
           <Field label="Hạng mục" value={h.hangMuc} className="col-span-full" />
           <Field label="Mã nhà máy" value={h.maNhaMay} />
           <Field label="Khu vực SX" value={h.xuong} />
-          <Field label="BOP" value={h.bop} />
+          <Field label="BOP" value={m ? (
+            <>{String(m.bop || '')}<NhanMra row={m} className="ml-1" /><DongNguonBop row={m} /></>
+          ) : h.bop ? (
+            <>{h.bop}<DongNguonBop row={null} hienPc={mraBat} /></>
+          ) : null} />
+          {mra[h.hex] === 'loi'
+            ? <Field label="Ở xưởng" value={<span className="text-slate-400">chưa tải được</span>} />
+            : mra[h.hex] && <Field label="Ở xưởng" value={<span className="text-emerald-700">{mra[h.hex]}</span>} />}
           <Field label="Tình trạng" value={h.tinhTrang} />
           <Field label="Phân loại nhóm SP" value={h.phanLoai} />
           <Field label="Trị giá đơn hàng tổng" value={money(h.triGia)} />

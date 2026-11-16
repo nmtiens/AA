@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState, type
 import { ClipboardList, LayoutGrid, Search, Settings2, UserRound, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { getToken } from '../../../services/userService';
+import { docPhienXuong } from '../../../services/xuongApi';
 import { BG, Toast } from '../mobileUi';
 import DangNhapXuong from './DangNhapXuong';
 import XuongApp, { type ToMo } from './XuongApp';
@@ -33,15 +34,14 @@ const Cho = () => <div className="flex h-full items-center justify-center text-s
 export default function XuongShell() {
   const { user, hasPermission } = useAuth();
   const [daDangNhap, setDaDangNhap] = useState(dangNhapSan);
-  const laQuanLy = hasPermission('xuong_quan_ly');
+  // Phiên Xưởng đã lưu (người, tổ, cờ quản lý) — đọc lúc mở và mỗi lần app tổ đăng ký máy lại
+  const [phien, setPhien] = useState(docPhienXuong);
+  // Phiên app 8 giờ đã hết (user = null) mà token Xưởng còn: lấy cờ quản lý trong phiên Xưởng để menu không biến mất
+  const laQuanLy = hasPermission('xuong_quan_ly') || (!user && phien?.quanLy === true);
   // Tổ trưởng: không hiện Tổng quan; mục Quản lý chỉ số liệu tổ mình (backend lọc) — kể cả tổ trưởng không có quyền
   // quản lý. Lần đầu đọc phiên đã lưu để menu không nháy.
-  const [soTo, setSoTo] = useState<number>(() => {
-    try {
-      const to = JSON.parse(localStorage.getItem('xuong_phien') || 'null')?.to as Array<{ toTruong?: boolean }> | undefined;
-      return to?.filter(t => t.toTruong !== false).length ?? 0;
-    } catch { return 0; }
-  });
+  const [soTo, setSoTo] = useState<number>(() => phien?.to?.filter(t => t.toTruong !== false).length ?? 0);
+  const baoSoTo = useCallback((n: number) => { setSoTo(n); setPhien(docPhienXuong()); }, []);
   const coTongQuan = laQuanLy && soTo === 0;
   const coQuanLy = laQuanLy || soTo > 0;
   // Điện thoại bật "Trang web cho máy tính" → vẫn dùng bố cục điện thoại (trước khi vẽ để không nháy bố cục máy tính)
@@ -79,6 +79,14 @@ export default function XuongShell() {
     } catch { /* bỏ qua */ }
     setLanQl(n => n + 1); chon('quanLy');
   }, [chon]);
+  // Mở Quản lý ở một mục (vd Khai CĐ chi tiết) — không đổi tab Báo cáo đã nhớ
+  const moQuanLy = useCallback((xuong: string, muc: string) => {
+    try {
+      localStorage.setItem('xuong_setup_xuong', xuong);
+      localStorage.setItem('xuong_setup_muc', muc);
+    } catch { /* bỏ qua */ }
+    setLanQl(n => n + 1); chon('quanLy');
+  }, [chon]);
   const [toast, setToast] = useState('');
   const flash = useCallback((m: string) => { setToast(m); setTimeout(() => setToast(''), 3000); }, []);
 
@@ -97,7 +105,7 @@ export default function XuongShell() {
     return <div className="fixed inset-0 overflow-y-auto"><DangNhapXuong onSuccess={() => setDaDangNhap(true)} /></div>;
   }
 
-  const ten = user?.fullName || user?.username || '';
+  const ten = user?.fullName || user?.username || phien?.user.fullName || phien?.user.username || '';
   const khung = (m: Muc, noiDung: ReactNode, tuCuon = true) => daMo.has(m) && (
     <div key={m} className={`absolute inset-0 ${tuCuon ? 'overflow-y-auto overscroll-contain' : 'flex flex-col overflow-hidden'} ${mucHienTai === m ? '' : 'hidden'}`}
       role="tabpanel" aria-label={dsMuc.find(x => x.id === m)?.ten}>
@@ -130,14 +138,14 @@ export default function XuongShell() {
       <div className="relative min-w-0 flex-1">
         {/* Tổ: luôn gắn để hàng đợi tiếp tục gửi khi đang xem mục khác */}
         <div className={`absolute inset-0 overflow-y-auto overscroll-contain ${mucHienTai === 'to' ? '' : 'hidden'}`} role="tabpanel" aria-label="Tổ">
-          <XuongApp moTo={moTo} onTongQuan={() => chon('tongQuan')} dangXem={mucHienTai === 'to'} onSoTo={setSoTo} />
+          <XuongApp moTo={moTo} onTongQuan={() => chon('tongQuan')} dangXem={mucHienTai === 'to'} onSoTo={baoSoTo} />
         </div>
-        {khung('tongQuan', <TongQuanXuong onChonTo={t => { setMoTo({ ...t, lan: Date.now() }); chon('to'); }} onMoKeHoach={moKeHoach} />)}
+        {khung('tongQuan', <TongQuanXuong onChonTo={t => { setMoTo({ ...t, lan: Date.now() }); chon('to'); }} onMoKeHoach={moKeHoach} onMoQuanLy={moQuanLy} />)}
         {khung('traCuu', <TraCuuXuong />)}
         {khung('quanLy', <XuongSetup key={lanQl} trongApp />, false)}
         {khung('taiKhoan', (
           <div className="mx-auto max-w-2xl">
-            <MobileAccount appXuong sizeIdx={sizeIdx} sizeLabels={SIZE_LABELS} onSizeChange={setSizeIdx}
+            <MobileAccount appXuong tenDuPhong={user ? undefined : phien ? { ten, username: phien.user.username } : undefined} sizeIdx={sizeIdx} sizeLabels={SIZE_LABELS} onSizeChange={setSizeIdx}
               onLoggedOut={() => { setDaDangNhap(false); setMoTo(null); chon('to'); }} flash={flash} />
           </div>
         ))}
@@ -148,8 +156,8 @@ export default function XuongShell() {
         <div className="mx-auto flex h-16 max-w-xl">
           {dsMuc.map(m => (
             <button key={m.id} onClick={() => chon(m.id)} aria-current={mucHienTai === m.id ? 'page' : undefined}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs ${mucHienTai === m.id ? 'font-semibold text-aa-600' : 'text-slate-500'}`}>
-              {m.icon}<span className="truncate">{m.ten}</span>
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-sm ${mucHienTai === m.id ? 'font-semibold text-aa-600' : 'text-slate-700'}`}>
+              {m.icon}<span className="max-w-full truncate px-0.5">{m.ten}</span>
             </button>
           ))}
         </div>

@@ -19,7 +19,8 @@ import { notCancelledHexCond } from '../server/data.js';
 // ============================================================================
 // BÁO CÁO XƯỞNG / TỔ (đợt 2 — docs/designs/xuong-checkin.md, mục Màn hình: "theo xưởng / tổ — giờ công so với
 // quân số, giờ chờ, hạng mục đang chạy, hàng chờ nhận" + các chỉ số Success Criteria).
-//   GET /api/xuong/bao-cao?xuong=&tu=YYYY-MM-DD&den=YYYY-MM-DD   (tối đa 62 ngày)
+//   GET /api/xuong/bao-cao?xuong=&tu=YYYY-MM-DD&den=YYYY-MM-DD   (tối đa 186 ngày; > 62 ngày rút gọn)
+//   GET /api/xuong/bao-cao/tinh?xuong=&tu=&den=                   (chỉ tính dần ngày-tổ còn thiếu)
 // Giờ công từng (tổ, ngày) = phân bổ theo quân số (allocation.ts, qua gioCongToNgay). Ngày đã qua được lưu ở bảng
 // xuong_gio_cong_ngay (backend/sql/2026-10-12_xuong_bao_cao.sql) theo phiên bản sổ; mỗi lần gọi tính thêm tối đa
 // TINH_TOI_DA ngày còn thiếu, trả `conThieu` để màn hình gọi lại tới khi đủ (giữ mỗi request < 8 giây).
@@ -45,6 +46,83 @@ const cong = (a: { thuong: number; tangCa: number }, b: { thuong: number; tangCa
 const lam = (n: number) => Math.round(n * 100) / 100;
 const minN = (a: number, b: number) => (a > 0 && b > 0 ? Math.min(a, b) : a || b); // số người ít nhất (bỏ 0 = chưa có)
 
+type DongPhienBan = { to_id: number | string; ngay: string; v: unknown };
+
+/**
+ * Giờ công từng (tổ, ngày) của kỳ: dùng kết quả đã lưu khi cùng phiên bản sổ + cùng lịch ca, còn thiếu thì tính thêm tối
+ * đa TINH_TOI_DA ngày-tổ (mới trước) và lưu lại ngày đã qua. `boHomNay` = bỏ hôm nay (chỉ tính dần ngày cũ).
+ */
+async function tinhNgayTo(xuong: string, pbRows: DongPhienBan[], toIds: number[], tu: string, den: string, homNay: string, boHomNay: boolean) {
+  // Kết quả đã lưu + lịch ca của xưởng (đọc một lần, trả về cho handler dùng lại): 2 câu độc lập chạy song song
+  let banLuu = true;
+  const daLuu = new Map<string, { v: string; kq: KetQuaNgay }>();
+  const [luuR, lichCa] = await Promise.all([
+    poolMra.query(
+      `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua FROM xuong_gio_cong_ngay
+       WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date`, [toIds, tu, den])
+      .catch(e => { if (!isMissingSchema(e)) throw e; banLuu = false; return { rows: [] as Row[] }; }),
+    lichCaCuaXuong(xuong),
+  ]);
+  for (const x of luuR.rows) daLuu.set(`${x.to_id}|${x.ngay}`, { v: String(x.v), kq: x.ket_qua });
+
+  // Kết quả đã lưu chỉ dùng được khi tính cùng lịch ca hiện tại (đổi giờ nghỉ / giờ ca thì tính lại)
+  const bamHienTai = dauLichCa(lichCa);
+  const ketQua = new Map<string, KetQuaNgay>();
+  const canTinh: Array<{ toId: number; ngay: string; v: string }> = [];
+  for (const x of pbRows) {
+    if (boHomNay && x.ngay >= homNay) continue;
+    const k = `${x.to_id}|${x.ngay}`;
+    const luu = daLuu.get(k);
+    if (x.ngay < homNay && luu && luu.v === String(x.v) && luu.kq.bamLichCa === bamHienTai) ketQua.set(k, luu.kq);
+    else canTinh.push({ toId: Number(x.to_id), ngay: x.ngay, v: String(x.v) });
+  }
+  // Không có bảng lưu: tính dần vô ích (lần sau lại tính từ đầu) — chỉ báo số còn thiếu
+  if (boHomNay && !banLuu) return { ketQua, banLuu, conThieu: canTinh.length, lichCa };
+  // Hôm nay luôn tính (đổi theo giờ); ngày cũ còn thiếu tính dần, mới trước
+  canTinh.sort((a, b) => (a.ngay === homNay ? -1 : b.ngay === homNay ? 1 : b.ngay.localeCompare(a.ngay)));
+  const lanNay = canTinh.slice(0, TINH_TOI_DA);
+  await runWithLimit(lanNay.map(c => async () => {
+    // Phiên bản sổ, xưởng, lịch ca đã đọc ở trên: truyền sẵn để mỗi (tổ, ngày) khỏi hỏi lại 3 câu (toIds là tổ của xưởng này)
+    const kq = await gioCongToNgay(c.toId, c.ngay, { v: c.v, xuong, lichCa });
+    if (!kq) return;
+    ketQua.set(`${c.toId}|${c.ngay}`, kq);
+    if (banLuu && c.ngay < homNay) {
+      await poolMra.query(
+        `INSERT INTO xuong_gio_cong_ngay (to_id, ngay, v, ket_qua) VALUES ($1, $2::date, $3, $4::jsonb)
+         ON CONFLICT (to_id, ngay) DO UPDATE SET v = EXCLUDED.v, ket_qua = EXCLUDED.ket_qua, tinh_luc = now()`,
+        [c.toId, c.ngay, c.v, JSON.stringify(kq)]);
+    }
+  }), 2);
+  return { ketQua, banLuu, conThieu: Math.max(0, canTinh.length - lanNay.length), lichCa };
+}
+
+/** Khoảng ngày từ query (mặc định hôm nay); null = quá 186 ngày hoặc ngược */
+function khoangNgay(req: Request, homNay: string) {
+  const den = typeof req.query.den === 'string' && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
+  const tu = typeof req.query.tu === 'string' && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
+  const soNgay = (Date.parse(den) - Date.parse(tu)) / 86_400_000;
+  return soNgay < 0 || soNgay > 185 ? null : { tu, den, soNgay };
+}
+
+// Tính dần ngày-tổ còn thiếu của khoảng dài (màn hình gọi lặp tới khi conThieu = 0, rồi gọi /bao-cao đầy đủ):
+//   GET /api/xuong/bao-cao/tinh?xuong=&tu=&den=  ->  { conThieu, banLuu }
+// Chỉ đọc sổ phiên bản + kết quả đã lưu, không dựng báo cáo; bỏ hôm nay (luôn tính ở /bao-cao).
+app.get('/api/xuong/bao-cao/tinh', async (req: Request, res: Response) => {
+  try {
+    const xuong = String(req.query.xuong ?? '').toUpperCase();
+    const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
+    if (!pv) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
+    const homNay = vnDayKey(new Date());
+    const kn = khoangNgay(req, homNay);
+    if (!kn) return res.status(400).json({ success: false, message: 'Khoảng ngày phải từ 1 tới 186 ngày (khoảng 6 tháng)' });
+    const toIds = (await poolMra.query('SELECT id FROM xuong_to WHERE xuong = $1', [xuong])).rows
+      .map(t => Number(t.id)).filter(id => !pv.chiTo || pv.chiTo.includes(id));
+    const pb = await poolMra.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
+                  WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date ORDER BY ngay`, [toIds, kn.tu, kn.den]);
+    const { conThieu, banLuu } = await tinhNgayTo(xuong, pb.rows, toIds, kn.tu, kn.den, homNay, true);
+    res.json({ success: true, conThieu, banLuu });
+  } catch (e) { fail(res, e, '/api/xuong/bao-cao/tinh'); }
+});
 
 app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
   try {
@@ -58,11 +136,10 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     // hình gọi lại liên tiếp tới khi conThieu = 0 không phải nạp lại sự kiện của mọi hạng mục chờ giao mỗi lần)
     await suaChoGiaoCuoiTuyenXuong(xuong);
     const homNay = vnDayKey(new Date());
-    const den = typeof req.query.den === 'string' && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
-    const tu = typeof req.query.tu === 'string' && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
-    const soNgay = (Date.parse(den) - Date.parse(tu)) / 86_400_000;
-    const rutGon = soNgay > 62;
-    if (soNgay < 0 || soNgay > 185) return res.status(400).json({ success: false, message: 'Khoảng ngày phải từ 1 tới 186 ngày (khoảng 6 tháng)' });
+    const kn = khoangNgay(req, homNay);
+    if (!kn) return res.status(400).json({ success: false, message: 'Khoảng ngày phải từ 1 tới 186 ngày (khoảng 6 tháng)' });
+    const { tu, den } = kn;
+    const rutGon = kn.soNgay > 62;
 
     const toRows = (await poolMra.query('SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to', [xuong])).rows
       .filter(t => !chiTo || chiTo.includes(Number(t.id)));
@@ -143,43 +220,7 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     ]);
     const cdRows = cdR.rows;
 
-    // Kết quả đã lưu + lịch ca của xưởng (đọc một lần cho cả handler): 2 câu độc lập chạy song song
-    let banLuu = true;
-    const daLuu = new Map<string, { v: string; kq: KetQuaNgay }>();
-    const [luuR, lichCa] = await Promise.all([
-      poolMra.query(
-        `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua FROM xuong_gio_cong_ngay
-         WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date`, [toIds, tu, den])
-        .catch(e => { if (!isMissingSchema(e)) throw e; banLuu = false; return { rows: [] as Row[] }; }),
-      lichCaCuaXuong(xuong),
-    ]);
-    for (const x of luuR.rows) daLuu.set(`${x.to_id}|${x.ngay}`, { v: String(x.v), kq: x.ket_qua });
-
-    // Kết quả đã lưu chỉ dùng được khi tính cùng lịch ca hiện tại (đổi giờ nghỉ / giờ ca thì tính lại)
-    const bamHienTai = dauLichCa(lichCa);
-    const ketQua = new Map<string, KetQuaNgay>();
-    const canTinh: Array<{ toId: number; ngay: string; v: string }> = [];
-    for (const x of pb.rows) {
-      const k = `${x.to_id}|${x.ngay}`;
-      const luu = daLuu.get(k);
-      if (x.ngay < homNay && luu && luu.v === String(x.v) && luu.kq.bamLichCa === bamHienTai) ketQua.set(k, luu.kq);
-      else canTinh.push({ toId: Number(x.to_id), ngay: x.ngay, v: String(x.v) });
-    }
-    // Hôm nay luôn tính (đổi theo giờ); ngày cũ còn thiếu tính dần, mới trước
-    canTinh.sort((a, b) => (a.ngay === homNay ? -1 : b.ngay === homNay ? 1 : b.ngay.localeCompare(a.ngay)));
-    const lanNay = canTinh.slice(0, TINH_TOI_DA);
-    await runWithLimit(lanNay.map(c => async () => {
-      // Phiên bản sổ, xưởng, lịch ca đã đọc ở trên: truyền sẵn để mỗi (tổ, ngày) khỏi hỏi lại 3 câu (toRows là tổ của xưởng này)
-      const kq = await gioCongToNgay(c.toId, c.ngay, { v: c.v, xuong, lichCa });
-      if (!kq) return;
-      ketQua.set(`${c.toId}|${c.ngay}`, kq);
-      if (banLuu && c.ngay < homNay) {
-        await poolMra.query(
-          `INSERT INTO xuong_gio_cong_ngay (to_id, ngay, v, ket_qua) VALUES ($1, $2::date, $3, $4::jsonb)
-           ON CONFLICT (to_id, ngay) DO UPDATE SET v = EXCLUDED.v, ket_qua = EXCLUDED.ket_qua, tinh_luc = now()`,
-          [c.toId, c.ngay, c.v, JSON.stringify(kq)]);
-      }
-    }), 2);
+    const { ketQua, banLuu, conThieu, lichCa } = await tinhNgayTo(xuong, pb.rows, toIds, tu, den, homNay, false);
 
     // Gộp theo tổ
     const ht = new Map(hienTai.rows.filter(x => !x.la_tong).map(x => [Number(x.to_id), x]));
@@ -478,7 +519,9 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     // (quân số × giờ ca) so với giờ công điểm danh của cả xưởng. Xưởng chưa đưa hết tổ lên app thì app < điểm danh.
     let chamCong: {
       moiNhat: string | null;
-      theoNgay: Array<{ ngay: string; congNhan: number; gioHc: number; gioTc: number; quanSoApp: number; gioThuongApp: number; gioTangCaApp: number }>;
+      /** soToApp = số tổ có kết quả phân bổ ngày đó; soToActive = số tổ đang hoạt động của xưởng (đủ tổ mới so được với điểm danh) */
+      theoNgay: Array<{ ngay: string; congNhan: number; gioHc: number; gioTc: number; quanSoApp: number; gioThuongApp: number; gioTangCaApp: number;
+        soToApp: number; soToActive: number }>;
     } | null = null;
     // Đối chiếu điểm danh là số cả xưởng — tổ trưởng không xem
     if (!chiTo) try {
@@ -500,13 +543,20 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
            GROUP BY ngay`, [toIds, tu, den]),
       ]);
       const appNgay = new Map<string, { thuong: number; tangCa: number }>();
+      const toAppNgay = new Map<string, Set<number>>();
+      const toActive = new Set(toRows.filter(t => t.active).map(t => Number(t.id)));
       for (const x of pb.rows) {
         const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
         if (!kq) continue;
         const a = appNgay.get(x.ngay) ?? { thuong: 0, tangCa: 0 };
         cong(a, kq.gioNguoiTo);
         appNgay.set(x.ngay, a);
+        // Chỉ đếm tổ đang hoạt động để so cùng mẫu với soToActive
+        if (!toActive.has(Number(x.to_id))) continue;
+        if (!toAppNgay.has(x.ngay)) toAppNgay.set(x.ngay, new Set());
+        toAppNgay.get(x.ngay)!.add(Number(x.to_id));
       }
+      const soToActive = toActive.size;
       const qsNgay = new Map(qs.rows.map(x => [String(x.ngay), Number(x.so)]));
       const ngays = [...new Set([...dd.rows.map(x => String(x.ngay)), ...appNgay.keys()])].sort();
       chamCong = {
@@ -517,6 +567,7 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
           return {
             ngay: n, congNhan: d ? Number(d.cn) : 0, gioHc: d ? lam(Number(d.hc)) : 0, gioTc: d ? lam(Number(d.tc)) : 0,
             quanSoApp: qsNgay.get(n) ?? 0, gioThuongApp: a ? lam(a.thuong) : 0, gioTangCaApp: a ? lam(a.tangCa) : 0,
+            soToApp: toAppNgay.get(n)?.size ?? 0, soToActive,
           };
         }),
       };
@@ -698,7 +749,7 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     }), { ngayCoChay: 0, ngayChot: 0, khaiVuot: 0 });
     res.json({
       success: true, available: true, xuong, chiTo, tu, den, banLuu,
-      conThieu: Math.max(0, canTinh.length - lanNay.length),
+      conThieu,
       chamCong,
       hangMuc,
       hienTaiTong,

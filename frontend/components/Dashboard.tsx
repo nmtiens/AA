@@ -45,6 +45,7 @@ import { OverviewExportScopeModal } from './Dashboard/components/modals/Overview
 import { GenericExportScopeModal } from './Dashboard/components/modals/GenericExportScopeModal';
 import { GenericExportColumnModal } from './Dashboard/components/modals/GenericExportColumnModal';
 import { ProductionExportModal } from './Dashboard/components/modals/ProductionExportModal';
+import { chuThichNguonBop } from './Dashboard/components/shared/FunnelCard';
 interface DashboardProps {
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
@@ -71,6 +72,8 @@ interface DashboardProps {
   attendanceData: DataRow[];
   attendanceColumns: ColumnDefinition[];
   isSidebarCollapsed: boolean;
+  /** Số dòng sản xuất lấy vị trí BOP từ MRA (App context) — chú thích phễu / Điểm nghẽn */
+  soPhuMra?: number;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -96,7 +99,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   stockColumns,
   attendanceData,
   attendanceColumns,
-  isSidebarCollapsed
+  isSidebarCollapsed,
+  soPhuMra = 0,
 }) => {
   // ... (Same state and refs) ...
   const factoryRevenueRef = useRef<HTMLDivElement>(null);
@@ -878,6 +882,7 @@ const handleContinueToOrderColumnStep = () => {
           setBottleneckViewMode={setBottleneckViewMode}
           handleExportBottlenecks={handleExportBottlenecks}
         />
+        {soPhuMra > 0 && <p className="-mt-2 px-1 text-xs text-slate-500">{chuThichNguonBop(soPhuMra)}</p>}
             </>)}
             {tabDuoi === 'kh' && (<>
          <KhsxPlanActualSection

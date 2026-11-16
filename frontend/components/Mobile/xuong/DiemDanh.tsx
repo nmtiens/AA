@@ -372,9 +372,9 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
               }} />
           : <button type="button" className={`${NUT_PHU} w-full`} onClick={() => setThem(true)}><UserPlus size="1.1em" aria-hidden /> Thêm người / mượn người tổ khác</button>}
 
-        {lanDau && <p className={CHU_PHU}>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca. Ai đến trễ: bấm <b>Trễ</b> cạnh tên và chỉnh giờ đến.</p>}
+        {lanDau && <p className={CHU_PHU}>Ai đến trễ: bấm <b>Trễ</b> cạnh tên (không bấm = tính vào đúng giờ đầu ca).</p>}
 
-        <button type="button" className="min-h-11 w-full text-left text-base font-medium text-slate-600 underline underline-offset-4" onClick={onChiNhapSo}>
+        <button type="button" className="inline-flex min-h-14 w-full items-center text-left text-base font-medium text-slate-600 underline underline-offset-4" onClick={onChiNhapSo}>
           Không điểm danh tên — chỉ nhập số người
         </button>
       </div>
@@ -383,12 +383,14 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
 }
 
 /**
- * Lưới chip chọn người; `ban` = người đang ở hạng mục khác (chọn thì chuyển sang).
+ * Lưới chip chọn người; `ban` = người đang ở hạng mục khác (chọn thì chuyển sang); `chuaDiemDanh` = người của tổ chưa
+ * điểm danh ca này (nhãn "chưa điểm danh", vẫn chọn được 1 chạm — không tự ghi điểm danh).
  * Tổ đông (> 12 người): thanh dính trên cùng — đếm, lọc (Cả tổ / Đã chọn / Rảnh), tìm không dấu, Chọn hết / Bỏ hết
  * (áp cho những người đang hiện). Tên xếp theo ABC.
  */
-export function ChonNguoi({ coMat, ds, chon, onDoi, ban, rong }: {
+export function ChonNguoi({ coMat, ds, chon, onDoi, ban, chuaDiemDanh, rong }: {
   coMat: string[]; ds: CongNhanTo[]; chon: Set<string>; onDoi: (s: Set<string>) => void; ban?: Map<string, string>;
+  chuaDiemDanh?: Set<string>;
   /** Câu khi danh sách trống */
   rong?: string;
 }) {
@@ -434,7 +436,10 @@ export function ChonNguoi({ coMat, ds, chon, onDoi, ban, rong }: {
           return (
             <button key={m} type="button" aria-pressed={on} className={`${chipNguoi(on, !!o && !on)} ${gon ? '!min-h-12 !py-1.5' : ''}`}
               onClick={() => { const t = new Set(chon); if (on) t.delete(m); else t.add(m); onDoi(t); }}>
-              <span className="min-w-0 flex-1 truncate">{tenGon(m, ds)}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {tenGon(m, ds)}
+                {chuaDiemDanh?.has(m) && <span className="block truncate text-base opacity-80">chưa điểm danh</span>}
+              </span>
               {on ? <Check size="1em" aria-hidden /> : o ? <span className="shrink-0 text-base tabular-nums">…{o.slice(-4)}</span> : null}
             </button>
           );

@@ -5,6 +5,9 @@ import { vnDayKey } from '../server/common.js';
 import { activeUsers, PREF_OF, isMissingSchema, type NotifyKind } from '../notifications.js';
 import { sendToUsers, cronAuth } from '../vuongMacPush.js';
 import { sqlThaoTacCanXuLy } from '../server/xuong/canXem.js';
+import { loadUserAccess } from '../server/permissions.js';
+import { cheDoTheoNgay, type CheDoCham, type MocCheDo } from '../server/xuong/tram.js';
+import { phamViTheoQuyen } from '../server/xuong/phamVi.js';
 
 // ============================================================================
 // THÔNG BÁO MỤC XƯỞNG (đợt 2 — docs/designs/xuong-checkin.md, cải tiến 8 + 9). Dùng hệ thống notifications sẵn có:
@@ -104,6 +107,28 @@ async function quanLyCuaXuong(xuongs: string[]): Promise<Map<string, string[]>> 
   return out;
 }
 
+/** Quyền quản lý xưởng (trùng PERM_QUAN_LY ở xuong.ts — không import để tránh vòng xuong.ts ↔ file này) */
+const PERM_QUAN_LY = 'xuong_quan_ly';
+
+/** Lịch đổi chế độ chấm của các tổ (chưa chạy SQL trạm: rỗng = mọi tổ 'cu') */
+async function mocCheDoTo(toIds: number[]): Promise<MocCheDo[]> {
+  if (!toIds.length) return [];
+  try {
+    const r = await poolMra.query(
+      `SELECT to_id, che_do, to_char(tu_ngay, 'YYYY-MM-DD') AS tu FROM xuong_to_che_do WHERE to_id = ANY($1::int[])`, [toIds]);
+    return r.rows.map(x => ({ toId: Number(x.to_id), cheDo: x.che_do as CheDoCham, tuNgay: String(x.tu) }));
+  } catch (e) {
+    if (isMissingSchema(e)) return [];
+    throw e;
+  }
+}
+
+/** Đã chốt quân số ca `caSql` trong ngày $1: bấm Chốt quân số hoặc có người quét vào ca ở trạm (còn hiệu lực) */
+const sqlDaChotCa = (a: string, toSql: string, caSql: string) =>
+  `EXISTS (SELECT 1 FROM xuong_su_kien ${a} WHERE ${a}.to_id = ${toSql} AND ${a}.loai IN ('quan_so','vao_ca') AND ${a}.du_lieu->>'loaiCa' = ${caSql}
+             AND (${a}.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+             AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h_${a} WHERE h_${a}.loai = 'huy' AND h_${a}.sua_cho = ${a}.id))`;
+
 const so = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 /** Có hàng giao tới công đoạn (giao / khai báo công đoạn): báo tổ phụ trách công đoạn nhận */
@@ -181,13 +206,16 @@ async function nhacSang(ngay: string) {
       `SELECT t.id, t.ten_to FROM xuong_to t
        WHERE t.active AND EXISTS (SELECT 1 FROM xuong_to_cong_doan tc JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id
                                   WHERE tc.to_id = t.id AND (s.trang_thai IN ('dang_lam','tam_ngung','da_nhan') OR s.sl_giao_den > s.sl_nhan))
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' = 'chinh'
-                           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
-                           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))`, [ngay]);
-    const nguoi = await nguoiCuaTo(r.rows.map(x => Number(x.id)));
+         AND NOT ${sqlDaChotCa('e', 't.id', "'chinh'")}`, [ngay]);
+    const toIds = r.rows.map(x => Number(x.id));
+    const [nguoi, cheDo] = await Promise.all([nguoiCuaTo(toIds), mocCheDoTo(toIds).then(cheDoTheoNgay)]);
     for (const x of r.rows) {
+      // Tổ dùng trạm: chưa ai quét vào ca thường là máy trạm có vấn đề
+      const tram = cheDo(Number(x.id), ngay) === 'tram';
       tins.push({ kind: 'xuong_quan_so', userIds: nguoi.get(Number(x.id)) ?? [], moiNgayMotLan: true,
-        title: `${x.ten_to}: chưa chốt quân số ca chính`, body: 'Mở app MRA, điểm danh / chốt quân số đầu ca — giờ công của tổ tính theo người có mặt.' });
+        ...(tram
+          ? { title: `${x.ten_to}: chưa ai quét vào ca ở trạm`, body: 'Kiểm tra máy trạm — mỗi người quét thẻ vào ca để tính giờ công.' }
+          : { title: `${x.ten_to}: chưa chốt quân số ca chính`, body: 'Mở app MRA, điểm danh / chốt quân số đầu ca — giờ công của tổ tính theo người có mặt.' }) });
     }
   }
   // 2) Hạng mục đang chạy hơn 2 ngày không có thao tác mới
@@ -215,15 +243,47 @@ async function nhacSang(ngay: string) {
       body: `${ds.length} hạng mục: ${ds.slice(0, 5).join(' · ')} — kiểm tra: còn làm, tạm ngưng hay đã xong?` });
   }
   // 3) Thao tác cần xử lý trong 24 giờ qua (cùng định nghĩa danh sách Cần xem ở bộ lọc mặc định — bỏ cờ chỉ để biết,
-  // thao tác đã huỷ): báo quản lý xưởng
+  // thao tác đã huỷ): báo quản lý xưởng theo quyền và phạm vi xem hiện hành (như phamViXem ở xuong.ts)
   const co = await poolMra.query(
-    `SELECT xuong, count(*)::int AS n FROM xuong_su_kien e WHERE ${sqlThaoTacCanXuLy('e', 24)} AND xuong IS NOT NULL
-     GROUP BY xuong`);
-  const ql = await quanLyCuaXuong(co.rows.map(x => String(x.xuong)));
+    `SELECT xuong, to_id, count(*)::int AS n FROM xuong_su_kien e WHERE ${sqlThaoTacCanXuLy('e', 24)} AND xuong IS NOT NULL
+     GROUP BY xuong, to_id`);
+  const theoXuongCo = new Map<string, Array<{ toId: number | null; n: number }>>();
   for (const x of co.rows) {
-    tins.push({ kind: 'xuong_co', userIds: ql.get(x.xuong) ?? [], moiNgayMotLan: true, url: '/#/setup?tab=xuong',
-      title: `Xưởng ${x.xuong}: có thao tác cần xem`,
-      body: `${x.n} thao tác cần xử lý trong 24 giờ qua — Setup dữ liệu → Xưởng → Cần xem (giờ máy lệch, gửi hộ, giao vượt số đã xong…).` });
+    const k = String(x.xuong);
+    if (!theoXuongCo.has(k)) theoXuongCo.set(k, []);
+    theoXuongCo.get(k)!.push({ toId: x.to_id === null ? null : Number(x.to_id), n: Number(x.n) });
+  }
+  const ql = await quanLyCuaXuong([...theoXuongCo.keys()]);
+  const uids = [...new Set([...ql.values()].flat())];
+  // Tổ mà người nhận đang làm tổ trưởng: chỉ đếm thao tác của các tổ đó
+  const ttRows = uids.length ? (await poolMra.query(
+    `SELECT id, xuong, to_truong_user_id::text AS uid FROM xuong_to WHERE active AND to_truong_user_id = ANY($1::int[])`,
+    [uids.map(Number)])).rows : [];
+  const access = new Map(await Promise.all(uids.map(async u => [u, await loadUserAccess(u)] as const)));
+  for (const [xg, ds] of theoXuongCo) {
+    // Gom người nhận cùng số đếm vào một tin
+    const theoSo = new Map<number, string[]>();
+    for (const u of ql.get(xg) ?? []) {
+      const a = access.get(u);
+      if (!a?.active) continue;
+      const admin = a.role === 'ADMIN';
+      // Không còn quyền quản lý xưởng (dòng xuong_quan_ly còn sót): không gửi
+      if (!admin && !a.perms.has(PERM_QUAN_LY)) continue;
+      // Cùng luật phamViXem: làm tổ trưởng ở bất kỳ đâu => chỉ tổ mình trong xưởng này (không có tổ ở đây => không gửi)
+      const pv = phamViTheoQuyen(new Set([admin ? '*' : xg]),
+        ttRows.filter(t => String(t.uid) === u).map(t => ({ id: Number(t.id), xuong: String(t.xuong) })), xg);
+      if (!pv) continue;
+      const chiTo = pv.chiTo;
+      const n = ds.filter(d => !chiTo || (d.toId !== null && chiTo.includes(d.toId))).reduce((s, d) => s + d.n, 0);
+      if (!n) continue;
+      theoSo.set(n, [...(theoSo.get(n) ?? []), u]);
+    }
+    for (const [n, ids] of theoSo) {
+      tins.push({ kind: 'xuong_co', userIds: ids, moiNgayMotLan: true,
+        url: `${URL_XUONG}?muc=quanLy&ql=can-xem&xuong=${encodeURIComponent(xg)}`,
+        title: `Xưởng ${xg}: có thao tác cần xem`,
+        body: `${n} thao tác cần xem trong 24 giờ qua` });
+    }
   }
   await donAnhMoCoi();
   return guiTinXuong(tins);
@@ -245,16 +305,24 @@ async function nhacChieu(ngay: string) {
   const tins: TinXuong[] = [];
   // 1) Đã khai tăng ca hôm nay nhưng chưa chốt quân số ca đó
   const tc = await poolMra.query(
-    `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
+    `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca,
+            EXISTS (SELECT 1 FROM xuong_su_kien v WHERE v.to_id = t.id AND v.loai = 'vao_ca'
+                      AND (v.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+                      AND NOT EXISTS (SELECT 1 FROM xuong_su_kien hv WHERE hv.loai = 'huy' AND hv.sua_cho = v.id)) AS co_vao_ca
+     FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
      WHERE e.loai = 'tang_ca' AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien q WHERE q.to_id = t.id AND q.loai = 'quan_so' AND q.du_lieu->>'loaiCa' = e.du_lieu->>'loaiCa'
-                         AND (q.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
-                         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = q.id))`, [ngay]);
-  const nguoiTc = await nguoiCuaTo([...new Set(tc.rows.map(x => Number(x.id)))]);
+       AND NOT ${sqlDaChotCa('q', 't.id', "e.du_lieu->>'loaiCa'")}`, [ngay]);
+  const toTc = [...new Set(tc.rows.map(x => Number(x.id)))];
+  const [nguoiTc, cheDoTc] = await Promise.all([nguoiCuaTo(toTc), mocCheDoTo(toTc).then(cheDoTheoNgay)]);
   for (const x of tc.rows) {
+    const tram = cheDoTc(Number(x.id), ngay) === 'tram';
+    // Trạm: người ở lại tăng ca không quét lại (đoạn có mặt ca chính nối sang tăng ca) — có vào ca bất kỳ hôm nay là đủ
+    if (tram && x.co_vao_ca) continue;
     tins.push({ kind: 'xuong_quan_so', userIds: nguoiTc.get(Number(x.id)) ?? [], moiNgayMotLan: true,
-      title: `${x.ten_to}: chưa chốt quân số tăng ca`, body: 'Bấm "Chốt quân số" cho ca tăng ca để giờ tăng ca được phân bổ đúng.' });
+      ...(tram
+        ? { title: `${x.ten_to}: chưa ai quét vào tăng ca ở trạm`, body: 'Kiểm tra máy trạm — mỗi người quét thẻ vào tăng ca để tính giờ tăng ca.' }
+        : { title: `${x.ten_to}: chưa chốt quân số tăng ca`, body: 'Bấm "Chốt quân số" cho ca tăng ca để giờ tăng ca được phân bổ đúng.' }) });
   }
   // 2) Có hạng mục đang chạy mà chưa xác nhận cuối ngày
   const xn = await poolMra.query(

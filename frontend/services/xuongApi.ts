@@ -1,4 +1,4 @@
-import { authXuong, doLech, XUONG_TOKEN_KEY, XUONG_DEVICE_KEY } from './xuongClock';
+import { authXuong, doLech, XUONG_TOKEN_KEY, XUONG_DEVICE_KEY, XUONG_PHIEN_KEY } from './xuongClock';
 import type { CongViec } from './xuongModel';
 
 // ============================================================================
@@ -13,7 +13,28 @@ export interface DangKyKetQua {
   message?: string;
   user?: { id: number; username: string; fullName: string | null; msnv: string | null };
   to?: ToCuaToi[];
+  /** Có quyền quản lý Xưởng (ADMIN hoặc xuong_quan_ly) — giữ menu quản lý khi phiên app 8 giờ đã hết */
+  quanLy?: boolean;
 }
+
+/** Phiên Xưởng lưu ở localStorage 'xuong_phien' (app tổ ghi sau mỗi lần đăng ký máy) */
+export interface PhienXuong { user: { id: number; fullName: string | null; username: string }; to: ToCuaToi[]; quanLy?: boolean }
+export function docPhienXuong(): PhienXuong | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(XUONG_PHIEN_KEY) || 'null') as PhienXuong | null;
+    return v && typeof v === 'object' && v.user ? v : null;
+  } catch { return null; }
+}
+
+/** Tên người theo id (người từng đăng nhập Xưởng trên máy) — để báo "còn N thao tác của <tên>" trong hàng đợi */
+export const KHOA_TEN_NGUOI = 'xuong_ten_nguoi';
+const ghiTenNguoi = (u: { id: number; fullName: string | null; username: string }) => {
+  try {
+    const m = JSON.parse(localStorage.getItem(KHOA_TEN_NGUOI) || '{}') as Record<string, string>;
+    m[String(u.id)] = u.fullName || u.username;
+    localStorage.setItem(KHOA_TEN_NGUOI, JSON.stringify(m));
+  } catch { /* bỏ qua */ }
+};
 
 const docJson = async (r: Response) => r.json().catch(() => ({ success: false, message: 'Phản hồi không hợp lệ' }));
 
@@ -45,8 +66,14 @@ async function dangKyMot(): Promise<DangKyKetQua> {
       localStorage.setItem(XUONG_TOKEN_KEY, b.token);
       localStorage.setItem(XUONG_DEVICE_KEY, b.deviceToken);
     } catch { /* bỏ qua */ }
+    const quanLy = b.quanLy === true;
+    if (b.user) {
+      ghiTenNguoi(b.user);
+      // Lưu luôn cờ quản lý vào phiên (app tổ ghi lại cả phiên ngay sau, cần giữ trường quanLy)
+      if (b.to) { try { localStorage.setItem(XUONG_PHIEN_KEY, JSON.stringify({ user: b.user, to: b.to, quanLy } satisfies PhienXuong)); } catch { /* bỏ qua */ } }
+    }
     await doLech();
-    return { ok: true, available: true, user: b.user, to: b.to };
+    return { ok: true, available: true, user: b.user, to: b.to, quanLy };
   } catch {
     return { ok: false, message: 'Mất mạng — chưa đăng ký được máy' };
   }

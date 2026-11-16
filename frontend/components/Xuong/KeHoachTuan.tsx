@@ -76,10 +76,17 @@ export function tinhTrang(r: KeHoachTuanDong, tuanDaQua: boolean, homNay: string
   else t = { ma: 'cho_chay', ten: 'Đã nhận, chưa chạy', muc: 2, chiTiet: cd.filter(c => c.slNhan > c.slHoanThanh).map(c => c.ten).join(', ') };
   // Dự báo theo mốc "thường mất" các công đoạn còn lại (MRA cũ / app): không kịp ngày KHNK => cảnh báo trước khi rớt
   const db = r.duBao;
-  if (db && !tuanDaQua && t.ma !== 'cho_nk' && t.muc < 3) {
-    const cau = `cần ~${so(db.canNgay)} ngày (${db.tenConLai.join(' → ')}), còn ${so(db.conNgay)} ngày tới ${r.ngayKhnk ? `KHNK ${ddmm(r.ngayKhnk)}` : 'hết tuần'}`;
+  if (db && !tuanDaQua && t.ma !== 'cho_nk' && t.muc < 3 && db.khongDuMoc) {
+    // Mọi công đoạn còn lại chưa có mốc: không ghi "cần ~0 ngày", giữ tình trạng gốc
+    t = { ...t, chiTiet: [`Chưa đủ số liệu để dự báo (${(db.tenThieuMoc.length ? db.tenThieuMoc : db.tenConLai).join(', ')})`, t.chiTiet].filter(Boolean).join(' · ') };
+  } else if (db && !tuanDaQua && t.ma !== 'cho_nk' && t.muc < 3) {
+    // Thiếu mốc một phần: số ngày cần chưa cộng các công đoạn đó
+    const thieu = db.tenThieuMoc.length ? `; chưa tính ${db.tenThieuMoc.join(', ')} nên có thể lâu hơn` : '';
+    const cau = `cần ~${so(db.canNgay)} ngày (${db.tenConLai.join(' → ')}), còn ${so(db.conNgay)} ngày tới ${r.ngayKhnk ? `KHNK ${ddmm(r.ngayKhnk)}` : 'hết tuần'}${thieu}`;
     if (db.muc === 'rot') t = { ma: 'nguy_co', ten: 'Nguy cơ rớt', muc: 3, chiTiet: [`Nguy cơ rớt: ${cau}`, t.chiTiet].filter(Boolean).join(' · ') };
     else if (db.muc === 'sat') t = { ...t, muc: Math.max(t.muc, 2) as Muc, chiTiet: [`Sát hạn: ${cau}`, t.chiTiet].filter(Boolean).join(' · ') };
+    // Kịp nhưng thiếu mốc: số ngày cần có thể còn thiếu — nhắc, giữ mức
+    else if (db.muc === 'kip' && db.tenThieuMoc.length) t = { ...t, chiTiet: [t.chiTiet, `Chưa tính ${db.tenThieuMoc.join(', ')} — có thể lâu hơn`].filter(Boolean).join(' · ') };
   }
   if (quaKhnk && t.muc < 3 && t.ma !== 'dat') {
     t = { ...t, muc: Math.max(t.muc, 2) as Muc, chiTiet: [`Quá ngày KHNK ${ddmm(r.ngayKhnk!)}`, t.chiTiet].filter(Boolean).join(' · ') };
@@ -261,12 +268,15 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
             const g = phanTich.gioDd || phanTich.gioCongApp;
             return g > 0 ? `${so(phanTich.nkTong / g, 2)} tr` : '—';
           })()} mau={!phanTich.gioDd && phanTich.soToMra < phanTich.soTo ? 'text-amber-700' : undefined}
-            phu={phanTich.gioDd ? `${so(phanTich.gioDd, 0)} giờ công (điểm danh cả xưởng)`
-              : phanTich.gioCongApp ? `${so(phanTich.gioCongApp, 0)} giờ công — chỉ ${phanTich.soToMra}/${phanTich.soTo} tổ dùng MRA, số cao hơn thực tế` : 'chưa có giờ công'} />
+            phu={[
+              phanTich.gioDd ? `${so(phanTich.gioDd, 0)} giờ công (điểm danh cả xưởng)`
+                : phanTich.gioCongApp ? `${so(phanTich.gioCongApp, 0)} giờ công — chỉ ${phanTich.soToMra}/${phanTich.soTo} tổ dùng MRA, số cao hơn thực tế` : 'chưa có giờ công',
+              phanTich.gioSpTong > 0 ? `${so(phanTich.nkTong / phanTich.gioSpTong, 2)} tr / giờ công SP` : '',
+            ].filter(Boolean).join(' · ')} />
           <The ten="Doanh số / công nhân" giaTri={(() => {
             const cn = phanTich.cnDd || phanTich.cnApp;
             return cn > 0 ? `${so(phanTich.nkTong / cn, 1)} tr` : '—';
-          })()} phu={phanTich.gioSpTong > 0 ? `${so(phanTich.nkTong / phanTich.gioSpTong, 2)} tr / giờ công SP` : 'tổng nhập kho tuần ÷ công nhân bình quân'} />
+          })()} phu="tổng nhập kho tuần ÷ công nhân bình quân" />
         </div>
         <p className="text-sm text-slate-600">
           Giờ công SP: {so(phanTich.gioSpKh, 0)} giờ cho KH, {so(phanTich.gioSpTong - phanTich.gioSpKh, 0)} giờ ngoài KH tuần này.

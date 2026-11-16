@@ -29,4 +29,13 @@ declare module '@tong-quan/core' {
   export interface DuLieuFileCongTrinh { coBang: boolean; capNhat: string | null; soFile: number; cot: string[]; dong: [string, Record<string, unknown> | 0][] }
   export function ghepDongFile(app: Row[], cols: Cot[], hexKey: string, d: DuLieuFileCongTrinh): Row[];
   export function coSoFile(d: DuLieuFileCongTrinh | null | undefined): d is DuLieuFileCongTrinh;
+  /** Vị trí công đoạn MRA (frontend/components/Dashboard/core/viTriMra.ts) */
+  export type MaViTriMra = 'P012' | 'P013' | 'P014' | 'P016' | 'P018' | 'P020' | 'P021';
+  export type ViTriMra = { ma: MaViTriMra; tu: string | null; cd: string[]; trangThai: string };
+  export type BanDoMra = { ver: string; map: Record<string, ViTriMra> };
+  export const NHAN_DU_PHONG: Record<MaViTriMra, string>;
+  export function soNgayTuMoc(tuIso: string | null | undefined, nowMs: number): string;
+  export function nhanTheoMa(rows: Row[], bopKey: string): Map<string, string>;
+  export function phuViTriMra(rows: Row[], cols: Cot[], ban: BanDoMra | null | undefined, nowMs: number, nhan?: Map<string, string>): { rows: Row[]; soPhu: number };
+  export function demNguonBop(rows: Row[]): number;
 }

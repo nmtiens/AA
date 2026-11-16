@@ -3,7 +3,7 @@ import { DataRow } from '../../../types';
 import { parseNumber } from '../utils/numberParsers';
 import { doneValue, daNhapDu, laHuy, isQtyComplete, remainValue, materialLineState } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
-import { extractStage } from '../core/stages';
+import { extractStage, laDongMra } from '../core/stages';
 import {
   hamGiaTri, remainBucketOf, tinhBottleneck, tinhTopBottlenecks, tinhCardMetrics, tinhBangCongTrinh,
   tinhPivotWorkshop, tinhPivotFunnel, tinhFunnelBreakdownByBop, tinhPivotProject,
@@ -240,7 +240,7 @@ export function usePivotTables({
         if (remainValue(totalVal, invVal) <= 0) return; // đã nhập kho đủ -> không còn lại
         if (isCountList && stockedItem) return;
         const stage = bopKey ? extractStage(row[bopKey]) : null;
-        buckets[remainBucketOf(status, stage)].push(row);
+        buckets[remainBucketOf(status, stage, laDongMra(row))].push(row);
       });
     }
 

@@ -15,6 +15,8 @@ import * as bang from '../shared/bangBaoCao';
 import { docLichSuNhap, ghiChuKho, khoSoLuong, tongLichSuNhap, tongQc, QTY_EPS } from './core/tongChiTiet';
 import { parseQcEntries } from '../../utils/qcParse';
 import { QC_STATUS_VI } from '../../services/productionExtraService';
+import { xuongSetupApi } from '../../services/xuongSetupApi';
+import { dongXuongMra, laNguonMra, NhanMra, DongNguonBop } from '../Dashboard/components/modals/HexDetailModal';
 
 // ============================================================================
 // Chi tiết 1 hạng mục (HEX): BOP (đang ở công đoạn nào, tiến độ từng công đoạn) + BOT (các mốc
@@ -67,6 +69,8 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
   // Xem ảnh QC ngay trong app (link Google Drive) — urls của 1 lần kiểm + ảnh đang xem
   const [photoView, setPhotoView] = useState<{ urls: string[]; idx: number; title: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Vị trí công đoạn ghi ở xưởng (MRA); null = không có dữ liệu / chưa tải được => không hiện
+  const [mra, setMra] = useState<string | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
 
   useEffect(() => {
@@ -81,6 +85,14 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       .then(setRow)
       .catch(e => { if (e.name !== 'AbortError') setError(e.message); });
     return () => ctrl.abort();
+  }, [hex]);
+
+  useEffect(() => {
+    setMra(null);
+    if (!hex) return;
+    let huy = false;
+    xuongSetupApi.tomTat([hex]).then(r => { if (!huy && r.ok) setMra(dongXuongMra(r.data.tomTat[hex])); });
+    return () => { huy = true; };
   }, [hex]);
 
   const d = useMemo(() => {
@@ -232,15 +244,18 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
             <div className="space-y-5">
               {/* Tóm tắt */}
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                {[
-                  { label: 'Công đoạn (BOP)', value: d.stage ?? '—', sub: row.tinh_trang ?? '' },
+                {([
+                  // Vị trí lấy từ MRA (máy chủ phủ ở /api/production/hex): nhãn MRA + BOP PC khi khác
+                  { label: 'Công đoạn (BOP)', value: d.stage ?? '—', sub: row.tinh_trang ?? '',
+                    nhan: laNguonMra(row) ? <NhanMra row={row} className="ml-1" /> : null, duoi: <DongNguonBop row={row} /> },
                   {
                     label: 'Hạn (BOT)', value: fmtDate(d.dl.date),
                     sub: d.cancelled ? 'Đơn HỦY — không theo dõi hạn' : d.dl.source ? `KH nhập kho ${d.dl.source}${d.full ? ' · đã nhập kho đủ' : d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có KH nhập kho',
                     tone: d.cancelled ? 'text-slate-400' : d.days !== null && d.days < 0 && !d.full ? 'text-red-600' : d.days !== null && d.days <= 14 && !d.full ? 'text-amber-600' : 'text-slate-900',
                   },
                   {
-                    label: 'Ở công đoạn hiện tại', value: dwell === DWELL_NONE || !dwell ? 'Chưa có số ngày' : dwell, sub: dwell === DWELL_NONE ? '' : row.so_ngay_cd_hien_tai ?? '',
+                    label: 'Ở công đoạn hiện tại', value: dwell === DWELL_NONE || !dwell ? 'Chưa có số ngày' : dwell,
+                    sub: [dwell === DWELL_NONE ? '' : row.so_ngay_cd_hien_tai ?? '', laNguonMra(row) ? `PC: ${row.so_ngay_pc || '—'}` : ''].filter(Boolean).join(' · '),
                     tone: dwell === DWELL_STUCK ? 'text-red-600' : 'text-slate-900',
                   },
                   { label: 'Đơn hàng', value: `${fmtQty(d.qtyOrder)} ${row.dvt ?? ''}`, sub: `${d.cancelled ? 'HỦY · ' : ''}${tyCot(row.tri_gia_don_hang_tong)} tỷ` },
@@ -250,14 +265,20 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                     sub: d.cancelled ? 'Đơn HỦY' : `${fmtPt(d.pctValue)} · ${fmtTy(d.valDone)} tỷ · còn ${fmtTy(d.valRemain)} tỷ`,
                     tone: d.full ? 'text-emerald-600' : 'text-slate-900',
                   },
-                ].map(k => (
+                ] as Array<{ label: string; value: React.ReactNode; sub: string; tone?: string; nhan?: React.ReactNode; duoi?: React.ReactNode }>).map(k => (
                   <div key={k.label} className="rounded-lg border border-slate-200 px-3 py-2">
-                    <p className="text-[0.6875rem] text-slate-500">{k.label}</p>
+                    <p className="text-[0.6875rem] text-slate-500">{k.label}{k.nhan}</p>
                     <p className={`text-base font-semibold tabular-nums ${k.tone ?? 'text-slate-900'}`}>{k.value}</p>
                     <p className="truncate text-[0.6875rem] text-slate-400" title={k.sub}>{k.sub}</p>
+                    {k.duoi}
                   </div>
                 ))}
               </div>
+              {mra && (
+                <p className="-mt-3 text-xs text-emerald-700" title="Theo thao tác của tổ ở xưởng (MRA)">
+                  <span className="font-semibold">Ở xưởng (MRA):</span> {mra}
+                </p>
+              )}
 
               {/* Mốc ngày bất thường (chỉ hiện khi có) */}
               {checks && checks.warnings.length > 0 && (

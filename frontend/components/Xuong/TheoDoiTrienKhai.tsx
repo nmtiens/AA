@@ -1,21 +1,39 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Search, Play, Pause, Inbox, PackageCheck, Check, Clock, Undo2 } from 'lucide-react';
+import { RefreshCw, Search, Play, Pause, Inbox, PackageCheck, Check, Clock, Undo2, ChevronDown, ChevronRight } from 'lucide-react';
 import { xuongSetupApi, type TheoDoiHangMuc, type TheoDoiCongDoan, type DotTrienKhai } from '../../services/xuongSetupApi';
 import { INPUT, BTN, KHUNG } from './xuongDesktopUi';
 import { tyLe } from './chiSoXuong';
-import { hienSl } from '../../services/xuongModel';
+import { hienSl, gioVN } from '../../services/xuongModel';
+import XuongHexChiTiet from './XuongHexChiTiet';
 
 // ============================================================================
 // THEO DÕI TRIỂN KHAI — hạng mục xưởng đã triển khai (hoặc được giao thành phần): từng thành phần đi tuyến công đoạn
 // nào, đang ở đâu, tổ nào phụ trách, đang làm / tạm ngưng / chờ nhận / chờ giao, số nhận – xong – giao.
 // ============================================================================
 
-type Loc = 'dang_chay' | 'dang_lam' | 'tam_ngung' | 'cho_nhan' | 'cho_khai' | 'chua_tk' | 'ngoai_kh' | 'xong';
+type Loc = 'can_xu_ly' | 'dang_lam' | 'cho_khai' | 'xong' | 'dang_chay' | 'chua_tk' | 'ngoai_kh';
 const TEN_LOC: Record<Loc, string> = {
-  dang_chay: 'Chưa xong', dang_lam: 'Đang làm', tam_ngung: 'Tạm ngưng', cho_nhan: 'Có hàng chờ nhận', cho_khai: 'Chờ xưởng phụ khai',
-  chua_tk: 'Chưa triển khai trên app', ngoai_kh: 'Không có trong KHSX', xong: 'Đã xong',
+  can_xu_ly: 'Cần xử lý', dang_lam: 'Đang làm', cho_khai: 'Chờ xưởng phụ khai', xong: 'Đã xong',
+  dang_chay: 'Tất cả chưa xong', chua_tk: 'Chưa triển khai trên app', ngoai_kh: 'Không có trong KHSX',
 };
+/** 4 nút chính; còn lại vào menu Lọc thêm */
+const LOC_CHINH: Loc[] = ['can_xu_ly', 'dang_lam', 'cho_khai', 'xong'];
+const LOC_THEM: Loc[] = ['dang_chay', 'chua_tk', 'ngoai_kh'];
 const ddmm = (iso: string) => iso.slice(0, 10).split('-').slice(1).reverse().join('/');
+const NGAY_MS = 86_400_000;
+/** Đang làm / có hàng chờ nhận mà không thao tác gì quá 48 giờ => coi là kẹt */
+const KET_MS = 48 * 3_600_000;
+
+/** Tình hình một hạng mục để sắp và lọc: số ngày trễ KHNK (null = không trễ), kẹt, hạng sắp xếp */
+function tinhHinh(h: TheoDoiHangMuc, homNay: string, now: number) {
+  const khnk = h.keHoach?.ngayKhnk?.slice(0, 10) ?? null;
+  const conNgay = khnk ? Math.round((Date.parse(khnk) - Date.parse(homNay)) / NGAY_MS) : null;
+  const tre = !h.xong && conNgay !== null && conNgay < 0 ? -conNgay : null;
+  const ket = !h.xong && (h.dangLam > 0 || h.choNhan > 0) && !!h.capNhatCuoi && now - Date.parse(h.capNhatCuoi) > KET_MS;
+  // Thứ tự: 0 trễ KHNK · 1 tạm ngưng / kẹt · 2 còn ≤ 3 ngày tới KHNK · 3 còn lại
+  const hang = tre !== null ? 0 : !h.xong && (h.tamNgung > 0 || ket) ? 1 : !h.xong && conNgay !== null && conNgay <= 3 ? 2 : 3;
+  return { tre, ket, hang, canXuLy: !h.xong && (tre !== null || h.tamNgung > 0 || h.choNhan > 0 || ket) };
+}
 /** Nhãn kế hoạch KHSX gần nhất của hạng mục */
 const nhanKeHoach = (k: TheoDoiHangMuc['keHoach']) => !k ? null
   : `${k.loai === 'tuan' ? `KH tuần ${k.tuan ?? '?'}` : `KH tháng ${k.thang ?? '?'}`}/${k.nam ?? ''}${k.ngayKhnk ? ` · KHNK ${ddmm(k.ngayKhnk)}` : ''}`;
@@ -98,9 +116,11 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
   const [ds, setDs] = useState<TheoDoiHangMuc[] | null>(null);
   const [dang, setDang] = useState(false);
   const [loi, setLoi] = useState('');
-  const [loc, setLoc] = useState<Loc>('dang_chay');
+  const [loc, setLoc] = useState<Loc>('can_xu_ly');
   const [q, setQ] = useState('');
   const [soNgay, setSoNgay] = useState(90);
+  const [moChiTiet, setMoChiTiet] = useState<Set<string>>(new Set());
+  const batChiTiet = (hex: string) => setMoChiTiet(s => { const x = new Set(s); if (x.has(hex)) x.delete(hex); else x.add(hex); return x; });
 
   const tai = useCallback(async () => {
     setDang(true);
@@ -111,32 +131,57 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
   }, [xuong, soNgay]);
   useEffect(() => { tai(); }, [tai]);
 
+  const homNay = gioVN(Date.now()).ngay;
+  // Tình hình từng hạng mục (trễ / kẹt / hạng sắp xếp) — tính lại mỗi lần tải
+  const th = useMemo(() => {
+    const now = Date.now();
+    return new Map((ds ?? []).map(h => [h.hex, tinhHinh(h, homNay, now)]));
+  }, [ds, homNay]);
   const dem = useMemo(() => {
-    const a = ds ?? [];
+    const a = (ds ?? []).filter(h => !h.xong);
+    const cx = a.filter(h => th.get(h.hex)?.canXuLy);
     return {
-      dang_chay: a.filter(h => !h.xong).length, dang_lam: a.filter(h => h.dangLam > 0).length, tam_ngung: a.filter(h => h.tamNgung > 0).length,
-      cho_nhan: a.filter(h => h.choNhan > 0).length, cho_khai: a.filter(h => h.choKhai.length > 0).length,
-      chua_tk: a.filter(h => h.chuaTrienKhai && !h.xong).length, ngoai_kh: a.filter(h => !h.keHoach && !h.xong).length, xong: a.filter(h => h.xong).length,
-    } as Record<Loc, number>;
-  }, [ds]);
+      can_xu_ly: cx.length, dang_lam: a.filter(h => h.dangLam > 0).length, cho_khai: a.filter(h => h.choKhai.length > 0).length,
+      xong: (ds ?? []).filter(h => h.xong).length, dang_chay: a.length,
+      chua_tk: a.filter(h => h.chuaTrienKhai).length, ngoai_kh: a.filter(h => !h.keHoach).length,
+      // Tách số trong Cần xử lý (một hạng mục có thể vừa trễ vừa tạm ngưng)
+      tre: cx.filter(h => th.get(h.hex)?.tre != null).length, tamNgung: cx.filter(h => h.tamNgung > 0).length, choNhan: cx.filter(h => h.choNhan > 0).length,
+      ket: cx.filter(h => th.get(h.hex)?.ket).length,
+    };
+  }, [ds, th]);
   const hien = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return (ds ?? []).filter(h => (
-      loc === 'dang_chay' ? !h.xong : loc === 'dang_lam' ? h.dangLam > 0 : loc === 'tam_ngung' ? h.tamNgung > 0
-        : loc === 'cho_nhan' ? h.choNhan > 0 : loc === 'cho_khai' ? h.choKhai.length > 0
+    // Đang tìm: tìm trong mọi hạng mục, không theo bộ lọc
+    return (ds ?? []).filter(h => (t ? true
+      : loc === 'can_xu_ly' ? !!th.get(h.hex)?.canXuLy : loc === 'dang_lam' ? !h.xong && h.dangLam > 0
+        : loc === 'cho_khai' ? !h.xong && h.choKhai.length > 0 : loc === 'dang_chay' ? !h.xong
           : loc === 'chua_tk' ? h.chuaTrienKhai && !h.xong : loc === 'ngoai_kh' ? !h.keHoach && !h.xong : h.xong)
-      && (!t || `${h.hex} ${h.ten ?? ''} ${h.tenCongTrinh ?? ''}`.toLowerCase().includes(t)));
-  }, [ds, loc, q]);
+      && (!t || `${h.hex} ${h.ten ?? ''} ${h.tenCongTrinh ?? ''}`.toLowerCase().includes(t)))
+      // Trễ / kẹt / sát hạn lên đầu, còn lại triển khai mới nhất trước
+      .sort((a, b) => (th.get(a.hex)?.hang ?? 3) - (th.get(b.hex)?.hang ?? 3)
+        || (b.trienKhaiCuoi ?? '').localeCompare(a.trienKhaiCuoi ?? ''));
+  }, [ds, loc, q, th]);
+  const nutLoc = (k: Loc) => (
+    <button key={k} type="button" aria-pressed={loc === k} onClick={() => setLoc(k)}
+      className={`rounded-full border px-3 py-1 text-sm tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 font-semibold text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
+      {TEN_LOC[k]} {dem[k]}
+      {k === 'can_xu_ly' && dem.can_xu_ly > 0 && (
+        <span className={`ml-1 text-xs font-normal ${loc === k ? 'text-slate-200' : 'text-slate-500'}`}>
+          ({[dem.tre ? `${dem.tre} trễ` : '', dem.tamNgung ? `${dem.tamNgung} tạm ngưng` : '', dem.choNhan ? `${dem.choNhan} chờ nhận` : '', dem.ket ? `${dem.ket} kẹt` : ''].filter(Boolean).join(' · ')})
+        </span>
+      )}
+    </button>
+  );
 
   return (
     <div className="space-y-4">
       <div className={`${KHUNG} flex flex-wrap items-center gap-2 px-4 py-3`}>
-        {(Object.keys(TEN_LOC) as Loc[]).map(k => (
-          <button key={k} type="button" aria-pressed={loc === k} onClick={() => setLoc(k)}
-            className={`rounded-full border px-3 py-1 text-sm tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 font-semibold text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
-            {TEN_LOC[k]} {dem[k]}
-          </button>
-        ))}
+        {LOC_CHINH.map(nutLoc)}
+        <select value={LOC_THEM.includes(loc) ? loc : ''} onChange={e => e.target.value && setLoc(e.target.value as Loc)} aria-label="Lọc thêm"
+          className={`rounded-full border px-3 py-1 text-sm ${LOC_THEM.includes(loc) ? 'border-slate-900 bg-slate-900 font-semibold text-white' : 'border-slate-300 bg-white text-slate-700'}`}>
+          <option value="" disabled>Lọc thêm</option>
+          {LOC_THEM.map(k => <option key={k} value={k}>{TEN_LOC[k]} ({dem[k]})</option>)}
+        </select>
         <div className="relative ml-auto w-64">
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
           <input className={`${INPUT} pl-8`} value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm hex, hạng mục, công trình" aria-label="Tìm hạng mục" />
@@ -148,12 +193,15 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
         <button type="button" className={BTN} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
       </div>
       {loi && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
-      {ds && hien.length === 0 && <p className="text-sm text-slate-500">Không có hạng mục nào ({TEN_LOC[loc].toLowerCase()}).</p>}
+      {ds && q.trim() && <p className="text-sm text-slate-500">Đang tìm trong mọi hạng mục (kể cả đã xong), không theo bộ lọc.</p>}
+      {ds && hien.length === 0 && <p className="text-sm text-slate-500">{q.trim() ? 'Không tìm thấy hạng mục nào.' : `Không có hạng mục nào (${TEN_LOC[loc].toLowerCase()}).`}</p>}
       <div className="space-y-3">
         {hien.map(h => {
           const dv = h.dvt || 'cái';
           const pct = Math.min(100, tyLe(h.slXong, h.slTrienKhai) ?? 0);
           const kh = nhanKeHoach(h.keHoach);
+          const tt = th.get(h.hex);
+          const moCt = moChiTiet.has(h.hex);
           return (
             <div key={h.hex} className={`${KHUNG} p-3`}>
               <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
@@ -169,6 +217,8 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
                   <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
                     {kh ? <span className="rounded bg-sky-50 px-1.5 py-0.5 text-sky-800">{kh}</span>
                       : <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-700">Không có trong KHSX</span>}
+                    {tt?.tre != null && <span className="rounded bg-red-600 px-1.5 py-0.5 font-semibold text-white">Trễ {tt.tre} ngày</span>}
+                    {tt?.ket && h.capNhatCuoi && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">Không cập nhật từ {lucNgan(h.capNhatCuoi)}</span>}
                     {h.chuaTrienKhai && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">Chưa triển khai trên app (nhận thẳng)</span>}
                   </div>
                 </div>
@@ -178,6 +228,9 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
                     <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>
                   </div>
                 )}
+                <button type="button" className={`${BTN} px-2 py-1 text-xs`} aria-expanded={moCt} onClick={() => batChiTiet(h.hex)}>
+                  {moCt ? <ChevronDown size={12} aria-hidden /> : <ChevronRight size={12} aria-hidden />} {moCt ? 'Đóng chi tiết' : 'Xem chi tiết'}
+                </button>
               </div>
               <div className="mt-2 space-y-2">
                 {h.thanhPhan.map(tp => (
@@ -204,6 +257,7 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
                 )}
               </div>
               {!!h.dotTrienKhai?.length && <DsDot hex={h.hex} ds={h.dotTrienKhai} dv={dv} xong={tai} />}
+              {moCt && <div className="mt-2 border-t border-slate-100 pt-2"><XuongHexChiTiet hex={h.hex} /></div>}
             </div>
           );
         })}

@@ -24,7 +24,9 @@ import './index.css';
 import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal';
 import { disablePush } from './services/vuongMacMobileApi';
 import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
-import { layDuLieuDen, type DuLieuDen } from './services/duLieuDen';
+import { layDuLieuDen, homNayVN, type DuLieuDen } from './services/duLieuDen';
+import { xuongSetupApi } from './services/xuongSetupApi';
+import { phuViTriMra, nhanTheoMa, type BanDoMra } from './components/Dashboard/core/viTriMra';
 import { ModalShell } from './components/shared/ModalShell';
 import { lazyPage } from './utils/chunkReload';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
@@ -518,7 +520,21 @@ interface MainLayoutContext {
   attendanceData: DataRow[]; attendanceColumns: ColumnDefinition[];
   isSidebarCollapsed: boolean;
   isGlobalLoading: boolean; // Thêm trạng thái loading để truyền cho các component con
+  /** Số dòng sản xuất có vị trí BOP lấy từ MRA (nguon_bop = 'MRA'); mraVer = ver bản đồ MRA (null = chưa tải / lỗi) */
+  soPhuMra: number; mraVer: string | null;
 }
+
+// Cột thêm vào bảng sản xuất khi có dòng phủ vị trí MRA (chỉ trong bộ nhớ)
+const COT_PHU_MRA: ColumnDefinition[] = [
+  { key: 'nguon_bop', label: 'Nguồn BOP', type: 'string' },
+  { key: 'bop_pc', label: 'BOP (PC)', type: 'string' },
+  { key: 'so_ngay_pc', label: 'Số ngày CĐ (PC)', type: 'string' },
+  { key: 'mra_cd', label: 'Công đoạn MRA', type: 'string' },
+];
+// Nhịp hỏi bản đồ vị trí MRA (chỉ khi có người dùng, như nhịp hỏi phiên bản dữ liệu)
+const MRA_POLL_MS = 120_000;
+// Hỏi bản đồ MRA ngoài nhịp (tab hiện lại / quay lại sau khi rảnh) cách lần trước tối thiểu chừng này
+const MRA_HOI_TOI_THIEU_MS = 30_000;
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   'LayoutDashboard': <LayoutDashboard size={18} />, 'Table': <Table size={18} />, 'Package': <Package size={18} />,
@@ -607,6 +623,12 @@ const MainLayout: React.FC = () => {
   // (Luồng đỏ / Căn mẫu…) tính lại (trước chỉ dữ liệu sản xuất tính lại: trang render trước khi bảng tên về thì
   // thiếu dòng cho tới khi Làm mới)
   const [aliasVersion, setAliasVersion] = useState(0);
+  // Bản đồ vị trí công đoạn MRA theo HEX — chỉ giữ trong bộ nhớ (không IndexedDB); phủ lên bop / số ngày CĐ
+  const [banMra, setBanMra] = useState<BanDoMra | null>(null);
+  const verMraRef = useRef<string | null>(null);
+  const dangTaiMraRef = useRef(false);
+  // Đổi khi sang ngày mới (giờ VN) -> tính lại số ngày ở công đoạn theo MRA
+  const [ngayVN, setNgayVN] = useState(homNayVN);
 
   const location = useLocation();
 
@@ -909,6 +931,21 @@ const MainLayout: React.FC = () => {
     void loadForPath(trangHienTai);
   }, [trangHienTai]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Tải bản đồ vị trí MRA: gửi ver đang có, chỉ đổi state khi có ver mới. Lỗi thì giữ bản cũ, không chặn checkAndSync.
+  const taiMra = async () => {
+    if (dangTaiMraRef.current) return;
+    dangTaiMraRef.current = true;
+    try {
+      const r = await xuongSetupApi.viTriBop(verMraRef.current ?? undefined);
+      if (!r.ok || r.data.same) return;
+      if (r.data.ver === verMraRef.current) return;
+      verMraRef.current = r.data.ver;
+      setBanMra({ ver: r.data.ver, map: r.data.map || {} });
+    } catch { /* giữ bản cũ */ } finally {
+      dangTaiMraRef.current = false;
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       // Chạy 1 lần (StrictMode ở bản dev gọi effect 2 lần => đọc cache 2 lần song song)
@@ -918,6 +955,7 @@ const MainLayout: React.FC = () => {
     };
 
     init();
+    void taiMra();
 
     // Hỏi phiên bản dữ liệu mỗi 60 giây CHỈ KHI có người dùng: tab đang hiện và có thao tác trong 15 phút gần nhất.
     // Trước đây hỏi cả khi tab ẩn / máy để qua đêm => 1 tab quên đóng cũng giữ DB thức 24/7 (gói miễn phí Layerbase
@@ -926,17 +964,28 @@ const MainLayout: React.FC = () => {
     const RANH_SAU_MS = 15 * 60_000;
     let lanCuoiThaoTac = Date.now();
     const coNguoi = () => document.visibilityState === 'visible' && Date.now() - lanCuoiThaoTac < RANH_SAU_MS;
-    const intervalId = setInterval(() => { if (coNguoi()) checkAndSync(); }, POLLING_INTERVAL);
+    // MRA (Supabase) hỏi theo nhịp riêng 2 phút, cùng điều kiện có người
+    let lanTaiMra = Date.now();
+    const hoiMra = () => {
+      if (Date.now() - lanTaiMra < MRA_HOI_TOI_THIEU_MS) return; // chuyển tab liên tục không sinh request thừa
+      lanTaiMra = Date.now(); void taiMra();
+    };
+    const intervalId = setInterval(() => {
+      setNgayVN(homNayVN());
+      if (!coNguoi()) return;
+      checkAndSync();
+      if (Date.now() - lanTaiMra >= MRA_POLL_MS) hoiMra();
+    }, POLLING_INTERVAL);
     const thaoTac = () => {
       const daRanh = Date.now() - lanCuoiThaoTac >= RANH_SAU_MS;
       lanCuoiThaoTac = Date.now();
-      if (daRanh && document.visibilityState === 'visible') checkAndSync();
+      if (daRanh && document.visibilityState === 'visible') { checkAndSync(); hoiMra(); }
     };
     const SU_KIEN = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
     SU_KIEN.forEach(e => window.addEventListener(e, thaoTac, { passive: true }));
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') { lanCuoiThaoTac = Date.now(); checkAndSync(); }
+      if (document.visibilityState === 'visible') { lanCuoiThaoTac = Date.now(); setNgayVN(homNayVN()); checkAndSync(); hoiMra(); }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -998,6 +1047,7 @@ const MainLayout: React.FC = () => {
         // Nhận rỗng (instance mới / lỗi mạng) thì giữ bảng đang có, tự hỏi lại sau — không ghi đè bằng bảng rỗng
         loadProjectAliases(),
         taiDuLieuDen(),
+        taiMra(),
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới
@@ -1029,11 +1079,37 @@ const MainLayout: React.FC = () => {
     ),
     [productionData, productionColumns, workshopGroupsVersion] // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // Phủ vị trí công đoạn MRA lên bop / so_ngay_cd_hien_tai (hạng mục đã triển khai trên MRA; giữ PC cho P022/P025,
+  // GCVT, dòng HỦY). Nhãn BOP lấy theo chuỗi PC phổ biến nhất để mọi bộ lọc / nhóm giữ đúng tên. Không phủ dòng nào
+  // thì giữ nguyên tham chiếu mảng.
+  const bopKey = useMemo(() => findColumnKey(productionColumns, TARGET_COLUMN_NAMES.BOP) || 'bop', [productionColumns]);
+  // Nhãn chỉ cần khi bản đồ có HEX (ver 'off' / chưa tải / rỗng => không phủ, bỏ lượt O(n) thừa). Phụ thuộc cờ có/không,
+  // không theo ver, để ver đổi không tính lại nhãn.
+  const coMra = !!banMra && Object.keys(banMra.map).length > 0;
+  const nhanBop = useMemo(
+    () => (coMra ? nhanTheoMa(canonicalProductionBase, bopKey) : undefined),
+    [coMra, canonicalProductionBase, bopKey],
+  );
+  const phuMra = useMemo(() => {
+    try {
+      return phuViTriMra(canonicalProductionBase, productionColumns, banMra, Date.now(), nhanBop);
+    } catch (e) {
+      console.warn('Phủ vị trí MRA lỗi, giữ theo PC', e);
+      return { rows: canonicalProductionBase, soPhu: 0 };
+    }
+  }, [canonicalProductionBase, productionColumns, banMra, nhanBop, ngayVN]); // eslint-disable-line react-hooks/exhaustive-deps
   const canonicalProductionData = useMemo(
     // Nạp xong "KH đã đạt" / bảng tên thì đổi tham chiếu mảng để mọi trang tính lại hạn (deadlineOf đọc bộ nhớ chung)
-    () => (planMetVersion > 0 || aliasVersion > 0 ? canonicalProductionBase.slice() : canonicalProductionBase),
-    [canonicalProductionBase, planMetVersion, aliasVersion]
+    () => (planMetVersion > 0 || aliasVersion > 0 ? phuMra.rows.slice() : phuMra.rows),
+    [phuMra, planMetVersion, aliasVersion]
   );
+  // Có dòng phủ MRA thì thêm định nghĩa các cột MRA (bảng dữ liệu, xuất file thấy được)
+  const productionColumnsPhu = useMemo(() => {
+    if (phuMra.soPhu <= 0) return productionColumns;
+    const co = new Set(productionColumns.map(c => c.key));
+    const them = COT_PHU_MRA.filter(c => !co.has(c.key));
+    return them.length ? [...productionColumns, ...them] : productionColumns;
+  }, [productionColumns, phuMra.soPhu]);
   // Cột xưởng các bảng khác cũng theo setup gộp xưởng (bảng không có cột xưởng giữ nguyên)
   /* eslint-disable react-hooks/exhaustive-deps */
   const withAlias = (rows: DataRow[]) => (aliasVersion > 0 ? rows.slice() : rows);
@@ -1051,14 +1127,15 @@ const MainLayout: React.FC = () => {
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const contextValue = useMemo<MainLayoutContext>(() => ({
-    productionData: canonicalProductionData, productionColumns, materialData: wgMaterialData, materialColumns,
+    productionData: canonicalProductionData, productionColumns: productionColumnsPhu, materialData: wgMaterialData, materialColumns,
     khsxData: wgKhsxData, khsxColumns, orderData: wgOrderData, orderColumns, inventoryData: wgInventoryData, inventoryColumns,
     tkbvData: wgTkbvData, tkbvColumns, pthspData: wgPthspData, pthspColumns, analysisData: wgAnalysisData, analysisColumns,
     yearlyPlanData: wgYearlyPlanData, yearlyPlanColumns, exportData: wgExportData, exportColumns,
     stockData: wgStockData, stockColumns, attendanceData: wgAttendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
-    isGlobalLoading: loading
+    isGlobalLoading: loading,
+    soPhuMra: phuMra.soPhu, mraVer: banMra?.ver ?? null,
   }), [
-    canonicalProductionData, productionColumns, wgMaterialData, materialColumns, wgKhsxData, khsxColumns,
+    canonicalProductionData, productionColumnsPhu, phuMra.soPhu, banMra?.ver, wgMaterialData, materialColumns, wgKhsxData, khsxColumns,
     wgOrderData, orderColumns, wgInventoryData, inventoryColumns, wgTkbvData, tkbvColumns, wgPthspData, pthspColumns,
     wgAnalysisData, analysisColumns, wgYearlyPlanData, yearlyPlanColumns, wgExportData, exportColumns,
     wgStockData, stockColumns, wgAttendanceData, attendanceColumns, isCollapsed, loading,

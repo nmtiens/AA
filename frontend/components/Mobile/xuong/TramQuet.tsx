@@ -11,7 +11,7 @@ import {
   docMaQuet, caChoLanQuet, daHetCa, ngayCa, vaoHang, raHang, raCa, vaoCa, hangCua, daVaoCa, xongHang,
   type BangTram, type NguoiTram, type LoaiCaTram,
 } from '../../../utils/xuongTheNv';
-import { hhmm } from '../../../services/xuongModel';
+import { hhmm, taoLocMaLap } from '../../../services/xuongModel';
 import DangNhapXuong from './DangNhapXuong';
 import { KhungCamera } from './QuetQr';
 import { NUT_CHINH, NUT_PHU, MAU } from './xuongUi';
@@ -28,8 +28,12 @@ import { LogoAANgang, LogoAADayDu } from '../../LogoAA';
 // ============================================================================
 
 const CHO_PHIEU_MS = 20_000;
-/** Đã quét phiếu, chờ thẻ người khai — không đếm ngược trên màn, chỉ tự bỏ khi bỏ quên trạm */
-const CHO_THE_MS = 120_000;
+/** Đã quét phiếu, chờ thẻ người khai — quá giờ tự huỷ phiếu */
+const CHO_THE_MS = 60_000;
+/** Vừa ra ca (hết ca) mà quét thẻ lại trong khoảng này: coi là quét trùng, không vào ca ngoài giờ */
+const QUET_LAI_RA_CA_MS = 15 * 60_000;
+/** Đo lệch giờ máy trạm với máy chủ định kỳ */
+const DO_LECH_MS = 3_600_000;
 /** Nhóm làm chung lần trước theo hạng mục (trên máy trạm) */
 const KHOA_NHOM = 'xuong_tram_nhom';
 /** Màn chọn người làm chung: mỗi lần chạm gia hạn thêm */
@@ -61,6 +65,12 @@ function bip(ok: boolean) {
 }
 
 type ThongBao = { loai: 'ok' | 'loi' | 'info'; chu: string } | null;
+/** Thông báo tự xoá sau: lỗi 15 giây, được 8 giây, tin 5 giây */
+const GIU_THONG_BAO_MS: Record<'ok' | 'loi' | 'info', number> = { loi: 15_000, ok: 8_000, info: 5_000 };
+/** Lượt quét máy chủ không nhận (gom thành một dòng cố định) */
+interface LuotTuChoi { id: string; ten: string; luc: number; lyDo: string }
+/** Loại ca người đó vào ca trên máy này; raLuc = lúc ra ca (lọc quét thẻ lần 2 sau khi ra ca) */
+type CaNguoi = { ngay: string; loaiCa: LoaiCaTram; raLuc?: number };
 interface NguoiDangQuet extends NguoiTram { tenTo: string | null; toKhac: boolean; han: number }
 interface CongDoanChon { id: string; ten: string }
 interface Nhom {
@@ -78,9 +88,11 @@ interface Nhom {
  * Chọn người làm chung một hạng mục: một người khai cho cả nhóm (mỗi lần chỉ một người quét). Chỉ hiện người ĐÃ ĐIỂM
  * DANH (quét thẻ đầu ca / tổ trưởng điểm danh) chưa ở hàng nào; người đang ở hàng khác mở riêng (chọn = chuyển hàng).
  */
-function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, onVao, onHuy, onRa, hm }: {
+function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, onVao, onHuy, onRa, onQuet, hm }: {
   nhom: Nhom; now: number; nhomTruoc: string[]; onRa: (xong: boolean) => void; hm: HangMucTram | null; board: BangTram; tenHm: (hex: string) => string | null; toId: number;
   congNhan: Map<string, CongNhanTram>; onDoi: (d: Partial<Nhom>) => void; onVao: () => void; onHuy: () => void;
+  /** Máy quét USB gõ vào ô tìm: chuyển mã thẻ / phiếu đọc được sang xử lý quét */
+  onQuet: (raw: string) => void;
 }) {
   const tim = nhom.tim.trim().toLowerCase();
   // Nhóm lần trước ở hạng mục này (trừ người khai, người đã nghỉ việc) — lên đầu danh sách, chọn cả nhóm một chạm
@@ -107,6 +119,9 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
   // Nhóm lần trước: chỉ người đang rảnh (không kéo người đang làm hàng khác)
   const truocChua = truoc.filter(m => !chon.has(m) && daVaoCa(board, m) && !hangCua(board, m));
   const [moKhac, setMoKhac] = useState(false);
+  // Xong hết: hỏi lại trước khi ghi (cả nhóm ra hàng, không hoàn tác ở trạm)
+  const [hoiXong, setHoiXong] = useState(false);
+  const moHoiXong = () => { setHoiXong(true); onDoi({}); };
   const nutNguoi = (x: { mnv: string; hoTen: string; trangThai: string }, chuyen: boolean) => (
     <button key={x.mnv} onClick={() => bat(x.mnv)} aria-pressed={chon.has(x.mnv)}
       className={`flex min-h-16 items-center gap-3 rounded-2xl border px-3 text-left ${chon.has(x.mnv) ? 'border-slate-900 bg-slate-900 text-white'
@@ -121,6 +136,18 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
   );
   const bat = (m: string) => onDoi({ chon: chon.has(m) ? nhom.chon.filter(x => x !== m) : [...nhom.chon, m] });
   const tenCd = nhom.ds.find(c => c.id === nhom.cd)?.ten;
+  if (hoiXong && hm && hm.conLam > 0) {
+    return (
+      <div className="rounded-2xl bg-white p-4 shadow-sm" role="alertdialog" aria-label="Xác nhận làm xong">
+        <p className="text-2xl font-semibold text-slate-900">Ghi XONG {soSet(hm.conLam, hm.dvt)} · {tenHm(nhom.hex) ?? nhom.hex}?</p>
+        <p className="mt-2 text-lg text-slate-800">Cả nhóm sẽ ra hàng.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <button className={`${NUT_CHINH} bg-emerald-700`} onClick={() => { setHoiXong(false); onRa(true); }}>Đúng, xong rồi</button>
+          <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => { setHoiXong(false); onDoi({}); }}>Quay lại</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -142,7 +169,7 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
               {oHang.filter(x => x.mnv !== nhom.chinh.mnv).map(x => nutNguoi({ ...x, trangThai: 'đang ở hàng này' }, false))}
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <button className={`${NUT_CHINH} bg-emerald-700`} disabled={!hm || hm.conLam <= 0} onClick={() => onRa(true)}>
+              <button className={`${NUT_CHINH} bg-emerald-700`} disabled={!hm || hm.conLam <= 0} onClick={moHoiXong}>
                 Làm xong hết{hm ? ` ${soSet(hm.conLam, hm.dvt)}` : ''} — cả nhóm ra</button>
               <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => onRa(false)}>Ra hàng, chưa xong — {so} người</button>
             </div>
@@ -170,7 +197,15 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
               <span className="min-w-0 truncate">Chọn nhóm lần trước ({truocChua.length}): {truocChua.map(m => congNhan.get(m)?.hoTen ?? m).join(', ')}</span>
             </button>
           )}
-          <input value={nhom.tim} onChange={e => onDoi({ tim: e.target.value })} placeholder="Tìm tên / mã NV người đã điểm danh"
+          <input value={nhom.tim} onChange={e => onDoi({ tim: e.target.value })}
+            // Ô tìm đang chọn thì máy quét USB gõ vào đây: Enter đọc được thẻ đã biết / phiếu thì xử lý như lượt quét
+            onKeyDown={e => {
+              if (e.key !== 'Enter') return;
+              const v = e.currentTarget.value;
+              const r = docMaQuet(v, m => congNhan.has(m));
+              if (r.loai === 'phieu' || (r.loai === 'the' && r.biet)) { onDoi({ tim: '' }); onQuet(v); e.currentTarget.blur(); }
+            }}
+            placeholder="Tìm tên / mã NV người đã điểm danh"
             className="mt-2 h-14 w-full rounded-2xl border border-slate-300 px-4 text-lg" aria-label="Tìm người làm chung" />
           <div className="mt-3 grid max-h-[45dvh] gap-2 overflow-y-auto sm:grid-cols-2">
             {ranh.length === 0 && (
@@ -192,7 +227,7 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
           </div>
           {/* Hàng đã nhận, mọi người đã rời (tạm ngưng) mới biết là xong: ghi Xong hết, không cần vào hàng */}
           {hm && hm.conLam > 0 && !board.dangO.some(x => x.hex === nhom.hex && x.congDoanId === nhom.cd) && (
-            <button className="mt-3 min-h-12 text-base font-medium text-emerald-800 underline underline-offset-4" onClick={() => onRa(true)}>
+            <button className="mt-3 min-h-12 text-base font-medium text-emerald-800 underline underline-offset-4" onClick={moHoiXong}>
               Hàng này đã làm xong? Ghi Xong hết {soSet(hm.conLam, hm.dvt)} (không vào hàng)
             </button>
           )}
@@ -230,6 +265,20 @@ function hangMucSauCho(ds: HangMucTram[], cho: SuKienCho[]): HangMucTram[] {
     return x;
   }).filter(h => h.conLam > 0 || h.conNhan > 0);
 }
+/**
+ * Loại ca để ghi ra ca: loại ca người đó vào ca trên máy này (cùng ngày ca); không có thì `macDinh` nếu truyền (tự ra
+ * ca lúc hết ca: 'chinh' — lịch lúc quét có thể đang phủ khung tăng ca chưa khai), còn lại theo lịch ca lúc quét.
+ * (Bảng máy chủ chưa trả loại ca của đoạn có mặt nên chưa dùng được bước ở giữa.)
+ */
+function loaiCaKhiRa(daLuu: CaNguoi | undefined, now: number, b: BangTramMayChu, macDinh?: LoaiCaTram): LoaiCaTram {
+  if (daLuu && daLuu.ngay === ngayCa(now)) return daLuu.loaiCa;
+  return macDinh ?? caChoLanQuet(now, b.lichCa, b.tangCa).loaiCa;
+}
+/** Ghi nhớ lúc ra ca trên máy (giữ loại ca đã vào). Về sớm (chưa hết ca) không ghi raLuc — quét lại là vào ca lại */
+function nhoRaCa(ds: Record<string, CaNguoi>, mnv: string, loaiCa: LoaiCaTram, now: number, ghiRaLuc = true) {
+  ds[mnv] = ghiRaLuc ? { ngay: ngayCa(now), loaiCa, raLuc: now } : { ngay: ngayCa(now), loaiCa };
+  ghiLs(KHOA_CA, ds);
+}
 const soSet = (n: number, dvt: string | null) => `${Number(n.toFixed(3)).toLocaleString('en-US')} ${dvt || 'SET'}`;
 
 export default function TramQuet() {
@@ -256,7 +305,12 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
   const [mang, setMang] = useState<'ok' | 'mat' | 'dang_ky_lai'>('ok');
   const [goMa, setGoMa] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const caNguoi = useRef<Record<string, { ngay: string; loaiCa: LoaiCaTram }>>(docLs(KHOA_CA) ?? {});
+  const caNguoi = useRef<Record<string, CaNguoi>>(docLs(KHOA_CA) ?? {});
+  // Lượt quét máy chủ không nhận: một dòng cố định, thông báo mới không đè
+  const [tuChoiTram, setTuChoiTram] = useState<LuotTuChoi[]>([]);
+  const [xemTuChoi, setXemTuChoi] = useState(false);
+  // Bấm Ra ca trước giờ hết ca: hỏi lại (mnv người đang hỏi)
+  const [hoiVeSom, setHoiVeSom] = useState<string | null>(null);
 
   const tenCua = useCallback((mnv: string) => congNhan.get(mnv)?.hoTen ?? mnv, [congNhan]);
   // Hàm gửi / tải chạy theo hẹn giờ: đọc tên qua ref để không khởi động lại hẹn giờ mỗi khi danh sách công nhân đổi
@@ -274,6 +328,12 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
     setThongBao({ loai, chu });
     if (loai !== 'info') bip(loai === 'ok');
   }, []);
+  // Thông báo tự xoá (chỉ xoá chữ, không đụng người / nhóm / phiếu đang chờ)
+  useEffect(() => {
+    if (!thongBao) return;
+    const t = setTimeout(() => setThongBao(null), GIU_THONG_BAO_MS[thongBao.loai]);
+    return () => clearTimeout(t);
+  }, [thongBao]);
 
   // ---- Tải bảng / danh sách công nhân, gửi hàng đợi ----
   const taiBang = useCallback(async () => {
@@ -285,27 +345,44 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
   }, []);
   const gui = useCallback(async () => {
     const kq = await hangDoiTram.guiHangDoi();
-    for (const x of kq.tuChoi) baoTin('loi', `${tenRef.current(String(x.suKien?.duLieu?.mnv ?? ''))}: ${x.reason}`);
+    if (kq.tuChoi.length) {
+      const moi = kq.tuChoi.map(x => ({
+        id: x.id, ten: tenRef.current(String(x.suKien?.duLieu?.mnv ?? '')), luc: x.suKien?.deviceTs ?? Date.now(), lyDo: x.reason,
+      }));
+      setTuChoiTram(ds => [...ds.filter(a => !moi.some(b => b.id === a.id)), ...moi].slice(-50));
+      bip(false);
+    }
     if (kq.loi === 'dang_nhap_lai') setMang('dang_ky_lai');
     else if (kq.loi === 'mat_mang') setMang('mat');
     if (kq.daGui > 0 || kq.tuChoi.length) await taiBang();
     else setCho(await hangDoiTram.danhSachCho().catch(() => []));
-  }, [baoTin, taiBang]);
+  }, [taiBang]);
 
   useEffect(() => {
-    void doLechTram();
+    // Đo lệch giờ lúc mở, mỗi khoảng 1 giờ, khi có mạng lại và khi màn hiện lại (máy trạm để chạy cả ngày)
+    let lanDoLech = 0;
+    const doLech = () => { lanDoLech = Date.now(); void doLechTram(); };
+    doLech();
     void taiBang().then(gui);
     void tramApi.congNhan().then(r => {
       if (r.ok) { setCongNhan(new Map(r.data.congNhan.map(c => [c.mnv, c]))); ghiLs(KHOA_CN, r.data.congNhan); }
     });
-    const t1 = setInterval(() => { void gui().then(taiBang); }, TAI_LAI_MS);
+    const t1 = setInterval(() => {
+      if (Date.now() - lanDoLech >= DO_LECH_MS) doLech();
+      void gui().then(taiBang);
+    }, TAI_LAI_MS);
     const t2 = setInterval(() => setNow(Date.now()), 1000);
     const t3 = setInterval(() => void tramApi.congNhan().then(r => {
       if (r.ok) { setCongNhan(new Map(r.data.congNhan.map(c => [c.mnv, c]))); ghiLs(KHOA_CN, r.data.congNhan); }
     }), 30 * 60_000);
-    const coMang = () => void gui();
+    const coMang = () => { doLech(); void gui(); };
+    const hienLai = () => { if (document.visibilityState === 'visible') doLech(); };
     window.addEventListener('online', coMang);
-    return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); window.removeEventListener('online', coMang); };
+    document.addEventListener('visibilitychange', hienLai);
+    return () => {
+      clearInterval(t1); clearInterval(t2); clearInterval(t3);
+      window.removeEventListener('online', coMang); document.removeEventListener('visibilitychange', hienLai);
+    };
   }, [gui, taiBang]);
 
   const ghi = useCallback(async (evs: SuKienNhap[]): Promise<boolean> => {
@@ -354,14 +431,22 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
     // Hết ca (từ 15:45 theo lịch ca, không có tăng ca đã khai đang / sắp mở): quét thẻ = ra ca luôn, không cần bấm nút
     if (!coPhieu && daVaoCa(board, mnv) && daHetCa(Date.now(), bang.lichCa, bang.tangCa)) {
       const h = hangCua(board, mnv);
-      const daLuu = caNguoi.current[mnv];
-      const loaiCa = daLuu && daLuu.ngay === ngayCa(Date.now()) ? daLuu.loaiCa : 'chinh';
+      const loaiCa = loaiCaKhiRa(caNguoi.current[mnv], Date.now(), bang, 'chinh');
       const evs: SuKienNhap[] = [];
       if (h) evs.push({ loai: 'nguoi_ra', toId: bang.to.id, hex: h.hex, congDoanId: h.congDoanId, duLieu: { mnv } });
       evs.push({ loai: 'ra_ca', toId: bang.to.id, duLieu: { loaiCa, mnv, nguoi: [{ mnv }] } });
       if (!(await ghi(evs))) return;
+      nhoRaCa(caNguoi.current, mnv, loaiCa, Date.now());
       setNguoi(null);
       baoTin('ok', `${n.hoTen} — ra ca ${hhmm(Date.now())}${h ? ` (rời ${h.tenHangMuc ?? h.hex})` : ''}`);
+      return;
+    }
+    // Vừa ra ca (hết ca) rồi quét thẻ lại trong 15 phút: quét trùng, không ghi vào ca ngoài giờ
+    const daRa = caNguoi.current[mnv];
+    if (!coPhieu && !daVaoCa(board, mnv) && daHetCa(Date.now(), bang.lichCa, bang.tangCa)
+      && daRa?.raLuc && daRa.ngay === ngayCa(Date.now()) && Date.now() - daRa.raLuc <= QUET_LAI_RA_CA_MS) {
+      setNguoi(null);
+      baoTin('ok', `${n.hoTen} — đã ra ca lúc ${hhmm(daRa.raLuc)}`);
       return;
     }
     if (coPhieu) {
@@ -384,7 +469,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
     }]);
     if (!ok) return;
     const tiep = coPhieu ? 'Chọn người làm chung.' : 'Quét phiếu để vào hàng.';
-    if (ca.ngoaiCa) baoTin('loi', `${n.hoTen} — ngoài giờ ca: báo tổ trưởng khai tăng ca. Đã ghi vào ca. ${tiep}`);
+    if (ca.ngoaiCa) baoTin('loi', `${n.hoTen}: NGOÀI GIỜ — báo tổ trưởng khai tăng ca. ${tiep}`);
     else baoTin('ok', `${n.hoTen} — vào ca ${ca.som ? `từ ${hhmm(ca.batDau)}` : hhmm(Date.now())}. ${tiep}`);
   }, [bang, board, congNhan, ghi, baoTin, nhom, phieuCho, taoNhom]);
 
@@ -393,13 +478,15 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
   // ---- Ra hàng theo nhóm (làm xong / tạm rời) ----
   const raHangNhom = useCallback(async (xong: boolean) => {
     if (!bang || !nhom || !nhom.cd) return;
+    // Quá giờ chọn (màn đã hết hạn) thì không ghi
+    if (nhom.han < Date.now()) return;
     const { hex, cd, chinh } = nhom;
     if (xong) {
       const hm = hmCua(hex, cd);
       if (!hm || hm.conLam <= 0) { baoTin('loi', 'Hạng mục không còn gì để Xong'); return; }
       if (!(await ghi([{ loai: 'hoan_thanh', toId: bang.to.id, hex, congDoanId: cd, soLuong: hm.conLam, duLieu: { mnv: chinh.mnv, xongHet: true } }]))) return;
       setNhom(null);
-      baoTin('ok', `Xong hết ${soSet(hm.conLam, hm.dvt)} · ${tenHm(hex) ?? hex} — cả nhóm ra hàng. Tổ trưởng chỉ còn bấm Giao.`);
+      baoTin('ok', `Xong ${soSet(hm.conLam, hm.dvt)} · ${tenHm(hex) ?? hex} — báo tổ trưởng Giao`);
       return;
     }
     const h = board.dangO.find(x => x.hex === hex && x.congDoanId === cd);
@@ -454,15 +541,28 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
     baoTin('ok', `${nhanDu ? `Nhận ${soSet(nhanDu.conNhan, nhanDu.dvt)} · ` : ''}${soVao} người → ${tenHm(hex) ?? hex}${daO.length ? ` (${daO.join(', ')} đã ở hàng này)` : ''}`);
   }, [bang, nhom, board, ghi, baoTin, tenHm, tenCua, hmCua]);
 
+  const giaHanNhom = useCallback((doi: Partial<Nhom>) => setNhom(x => (x ? { ...x, ...doi, han: Date.now() + CHO_NHOM_MS } : x)), []);
+
   const quetPhieu = useCallback((hex: string) => {
     if (!bang) return;
+    // Đang chọn người cho một phiếu: quét lại đúng phiếu = gia hạn; phiếu khác không bỏ nhóm đang khai
+    if (nhom && nhom.han >= Date.now()) {
+      giaHanNhom({});
+      if (hex !== nhom.hex) baoTin('loi', `Đang khai ${tenHm(nhom.hex) ?? nhom.hex} — bấm Vào hàng hoặc Huỷ trước khi quét phiếu khác`);
+      return;
+    }
+    // Phiếu đang chờ thẻ mà quét lại đúng phiếu: chỉ gia hạn
+    if (phieuCho && phieuCho.han >= Date.now() && phieuCho.hex === hex) {
+      setPhieuCho({ ...phieuCho, han: Date.now() + CHO_THE_MS });
+      return;
+    }
     const tenCd = new Map(bang.congDoan.map(c => [c.id, c.ten]));
     const lam = hangMuc.filter(h => h.hex === hex);
     // Ưu tiên công đoạn mặc định của trạm
     const uuTien = lam.filter(h => bang.tram.congDoan.includes(h.congDoanId));
     const ds = (uuTien.length ? uuTien : lam).map(h => ({ id: h.congDoanId, ten: tenCd.get(h.congDoanId) ?? h.congDoanId }));
     // Trạm chỉ thấy việc của tổ mình: hạng mục của tổ khác (vd quét nhầm trạm) cũng rơi vào đây — nói rõ tên tổ của trạm
-    if (!ds.length) { baoTin('loi', `Hạng mục ${hex} không có trong việc tổ ${bang.to.ten ?? 'này'} đang làm — chưa Nhận, đã xong hết, hoặc là việc của tổ khác (quét ở trạm của tổ đó). Tổ trưởng ${bang.to.ten ?? ''} bấm Nhận trên app MRA rồi quét lại`); return; }
+    if (!ds.length) { baoTin('loi', `Phiếu chưa có việc ở tổ ${bang.to.ten ?? 'này'} — gọi tổ trưởng (phiếu tổ khác: quét ở trạm tổ đó)`); return; }
     // Đã quét thẻ trước (cách cũ): mở thẳng màn chọn người làm chung
     if (nguoi && nguoi.han >= Date.now()) {
       setNhom(taoNhom(hex, ds, nguoi));
@@ -473,7 +573,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
     setNhom(null);
     setPhieuCho({ hex, ds, han: Date.now() + CHO_THE_MS });
     baoTin('ok', `${tenHm(hex) ?? hex} — người khai quét thẻ`);
-  }, [bang, nguoi, baoTin, tenHm, taoNhom, hangMuc]);
+  }, [bang, nguoi, nhom, phieuCho, baoTin, tenHm, taoNhom, hangMuc, giaHanNhom]);
 
   const quet = useCallback((raw: string) => {
     setGoMa(false);
@@ -496,20 +596,31 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
 
   const raCaNguoi = useCallback(async () => {
     if (!bang || !nguoi) return;
+    setHoiVeSom(null);
     const h = hangCua(board, nguoi.mnv);
-    const daLuu = caNguoi.current[nguoi.mnv];
-    const loaiCa = daLuu && daLuu.ngay === ngayCa(Date.now()) ? daLuu.loaiCa : caChoLanQuet(Date.now(), bang.lichCa, bang.tangCa).loaiCa;
+    const veSom = !daHetCa(Date.now(), bang.lichCa, bang.tangCa);
+    const loaiCa = loaiCaKhiRa(caNguoi.current[nguoi.mnv], Date.now(), bang);
     const evs: SuKienNhap[] = [];
     if (h) evs.push({ loai: 'nguoi_ra', toId: bang.to.id, hex: h.hex, congDoanId: h.congDoanId, duLieu: { mnv: nguoi.mnv } });
     evs.push({ loai: 'ra_ca', toId: bang.to.id, duLieu: { loaiCa, mnv: nguoi.mnv, nguoi: [{ mnv: nguoi.mnv }] } });
     if (!(await ghi(evs))) return;
-    baoTin('ok', `${nguoi.hoTen} ra ca ${hhmm(Date.now())}`);
+    nhoRaCa(caNguoi.current, nguoi.mnv, loaiCa, Date.now(), !veSom);
+    baoTin('ok', `${nguoi.hoTen} ra ca ${hhmm(Date.now())}${veSom ? '. Bấm nhầm? Quét lại thẻ để vào ca' : ''}`);
     setNguoi(null);
   }, [bang, nguoi, board, ghi, baoTin]);
+  /** Nút Ra ca: chưa hết ca thì hỏi lại (về sớm) */
+  const bamRaCa = () => {
+    if (!bang || !nguoi) return;
+    if (daHetCa(Date.now(), bang.lichCa, bang.tangCa)) { void raCaNguoi(); return; }
+    setHoiVeSom(nguoi.mnv);
+    setNguoi({ ...nguoi, han: Date.now() + CHO_PHIEU_MS });
+  };
 
   // ---- Máy quét gõ như bàn phím (kết thúc bằng Enter) ----
   const dem = useRef('');
   const lanCuoiPhim = useRef(0);
+  // Máy quét USB gửi lặp cùng mã (giữ cò / đọc hai lần): bỏ mã trùng trong 3 giây
+  const locUsb = useRef(taoLocMaLap(3000));
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -517,7 +628,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
       const n = Date.now();
       if (n - lanCuoiPhim.current > 300) dem.current = '';
       lanCuoiPhim.current = n;
-      if (e.key === 'Enter') { const v = dem.current; dem.current = ''; if (v.trim()) quet(v); return; }
+      if (e.key === 'Enter') { const v = dem.current; dem.current = ''; if (v.trim() && locUsb.current(v.trim(), n)) quet(v); return; }
       if (e.key.length === 1) dem.current += e.key;
     };
     window.addEventListener('keydown', onKey);
@@ -530,7 +641,8 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
     if (phieuCho && phieuCho.han < now) setPhieuCho(null);
     if (nhom && nhom.han < now) { setNhom(null); baoTin('info', 'Hết giờ chọn người — quét lại phiếu'); }
   }, [now, nguoi, phieuCho, nhom, baoTin]);
-  const giaHanNhom = (doi: Partial<Nhom>) => setNhom(x => (x ? { ...x, ...doi, han: Date.now() + CHO_NHOM_MS } : x));
+  // Thẻ đóng (hết giờ / người khác quét) thì bỏ câu hỏi về sớm
+  useEffect(() => { if (!nguoi || nguoi.mnv !== hoiVeSom) setHoiVeSom(null); }, [nguoi, hoiVeSom]);
 
   if (mang === 'dang_ky_lai') {
     return (
@@ -571,16 +683,30 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
 
       {bang && bang.cheDo !== 'tram' && (
         <p className={`px-4 py-2 text-base ${bang.cheDo === 'cu' ? 'bg-amber-50 text-amber-800' : 'bg-sky-50 text-sky-800'}`}>
-          {bang.cheDo === 'cu'
-            ? 'Tổ đang chạy cách cũ: lượt quét được lưu nhưng chưa tính giờ công (quản lý bật chế độ trạm ở Setup).'
-            : 'Tuần chạy song song: tổ trưởng vẫn bấm như cũ, số của trạm chỉ dùng để so khớp.'}
+          {bang.cheDo === 'cu' ? 'Chạy thử — quét chưa tính giờ công' : 'Chạy thử — tổ trưởng vẫn chấm như cũ'}
         </p>
       )}
 
       <main className="grid flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* Bên trái: người vừa quét + hành động */}
         <section className="flex flex-col gap-4" aria-label="Quét">
-          <div className={`rounded-2xl border-2 p-4 ${mau.nen} ${mau.vien} ${((nhom || phieuCho) && thongBao?.loai !== 'loi') || (!thongBao && !nguoi) ? 'hidden' : ''}`} aria-live="assertive">
+          {/* Lượt máy chủ không nhận: một dòng cố định, chạm xem chi tiết */}
+          {tuChoiTram.length > 0 && (
+            <div className={`rounded-2xl border-2 p-3 ${MAU.loi.nen} ${MAU.loi.vien}`}>
+              <button type="button" className={`min-h-12 w-full text-left text-lg font-semibold ${MAU.loi.chu}`} onClick={() => setXemTuChoi(v => !v)} aria-expanded={xemTuChoi}>
+                {tuChoiTram.length} lượt quét không ghi được{xemTuChoi ? '' : ' — chạm để xem'}
+              </button>
+              {xemTuChoi && (
+                <>
+                  <ul className="mt-2 space-y-1 text-base text-slate-800">
+                    {tuChoiTram.map(x => <li key={x.id}><b className="tabular-nums">{hhmm(x.luc)}</b> {x.ten}: {x.lyDo}</li>)}
+                  </ul>
+                  <button type="button" className={`${NUT_PHU} mt-3 w-full`} onClick={() => { setTuChoiTram([]); setXemTuChoi(false); }}>Đóng</button>
+                </>
+              )}
+            </div>
+          )}
+          <div className={`rounded-2xl border-2 p-4 ${mau.nen} ${mau.vien} ${((nhom || phieuCho) && thongBao?.loai !== 'loi') || !thongBao ? 'hidden' : ''}`} aria-live="assertive">
             <p className={`text-xl font-semibold ${mau.chu}`}>{thongBao?.chu ?? 'Quét phiếu hạng mục, rồi quét thẻ của bạn'}</p>
           </div>
 
@@ -592,6 +718,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
                 <p className="mt-2 text-lg text-sky-800">Hàng chưa nhận — vào hàng thì trạm Nhận đủ {soSet(hmCua(phieuCho.hex, phieuCho.ds[0].id)?.conNhan ?? 0, hmCua(phieuCho.hex, phieuCho.ds[0].id)?.dvt ?? null)}</p>
               )}
               <p className="mt-3 text-2xl font-semibold text-emerald-700">Quét thẻ của bạn</p>
+              <p className="mt-1 text-base text-slate-600">Tự huỷ sau {Math.max(0, Math.ceil((phieuCho.han - now) / 1000))} giây nếu không quét thẻ</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setGoMa(true)}><Keyboard size="1.25em" /> Gõ mã thẻ</button>
                 <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setPhieuCho(null)}><XIcon size="1.25em" /> Huỷ</button>
@@ -605,6 +732,8 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
                 ? hangMuc.find(h => h.hex === nhom.hex && h.congDoanId === nhom.cd)!.nhomTruoc!
                 : (docLs<Record<string, string[]>>(KHOA_NHOM) ?? {})[`${nhom.hex}|${nhom.cd}`] ?? []) : []}
               congNhan={congNhan} onDoi={giaHanNhom} onVao={() => void vaoHangNhom()} onHuy={() => setNhom(null)}
+              // Mã gõ vào ô tìm cũng qua bộ lọc mã lặp của máy quét USB
+              onQuet={v => { if (v.trim() && locUsb.current(v.trim(), Date.now())) quet(v); }}
               onRa={x => void raHangNhom(x)} hm={hmCua(nhom.hex, nhom.cd)} />
           )}
           {!nhom && !phieuCho && nguoi && (
@@ -618,12 +747,27 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
                 </div>
                 <span className="text-base tabular-nums text-slate-500" aria-label={`Còn ${conGiay} giây`}>{conGiay}s</span>
               </div>
-              {(
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {hangNguoi && <button className={NUT_CHINH} onClick={() => void raKhoiHang()}><MoveRight size="1.25em" /> Ra khỏi hàng</button>}
-                  <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => void raCaNguoi()}><LogOut size="1.25em" /> Ra ca</button>
-                  <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setNguoi(null)}><XIcon size="1.25em" /> Xong</button>
+              {hoiVeSom === nguoi.mnv ? (
+                // Ra ca trước giờ hết ca: hỏi lại cho chắc
+                <div className={`mt-4 rounded-2xl border-2 p-3 ${MAU.ngung.nen} ${MAU.ngung.vien}`} role="alertdialog" aria-label="Xác nhận về sớm">
+                  <p className="text-2xl font-semibold text-slate-900">Về sớm lúc {hhmm(now)}?{hangNguoi ? ` Rời hàng ${hangNguoi.tenHangMuc ?? hangNguoi.hex}` : ''}</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <button className={NUT_CHINH} onClick={() => void raCaNguoi()}>Đúng, về</button>
+                    <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setHoiVeSom(null)}>Không</button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  {hangNguoi && (
+                    <div className="mt-4">
+                      <button className={NUT_CHINH} onClick={() => void raKhoiHang()}><MoveRight size="1.25em" /> Ra khỏi hàng</button>
+                    </div>
+                  )}
+                  {/* Ra ca: hàng riêng, viền cảnh báo — tách xa nút Ra khỏi hàng để khỏi bấm nhầm */}
+                  <button className={`${NUT_PHU} mt-6 h-16 w-full border-2 border-amber-500 text-lg text-amber-900`} onClick={bamRaCa}>
+                    <LogOut size="1.25em" /> Ra ca (về lúc {hhmm(now)})
+                  </button>
+                </>
               )}
               <p className="mt-3 text-base text-slate-600">Quét phiếu PTHSP để vào hàng (tự rời hàng đang làm).</p>
             </div>

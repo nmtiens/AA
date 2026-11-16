@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   PackageX, FileClock, AlertOctagon, Zap, Megaphone, MoreHorizontal, Minus, Plus, ChevronRight,
   History, Moon, ClipboardCheck, Users, Rocket, Camera, Image as ImageIcon, Search as SearchIcon,
+  Split, Hash, UserCheck, ClipboardList, ScanLine,
 } from 'lucide-react';
 import { BottomSheet, NO_SCROLLBAR } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
 import {
   LY_DO_TAM_NGUNG, TEN_CA, LOAI_CA_TANG_CA, moTaSuKien, hhmm, mocTrongNgay, khoaDong, slConLam, slChoGiao, slChoNhan,
-  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, nguoiChonSan, tenGon,
+  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, nguoiChonSan, tenGon, mocTron30, nhomCuChuaDiemDanh,
   type CongViec, type DongViec, type LoaiCa, type MaLyDo, type CongNhanTo,
 } from '../../../services/xuongModel';
 import { xuongApi, type DanhMucXuong, type DongLichSu, type GoiYHex } from '../../../services/xuongApi';
@@ -75,7 +76,6 @@ export function QuanSoSheet({ ca, macDinh, homQua, sauDo, onChot, onClose }: {
     <BottomSheet title={`Chốt quân số ${TEN_CA[ca].toLowerCase()}`} onClose={onClose}
       footer={<button className={NUT_CHINH} onClick={() => onChot(n)}>Chốt {n} người{sauDo ? ` và ${sauDo}` : ''}</button>}>
       <div className="space-y-5 pb-2">
-        <p className={CHU_PHU}>Số người của tổ có mặt làm {TEN_CA[ca].toLowerCase()} hôm nay.</p>
         <BoDem value={n} onChange={setN} lon nhan="quân số" max={500} />
         {homQua !== null && homQua !== n && (
           <button className={`${NUT_PHU} w-full`} onClick={() => setN(homQua)}>Giống hôm qua ({homQua})</button>
@@ -111,8 +111,12 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca = null, n
   const chuyen = [...chon].filter(m => ban.has(m)).length;
   const vuot = !theoTen && ranh !== null && n > ranh;
   // Chọn thêm 1 chạm (Tiếp tục: ngoài nhóm lần trước): người có mặt và chưa làm hạng mục khác
-  const ranhCoMat = cv && theoTen ? coMatLuc(cv, ca, now).filter(m => !ban.has(m)) : [];
+  const coMatNay = cv && theoTen ? coMatLuc(cv, ca, now) : [];
+  const ranhCoMat = coMatNay.filter(m => !ban.has(m));
   const daChonHetRanh = ranhCoMat.length > 0 && ranhCoMat.every(m => chon.has(m));
+  // Ca đã điểm danh theo tên: người tổ chưa điểm danh có nhãn (vẫn chọn được); Tiếp tục không chọn sẵn họ
+  const chuaDiemDanh = cv && theoTen && daDiemDanh(cv, ca) ? new Set(caTo.filter(m => !coMatNay.includes(m))) : undefined;
+  const [boSan] = useState(() => (tiepTuc && cv && theoTen ? nhomCuChuaDiemDanh(r, cv, ca, now) : []));
   const dongTu = tiepTuc ? 'Tiếp tục' : 'Bắt đầu';
   return (
     <BottomSheet title={`${dongTu} ${r.hex} — ${theoTen ? 'ai làm?' : 'mấy người làm?'}`} onClose={onClose}
@@ -121,16 +125,18 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca = null, n
         {r.tenHangMuc && <p className="text-base text-slate-700">{r.tenHangMuc}</p>}
         {theoTen && (<>
           <p className={chuyen ? `text-base font-medium ${MAU.ngung.chu}` : CHU_PHU}>
-            {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.`
-              : 'Chạm tên để chọn hoặc bỏ. Tên mờ là người đang làm hạng mục khác (chọn thì chuyển sang).'}
+            {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.` : 'Tên mờ: đang làm hạng mục khác'}
           </p>
-          {chon.size > 0 && <button className="min-h-11 text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setChon(new Set())}>Bỏ chọn hết</button>}
+          {boSan.length > 0 && (
+            <p className={`text-base ${MAU.ngung.chu}`}>{boSan.map(m => tenGon(m, dsNguoi)).join(', ')} chưa điểm danh hôm nay — không chọn sẵn</p>
+          )}
+          {chon.size > 0 && <button className="inline-flex min-h-14 items-center text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setChon(new Set())}>Bỏ chọn hết</button>}
           {ranhCoMat.length > 0 && !daChonHetRanh && (
             <button className={`${NUT_PHU} w-full`} onClick={() => setChon(s => new Set([...s, ...ranhCoMat]))}>
               <Users size="1.1em" aria-hidden /> Chọn {ranhCoMat.length} người có mặt đang rảnh
             </button>
           )}
-          <ChonNguoi coMat={caTo} ds={dsNguoi} chon={chon} onDoi={setChon} ban={ban} rong="Tổ chưa có danh sách người — thêm ở dưới." />
+          <ChonNguoi coMat={caTo} ds={dsNguoi} chon={chon} onDoi={setChon} ban={ban} chuaDiemDanh={chuaDiemDanh} rong="Tổ chưa có danh sách người — thêm ở dưới." />
           {!moThem && <button className={`${NUT_PHU} w-full`} onClick={() => setMoThem(true)}>+ Thêm người tổ khác / người mới</button>}
           {moThem && cv?.to && (
             <ThemNguoi toId={cv.to.id} xuong={cv.to.xuong} daCo={new Set(caTo)}
@@ -143,7 +149,7 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca = null, n
           <p className={`text-base ${vuot ? `font-semibold ${MAU.loi.chu}` : 'text-slate-700'}`}>
             {vuot
               ? `Nhiều hơn số người đang rảnh (${ranh}) — tổ có ${quanSo} người, ${dangLamKhac} người đang làm hạng mục khác. Nên chia lại người.`
-              : `Tổ có ${quanSo} người · ${dangLamKhac} đang làm hạng mục khác · còn rảnh ${ranh}.`}
+              : `Rảnh ${ranh} / ${quanSo} người (${dangLamKhac} đang làm việc khác)`}
           </p>
         )}
         {ranh !== null && ranh > 0 && ranh !== n && (
@@ -219,11 +225,22 @@ const ngayVN = (t: number) => new Date(t).toLocaleDateString('sv-SE', { timeZone
 /** Mốc giờ của ngày thực hiện: hôm nay => undefined (giờ bấm); ngày trước => 12:00 giờ VN ngày đó (khai bù) */
 export const lucCuaNgay = (ngay: string): number | undefined =>
   ngay === ngayVN(Date.now()) ? undefined : Date.parse(`${ngay}T12:00:00+07:00`);
-/** Khai bù tối đa 7 ngày trước */
+/** Đuôi nút chân sheet khi khai bù: " — ngày 10/11"; hôm nay thì rỗng */
+export const duoiNgay = (ngay: string) => (ngay === ngayVN(Date.now()) ? '' : ` — ngày ${ngay.slice(8, 10)}/${ngay.slice(5, 7)}`);
+
+/** Khai bù tối đa 7 ngày trước. Hôm nay (thường gặp) thì thu gọn thành 1 liên kết — bấm mới hiện chọn ngày */
 export function ChonNgayThucHien({ value, onChange }: { value: string; onChange: (ngay: string) => void }) {
   const homNay = ngayVN(Date.now());
   const homQua = ngayVN(Date.now() - 86_400_000);
   const toiThieu = ngayVN(Date.now() - 7 * 86_400_000);
+  const [mo, setMo] = useState(false);
+  if (value === homNay && !mo) {
+    return (
+      <button type="button" className="inline-flex min-h-14 items-center text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setMo(true)}>
+        Làm ngày khác…
+      </button>
+    );
+  }
   return (
     <div className="space-y-2">
       <p className="text-base font-medium text-slate-800">Ngày thực hiện</p>
@@ -367,14 +384,14 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
       footer={
         <div className="space-y-3">
           {hetTuyen && !den ? (
-            <button className={NUT_CHINH} onClick={() => onXacNhan({ soLuong: sl, den: null, anh, lucXayRa: lucCuaNgay(ngay) })}>Xong — hết tuyến</button>
+            <button className={NUT_CHINH} onClick={() => onXacNhan({ soLuong: sl, den: null, anh, lucXayRa: lucCuaNgay(ngay) })}>Xong — hết tuyến{duoiNgay(ngay)}</button>
           ) : (
           <button className={NUT_CHINH} disabled={!den} onClick={() => onXacNhan({ soLuong: sl, den, anh, lucXayRa: lucCuaNgay(ngay) })}>
-            {cheDo === 'xong' ? 'Xong — giao' : 'Giao'}{den ? '' : ' (chọn nơi giao)'}
+            {cheDo === 'xong' ? 'Xong — giao' : 'Giao'}{den ? duoiNgay(ngay) : ' (chọn nơi giao)'}
           </button>
           )}
           {cheDo === 'xong' && !hetTuyen && (
-            <button className={`${NUT_PHU} w-full`} onClick={() => onXacNhan({ soLuong: sl, den: null, anh, lucXayRa: lucCuaNgay(ngay) })}>Xong, hàng chưa chuyển — giao sau</button>
+            <button className={`${NUT_PHU} w-full`} onClick={() => onXacNhan({ soLuong: sl, den: null, anh, lucXayRa: lucCuaNgay(ngay) })}>Xong, hàng chưa chuyển — giao sau{duoiNgay(ngay)}</button>
           )}
         </div>
       }>
@@ -389,14 +406,14 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
           {hetTuyen && !doiCho && (
             <p className="flex flex-wrap items-center gap-x-2 text-base text-slate-700">
               Công đoạn cuối tuyến — xong là hạng mục xong ở xưởng, không cần giao.
-              <button className="min-h-11 font-medium underline underline-offset-4" onClick={() => setDoiCho(true)}>Giao chỗ khác</button>
+              <button className="inline-flex min-h-14 items-center font-medium underline underline-offset-4" onClick={() => setDoiCho(true)}>Giao chỗ khác</button>
             </p>
           )}
           {r.goiYKe.length === 0 && !r.cuoiTuyen && <p className={`text-base ${MAU.ngung.chu}`}>Hạng mục chưa có tuyến — chọn nơi giao.</p>}
           {!doiCho && r.goiYKe.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {r.goiYKe.map(id => <button key={id} className={chip(den === id)} onClick={() => setDen(id)}>{tenCd(dm, id)}</button>)}
-              <button className="min-h-14 px-2 text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setDoiCho(true)}>Giao chỗ khác</button>
+              <button className="inline-flex min-h-14 items-center px-2 text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setDoiCho(true)}>Giao chỗ khác</button>
             </div>
           )}
           {doiCho && <ChonCongDoan dm={dm} xuong={xuong} chon={den} setChon={id => setDen(id)} boQua={[r.congDoanId]} />}
@@ -423,7 +440,7 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   onNhan: (p: NhanKetQua) => void; onClose: () => void;
 }) {
   // Giới hạn nhận theo số đã triển khai (chưa triển khai: SL đơn hàng) trừ số đã nhận — hỏi máy chủ; mất sóng thì
-  // không chặn (máy chủ gắn cờ "Nhận vượt số lượng triển khai" để quản lý xem)
+  // không chặn ở máy; khi có sóng lại, máy chủ từ chối phần nhận vượt và tổ trưởng thấy ở mục Bị từ chối
   const [gioiHan, setGioiHan] = useState<Record<string, { moc: number | null; loai: 'trien_khai' | 'don_hang' | null; daNhan: number; dvt: string | null }> | null>(null);
   useEffect(() => {
     let on = true;
@@ -464,7 +481,7 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   return (
     <BottomSheet title={`Nhận ${hex}`} onClose={onClose}
       footer={<button className={NUT_CHINH} disabled={!cd || hetHan || (canNguon && !nguon)} onClick={xong}>
-        {hetHan ? 'Đã nhận đủ số triển khai' : `Nhận ${hienSl(sl)} ${dv}${canNguon && !nguon ? ' (chọn nơi giao tới)' : ''}`}
+        {hetHan ? 'Đã nhận đủ số triển khai' : `Nhận ${hienSl(sl)} ${dv}${canNguon && !nguon ? ' (chọn nơi giao tới)' : duoiNgay(ngay)}`}
       </button>}>
       <div className="space-y-5 pb-2">
         {ten && <p className="text-base text-slate-800">{ten}</p>}
@@ -483,13 +500,16 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
         <div className="space-y-2">
           <p className="text-base font-medium text-slate-800">Số lượng nhận ({dv})</p>
           <BoDem value={sl} onChange={setSl} min={duoi} max={toiDa !== null && !hetHan ? toiDa : undefined} soLe={soLe} nhan="số lượng" />
-          {gh && gh.moc !== null && (
-            <p className={`text-base ${hetHan ? `font-semibold ${MAU.loi.chu}` : 'text-slate-700'}`}>
-              {hetHan ? `Công đoạn đã nhận đủ ${hienSl(gh.moc)} ${dv} — ` : `Tối đa ${hienSl(toiDa!)} ${dv} — `}
-              {gh.loai === 'trien_khai' ? `đã triển khai ${hienSl(gh.moc)}` : `số lượng đơn hàng ${hienSl(gh.moc)}`}{gh.daNhan > 0 && !hetHan ? `, đã nhận ${hienSl(gh.daNhan)}` : ''}
-            </p>
-          )}
-          {dongCho && <p className={CHU_PHU}>Tổ trước đã giao {hienSl(dongCho.slGiaoDen)} {dv}, tổ đã nhận {hienSl(dongCho.slNhan)}.</p>}
+          {hetHan && gh && gh.moc !== null
+            ? <p className={`text-base font-semibold ${MAU.loi.chu}`}>Đã nhận đủ {hienSl(gh.moc)} {dv}</p>
+            : (dongCho || toiDa !== null) && (
+              // Một dòng: tổ trước giao · tổ đã nhận · tối đa. Không có dòng chờ: số đã nhận của cả công đoạn (mọi tổ)
+              <p className="text-base tabular-nums text-slate-700">{[
+                dongCho ? `Tổ trước giao ${hienSl(dongCho.slGiaoDen)}` : null,
+                dongCho ? `đã nhận ${hienSl(dongCho.slNhan)}` : `công đoạn đã nhận ${hienSl(gh?.daNhan ?? 0)}`,
+                toiDa !== null ? `tối đa ${hienSl(toiDa)}` : null,
+              ].filter(Boolean).join(' · ')} {dv}</p>
+            )}
         </div>
         <ChonNgayThucHien value={ngay} onChange={setNgay} />
         {canNguon && (
@@ -502,7 +522,6 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
         {cv.anhBat && (
           <div className="space-y-2">
             <p className="text-base font-medium text-slate-800">Ảnh hàng lúc nhận</p>
-            <p className={CHU_PHU}>Chụp tình trạng hàng khi về tới tổ — nơi khác xem được ở Tra cứu.</p>
             <ChonAnh anh={anh} onDoi={setAnh} />
           </div>
         )}
@@ -514,15 +533,20 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
 // ---------------------------------------------------------------------------
 // 3H — Khai tăng ca của tổ: một màn
 // ---------------------------------------------------------------------------
-export function TangCaSheet({ cv, dangChay, onKhai, onClose }: {
+export function TangCaSheet({ cv, dangChay, caBanDau = null, onKhai, onClose }: {
   cv: CongViec; dangChay: DongViec[];
+  /** Ca chọn sẵn (mở từ băng "Ngoài giờ ca") */
+  caBanDau?: LoaiCa | null;
   onKhai: (p: { loaiCa: LoaiCa; soNguoi: number; boChon: string[]; nguoi: string[] | null }) => void; onClose: () => void;
 }) {
-  const [ca, setCa] = useState<LoaiCa | null>(null);
+  const [ca, setCa] = useState<LoaiCa | null>(caBanDau);
   const [n0, setN] = useState(cv.soNguoiTangCaTruoc ?? cv.quanSo.chinh ?? 0);
-  // Theo tên: chọn người tăng ca trong tổ (mặc định người đang có mặt ca chính)
+  // Theo tên: chọn người tăng ca trong tổ (mặc định người có mặt ca chính). Khai muộn (sau giờ hết ca chính) thì lấy
+  // người có mặt 1 phút trước khi hết ca chính — không thì danh sách chọn sẵn rỗng
   const theoTen = !!cv.chamCong && (cv.congNhan?.length ?? 0) > 0;
-  const coMatChinh = theoTen ? coMatLuc(cv, 'chinh', Date.now()) : [];
+  const lichChinh = cv.lichCa.find(x => x.loaiCa === 'chinh');
+  const lucXet = Math.min(Date.now(), lichChinh ? mocTrongNgay(cv.ngay, lichChinh.gioKetThuc) : Date.now()) - 60_000;
+  const coMatChinh = theoTen ? coMatLuc(cv, 'chinh', lucXet) : [];
   const dsTen = theoTen ? [...new Set([...coMatChinh, ...(cv.congNhan ?? []).filter(x => !x.toKhac).map(x => x.mnv)])] : [];
   const [chonTen, setChonTen] = useState<Set<string>>(() => new Set(coMatChinh));
   const n = theoTen ? chonTen.size : n0;
@@ -542,6 +566,10 @@ export function TangCaSheet({ cv, dangChay, onKhai, onClose }: {
             </button>
           ))}
         </div>
+        {/* Lần khai đầu của ca: giờ vào tính từ đầu ca (khai muộn không mất giờ công) */}
+        {ca && !(cv.coMat?.[ca]?.length) && cv.lichCa.find(x => x.loaiCa === ca) && (
+          <p className={CHU_PHU}>Bắt đầu lúc {cv.lichCa.find(x => x.loaiCa === ca)!.gioBatDau.slice(0, 5)} (đầu ca)</p>
+        )}
         {dangChay.length > 0 && (
           <div className="space-y-2">
             <p className="text-base font-medium text-slate-800">Hạng mục làm tăng ca <span className="font-normal text-slate-600">(chạm để bỏ)</span></p>
@@ -588,15 +616,30 @@ export interface XacNhanDong {
   anh: AnhChup[];
 }
 
-export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
-  cv: CongViec; dangChay: DongViec[]; anhBat: boolean; onXacNhan: (ds: XacNhanDong[]) => void; onClose: () => void;
+export function XacNhanSheet({ cv, dangChay, anhBat, chuaHetCa = false, onXacNhan, onClose }: {
+  cv: CongViec; dangChay: DongViec[]; anhBat: boolean;
+  /** Chưa tới giờ nhắc (chưa hết ca): báo trước, "xác nhận luôn" phải chạm 2 lần */
+  chuaHetCa?: boolean;
+  onXacNhan: (ds: XacNhanDong[]) => void; onClose: () => void;
 }) {
   const [ds, setDs] = useState<XacNhanDong[]>(() => dangChay.map(r => ({ r, vanLam: true, dungLuc: null, tienDo: null, anh: [] })));
   useGiaiPhongAnh(ds.map(x => x.anh));
   const sua = (i: number, p: Partial<XacNhanDong>) => setDs(a => a.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  // "Sớm hơn…": hạng mục đã mở hết mốc 30 phút
+  const [somHon, setSomHon] = useState<Set<string>>(new Set());
+  const [chamLan1, setChamLan1] = useState(false);
+  // Nút Xác nhận ở chân: chưa hết ca cũng phải chạm 2 lần (mặc định mọi dòng "Vẫn làm" = giống xác nhận luôn)
+  const [chamChan1, setChamChan1] = useState(false);
+  // Giữ cố định lúc mở cửa sổ: chip "Bây giờ" đã chọn vẫn sáng khi màn vẽ lại
+  const [bayGio] = useState(() => Date.now());
+  /**
+   * Mốc "Đã dừng lúc": chỉ trong khoảng [lúc bắt đầu chạy, bây giờ] (dừng trước lúc bắt đầu là sai đồng hồ) — hết ca,
+   * thao tác cuối, mốc tròn 30 phút từ max(bắt đầu chạy, đầu ca chính); "Bây giờ" ở cuối. Không chọn sẵn mốc nào.
+   */
   const mocs = (r: DongViec) => {
+    const tu = r.dangChayTu ? Date.parse(r.dangChayTu) : null;
+    const hop = (luc: number) => luc <= bayGio && (tu === null || luc >= tu);
     const out: Array<{ ten: string; luc: number }> = [];
-    if (r.suKienCuoi) out.push({ ten: `Thao tác cuối ${hhmm(Date.parse(r.suKienCuoi))}`, luc: Date.parse(r.suKienCuoi) });
     const chinh = cv.lichCa.find(x => x.loaiCa === 'chinh');
     if (chinh) out.push({ ten: `Hết ca chính ${chinh.gioKetThuc}`, luc: mocTrongNgay(cv.ngay, chinh.gioKetThuc) });
     for (const l of cv.tangCa) {
@@ -607,50 +650,80 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
         out.push({ ten: `Hết ${TEN_CA[l].toLowerCase()} ${c.gioKetThuc}`, luc });
       }
     }
-    return out.filter(m => m.luc <= Date.now());
+    // Thao tác cuối trùng lúc bắt đầu chạy thì bỏ (không thêm thông tin)
+    if (r.suKienCuoi && r.suKienCuoi !== r.dangChayTu) out.push({ ten: `Thao tác cuối ${hhmm(Date.parse(r.suKienCuoi))}`, luc: Date.parse(r.suKienCuoi) });
+    const dauCa = chinh ? mocTrongNgay(cv.ngay, chinh.gioBatDau) : bayGio;
+    const tron = mocTron30(Math.max(tu ?? dauCa, dauCa), bayGio).filter(t => !out.some(m => m.luc === t));
+    const anTron = somHon.has(khoaDong(r)) ? [] : tron.slice(0, -5);
+    const ds2 = [...out.filter(m => hop(m.luc)), ...tron.filter(t => !anTron.includes(t)).map(t => ({ ten: hhmm(t), luc: t }))]
+      .sort((a, b) => a.luc - b.luc);
+    return { ds: [...ds2, { ten: `Bây giờ ${hhmm(bayGio)}`, luc: bayGio }], conSomHon: anTron.length > 0 };
   };
   const thieu = ds.some(x => !x.vanLam && x.dungLuc === null);
   // Ảnh / tiến độ (không bắt buộc) gập lại — tổ nhiều hạng mục không phải cuộn qua từng ô ảnh
   const [mo, setMo] = useState<Set<string>>(new Set());
+  const xacNhanLuon = () => {
+    if (chuaHetCa && !chamLan1) { setChamLan1(true); return; }
+    onXacNhan(ds.map(x => ({ ...x, vanLam: true, dungLuc: null })));
+  };
+  const xacNhanChan = () => {
+    if (chuaHetCa && !chamChan1) { setChamChan1(true); return; }
+    onXacNhan(ds);
+  };
   return (
     <BottomSheet title="Xác nhận cuối ngày" onClose={onClose}
-      footer={<button className={NUT_CHINH} disabled={thieu} onClick={() => onXacNhan(ds)}>{thieu ? 'Chọn giờ đã dừng' : 'Xác nhận'}</button>}>
+      footer={<button className={NUT_CHINH} disabled={thieu} onClick={xacNhanChan}>{thieu ? 'Chọn giờ đã dừng' : chamChan1 ? 'Chạm lần nữa để xác nhận' : 'Xác nhận'}</button>}>
       <div className="space-y-4 pb-2">
-        <button className={`${NUT_PHU} w-full border-emerald-300 ${MAU.chay.chu}`}
-          onClick={() => onXacNhan(ds.map(x => ({ ...x, vanLam: true, dungLuc: null })))}>
-          <ClipboardCheck size="1.25em" aria-hidden /> Tất cả {ds.length} hạng mục vẫn đang làm — xác nhận luôn
-        </button>
-        {ds.length > 0 && <p className={CHU_PHU}>Hoặc chọn từng hạng mục bên dưới rồi bấm Xác nhận.</p>}
-        <ul className={`${KHOI} ${KE} border border-slate-200`}>
+        {chuaHetCa && (
+          <p className={`rounded-2xl ${MAU.ngung.nen} p-3 text-base font-medium ${MAU.ngung.chu}`} role="status">
+            Chưa hết ca — xác nhận bây giờ sẽ tắt lời nhắc chiều
+          </p>
+        )}
+        {ds.length === 0 ? (
+          <p className="py-4 text-center text-base text-slate-700">Không có hạng mục nào đang chạy</p>
+        ) : (<>
+          <button className={`${NUT_PHU} w-full border-emerald-300 ${MAU.chay.chu}`} onClick={xacNhanLuon}>
+            <ClipboardCheck size="1.25em" aria-hidden />
+            {chamLan1 ? 'Chạm lần nữa để xác nhận luôn' : `Tất cả ${ds.length} hạng mục vẫn đang làm — xác nhận luôn`}
+          </button>
+          <p className={CHU_PHU}>Hoặc chọn từng hạng mục bên dưới rồi bấm Xác nhận.</p>
+        </>)}
+        {ds.length > 0 && <ul className={`${KHOI} ${KE} border border-slate-200`}>
           {ds.map((x, i) => (
             <li key={khoaDong(x.r)} className="space-y-2 px-4 py-3">
               <p className="truncate text-base" title={x.r.tenHangMuc ?? ''}><span className="font-semibold tabular-nums">{x.r.hex}</span> {x.r.tenHangMuc ?? ''}</p>
-              <div className="flex items-center gap-2">
-                <div className="grid flex-1 grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1" role="radiogroup" aria-label={`${x.r.hex} cuối ngày`}>
+              <div className="flex items-center gap-3">
+                <div className="grid flex-1 grid-cols-2 gap-3 rounded-2xl bg-slate-100 p-1" role="radiogroup" aria-label={`${x.r.hex} cuối ngày`}>
                   <button role="radio" aria-checked={x.vanLam} onClick={() => sua(i, { vanLam: true, dungLuc: null })}
-                    className={`min-h-11 whitespace-nowrap rounded-xl text-base ${x.vanLam ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-600'}`}>Vẫn làm</button>
+                    className={`min-h-14 whitespace-nowrap rounded-xl text-base ${x.vanLam ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-600'}`}>Vẫn làm</button>
                   <button role="radio" aria-checked={!x.vanLam} onClick={() => sua(i, { vanLam: false })}
-                    className={`min-h-11 whitespace-nowrap rounded-xl text-base ${!x.vanLam ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-600'}`}>Đã dừng</button>
+                    className={`min-h-14 whitespace-nowrap rounded-xl text-base ${!x.vanLam ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-600'}`}>Đã dừng</button>
                 </div>
                 {(() => {
                   const k = khoaDong(x.r);
                   const daCo = x.anh.length > 0 || x.tienDo !== null;
                   return (
                     <button type="button" aria-expanded={mo.has(k)} aria-label={`Ảnh, tiến độ ${x.r.hex}`} onClick={() => setMo(s2 => { const t = new Set(s2); if (t.has(k)) t.delete(k); else t.add(k); return t; })}
-                      className={`min-h-11 shrink-0 rounded-xl border px-3 text-base ${daCo ? `${MAU.chay.vien} ${MAU.chay.nen} ${MAU.chay.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>
+                      className={`min-h-14 shrink-0 rounded-xl border px-3 text-base ${daCo ? `${MAU.chay.vien} ${MAU.chay.nen} ${MAU.chay.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>
                       {daCo ? `${x.tienDo !== null ? `${x.tienDo}%` : ''}${x.tienDo !== null && x.anh.length ? ' · ' : ''}${x.anh.length ? `${x.anh.length} ảnh` : ''}` : <span className="flex items-center gap-1"><Camera size="1em" aria-hidden /> Thêm</span>}
                     </button>
                   );
                 })()}
               </div>
-              {!x.vanLam && (
-                <div className="space-y-2">
-                  <p className="text-base text-slate-700">Đã dừng lúc</p>
-                  <div className="flex flex-wrap gap-2">
-                    {mocs(x.r).map(m => <button key={m.ten} className={chip(x.dungLuc === m.luc)} onClick={() => sua(i, { dungLuc: m.luc })}>{m.ten}</button>)}
+              {!x.vanLam && (() => {
+                const m2 = mocs(x.r);
+                return (
+                  <div className="space-y-2">
+                    <p className="text-base text-slate-700">Đã dừng lúc</p>
+                    <div className="flex flex-wrap gap-2">
+                      {m2.conSomHon && (
+                        <button className={chip(false)} onClick={() => setSomHon(s => new Set([...s, khoaDong(x.r)]))}>Sớm hơn…</button>
+                      )}
+                      {m2.ds.map(m => <button key={m.ten} className={`${chip(x.dungLuc === m.luc)} tabular-nums`} onClick={() => sua(i, { dungLuc: m.luc })}>{m.ten}</button>)}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               {mo.has(khoaDong(x.r)) && (<>
                 {anhBat && <ChonAnh anh={x.anh} onDoi={a2 => sua(i, { anh: a2 })} />}
                 <div className="space-y-2">
@@ -664,7 +737,7 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
               </>)}
             </li>
           ))}
-        </ul>
+        </ul>}
       </div>
     </BottomSheet>
   );
@@ -676,16 +749,23 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
 export function ChiaNguoiSheet({ dangChay, quanSo, cv, ca, now, onLuu, onClose }: {
   dangChay: DongViec[]; quanSo: number;
   cv?: CongViec | null; ca?: LoaiCa | null; now?: number;
-  /** soNguoi theo khoá; tên người theo khoá khi chia theo tên */
-  onLuu: (m: Record<string, number>, ten: Record<string, string[]> | null) => void; onClose: () => void;
+  /** soNguoi theo khoá; tên người theo khoá khi chia theo tên; them = người tổ khác / người mới thêm lúc chia */
+  onLuu: (m: Record<string, number>, ten: Record<string, string[]> | null, them?: CongNhanTo[]) => void; onClose: () => void;
 }) {
   const [m, setM] = useState<Record<string, number>>(() => Object.fromEntries(dangChay.map(r => [khoaDong(r), r.soNguoi ?? 0])));
   const tong = Object.values(m).reduce((a, b) => a + b, 0);
   const theoTen = !!cv?.chamCong && daDiemDanh(cv, ca ?? null);
   const coMat = theoTen ? coMatLuc(cv!, ca ?? null, now ?? Date.now()) : [];
+  // Người đang gắn hạng mục mà không thuộc tổ (mượn lúc Bắt đầu / người mới) và không có điểm danh — giữ, không gỡ
+  // khi lưu. Người của tổ không có mặt (đã ra ca, hoặc làm ca chính mà không khai tăng ca) thì vẫn bỏ; người có điểm
+  // danh ở bất kỳ ca nào hôm nay mà giờ không có mặt cũng bỏ.
+  const cuaTo = new Set((cv?.congNhan ?? []).filter(x => !x.toKhac).map(x => x.mnv));
+  const coBanGhi = new Set(Object.values(cv?.coMat ?? {}).flatMap(ds => (ds ?? []).map(x => x.mnv)));
+  const muon = theoTen ? [...new Set(dangChay.flatMap(r => r.nguoi ?? []))]
+    .filter(x => !coMat.includes(x) && !cuaTo.has(x) && !coBanGhi.has(x)) : [];
   const [ten, setTen] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(dangChay.map(r => [khoaDong(r), (r.nguoi ?? []).filter(x => coMat.includes(x))])));
-  if (theoTen) return <ChiaTheoTen dangChay={dangChay} coMat={coMat} cv={cv!} ten={ten} setTen={setTen} onLuu={onLuu} onClose={onClose} />;
+    Object.fromEntries(dangChay.map(r => [khoaDong(r), (r.nguoi ?? []).filter(x => coMat.includes(x) || muon.includes(x))])));
+  if (theoTen) return <ChiaTheoTen dangChay={dangChay} coMat={coMat} muon={muon} cv={cv!} ten={ten} setTen={setTen} onLuu={onLuu} onClose={onClose} />;
   return (
     <BottomSheet title="Chia người cho hạng mục" onClose={onClose}
       footer={<button className={NUT_CHINH} onClick={() => onLuu(m, null)}>Lưu</button>}>
@@ -712,12 +792,17 @@ export function ChiaNguoiSheet({ dangChay, quanSo, cv, ca, now, onLuu, onClose }
  * hạng mục đang chọn (đang ở hạng mục khác thì chuyển sang), chạm lại = bỏ. Trước: mỗi hạng mục một lưới đủ cả tổ
  * (40 người × 3 hạng mục = 120 ô).
  */
-function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
-  dangChay: DongViec[]; coMat: string[]; cv: CongViec;
+function ChiaTheoTen({ dangChay, coMat, muon, cv, ten, setTen, onLuu, onClose }: {
+  dangChay: DongViec[]; coMat: string[];
+  /** Người đang gắn hạng mục nhưng không điểm danh ca này (nhãn "mượn") — không tính vào bộ đếm */
+  muon: string[]; cv: CongViec;
   ten: Record<string, string[]>; setTen: (f: (t: Record<string, string[]>) => Record<string, string[]>) => void;
-  onLuu: (m: Record<string, number>, ten: Record<string, string[]> | null) => void; onClose: () => void;
+  onLuu: (m: Record<string, number>, ten: Record<string, string[]> | null, them?: CongNhanTo[]) => void; onClose: () => void;
 }) {
-  const ds = cv.congNhan ?? [];
+  // Người thêm ngay lúc chia (tổ khác / người mới)
+  const [them, setThem] = useState<CongNhanTo[]>([]);
+  const [moThem, setMoThem] = useState(false);
+  const ds = [...(cv.congNhan ?? []), ...them.filter(t => !(cv.congNhan ?? []).some(c => c.mnv === t.mnv))];
   const khoa = dangChay.map(khoaDong);
   const chu = (i: number) => String.fromCharCode(65 + (i % 26));
   const [dich, setDich] = useState(() => khoa[0]);
@@ -726,8 +811,10 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
   const daGan = new Map<string, string>();
   for (const [k, v] of Object.entries(ten)) for (const x of v) daGan.set(x, k);
   const chuaGan = coMat.filter(x => !daGan.has(x));
+  const laMuon = new Set([...muon, ...them.map(t => t.mnv)].filter(x => !coMat.includes(x)));
+  const luoi = [...coMat, ...laMuon];
   const tu = boDau(tim.trim());
-  const hien = coMat.filter(x => (loc === 'tat_ca' || !daGan.has(x))
+  const hien = luoi.filter(x => (loc === 'tat_ca' || !daGan.has(x))
     && (!tu || boDau(`${ds.find(c => c.mnv === x)?.hoTen ?? ''} ${x}`).includes(tu)))
     .sort((x, y) => tenGon(x, ds).localeCompare(tenGon(y, ds), 'vi'));
   const ganVao = (ms: string[], k: string | null) => setTen(t => {
@@ -750,7 +837,7 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
   const gon = coMat.length > 12;
   return (
     <BottomSheet title="Chia người cho hạng mục" onClose={onClose}
-      footer={<button className={NUT_CHINH} onClick={() => onLuu(Object.fromEntries(khoa.map(k => [k, (ten[k] ?? []).length])), ten)}>
+      footer={<button className={NUT_CHINH} onClick={() => onLuu(Object.fromEntries(khoa.map(k => [k, (ten[k] ?? []).length])), ten, them)}>
         Lưu{chuaGan.length ? ` · còn ${chuaGan.length} chưa gắn` : ''}</button>}>
       <div className="space-y-3 pb-2">
         {/* Dính trên: chọn hạng mục đích + lọc / tìm */}
@@ -773,25 +860,25 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
           <div className="flex items-center gap-2">
             {([['tat_ca', `Cả tổ ${coMat.length}`], ['chua_gan', `Chưa gắn ${chuaGan.length}`]] as const).map(([k, t]) => (
               <button key={k} type="button" aria-pressed={loc === k} onClick={() => setLoc(k)}
-                className={`h-11 shrink-0 whitespace-nowrap rounded-full border px-3 text-base tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 text-white' : chuaGan.length && k === 'chua_gan' ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>{t}</button>
+                className={`h-14 shrink-0 whitespace-nowrap rounded-full border px-4 text-base tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 text-white' : chuaGan.length && k === 'chua_gan' ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>{t}</button>
             ))}
             {gon && (
               <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm tên" aria-label="Tìm người"
-                className="h-11 min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus:border-slate-500" />
+                className="h-14 min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-4 text-base text-slate-900 outline-none focus:border-slate-500" />
             )}
           </div>
           {chuaGan.length > 0 && (
             <div className="flex gap-2">
               {khoa.length > 1 && (
-                <button type="button" onClick={chiaDeu} className={`${NUT_PHU} !min-h-11 flex-1`}>Chia đều {chuaGan.length}</button>
+                <button type="button" onClick={chiaDeu} className={`${NUT_PHU} flex-1`}>Chia đều {chuaGan.length}</button>
               )}
-              <button type="button" onClick={() => ganVao(chuaGan, dich)} className={`${NUT_PHU} !min-h-11 flex-1`}>
+              <button type="button" onClick={() => ganVao(chuaGan, dich)} className={`${NUT_PHU} flex-1`}>
                 Gắn {chuaGan.length} vào {chu(khoa.indexOf(dich))}</button>
             </div>
           )}
         </div>
-        {!coMat.length && <p className={CHU_PHU}>Chưa có ai điểm danh có mặt.</p>}
-        {coMat.length > 0 && !hien.length && <p className={`rounded-2xl bg-slate-50 p-4 text-center ${CHU_PHU}`}>{tu ? 'Không ai khớp.' : 'Đã gắn hết người có mặt.'}</p>}
+        {!luoi.length && <p className={CHU_PHU}>Chưa có ai điểm danh có mặt.</p>}
+        {luoi.length > 0 && !hien.length && <p className={`rounded-2xl bg-slate-50 p-4 text-center ${CHU_PHU}`}>{tu ? 'Không ai khớp.' : 'Đã gắn hết người có mặt.'}</p>}
         <div className="grid grid-cols-2 gap-2">
           {hien.map(x => {
             const k = daGan.get(x);
@@ -805,6 +892,8 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
                     // Chưa gắn việc: nền vàng, viền đậm + nhãn — trước chỉ viền chấm vàng nhạt trên nền trắng, khó thấy
                     : 'border-2 border-dashed border-amber-500 bg-amber-50 font-medium text-amber-900'}`}>
                 <span className="min-w-0 flex-1 truncate">{tenGon(x, ds)}</span>
+                {/* Người mượn / người mới không điểm danh ca này */}
+                {laMuon.has(x) && <span className="shrink-0 text-base opacity-80">mượn</span>}
                 {/* Chữ hạng mục người này đang làm; chưa gắn thì ghi rõ */}
                 {i >= 0
                   ? <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>
@@ -813,6 +902,11 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
             );
           })}
         </div>
+        {!moThem && <button type="button" className={`${NUT_PHU} w-full`} onClick={() => setMoThem(true)}>+ Thêm người tổ khác / người mới</button>}
+        {moThem && (
+          <ThemNguoi toId={cv.to.id} xuong={cv.to.xuong} daCo={new Set(luoi)}
+            onChon={c => { setThem(t => [...t, c]); if (dich) ganVao([c.mnv], dich); setMoThem(false); }} />
+        )}
       </div>
     </BottomSheet>
   );
@@ -833,6 +927,14 @@ export function LichSuSheet({ toId, onHuy, onClose }: { toId: number; onHuy: (id
     });
   };
   useEffect(tai, [toId]);
+  // Hỏi lại trước khi huỷ; nêu các thao tác đã ghi SAU trên cùng hạng mục (huỷ Nhận khi hàng đã Xong / Giao làm lệch số)
+  const xacNhanHuy = (x: DongLichSu) => {
+    const sau = x.hex ? (ds ?? []).filter(y => y.id !== x.id && !y.daHuy && y.loai !== 'huy' && y.hex === x.hex
+      && y.congDoanId === x.congDoanId && Date.parse(y.luc) > Date.parse(x.luc)) : [];
+    const ten = [...new Set(sau.sort((a, b) => Date.parse(a.luc) - Date.parse(b.luc))
+      .map(y => (y.loai === 'giao' ? 'Giao cho tổ sau' : moTaSuKien({ loai: y.loai }))))];
+    return window.confirm(`Huỷ ${moTaSuKien(x)}?${ten.length ? ` Hàng này đã ${ten.join(' và ')}.` : ''}`);
+  };
   return (
     <BottomSheet title="Lịch sử hôm nay" onClose={onClose}>
       <div className="space-y-3 pb-2">
@@ -856,7 +958,7 @@ export function LichSuSheet({ toId, onHuy, onClose }: { toId: number; onHuy: (id
                 {x.daHuy && <span className="text-base text-slate-600">Đã huỷ</span>}
                 {x.huyDuoc && (
                   <button className={NUT_PHU} disabled={dangHuy === x.id}
-                    onClick={async () => { setDangHuy(x.id); await onHuy(x.id, moTaSuKien(x)); setDangHuy(null); tai(); }}>Huỷ</button>
+                    onClick={async () => { if (!xacNhanHuy(x)) return; setDangHuy(x.id); await onHuy(x.id, moTaSuKien(x)); setDangHuy(null); tai(); }}>Huỷ</button>
                 )}
               </li>
             ))}
@@ -961,23 +1063,53 @@ export function ChonToSheet({ ds, toId, onChon, onClose }: {
  * Điện thoại: 1 hàng vuốt ngang (trước lưới 2 hàng đẩy danh sách việc xuống dưới thanh Quét phiếu);
  * màn rộng: tự xuống hàng.
  */
+export type IconViec = 'lichsu' | 'tangca' | 'xacnhan' | 'quanso' | 'trienkhai' | 'chia' | 'diemDanh' | 'phanCong' | 'suaQuet';
 export function ThanhViec({ muc }: {
-  muc: Array<{ ten: string; icon: 'lichsu' | 'tangca' | 'xacnhan' | 'quanso' | 'trienkhai'; onClick: () => void; phu?: string; noi?: boolean }>;
+  muc: Array<{ ten: string; icon: IconViec; onClick: () => void; phu?: string; noi?: boolean }>;
 }) {
-  const ICON: Record<string, ReactNode> = {
+  // Mỗi việc một biểu tượng riêng (trước nhiều việc dùng chung biểu tượng người)
+  const ICON: Record<IconViec, ReactNode> = {
     lichsu: <History size="1.1em" />, tangca: <Moon size="1.1em" />, xacnhan: <ClipboardCheck size="1.1em" />,
-    quanso: <Users size="1.1em" />, trienkhai: <Rocket size="1.1em" />,
+    quanso: <Hash size="1.1em" />, trienkhai: <Rocket size="1.1em" />, chia: <Split size="1.1em" />,
+    diemDanh: <UserCheck size="1.1em" />, phanCong: <ClipboardList size="1.1em" />, suaQuet: <ScanLine size="1.1em" />,
   };
+  // Còn nút bên phải chưa thấy: dải mờ + dấu › ở mép phải (điện thoại; màn rộng tự xuống hàng)
+  const ref = useRef<HTMLElement>(null);
+  const [conPhai, setConPhai] = useState(false);
+  const xet = () => { const el = ref.current; if (el) setConPhai(el.scrollLeft + el.clientWidth < el.scrollWidth - 4); };
+  useEffect(() => {
+    xet();
+    window.addEventListener('resize', xet);
+    return () => window.removeEventListener('resize', xet);
+  }, [muc.length]);
   return (
-    <nav aria-label="Việc của tổ" className={`-mx-4 flex gap-2 overflow-x-auto px-4 ${NO_SCROLLBAR} rmd:mx-0 rmd:flex-wrap rmd:overflow-visible rmd:px-0`}>
-      {muc.map(m => (
-        <button key={m.ten} type="button" onClick={m.onClick}
-          className={`flex min-h-12 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-base active:opacity-80 ${
-            m.noi ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} font-medium` : 'border-slate-300 bg-white text-slate-800'}`}>
-          <span className={m.noi ? '' : 'text-aa-600'} aria-hidden>{ICON[m.icon]}</span>
-          <span>{m.ten}{m.phu && <span className={m.noi ? '' : 'text-slate-600'}> · {m.phu}</span>}</span>
-        </button>
-      ))}
-    </nav>
+    <div className="relative">
+      <nav ref={ref} onScroll={xet} aria-label="Việc của tổ" className={`-mx-4 flex gap-2 overflow-x-auto px-4 ${NO_SCROLLBAR} rmd:mx-0 rmd:flex-wrap rmd:overflow-visible rmd:px-0`}>
+        {muc.map(m => (
+          <button key={m.ten} type="button" onClick={m.onClick}
+            className={`flex min-h-12 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-base active:opacity-80 ${
+              m.noi ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} font-medium` : 'border-slate-300 bg-white text-slate-800'}`}>
+            <span className={m.noi ? '' : 'text-aa-600'} aria-hidden>{ICON[m.icon]}</span>
+            <span>{m.ten}{m.phu && <span className={m.noi ? '' : 'text-slate-600'}> · {m.phu}</span>}</span>
+          </button>
+        ))}
+      </nav>
+      {conPhai && (
+        <div className="pointer-events-none absolute inset-y-0 -right-4 flex w-12 items-center justify-end bg-gradient-to-l from-white via-white/90 to-white/0 pr-1 text-2xl font-semibold text-slate-500 rmd:hidden" aria-hidden>›</div>
+      )}
+    </div>
+  );
+}
+
+/** Bắt đầu / Tiếp tục ngoài giờ ca chưa khai tăng ca: hỏi một lần — khai tăng ca hay vẫn ghi */
+export function NgoaiCaSheet({ onKhai, onVanGhi, onClose }: { onKhai: () => void; onVanGhi: () => void; onClose: () => void }) {
+  return (
+    <BottomSheet title="Ngoài giờ ca" onClose={onClose}
+      footer={<div className="space-y-3">
+        <button className={NUT_CHINH} onClick={onKhai}><Moon size="1.25em" aria-hidden /> Khai tăng ca</button>
+        <button className={`${NUT_PHU} w-full`} onClick={onVanGhi}>Vẫn ghi</button>
+      </div>}>
+      <p className="pb-2 text-base text-slate-800">Tổ chưa khai tăng ca cho giờ này — giờ công sẽ không được tính.</p>
+    </BottomSheet>
   );
 }

@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Upload, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Search, Upload, RefreshCw, AlertTriangle, QrCode } from 'lucide-react';
 import { xuongSetupApi, type CongNhanXuong, type DongNapNhanSu, type SetupXuong } from '../../services/xuongSetupApi';
 import { BTN, BTN_CHINH, KHUNG, INPUT } from './xuongDesktopUi';
 import { khung, table, thead, thB, thC, tdB } from '../shared/bangBaoCao';
+import InTheQr from './InTheQr';
 
 // ============================================================================
 // NHÂN SỰ XƯỞNG — danh sách công nhân cho chấm công theo người (docs/designs/xuong-cham-cong.md).
 // Xem theo tổ, chuyển tổ, cho nghỉ việc; nạp file nhân sự (Excel / CSV) — trình duyệt đọc file, tự nhận cột theo tiêu
 // đề (sửa được), xem trước rồi gửi các dòng lên POST /api/xuong/cong-nhan/nap.
 // ============================================================================
+
+// Máy chủ chưa chạy file SQL chấm công (503): báo ngắn trên màn, tên file để người quản trị xem ở console
+const CHUA_BAT = 'Chức năng này chưa được bật trên máy chủ — báo người quản trị app.';
+const ghiChuaBat = () => console.warn('[Nhân sự] máy chủ chưa bật chấm công theo người — chạy backend/sql/2026-10-13_xuong_cham_cong.sql');
 
 type Cot = 'mnv' | 'hoTen' | 'xuong' | 'tenTo' | 'chucVu';
 const TEN_COT: Record<Cot, string> = { mnv: 'Mã NV', hoTen: 'Họ tên', xuong: 'Xưởng', tenTo: 'Tổ', chucVu: 'Chức vụ' };
@@ -57,7 +62,10 @@ function NapFile({ xuong, bao, xong }: { xuong: string; bao: (ok: boolean, msg: 
     setDang(true);
     const r = await xuongSetupApi.napCongNhan(ra, nghi);
     setDang(false);
-    if (!r.ok) { bao(false, r.status === 503 ? 'Máy chủ chưa chạy file backend/sql/2026-10-13_xuong_cham_cong.sql' : r.message); return; }
+    if (!r.ok) {
+      if (r.status === 503) ghiChuaBat();
+      bao(false, r.status === 503 ? CHUA_BAT : r.message); return;
+    }
     setKq(r.data);
     bao(true, `Đã nạp ${r.data.daNap} người`);
     xong();
@@ -132,15 +140,21 @@ export default function NhanSuXuong({ d, bao }: { d: SetupXuong; bao: (ok: boole
   const [q, setQ] = useState('');
   const [loc, setLoc] = useState<string>('');
   const [anNghi, setAnNghi] = useState(true);
+  const [inThe, setInThe] = useState(false);
 
   const tai = useCallback(async () => {
     const r = await xuongSetupApi.dsCongNhan(xuong);
     if (r.ok) { setDs(r.data.congNhan); setLoi(''); }
-    else setLoi(r.status === 503 ? 'Máy chủ chưa bật chấm công theo người — chạy file backend/sql/2026-10-13_xuong_cham_cong.sql.' : r.message);
+    else {
+      if (r.status === 503) ghiChuaBat();
+      setLoi(r.status === 503 ? CHUA_BAT : r.message);
+    }
   }, [xuong]);
   useEffect(() => { tai(); }, [tai]);
 
   const sua = async (x: CongNhanXuong, p: { toId?: number | null; active?: boolean }) => {
+    // Cho nghỉ việc: hỏi lại (khôi phục thì không cần)
+    if (p.active === false && !window.confirm(`${x.hoTen} (${x.mnv}) nghỉ việc? Người này sẽ không còn trong điểm danh và trạm quét.`)) return;
     const r = await xuongSetupApi.suaCongNhan({ mnv: x.mnv, ...p });
     if (!r.ok) { bao(false, r.message); return; }
     setDs(a => a?.map(y => (y.mnv === x.mnv ? r.data.congNhan : y)) ?? null);
@@ -157,6 +171,9 @@ export default function NhanSuXuong({ d, bao }: { d: SetupXuong; bao: (ok: boole
     <div className="space-y-4">
       {loi && <p className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800"><AlertTriangle size={15} /> {loi}</p>}
       {!loi && <NapFile xuong={xuong} bao={bao} xong={tai} />}
+      {/* In nhãn QR: mở sẵn đúng tổ đang lọc (lọc "Chưa xếp tổ" mà không còn ai => cả xưởng, ô chọn không có mục đó) */}
+      {inThe && <InTheQr xuong={xuong} dsTo={d.to.filter(t => t.active)} onClose={() => setInThe(false)}
+        toIdBanDau={loc === '' ? 'tat_ca' : loc === 'chua' ? ((ds ?? []).some(x => x.active && x.toId === null) ? 'chua_to' : 'tat_ca') : Number(loc)} />}
       {ds && (
         <div className={KHUNG}>
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-2.5">
@@ -170,7 +187,8 @@ export default function NhanSuXuong({ d, bao }: { d: SetupXuong; bao: (ok: boole
               {d.to.filter(t => t.active).map(t => <option key={t.id} value={String(t.id)}>{t.ten} ({demTo.get(t.id) ?? 0})</option>)}
             </select>
             <label className="flex items-center gap-1.5 text-sm text-slate-700"><input type="checkbox" checked={anNghi} onChange={e => setAnNghi(e.target.checked)} /> Ẩn người nghỉ việc</label>
-            <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} /> Tải lại</button>
+            <button type="button" className={`${BTN} ml-auto`} onClick={() => setInThe(true)}><QrCode size={14} /> In nhãn QR</button>
+            <button type="button" className={BTN} onClick={tai}><RefreshCw size={13} /> Tải lại</button>
           </div>
           <div className={`${khung} max-h-[60vh]`}>
             <table className={`${table} min-w-[720px]`}>

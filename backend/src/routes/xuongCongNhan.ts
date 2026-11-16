@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
+import type { PoolClient } from 'pg';
 import { z } from 'zod';
-import { poolMra } from '../db.js';
+import { poolMra, withTransactionMra } from '../db.js';
 import { app } from '../server/app.js';
 import { chuanMnv, MNV_RE } from '../server/xuong/chamCong.js';
 import { fail, coQuyenXuong, coBangCongNhan, xuongQuanLy, quanLyDuoc, msnvCua } from './xuong.js';
@@ -32,6 +33,28 @@ async function quyenTo(req: Request, toId: number): Promise<{ duoc: boolean; qua
     `SELECT 1 FROM xuong_to_thanh_vien tv
      WHERE tv.to_id = $1 AND upper(tv.mnv) = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) LIMIT 1`, [toId, msnv]);
   return { duoc: tv.rows.length > 0, quanLy: false, xuong };
+}
+
+/**
+ * Đồng bộ thành viên tổ (xuong_to_thanh_vien) theo Nhân sự: đóng dòng đang mở ở tổ khác từ hôm qua (giữ lịch sử, như Lưu tổ);
+ * toId != null (còn làm, có tổ) => mở dòng ở tổ đó từ hôm nay nếu chưa có. Chạy trong transaction của thao tác gọi.
+ */
+async function dongBoThanhVien(client: PoolClient, ds: Array<{ mnv: string; toId: number | null }>) {
+  if (!ds.length) return;
+  const mnv = ds.map(x => x.mnv);
+  const toId = ds.map(x => x.toId);
+  await client.query(
+    `UPDATE xuong_to_thanh_vien tv SET den_ngay = CURRENT_DATE - 1
+     FROM unnest($1::text[], $2::int[]) AS u(m, t)
+     WHERE upper(tv.mnv) = u.m AND tv.to_id IS DISTINCT FROM u.t AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`, [mnv, toId]);
+  const mo = ds.filter(x => x.toId !== null);
+  if (!mo.length) return;
+  await client.query(
+    `INSERT INTO xuong_to_thanh_vien (to_id, mnv, tu_ngay)
+     SELECT u.t, u.m, CURRENT_DATE FROM unnest($1::text[], $2::int[]) AS u(m, t)
+     WHERE NOT EXISTS (SELECT 1 FROM xuong_to_thanh_vien x WHERE x.to_id = u.t AND upper(x.mnv) = u.m
+                         AND (x.den_ngay IS NULL OR x.den_ngay >= CURRENT_DATE))
+     ON CONFLICT (to_id, mnv, tu_ngay) DO UPDATE SET den_ngay = NULL`, [mo.map(x => x.mnv), mo.map(x => x.toId)]);
 }
 
 const dong = (x: Record<string, unknown>) => ({
@@ -134,11 +157,20 @@ app.post('/api/xuong/cong-nhan/sua', async (req: Request, res: Response) => {
       xuongMoi = String(to.xuong);
     }
     if (!quanLyDuoc(ds, cu.xuong ?? null) || !quanLyDuoc(ds, xuongMoi)) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
-    const r = await poolMra.query(
-      `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
-         active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
-      [mnv, p.data.toId !== undefined, p.data.toId ?? null, xuongMoi, p.data.active ?? null, p.data.hoTen ?? null]);
-    res.json({ success: true, available: true, congNhan: dong(r.rows[0]) });
+    const moi = await withTransactionMra(async client => {
+      const r = await client.query(
+        `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
+           active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
+        [mnv, p.data.toId !== undefined, p.data.toId ?? null, xuongMoi, p.data.active ?? null, p.data.hoTen ?? null]);
+      const x = r.rows[0];
+      // Đổi tổ / nghỉ việc: thành viên tổ (xuong_to_thanh_vien, Lưu tổ ở Setup) theo cùng
+      const doiTo = p.data.toId !== undefined && (cu.to_id === null ? null : Number(cu.to_id)) !== (p.data.toId ?? null);
+      if (doiTo || (p.data.active !== undefined && p.data.active !== cu.active)) {
+        await dongBoThanhVien(client, [{ mnv, toId: x.active && x.to_id !== null ? Number(x.to_id) : null }]);
+      }
+      return x;
+    });
+    res.json({ success: true, available: true, congNhan: dong(moi) });
   } catch (e) { fail(res, e, '/api/xuong/cong-nhan/sua'); }
 });
 
@@ -181,6 +213,20 @@ app.post('/api/xuong/cong-nhan/nap', async (req: Request, res: Response) => {
     try {
       // Tự huỷ phía DB nếu bị bỏ dở giữa chừng (xem IDLE_TX_TIMEOUT_SQL ở db.ts)
       await client.query('BEGIN; SET LOCAL idle_in_transaction_session_timeout = 30000');
+      // Tổ / còn làm trước khi nạp: người file xếp sang tổ khác (hoặc làm lại) => đồng bộ thành viên tổ
+      const truoc = new Map((await client.query(
+        'SELECT mnv, to_id, active FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])', [hopLe.map(x => x.mnv)])).rows
+        .map(x => [String(x.mnv), { toId: x.to_id === null ? null : Number(x.to_id), active: !!x.active }]));
+      const doiTo = new Map<string, number | null>();
+      for (const x of hopLe) {
+        const c = truoc.get(x.mnv);
+        // File không ghi tổ: giữ tổ cũ (COALESCE) — người đã nghỉ nay làm lại thì mở lại dòng thành viên tổ cũ
+        if (x.toId === null) {
+          if (c && !c.active && c.toId !== null) doiTo.set(x.mnv, c.toId);
+          continue;
+        }
+        if (!c || !c.active || c.toId !== x.toId) doiTo.set(x.mnv, x.toId); else doiTo.delete(x.mnv);
+      }
       for (let i = 0; i < hopLe.length; i += 500) {
         const lo = hopLe.slice(i, i + 500);
         await client.query(
@@ -195,9 +241,11 @@ app.post('/api/xuong/cong-nhan/nap', async (req: Request, res: Response) => {
         const xs = [...new Set(hopLe.map(x => x.xuong).filter((x): x is string => !!x))];
         const r = await client.query(
           `UPDATE xuong_cong_nhan SET active = false, to_id = NULL, cap_nhat = now()
-           WHERE active AND xuong = ANY($1::text[]) AND NOT (mnv = ANY($2::text[]))`, [xs, hopLe.map(x => x.mnv)]);
+           WHERE active AND xuong = ANY($1::text[]) AND NOT (mnv = ANY($2::text[])) RETURNING mnv`, [xs, hopLe.map(x => x.mnv)]);
         nghi = r.rowCount ?? 0;
+        for (const x of r.rows) doiTo.set(String(x.mnv), null);
       }
+      await dongBoThanhVien(client, [...doiTo].map(([mnv, toId]) => ({ mnv, toId })));
       await client.query('COMMIT');
     } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
     res.json({

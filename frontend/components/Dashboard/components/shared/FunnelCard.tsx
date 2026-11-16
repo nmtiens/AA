@@ -1,5 +1,6 @@
 import React from 'react';
 import { Eye } from 'lucide-react';
+import { useOutletContext } from 'react-router-dom';
 import { extractStage, remainBucketOf } from '../../core/stages';
 
 // ============================================================================
@@ -42,6 +43,10 @@ const tachTen = (name: string): [string, string] => {
   return m ? [m[2], m[1]] : [name, ''];
 };
 
+/** Chú thích nguồn vị trí công đoạn (phễu, Điểm nghẽn): n = số hạng mục đang lấy vị trí từ MRA; 0 => không hiện */
+export const chuThichNguonBop = (n: number): string =>
+  n > 0 ? `Vị trí P012–P021: MRA cho ${n.toLocaleString('vi-VN')} hạng mục đã triển khai, còn lại theo kiểm tay PC` : '';
+
 interface FunnelCardProps<T extends FunnelCardItem> {
   title?: string;
   subtitle: React.ReactNode;
@@ -56,11 +61,16 @@ interface FunnelCardProps<T extends FunnelCardItem> {
   onBarClick?: (item: T) => void;
   onDetail: () => void;
   className?: string;
+  /** Số hạng mục lấy vị trí từ MRA; không truyền => đọc soPhuMra của trang (App context) */
+  soPhuMra?: number;
 }
 
 export function FunnelCard<T extends FunnelCardItem>({
-  title = 'Tình trạng đơn hàng AATN', unit, items, barLabel, barTitle, onBarClick, onDetail, className = '',
+  title = 'Tình trạng đơn hàng AATN', unit, items, barLabel, barTitle, onBarClick, onDetail, className = '', soPhuMra,
 }: FunnelCardProps<T>) {
+  // Các mục gọi FunnelCard chưa truyền soPhuMra: lấy từ context của trang (ngoài Outlet => null)
+  const ctx = useOutletContext<{ soPhuMra?: number } | null | undefined>();
+  const chuThich = chuThichNguonBop(soPhuMra ?? ctx?.soPhuMra ?? 0);
   const cot = 'grid grid-cols-[minmax(0,12rem)_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]';
 
   return (
@@ -70,6 +80,7 @@ export function FunnelCard<T extends FunnelCardItem>({
           <h3 className="text-xl font-semibold text-slate-900">
             {title}{unit ? <span className="ml-1.5 text-base font-medium text-slate-600">({unit.toLowerCase().replace('tỷ đồng', 'tỷ')})</span> : null}
           </h3>
+          {chuThich && <p className="mt-0.5 text-xs text-slate-500">{chuThich}</p>}
         </div>
         <button onClick={onDetail} title="Xem bảng chi tiết"
           className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">

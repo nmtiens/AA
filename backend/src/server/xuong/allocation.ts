@@ -21,6 +21,8 @@ import { LOAI_CA_TANG_CA } from './types.js';
 //    hạng mục mà đã về sớm / không ở lại tăng ca thì không cộng. Ca không điểm danh: người gắn tên coi như có mặt.
 //    Hạng mục khai theo tên (nguoi): mỗi người nhận đúng giờ của đoạn mình được gắn (co theo quân số như trên);
 //    người có mặt mà không gắn hạng mục nào là giờ chờ của người đó.
+// 7. Hạng mục có bấm chạy / dừng ngoài mọi ca trong ngày (quên khai tăng ca, Chủ nhật chưa khai): phần đó không tính
+//    giờ công như cũ, chỉ gắn cờ "chay_ngoai_ca" + số giờ bị loại (doanNgoaiCa) để tổ trưởng khai bù tăng ca.
 // R3-3: hạng mục không được xác nhận cuối ngày: ngày kế vẫn tính nhưng cờ "chua_xac_nhan"; từ ngày thứ 2 liên
 //       tiếp không xác nhận thì ngừng tính (nơi gọi truyền vào chuaXacNhan / ngungTinh).
 // ============================================================================
@@ -111,6 +113,8 @@ export interface DauVaoPhanBo {
   doanNgung?: Record<string, Array<{ start: number; end: number | null; lyDo: string }>>;
   /** Giờ hiện tại, dùng cắt đoạn đang chạy (end = null) */
   now: number;
+  /** Khung ngày ca đang tính (06:00 → 06:00 hôm sau) — có thì gắn cờ "chay_ngoai_ca" (không đổi giờ công) */
+  khungNgay?: { start: number; end: number };
 }
 
 export interface KetQuaHangMuc {
@@ -120,6 +124,8 @@ export interface KetQuaHangMuc {
   /** Số người khai nhiều nhất / ít nhất trong lúc chạy (0 = chưa chạy) */
   soNguoiMax: number;
   soNguoiMin: number;
+  /** Giờ chạy ngoài mọi ca (không tính giờ công) — chỉ có khi > 0, kèm cờ "chay_ngoai_ca" */
+  gioNgoaiCa?: number;
 }
 export interface KetQuaNguoi {
   /** Giờ có mặt trong cửa sổ ca (trừ nghỉ) */
@@ -139,10 +145,51 @@ export interface KetQuaPhanBo {
   gioChoLyDo: Record<string, number>;
   /** Theo người (mã NV) — chỉ có khi tổ điểm danh / khai tên */
   theoNguoi: Record<string, KetQuaNguoi>;
+  /** Giờ (đồng hồ) có hạng mục chạy ngoài mọi ca trong ngày — bị loại khỏi giờ công; chỉ có khi > 0 */
+  gioChayNgoaiCa?: number;
   co: string[];
 }
 
 const lamTron = (h: number) => Math.round(h * 1000) / 1000;
+
+/** Hợp các khoảng [s, e) (bỏ khoảng rỗng) */
+function hopKhoang(ds: Array<[number, number]>): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const [s, e] of ds.filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0])) {
+    const cuoi = out[out.length - 1];
+    if (cuoi && s <= cuoi[1]) cuoi[1] = Math.max(cuoi[1], e);
+    else out.push([s, e]);
+  }
+  return out;
+}
+
+/**
+ * Phần chạy ngoài mọi ca của một hạng mục trong khung ngày ca. Chỉ tính khi có bấm thật ngoài ca (bắt đầu / tiếp tục
+ * hoặc dừng / xong lúc không có ca nào): hạng mục bấm tay để chạy qua đêm (bình thường, không ai tạm ngưng lúc tan ca)
+ * không bị tính. Nghỉ trưa và khoảng giữa hai ca trong ngày coi như trong ca.
+ *  - bấm bắt đầu ngoài ca: từ lúc bấm tới khi vào ca (hoặc dừng / hết khung);
+ *  - bấm dừng ngoài ca: từ lúc hết ca (hoặc lúc bắt đầu / đầu khung) tới lúc bấm.
+ */
+export function doanNgoaiCa(doan: DoanChay[], cuaSo: CuaSo[], khung: { start: number; end: number }, now: number): Array<[number, number]> {
+  const dau = cuaSo.length ? Math.min(...cuaSo.map(c => c.start)) : null;
+  const het = cuaSo.length ? Math.max(...cuaSo.map(c => c.end)) : null;
+  const trongKhung = (t: number) => t >= khung.start && t < khung.end;
+  const ngoaiCa = (t: number) => dau === null || het === null || t < dau || t > het;
+  const ra: Array<[number, number]> = [];
+  for (const d of doan) {
+    const ketThuc = Math.min(d.end ?? now, now);
+    if (ketThuc <= d.start) continue;
+    if (trongKhung(d.start) && ngoaiCa(d.start)) {
+      const toi = dau !== null && d.start < dau ? dau : khung.end;
+      ra.push([d.start, Math.min(ketThuc, toi, khung.end)]);
+    }
+    if (d.end !== null && d.end <= now && trongKhung(d.end) && ngoaiCa(d.end)) {
+      const tu = het !== null && d.end > het ? het : khung.start;
+      ra.push([Math.max(d.start, tu, khung.start), d.end]);
+    }
+  }
+  return hopKhoang(ra);
+}
 
 export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
   const ngung = new Set(input.ngungTinh ?? []);
@@ -297,6 +344,22 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     }
   }
 
+  // Chạy ngoài giờ ca (quên khai tăng ca, làm Chủ nhật chưa khai): chỉ gắn cờ + số giờ bị loại, giờ công giữ nguyên
+  let gioChayNgoaiCa = 0;
+  if (input.khungNgay) {
+    const tatCa: Array<[number, number]> = [];
+    for (const k of keys) {
+      const ds = doanNgoaiCa(input.doanChay[k], input.cuaSo, input.khungNgay, input.now);
+      const h = ds.reduce((a, [s, e]) => a + (e - s) / GIO_MS, 0);
+      if (h <= 0) continue;
+      out[k].gioNgoaiCa = lamTron(h);
+      coHangMuc(k, 'chay_ngoai_ca');
+      tatCa.push(...ds);
+    }
+    gioChayNgoaiCa = hopKhoang(tatCa).reduce((a, [s, e]) => a + (e - s) / GIO_MS, 0);
+    if (gioChayNgoaiCa > 0) coTo.add('chay_ngoai_ca');
+  }
+
   for (const k of keys) {
     out[k].gioChay = lamTron(out[k].gioChay);
     out[k].gioCongThuong = lamTron(out[k].gioCongThuong);
@@ -314,6 +377,7 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       congThuong: lamTron(x.congThuong), congTangCa: lamTron(x.congTangCa), cho: lamTron(x.cho),
       theoHangMuc: Object.fromEntries(Object.entries(x.theoHangMuc).map(([k, v]) => [k, lamTron(v)])),
     }])),
+    ...(gioChayNgoaiCa > 0 ? { gioChayNgoaiCa: lamTron(gioChayNgoaiCa) } : {}),
     co: [...coTo].sort(),
   };
 }

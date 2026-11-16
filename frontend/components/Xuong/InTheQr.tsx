@@ -19,11 +19,17 @@ const CSS_IN = `@media print {
   @page { size: A4; margin: 8mm; }
 }`;
 
-export default function InTheQr({ xuong, dsTo, onClose }: { xuong: string; dsTo: ToSetup[]; onClose: () => void }) {
+type ChonTo = number | 'tat_ca' | 'chua_to';
+
+export default function InTheQr({ xuong, dsTo, onClose, toIdBanDau = 'tat_ca' }: {
+  xuong: string; dsTo: ToSetup[]; onClose: () => void;
+  /** Tổ chọn sẵn khi mở (Nhân sự: tổ đang lọc) */
+  toIdBanDau?: ChonTo;
+}) {
   const [ds, setDs] = useState<CongNhanXuong[] | null>(null);
   const [loi, setLoi] = useState('');
   // Mặc định cả xưởng: tổ đầu danh sách có thể chưa có ai (vd tổ mới tạo) => trông như mất dữ liệu
-  const [toId, setToId] = useState<number | 'tat_ca' | 'chua_to'>('tat_ca');
+  const [toId, setToId] = useState<ChonTo>(toIdBanDau);
   const [boChon, setBoChon] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -62,8 +68,8 @@ export default function InTheQr({ xuong, dsTo, onClose }: { xuong: string; dsTo:
       {loi && <p className="khong-in p-4 text-sm text-red-700">{loi}</p>}
       {ds && !theoTo.length && (
         <p className="khong-in p-4 text-sm text-slate-600">
-          {ds.length ? `Tổ này chưa có công nhân nào (cả xưởng có ${ds.length} người${(soTheoTo.get(null) ?? 0) ? `, ${soTheoTo.get(null)} người chưa gán tổ` : ''}). Chọn "Cả xưởng" hoặc gán tổ ở Báo cáo → Công nhân.`
-            : 'Xưởng chưa có công nhân trong danh sách (Báo cáo → Công nhân để nạp / thêm).'}
+          {ds.length ? `Tổ này chưa có công nhân nào (cả xưởng có ${ds.length} người${(soTheoTo.get(null) ?? 0) ? `, ${soTheoTo.get(null)} người chưa gán tổ` : ''}). Chọn "Cả xưởng" hoặc gán tổ ở Quản lý → Nhân sự.`
+            : 'Xưởng chưa có công nhân trong danh sách (Quản lý → Nhân sự để nạp / thêm).'}
         </p>
       )}
       <div className="mx-auto grid max-w-[190mm] grid-cols-4 gap-0 bg-white p-2 print:p-0">

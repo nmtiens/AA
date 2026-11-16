@@ -117,25 +117,39 @@ export const hhmm = (ms: number) => {
 /** Mốc ms của 'HH:MM' trong ngày 'YYYY-MM-DD' (giờ Việt Nam) */
 export const mocTrongNgay = (ngay: string, gio: string) => Date.parse(`${ngay}T${gio.slice(0, 5)}:00+07:00`);
 
+/** Giờ cắt ngày ca: trước 06:00 vẫn thuộc ngày ca hôm trước (ca 4 qua đêm) — khớp ngayCa ở backend/src/server/xuong/tram.ts */
+const CAT_NGAY_CA_PHUT = 6 * 60;
+/** Ngày ca 'YYYY-MM-DD' của một mốc: trước 06:00 giờ VN là ngày hôm trước */
+export const ngayCa = (now: number) => gioVN(now - CAT_NGAY_CA_PHUT * 60_000).ngay;
+/** Đang ở đoạn sau 0 giờ, trước 06:00 (ca qua đêm) */
+const truocCatNgay = (now: number) => gioVN(now).phut < CAT_NGAY_CA_PHUT;
+
+/** Phút kết thúc của một ca (qua đêm thì + 24 giờ) */
+const phutHetCa = (c: LichCa) => {
+  const bd = phutCua(c.gioBatDau);
+  const kt = phutCua(c.gioKetThuc);
+  return kt <= bd ? kt + 24 * 60 : kt;
+};
+
 /**
  * Ca cần chốt quân số lúc này (3A): ngày thường, trước khi hết ca chính → ca chính;
  * sau đó (hoặc Chủ nhật) → ca tăng ca tổ đã khai mà giờ hiện tại nằm trong / trước ca đó.
+ * Sau 0 giờ (trước 06:00) là phần qua đêm của ca hôm trước: không bắt điểm danh ca chính.
  * null = không có ca nào cần chốt (đã chốt hết, hoặc ngoài giờ làm).
  */
 export function caCanChot(cv: Pick<CongViec, 'quanSo' | 'tangCa' | 'lichCa'>, now: number): LoaiCa | null {
-  const { phut, thu } = gioVN(now);
+  const { thu } = gioVN(now);
+  const quaDem = truocCatNgay(now);
+  const phut = gioVN(now).phut + (quaDem ? 24 * 60 : 0);
   const ca = (l: LoaiCa) => cv.lichCa.find(x => x.loaiCa === l);
   const chua = (l: LoaiCa) => typeof cv.quanSo[l] !== 'number';
   const chinh = ca('chinh');
-  if (thu !== 0 && chinh && phut < phutCua(chinh.gioKetThuc)) return chua('chinh') ? 'chinh' : null;
+  if (!quaDem && thu !== 0 && chinh && phut < phutCua(chinh.gioKetThuc)) return chua('chinh') ? 'chinh' : null;
   for (const l of LOAI_CA_TANG_CA) {
     if (!cv.tangCa.includes(l)) continue;
     const c = ca(l);
     if (!c) continue;
-    const bd = phutCua(c.gioBatDau);
-    let kt = phutCua(c.gioKetThuc);
-    if (kt <= bd) kt += 24 * 60;
-    if (phut < kt && chua(l)) return l;
+    if (phut < phutHetCa(c) && chua(l)) return l;
   }
   return null;
 }
@@ -144,7 +158,8 @@ export function caCanChot(cv: Pick<CongViec, 'quanSo' | 'tangCa' | 'lichCa'>, no
 export function caHienTai(cv: Pick<CongViec, 'quanSo' | 'tangCa' | 'lichCa'>, now: number): LoaiCa | null {
   const can = caCanChot(cv, now);
   if (can) return can;
-  const { phut, thu } = gioVN(now);
+  const { thu } = gioVN(now);
+  const phut = gioVN(now).phut + (truocCatNgay(now) ? 24 * 60 : 0);
   const ds: LoaiCa[] = thu === 0 ? [] : ['chinh'];
   ds.push(...LOAI_CA_TANG_CA.filter(l => cv.tangCa.includes(l)));
   let chon: LoaiCa | null = null;
@@ -155,8 +170,61 @@ export function caHienTai(cv: Pick<CongViec, 'quanSo' | 'tangCa' | 'lichCa'>, no
   return chon ?? (ds[0] ?? null);
 }
 
-/** Từ 15h30 nhắc xác nhận cuối ngày (3C) */
-export const denGioXacNhan = (now: number) => gioVN(now).phut >= 15 * 60 + 30;
+/**
+ * Nhắc xác nhận cuối ngày (3C): từ 15 phút trước giờ hết ca muộn nhất của tổ hôm nay (ca chính + các ca tăng ca đã
+ * khai, ca qua đêm tính sang hôm sau, mốc không muộn hơn 23:45). Chưa có lịch ca: từ 15h30 như cũ. Sau 0 giờ (trước 06:00) không nhắc — việc
+ * máy chủ trả về đã là ngày mới, nhắc lúc này sẽ hỏi lại tổ vừa xác nhận tối qua.
+ */
+export function denGioXacNhan(now: number, lichCa: LichCa[] = [], tangCa: LoaiCa[] = []): boolean {
+  if (truocCatNgay(now)) return false;
+  const { phut, thu } = gioVN(now);
+  const ds: LoaiCa[] = [...(thu === 0 ? [] : ['chinh' as const]), ...tangCa];
+  const het = ds.map(l => lichCa.find(x => x.loaiCa === l)).filter((c): c is LichCa => !!c).map(phutHetCa);
+  // Ca qua đêm (hết sau 24 giờ): kẹp mốc ở 23:45 — sau 0 giờ không nhắc nữa, nên phải nhắc trước nửa đêm
+  const moc = het.length ? Math.min(Math.max(...het) - 15, 24 * 60 - 15) : 15 * 60 + 30;
+  return phut >= moc;
+}
+
+/** Khoảng đệm sau giờ hết ca trước khi coi là "ngoài giờ ca" (bấm muộn vài phút vẫn tính trong ca) */
+export const DEM_NGOAI_CA_PHUT = 20;
+
+/**
+ * Giờ hiện tại KHÔNG nằm trong cửa sổ ca nào của tổ: Chủ nhật chưa khai tăng ca, hoặc đã quá giờ hết ca chính
+ * DEM_NGOAI_CA_PHUT phút mà chưa khai ca tăng ca còn hiệu lực. Giờ công đoạn này không được tính (S08: cờ chay_ngoai_ca).
+ * Trước giờ vào ca chính buổi sáng và sau 0 giờ (ca qua đêm hôm trước) không xét.
+ */
+export function ngoaiGioCa(cv: Pick<CongViec, 'tangCa' | 'lichCa'>, now: number): boolean {
+  if (truocCatNgay(now)) return false;
+  const { phut, thu } = gioVN(now);
+  const ca = (l: LoaiCa) => cv.lichCa.find(x => x.loaiCa === l);
+  const chinh = ca('chinh');
+  if (thu !== 0 && (!chinh || phut <= phutHetCa(chinh) + DEM_NGOAI_CA_PHUT)) return false;
+  // Ca tăng ca đã khai chưa hết (kể cả ca sắp bắt đầu) => vẫn trong giờ
+  return !cv.tangCa.some(l => { const c = ca(l); return !!c && phut <= phutHetCa(c) + DEM_NGOAI_CA_PHUT; });
+}
+
+/** Ca tăng ca nên chọn sẵn khi khai bù lúc ngoài giờ: Chủ nhật → chu_nhat; ngày thường → ca đang phủ giờ hiện tại, không
+ *  thì ca sắp bắt đầu gần nhất */
+export function caTangCaGanNhat(cv: Pick<CongViec, 'lichCa'>, now: number): LoaiCa | null {
+  const { phut, thu } = gioVN(now);
+  if (thu === 0) return cv.lichCa.some(x => x.loaiCa === 'chu_nhat') ? 'chu_nhat' : null;
+  const ds = (['ca1', 'ca2', 'ca3', 'ca4'] as LoaiCa[]).map(l => cv.lichCa.find(x => x.loaiCa === l)).filter((c): c is LichCa => !!c);
+  const dangPhu = ds.find(c => phutCua(c.gioBatDau) <= phut && phut < phutHetCa(c));
+  if (dangPhu) return dangPhu.loaiCa;
+  const sap = ds.filter(c => phutCua(c.gioBatDau) > phut).sort((a, b) => phutCua(a.gioBatDau) - phutCua(b.gioBatDau))[0];
+  return sap?.loaiCa ?? null;
+}
+
+/**
+ * Mốc giờ tròn 30 phút để chọn "Đã dừng lúc" (xác nhận cuối ngày): từ `tu` tới `den`, cũ → mới.
+ * `tu` thường = max(lúc bắt đầu chạy, đầu ca chính).
+ */
+export function mocTron30(tu: number, den: number): number[] {
+  const B = 30 * 60_000;
+  const out: number[] = [];
+  for (let t = Math.ceil(tu / B) * B; t <= den; t += B) out.push(t);
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Danh sách & người
@@ -332,6 +400,7 @@ export const TEN_CO: Record<string, string> = {
   gui_ho: 'Gửi hộ người khác trên cùng máy',
   tac_gia_khong_xac_minh: 'Không xác minh được người bấm',
   nhan_chua_thay_giao: 'Nhận khi chưa thấy tổ trước giao',
+  // Cờ cũ trước 13/10, giữ để thao tác cũ hiện đúng tên
   nhan_vuot_trien_khai: 'Nhận vượt số lượng triển khai',
   thieu_so_nguoi: 'Bắt đầu chưa khai số người',
   bat_dau_hai_lan: 'Bắt đầu 2 lần',
@@ -346,6 +415,7 @@ export const TEN_CO: Record<string, string> = {
   quan_ly_ghi_ho: 'Quản lý ghi hộ tổ',
   chua_chot_quan_so: 'Chưa chốt quân số',
   khai_bu: 'Khai bù ngày trước (chọn ngày thực hiện)',
+  chay_ngoai_ca: 'Chạy ngoài giờ ca — khai bù tăng ca',
   // Trạm quét (backend routes/xuongTram.ts) — chỉ để biết, không phải lỗi
   tram: 'Quét ở trạm',
   nhan_du: 'Nhận đủ (máy tính số lượng)',
@@ -354,7 +424,6 @@ export const TEN_CO: Record<string, string> = {
   ngoai_ca: 'Ngoài giờ ca',
   phan_cong: 'Phân công đầu ca',
   to_truong_ghi_ho: 'Tổ trưởng ghi hộ',
-  bao_xong: 'Báo xong khi ra hàng',
 };
 export const tenCo = (c: string) => TEN_CO[c] ?? c;
 
@@ -389,9 +458,29 @@ export function chonSanDiemDanh(lanDau: boolean, soDaChot: number | null, caTo: 
   return lanDau && soDaChot === null ? caTo : coMatTruoc;
 }
 
-/** Người chọn sẵn khi Bắt đầu / Tiếp tục: Tiếp tục giữ nhóm lần trước; còn lại = người có mặt chưa làm hạng mục khác */
+/**
+ * Người của nhóm lần trước chưa có mặt ca này (ca đã điểm danh theo tên) — Tiếp tục không chọn sẵn những người này.
+ * Chỉ xét người của tổ (hoặc người có điểm danh hôm nay); người mượn tổ khác / người mới gắn lúc Bắt đầu không có
+ * bản ghi điểm danh thì giữ như nhóm cũ.
+ */
+export function nhomCuChuaDiemDanh(r: Pick<DongViec, 'nguoi'>, cv: Pick<CongViec, 'coMat' | 'congNhan'>, ca: LoaiCa | null, now: number): string[] {
+  if (!r.nguoi?.length || !daDiemDanh(cv, ca)) return [];
+  const co = new Set(coMatLuc(cv, ca, now));
+  const cuaTo = new Set((cv.congNhan ?? []).filter(x => !x.toKhac).map(x => x.mnv));
+  const coBanGhi = new Set(Object.values(cv.coMat ?? {}).flatMap(ds => (ds ?? []).map(x => x.mnv)));
+  return r.nguoi.filter(m => !co.has(m) && (cuaTo.has(m) || coBanGhi.has(m)));
+}
+
+/**
+ * Người chọn sẵn khi Bắt đầu / Tiếp tục. Tiếp tục: nhóm lần trước — ca đã điểm danh theo tên thì chỉ giữ người có mặt
+ * hôm nay (người hôm qua chưa đến không bị chấm công); chưa điểm danh thì giữ cả nhóm. Còn lại = người có mặt chưa làm
+ * hạng mục khác.
+ */
 export function nguoiChonSan(r: Pick<DongViec, 'nguoi'>, tiepTuc: boolean, cv: CongViec, ca: LoaiCa | null, now: number, ban: Map<string, string>): string[] {
-  if (tiepTuc && r.nguoi?.length) return r.nguoi;
+  if (tiepTuc && r.nguoi?.length) {
+    const chua = new Set(nhomCuChuaDiemDanh(r, cv, ca, now));
+    return r.nguoi.filter(m => !chua.has(m));
+  }
   return coMatLuc(cv, ca, now).filter(m => !ban.has(m));
 }
 

@@ -1,7 +1,11 @@
 import React, { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { useOutletContext } from 'react-router-dom';
 import { ModalShell } from '../shared/ModalShell';
 import { useBotHangMuc } from '../../services/botHangMuc';
+import type { DataRow, ColumnDefinition } from '../../types';
+import { khoaSanXuat } from '../Dashboard/core/tongQuanSanXuat';
+import { laNguonMra, NhanMra } from '../Dashboard/components/modals/HexDetailModal';
 import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
@@ -175,6 +179,21 @@ type DwellSel = { stage: string; dwell: string } | null;
 type ExtraSel = { kind: 'step'; key: StepKey } | { kind: 'qc'; st: 'bad' | 'wait' | 'ok' | 'none' } | { kind: 'gcn'; st: string | 'pending' } | null;
 const GCN_DONE = (st: string | null) => !gcnPending(st);
 
+/** Dòng sản xuất đã phủ vị trí MRA theo HEX (đọc bảng của trang qua App context); MRA tắt / ngoài Outlet => null */
+const useDongMraTheoHex = (): Map<string, DataRow> | null => {
+  const ctx = useOutletContext<{ productionData?: DataRow[]; productionColumns?: ColumnDefinition[]; soPhuMra?: number } | null | undefined>();
+  const rows = ctx?.productionData;
+  const cols = ctx?.productionColumns;
+  const coPhu = (ctx?.soPhuMra ?? 0) > 0;
+  return useMemo(() => {
+    if (!coPhu || !rows) return null;
+    const hexKey = khoaSanXuat(cols ?? []).hexKey;
+    const m = new Map<string, DataRow>();
+    for (const r of rows) if (laNguonMra(r)) m.set(String(r[hexKey] ?? '').trim(), r);
+    return m;
+  }, [rows, cols, coPhu]);
+};
+
 export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = false }: {
   items: HexInfo[]; onHexClick?: (hex: string) => void;
   /** View tất cả công trình: không tải số theo HEX (công đoạn SX / QC / GCN) => ẩn 3 ô đó và 3 cột tương ứng */
@@ -187,6 +206,8 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
 }) => {
   const [metric, setMetric] = useState<BopMetric>('remain');
   const botHm = useBotHangMuc();
+  // Hạng mục lấy vị trí từ MRA: nhãn "MRA" ở ô HEX
+  const dongMra = useDongMraTheoHex();
   const [cheDo, setCheDo] = useState<ChieuBop>(tatCa ? 'ct' : 'nsp');
   const [moDong, setMoDong] = useState<Set<string>>(new Set());
   // Dòng gốc đang mở xem theo chiều nào; chưa chọn thì chưa hiện dòng con
@@ -844,6 +865,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
           planDates={false}
           onHexClick={onHexClick}
           hexClickTitle="Xem chi tiết hạng mục (BOP × BOT)"
+          nhanHex={dongMra ? (i => { const r = dongMra.get(i.hex.trim()); return r ? <NhanMra row={r} className="ml-1" /> : null; }) : undefined}
           cotKho={!!sel?.kho}
           soCotThem={tatCa ? 5 : 8}
           extraHead={<>
@@ -1206,7 +1228,7 @@ export const PlanDateCell = ({ i, which }: { i: HexInfo; which: DeadlineSource |
 // Bảng hạng mục dùng chung cho 3 tab
 // ============================================================================
 // planDates = false: ẩn 3 cột KH tuần / KH tháng / Cần giao (vd. tab BOM dùng ngày của vật tư)
-const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, hexClickTitle, cotKho = false, soCotThem }: {
+const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, hexClickTitle, cotKho = false, soCotThem, nhanHex }: {
   rows: HexInfo[];
   extraHead: React.ReactNode;
   extraCells: (i: HexInfo) => React.ReactNode;
@@ -1217,6 +1239,8 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
   cotKho?: boolean;
   /** Số cột extraHead; có => hiện dòng TỔNG */
   soCotThem?: number;
+  /** Nhãn nhỏ sau mã HEX (vd. "MRA" ở bảng BOP) */
+  nhanHex?: (i: HexInfo) => React.ReactNode;
 }) => {
   const coCt = rows.some(i => i.congTrinh);
   const tong = useMemo(() => tongHangMuc(rows), [rows]);
@@ -1260,6 +1284,7 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
                   {i.hex}
                 </button>
               ) : i.hex}
+              {nhanHex?.(i)}
             </td>
             {coCt && <td className={`${tdB} min-w-[180px] max-w-[260px] break-words`} title={i.congTrinh}>{i.congTrinh || '—'}</td>}
             <td className={`${tdB} min-w-[200px] max-w-[320px] break-words`} title={i.hangMuc}>{i.hangMuc}</td>

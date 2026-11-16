@@ -41,6 +41,8 @@ const TEN_LY_DO_CHO: Record<string, string> = {
   ...Object.fromEntries(LY_DO_TAM_NGUNG.map(l => [l.ma, `Tạm ngưng: ${l.ten.toLowerCase()}`])),
 };
 const tenLyDoCho = (k: string) => TEN_LY_DO_CHO[k] ?? k;
+/** Khoảng > 2 tháng (rutGon): không có chi tiết từng ngày */
+const CAU_RUT_GON = 'Chọn khoảng từ 2 tháng trở xuống để xem chi tiết ngày này.';
 const TEN_TRANG_THAI: Record<string, string> = {
   chua_toi: 'Chưa tới',
   cho_nhan: 'Chờ nhận', da_nhan: 'Đã nhận', dang_lam: 'Đang chạy', tam_ngung: 'Tạm ngưng', cho_giao: 'Chờ giao', xong: 'Xong',
@@ -128,7 +130,7 @@ function ChiTietNgay({ n }: { n: BaoCaoToNgay }) {
   const lyDo = congLyDo([n.gioChoLyDo]);
   // Khoảng dài (> 2 tháng): máy chủ không gửi chi tiết từng ngày
   if (n.soHangMuc !== undefined) {
-    return <p className="bg-slate-50 p-4 text-sm text-slate-600">Chọn khoảng từ 2 tháng trở xuống để xem chi tiết ngày này.</p>;
+    return <p className="bg-slate-50 p-4 text-sm text-slate-600">{CAU_RUT_GON}</p>;
   }
   return (
     <div className="grid gap-3 bg-slate-50 p-3 rmd:p-4 rxl:grid-cols-2">
@@ -521,7 +523,7 @@ function soKeHoach(h: BaoCaoHangMuc, homNay: string, xuong: string) {
 const MAU_MUC = ['bg-emerald-50 text-emerald-800 border-emerald-200', 'bg-sky-50 text-sky-800 border-sky-200',
   'bg-amber-50 text-amber-800 border-amber-200', 'bg-red-50 text-red-800 border-red-200'];
 
-function TabTheoHangMuc({ ds, theoTo, xuong }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[]; xuong: string }) {
+function TabTheoHangMuc({ ds, theoTo, xuong, rutGon }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[]; xuong: string; rutGon: boolean }) {
   const [q, setQ] = useState('');
   const [chiLech, setChiLech] = useState(false);
   const homNay = ngayVN();
@@ -668,8 +670,9 @@ function TabTheoHangMuc({ ds, theoTo, xuong }: { ds: BaoCaoHangMuc[]; theoTo: Ba
                   </tr></tfoot>
                 </table>
               </div>
-{/* Theo ngày */}
-              {ngay.length > 0 && (
+{/* Theo ngày — khoảng dài máy chủ không gửi chi tiết từng ngày: ghi câu thay bảng rỗng */}
+              {rutGon && <p className="mt-2 text-sm text-slate-600">Theo ngày: {CAU_RUT_GON.toLowerCase()}</p>}
+              {!rutGon && ngay.length > 0 && (
                 <button type="button" onClick={() => batNgay(h.hex)} aria-expanded={moN}
                   className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900">
                   {moN ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Theo ngày ({ngay.length})
@@ -734,10 +737,10 @@ function TabTheoHangMuc({ ds, theoTo, xuong }: { ds: BaoCaoHangMuc[]; theoTo: Ba
 // ---------------------------------------------------------------------------
 const gioPhut = (p: number) => (p > 0 ? (p >= 60 ? `${Math.floor(p / 60)}g${String(p % 60).padStart(2, '0')}` : `${p}′`) : '');
 
-/** Các ngày 'YYYY-MM-DD' từ tu tới den */
+/** Các ngày 'YYYY-MM-DD' từ tu tới den (đủ cả kỳ — kỳ đã giới hạn 186 ngày ở lúc tải) */
 function cacNgay(tu: string, den: string): string[] {
   const out: string[] = [];
-  for (let t = Date.parse(`${tu}T00:00:00Z`); t <= Date.parse(`${den}T00:00:00Z`) && out.length < 70; t += 86_400_000) out.push(new Date(t).toISOString().slice(0, 10));
+  for (let t = Date.parse(`${tu}T00:00:00Z`); t <= Date.parse(`${den}T00:00:00Z`); t += 86_400_000) out.push(new Date(t).toISOString().slice(0, 10));
   return out;
 }
 const THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -1101,7 +1104,13 @@ function DoiChieuChamCong({ d }: { d: BaoCao }) {
   const cc = d.chamCong;
   if (!cc) return null;
   const ds = cc.theoNgay.filter(n => n.congNhan > 0 || n.gioThuongApp + n.gioTangCaApp > 0);
-  const caHai = ds.filter(n => n.gioHc + n.gioTc > 0 && n.gioThuongApp + n.gioTangCaApp > 0);
+  // Điểm danh là cả xưởng: chỉ so ngày mọi tổ active đều dùng app (máy chủ cũ chưa gửi số tổ thì so như trước)
+  const duTo = (n: typeof ds[number]) => n.soToApp == null || n.soToActive == null || n.soToApp >= n.soToActive;
+  const coSoTo = ds.some(n => n.soToApp != null && n.soToActive != null);
+  const coCaHai = ds.filter(n => n.gioHc + n.gioTc > 0 && n.gioThuongApp + n.gioTangCaApp > 0);
+  const caHai = coCaHai.filter(duTo);
+  // Không ngày nào đủ tổ: lấy ngày nhiều tổ dùng app nhất để báo "mới x/y tổ"
+  const nhieuToNhat = coCaHai.reduce<typeof ds[number] | null>((m, n) => (!m || (n.soToApp ?? 0) > (m.soToApp ?? 0) ? n : m), null);
   const coDiemDanh = ds.some(n => n.congNhan > 0);
   const tongCc = caHai.reduce((a, n) => a + n.gioHc + n.gioTc, 0);
   const tongApp = caHai.reduce((a, n) => a + n.gioThuongApp + n.gioTangCaApp, 0);
@@ -1112,7 +1121,11 @@ function DoiChieuChamCong({ d }: { d: BaoCao }) {
         <p className="text-base font-semibold text-slate-900">Đối chiếu chấm công (Dữ liệu Điểm danh, cả xưởng)</p>
         {lech !== null
           ? <p className={`text-sm ${lech <= 10 ? 'text-emerald-700' : 'text-amber-700'}`}>
-              Giờ công (app) lệch {fmtPt(lech)} so với giờ công chấm công ({caHai.length} ngày có cả hai) — {lech <= 10 ? 'đạt' : 'chưa đạt'} mục tiêu ≤ 10%
+              Giờ công (app) lệch {fmtPt(lech)} so với giờ công chấm công ({caHai.length} ngày có cả hai{coSoTo ? ', đủ tổ dùng app' : ''}) — {lech <= 10 ? 'đạt' : 'chưa đạt'} mục tiêu ≤ 10%
+            </p>
+          : nhieuToNhat && nhieuToNhat.soToActive != null
+          ? <p className="text-sm text-slate-500">
+              Mới {nhieuToNhat.soToApp ?? 0}/{nhieuToNhat.soToActive} tổ dùng app — chưa so được với điểm danh cả xưởng.
             </p>
           : <p className="text-sm text-slate-600">
               Chưa có ngày nào có cả số điểm danh và số app trong kỳ{cc.moiNhat ? ` — điểm danh mới nhất ${ddmm(cc.moiNhat)}/${cc.moiNhat.slice(0, 4)}` : ' — bảng điểm danh chưa có số của xưởng này'}.
@@ -1123,14 +1136,16 @@ function DoiChieuChamCong({ d }: { d: BaoCao }) {
           <table className={`${BANG} w-full min-w-[860px]`}>
             <thead className={bang.thead}><tr>
               <th className={TH}>Ngày</th>
+              {coSoTo && <th className={TH} title="Số tổ có số liệu app ngày đó / số tổ của xưởng — ngày chưa đủ tổ in mờ, không đưa vào so">Tổ dùng app</th>}
               <th className={`${TH}`}>Công nhân (điểm danh)</th><th className={`${TH}`}>Quân số chốt (app)</th>
               <th className={`${TH}`}>Giờ hành chính (điểm danh)</th><th className={`${TH}`}>Giờ thường (app)</th>
               <th className={`${TH}`}>Giờ tăng ca (điểm danh)</th><th className={`${TH}`}>Giờ tăng ca (app)</th>
             </tr></thead>
             <tbody>
               {ds.map(n => (
-                <tr key={n.ngay} className="border-t border-slate-100">
+                <tr key={n.ngay} className={`border-t border-slate-100 ${duTo(n) ? '' : 'text-slate-400'}`}>
                   <td className={`${TD} text-center tabular-nums`}>{ddmm(n.ngay)}</td>
+                  {coSoTo && <td className={`${TD} text-center tabular-nums`}>{n.soToActive != null ? `${n.soToApp ?? 0}/${n.soToActive}` : ''}</td>}
                   <td className={`${TD} text-center tabular-nums`}>{oSo(n.congNhan)}</td>
                   <td className={`${TD} text-center tabular-nums`}>{oSo(n.quanSoApp)}</td>
                   <td className={`${TD} text-center tabular-nums`}>{oSo(n.gioHc)}</td>
@@ -1142,6 +1157,7 @@ function DoiChieuChamCong({ d }: { d: BaoCao }) {
             </tbody>
             <tfoot className={bang.tfoot}><tr>
               <td className={TD}>TỔNG</td>
+              {coSoTo && <td className={TD} />}
               <td className={TD} />
               <td className={TD} />
               <td className={bang.tdSo}>{oSo(cong(ds, n => n.gioHc))}</td>
@@ -1173,8 +1189,8 @@ function TabChatLuong({ d, ds }: { d: BaoCao; ds: BaoCaoTo[] }) {
           phu={`${cs.nhatKy.du}/${cs.nhatKy.tong} công đoạn xong có ghi lúc bắt đầu (tổ trạm: quét vào hàng), mục tiêu ≥ 90% (MRA 85%)`} dat={pNk === null ? null : pNk >= 90} />
         <ChiSo ten="Ngày-tổ có chốt quân số" giaTri={fmtPt(pChot)}
           phu={`${cs.chotQuanSo.ngayChot}/${cs.chotQuanSo.ngayCoChay} ngày có hạng mục chạy, mục tiêu ≥ 90%`} dat={pChot === null ? null : pChot >= 90} />
-        <ChiSo ten="Thao tác tới máy chủ trong 1 giờ" giaTri={fmtPt(pGui)}
-          phu={`${cs.guiTrong1Gio.nhanh}/${cs.guiTrong1Gio.tong} thao tác, mục tiêu ≥ 95%`} dat={pGui === null ? null : pGui >= 95} />
+        <ChiSo ten="Số liệu về kịp trong 1 giờ" giaTri={fmtPt(pGui)}
+          phu={`${cs.guiTrong1Gio.nhanh}/${cs.guiTrong1Gio.tong} thao tác tới máy chủ trong 1 giờ, mục tiêu ≥ 95%`} dat={pGui === null ? null : pGui >= 95} />
         <ChiSo ten="Ngày-tổ khai vượt quân số" giaTri={String(cs.khaiVuotQuanSo)} phu="Theo dõi, không đặt mục tiêu" dat={null} />
       </div>
       <div className={KHUNG}>
@@ -1209,15 +1225,20 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
     'Tỷ lệ có việc %': tyLe(n.gioCong, n.gioNguoi), 'Số hạng mục nhận': n.soNhan ?? n.nhan.length, 'Số hạng mục chạy': n.soHangMuc ?? n.hangMuc.length,
     'Xong': theoDonVi(n.xong), 'Cờ': n.co.map(tenCo).join(', '),
   })));
-  them('Hang muc theo ngay', dong.flatMap(({ t, n }) => n.hangMuc.map(h => ({
-    'Ngày': n.ngay, 'Tổ': t.ten, 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan,
-    'Công nhân': moTaNguoi(h.soNguoiMin, h.soNguoiMax),
-    'Giờ chạy': h.gioChay, 'Giờ công SP thường': h.gioCongThuong, 'Giờ công SP tăng ca': h.gioCongTangCa, 'Đang chạy': h.dangChay ? 'x' : '',
-  }))));
-  them('Nhan - Xong', dong.flatMap(({ t, n }) => [
-    ...n.nhan.map(h => ({ 'Ngày': n.ngay, 'Tổ': t.ten, 'Loại': 'Nhận', 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan, 'Số lượng': h.soLuong, 'Đơn vị': dv(h.dvt) })),
-    ...n.xong.map(h => ({ 'Ngày': n.ngay, 'Tổ': t.ten, 'Loại': 'Xong', 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan, 'Số lượng': h.soLuong, 'Đơn vị': dv(h.dvt) })),
-  ]));
+  // Khoảng > 62 ngày (rutGon): máy chủ không gửi chi tiết hạng mục / nhận từng ngày — không xuất sheet rỗng, ghi chú lý do
+  if (d.rutGon) {
+    them('Ghi chu', [{ 'Ghi chú': 'Khoảng > 62 ngày: không có chi tiết hạng mục / nhận từng ngày; số tổng xem sheet Theo ngay và Theo hang muc; chọn ≤ 62 ngày để có chi tiết' }]);
+  } else {
+    them('Hang muc theo ngay', dong.flatMap(({ t, n }) => n.hangMuc.map(h => ({
+      'Ngày': n.ngay, 'Tổ': t.ten, 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan,
+      'Công nhân': moTaNguoi(h.soNguoiMin, h.soNguoiMax),
+      'Giờ chạy': h.gioChay, 'Giờ công SP thường': h.gioCongThuong, 'Giờ công SP tăng ca': h.gioCongTangCa, 'Đang chạy': h.dangChay ? 'x' : '',
+    }))));
+    them('Nhan - Xong', dong.flatMap(({ t, n }) => [
+      ...n.nhan.map(h => ({ 'Ngày': n.ngay, 'Tổ': t.ten, 'Loại': 'Nhận', 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan, 'Số lượng': h.soLuong, 'Đơn vị': dv(h.dvt) })),
+      ...n.xong.map(h => ({ 'Ngày': n.ngay, 'Tổ': t.ten, 'Loại': 'Xong', 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan, 'Số lượng': h.soLuong, 'Đơn vị': dv(h.dvt) })),
+    ]));
+  }
   them('Gio cho', dong.flatMap(({ t, n }) => Object.entries(n.gioChoLyDo).map(([k, v]) => ({ 'Ngày': n.ngay, 'Tổ': t.ten, 'Lý do': tenLyDoCho(k), 'Giờ chờ việc': v }))));
   them('Theo to', ds.map(t => {
     const gn = t.gioNguoi.thuong + t.gioNguoi.tangCa; const gc = t.gioCong.thuong + t.gioCong.tangCa;
@@ -1301,9 +1322,18 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
   });
   const chonTab = (t: Tab) => { setTab(t); try { localStorage.setItem(KHOA_TAB, t); } catch { /* bỏ qua */ } };
   const lan = useRef(0);
+  /** Đang tính dần ngày-tổ: đã tính / tổng còn thiếu lúc đầu */
+  const [tinh, setTinh] = useState<{ xong: number; tong: number } | null>(null);
+  // Tab Kế hoạch & phân tích tải theo tuần riêng (KeHoachTuan) — không tải báo cáo khoảng ngày
+  const laKeHoach = tab === 'keHoach';
+  // Khoảng xuong|tu|den đã tải xong gần nhất — rời tab Kế hoạch không tải lại nếu khoảng không đổi
+  const khoaDaTai = useRef<string | null>(null);
 
   const tai = useCallback(async () => {
     const id = ++lan.current;
+    setTinh(null);
+    if (laKeHoach) { setDang(false); return; }
+    khoaDaTai.current = null;
     setDang(true); setLoi('');
     // Khoảng quá dài / ngược: báo ngay, không giữ số của khoảng trước (trước vẫn hiện số cũ nên tưởng "không đổi")
     const soNgayChon = (Date.parse(den) - Date.parse(tu)) / 86_400_000;
@@ -1311,17 +1341,46 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
       setLoi(soNgayChon < 0 ? '"Từ" phải trước "đến".' : `Khoảng đang chọn ${Math.round(soNgayChon) + 1} ngày — tối đa 186 ngày (khoảng 6 tháng). Chọn lại "Từ" / "đến".`);
       setD(null); setDang(false); return;
     }
-    // Server tính dần các ngày còn thiếu: gọi lại tới khi đủ (tối đa 20 lượt)
-    for (let i = 0; i < 20; i++) {
-      const r = await xuongSetupApi.baoCao(xuong, tu, den);
-      if (id !== lan.current) return;
-      if (!r.ok) { setLoi(r.message); setD(null); break; }
-      setD(r.data);
-      if (!r.data.conThieu) break;
+    const r = await xuongSetupApi.baoCao(xuong, tu, den);
+    if (id !== lan.current) return;
+    if (!r.ok) { setLoi(r.message); setD(null); setDang(false); return; }
+    setD(r.data);
+    // Còn ngày-tổ chưa tính: gọi điểm cuối nhẹ tính dần, tiếp khi số còn thiếu giảm; dừng khi không giảm / đổi khoảng / lỗi / 60 lượt
+    const tong = r.data.conThieu;
+    let con = tong;
+    // Máy chủ chưa có bảng lưu: tính dần không lưu được, bỏ qua vòng
+    if (con > 0 && r.data.banLuu !== false) {
+      setTinh({ xong: 0, tong });
+      for (let i = 0; i < 60 && con > 0; i++) {
+        const t = await xuongSetupApi.baoCaoTinh(xuong, tu, den);
+        if (id !== lan.current) return;
+        if (!t.ok || !(t.data.conThieu < con)) break;
+        con = t.data.conThieu;
+        setTinh({ xong: tong - con, tong });
+      }
+      // Tính được ít nhất một phần (xong hẳn hoặc dừng giữa chừng): tải lại báo cáo đầy đủ một lần để số hiện khớp số
+      // còn thiếu; lỗi thì giữ số lượt đầu và báo đủ số thiếu của lượt đó
+      if (con < tong) {
+        const r2 = await xuongSetupApi.baoCao(xuong, tu, den);
+        if (id !== lan.current) return;
+        if (r2.ok) { setD(r2.data); con = r2.data.conThieu; } else con = tong;
+      }
+      // Còn thiếu: giữ số để báo + khoá Xuất
+      setD(x => (x ? { ...x, conThieu: con } : x));
+      setTinh(null);
     }
-    if (id === lan.current) setDang(false);
-  }, [xuong, tu, den]);
-  useEffect(() => { tai(); }, [tai]);
+    khoaDaTai.current = `${xuong}|${tu}|${den}`;
+    setDang(false);
+  }, [xuong, tu, den, laKeHoach]);
+  useEffect(() => {
+    // Rời tab Kế hoạch: khoảng đã tải xong rồi thì giữ số cũ, không tải lại
+    if (!laKeHoach && khoaDaTai.current === `${xuong}|${tu}|${den}`) return;
+    tai();
+  }, [tai, laKeHoach, xuong, tu, den]);
+  // Máy chủ chưa có bảng lưu báo cáo: ghi tên file SQL vào console cho người quản trị, màn hình chỉ báo chậm
+  useEffect(() => {
+    if (d && !d.banLuu) console.warn('[BaoCaoXuong] Chưa chạy file backend/sql/2026-10-12_xuong_bao_cao.sql — báo cáo tính lại mỗi lần xem');
+  }, [d]);
 
   const chon = (a: string, b: string) => { setTu(a); setDen(b); };
   const homNay = ngayVN();
@@ -1357,49 +1416,59 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-sm text-slate-700">Từ
-          <input type="date" value={tu} max={den} onChange={e => e.target.value && setTu(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm" />
-        </label>
-        <label className="flex items-center gap-1.5 text-sm text-slate-700">đến
-          <input type="date" value={den} min={tu} max={homNay} onChange={e => e.target.value && setDen(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm" />
-        </label>
-        <button type="button" className={BTN} onClick={() => chon(homNay, homNay)}>Hôm nay</button>
-        <button type="button" className={BTN} onClick={() => chon(ngayVN(-6), homNay)}>7 ngày</button>
-        <button type="button" className={BTN} onClick={() => chon(dauThang, homNay)}>Tháng này</button>
-        {/* Chọn nhanh một tháng (vd các tháng thuộc giai đoạn MRA cũ 04/2025 – 02/2026) */}
-        <label className="flex items-center gap-1.5 text-sm text-slate-700">Tháng
-          <input type="month" aria-label="Chọn tháng" max={homNay.slice(0, 7)}
-            onChange={e => {
-              const v = e.target.value; if (!v) return;
-              const [y, m] = v.split('-').map(Number);
-              const cuoi = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-              chon(`${v}-01`, cuoi < homNay ? cuoi : homNay);
-            }}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm" />
-        </label>
-        <label className="ml-2 flex items-center gap-1.5 text-sm text-slate-700">
-          <input type="checkbox" checked={anTrong} onChange={e => setAnTrong(e.target.checked)} /> Ẩn tổ không có số liệu
-        </label>
-        <div className="ml-auto flex gap-2">
-          <button type="button" className={BTN} disabled={!d || dangXuat || (d?.conThieu ?? 0) > 0}
-            onClick={async () => { if (!d) return; setDangXuat(true); try { await xuatExcel(d, ds); } finally { setDangXuat(false); } }}>
-            <Download size={13} /> {dangXuat ? 'Đang xuất…' : 'Xuất Excel'}
-          </button>
-          <button type="button" className={BTN} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
+      {/* Tab Kế hoạch & phân tích chọn theo tuần riêng — ẩn chọn khoảng ngày để khỏi tưởng đổi được */}
+      {!laKeHoach && (<>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-sm text-slate-700">Từ
+            <input type="date" value={tu} max={den} onChange={e => e.target.value && setTu(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm" />
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-700">đến
+            <input type="date" value={den} min={tu} max={homNay} onChange={e => e.target.value && setDen(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm" />
+          </label>
+          <button type="button" className={BTN} onClick={() => chon(homNay, homNay)}>Hôm nay</button>
+          <button type="button" className={BTN} onClick={() => chon(ngayVN(-6), homNay)}>7 ngày</button>
+          <button type="button" className={BTN} onClick={() => chon(dauThang, homNay)}>Tháng này</button>
+          {/* Chọn nhanh một tháng (vd các tháng thuộc giai đoạn MRA cũ 04/2025 – 02/2026) */}
+          <label className="flex items-center gap-1.5 text-sm text-slate-700">Tháng
+            <input type="month" aria-label="Chọn tháng" max={homNay.slice(0, 7)}
+              onChange={e => {
+                const v = e.target.value; if (!v) return;
+                const [y, m] = v.split('-').map(Number);
+                const cuoi = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+                chon(`${v}-01`, cuoi < homNay ? cuoi : homNay);
+              }}
+              className="rounded-md border border-slate-300 px-2 py-1 text-sm" />
+          </label>
+          <label className="ml-2 flex items-center gap-1.5 text-sm text-slate-700">
+            <input type="checkbox" checked={anTrong} onChange={e => setAnTrong(e.target.checked)} /> Ẩn tổ không có số liệu
+          </label>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {d?.rutGon && <span className="text-xs text-slate-500">Khoảng dài hơn 2 tháng: chỉ có số tổng</span>}
+            <button type="button" className={BTN} disabled={!d || dangXuat || (d?.conThieu ?? 0) > 0}
+              title={d && d.conThieu > 0 ? `Còn ${d.conThieu} ngày-tổ chưa tính — xuất lúc này sẽ thiếu số. Chờ tính xong hoặc bấm Tải lại.` : undefined}
+              onClick={async () => { if (!d) return; setDangXuat(true); try { await xuatExcel(d, ds); } finally { setDangXuat(false); } }}>
+              <Download size={13} /> {dangXuat ? 'Đang xuất…' : d && d.conThieu > 0 ? 'Chờ tính xong' : 'Xuất Excel'}
+            </button>
+            <button type="button" className={BTN} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
+          </div>
         </div>
-      </div>
 
-      {loi && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
-      {d && !d.banLuu && (
-        <p className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          <AlertTriangle size={15} /> Chưa chạy file backend/sql/2026-10-12_xuong_bao_cao.sql — báo cáo tính lại mỗi lần xem (chậm hơn với khoảng ngày dài).
-        </p>
-      )}
-      {d && d.conThieu > 0 && <p className="text-sm text-slate-600" aria-live="polite"><RefreshCw size={13} className="mr-1 inline animate-spin" /> Đang tính thêm {d.conThieu} ngày-tổ…</p>}
+        {loi && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
+        {d && !d.banLuu && <p className="text-sm text-slate-500">Khoảng ngày dài có thể tải chậm.</p>}
+        {tinh && (
+          <p className="text-sm text-slate-600" aria-live="polite">
+            <RefreshCw size={13} className="mr-1 inline animate-spin" /> Đang tính {tinh.xong}/{tinh.tong} ngày-tổ…
+          </p>
+        )}
+        {!tinh && !dang && d && d.conThieu > 0 && (
+          <p className="text-sm text-amber-800" aria-live="polite">
+            Còn {d.conThieu} ngày-tổ chưa tính — {d.banLuu === false ? 'chọn khoảng ngắn hơn.' : 'bấm Tải lại để tính tiếp.'}
+          </p>
+        )}
+      </>)}
 
       {/* Tab Kế hoạch & phân tích có số riêng theo tuần — ẩn 5 thẻ của khoảng ngày để khỏi lẫn */}
-      {d && tab !== 'keHoach' && (
+      {d && !laKeHoach && (
         <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
           <The ten="Công nhân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu${tom.boHomNay ? ', chưa tính hôm nay' : ''} · quân số chốt ca chính`} />
           <The ten="Giờ công sản phẩm" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ công${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}${den === homNay ? ` · hôm nay tính đến ${hhmm(Date.now())}` : ''}`} />
@@ -1414,7 +1483,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
         </div>
       )}
 
-      {d && tab !== 'keHoach' && (
+      {d && !laKeHoach && (
         <details className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700">
           <summary className="cursor-pointer font-medium text-slate-800">Cách đọc các số</summary>
           <dl className="mt-2 grid gap-x-6 gap-y-2 pb-2 sm:grid-cols-2">
@@ -1426,24 +1495,24 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
         </details>
       )}
 
-      {d && (
+      {(d || laKeHoach) && (
         <>
           <div className="flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Kiểu xem báo cáo">
             {tabs.map(x => (
               <button key={x.id} type="button" role="tab" aria-selected={tabHien === x.id} onClick={() => chonTab(x.id)}
                 className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${tabHien === x.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900'}`}>
-                {x.ten}{x.id === 'hangMuc' && d.hangMuc.length ? ` (${d.hangMuc.length})` : ''}{x.id === 'nguoi' && d.theoNguoi?.length ? ` (${d.theoNguoi.length})` : ''}
+                {x.ten}{x.id === 'hangMuc' && d?.hangMuc.length ? ` (${d.hangMuc.length})` : ''}{x.id === 'nguoi' && d?.theoNguoi?.length ? ` (${d.theoNguoi.length})` : ''}
                 {x.id === 'soKhop' && soKhop.some(t => t.soNgayLon) && <span className="ml-1 text-red-700">●</span>}
               </button>
             ))}
           </div>
           {tabHien === 'keHoach' && <KeHoachTuan xuong={xuong} />}
-          {tabHien === 'ngay' && <><BieuDoNgay ds={ds} /><TabTheoNgay ds={ds} /></>}
-          {tabHien === 'to' && <><BieuDoTo ds={ds} /><TabTheoTo ds={ds} d={d} /></>}
-          {tabHien === 'hangMuc' && <TabTheoHangMuc ds={d.hangMuc ?? []} theoTo={ds} xuong={xuong} />}
-          {tabHien === 'nguoi' && <TabTheoNguoi ds={d.theoNguoi ?? []} tu={d.tu} den={d.den} />}
-          {tabHien === 'chatLuong' && <TabChatLuong d={d} ds={ds} />}
-          {tabHien === 'soKhop' && <TabSoKhopTram ds={soKhop} />}
+          {d && tabHien === 'ngay' && <><BieuDoNgay ds={ds} /><TabTheoNgay ds={ds} /></>}
+          {d && tabHien === 'to' && <><BieuDoTo ds={ds} /><TabTheoTo ds={ds} d={d} /></>}
+          {d && tabHien === 'hangMuc' && <TabTheoHangMuc ds={d.hangMuc ?? []} theoTo={ds} xuong={xuong} rutGon={!!d.rutGon} />}
+          {d && tabHien === 'nguoi' && <TabTheoNguoi ds={d.theoNguoi ?? []} tu={d.tu} den={d.den} />}
+          {d && tabHien === 'chatLuong' && <TabChatLuong d={d} ds={ds} />}
+          {d && tabHien === 'soKhop' && <TabSoKhopTram ds={soKhop} />}
         </>
       )}
     </div>

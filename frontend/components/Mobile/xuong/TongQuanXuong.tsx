@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, ChevronRight, AlertTriangle, Users, Play, Pause, Inbox, PackageCheck, Rocket, Circle } from 'lucide-react';
+import { RefreshCw, ChevronRight, AlertTriangle, Users, Play, Pause, Inbox, PackageCheck, Rocket, Circle, ListTree } from 'lucide-react';
 import { BottomSheet, Toast } from '../mobileUi';
 import TrienKhaiGon from './TrienKhaiGon';
 import QuetQr from './QuetQr';
-import { xuongSetupApi, type TongQuanTo } from '../../../services/xuongSetupApi';
-import { hhmm, tenCo, moTaSuKien, gioVN } from '../../../services/xuongModel';
+import { xuongSetupApi, type TongQuanTo, type ChoKhaiTom } from '../../../services/xuongSetupApi';
+import { hhmm, gioVN } from '../../../services/xuongModel';
+import { DongCanXem, huyCoLyDo } from '../../Xuong/XuongSetupMuc';
 import { tuanISO, tinhTrang, tuanDaChot } from '../../Xuong/KeHoachTuan';
 import { NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 
@@ -15,17 +16,31 @@ import { NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 // ============================================================================
 
 const KHOA_XUONG = 'xuong_tong_quan_xuong';
+/** Tổ có việc (đang chạy / tạm ngưng / chờ nhận / chưa bắt đầu) mà chưa điểm danh, chưa chốt quân số */
+const chuaDiemDanh = (t: TongQuanTo) => t.quanSo === null && !t.diemDanh?.daDiemDanh
+  && t.dangChay + t.tamNgung + t.choNhan + (t.chuaBatDau ?? 0) > 0;
+/** "2026-11-03…" → "03/11" */
+const ngayThang = (s: string) => gioVN(Date.parse(s)).ngay.split('-').reverse().slice(0, 2).join('/');
 
-function CanXemSheet({ xuong, onClose }: { xuong: string; onClose: () => void }) {
+function CanXemSheet({ xuong, dsTo, onClose }: { xuong: string; dsTo: TongQuanTo[]; onClose: () => void }) {
   const [d, setD] = useState<{ suKien: Array<Record<string, unknown>>; soCanXuLy?: number; soChiDeBiet?: number } | null>(null);
   const [loi, setLoi] = useState('');
   const [dang, setDang] = useState<string | null>(null);
   // Mặc định chỉ thao tác cần xử lý (máy chủ tính can_xu_ly — cùng số trên nút "Cần xem (N)"); bấm để xem cả cờ chỉ để biết
   const [moiCo, setMoiCo] = useState(false);
+  // Tên công đoạn: Tổng quan không có danh mục công đoạn => lấy từ setup xưởng (lỗi thì chỉ hiện tên tổ)
+  const [tenCdMap, setTenCdMap] = useState<Map<string, string>>(new Map());
   const tai = useCallback(() => {
     xuongSetupApi.canXem(xuong).then(r => (r.ok ? setD(r.data) : setLoi(r.message)));
   }, [xuong]);
   useEffect(() => { tai(); }, [tai]);
+  useEffect(() => {
+    let huy = false;
+    xuongSetupApi.setup(xuong).then(r => { if (!huy && r.ok) setTenCdMap(new Map(r.data.congDoan.map(c => [c.id, c.ten]))); });
+    return () => { huy = true; };
+  }, [xuong]);
+  const tenTo = (id: unknown) => dsTo.find(t => t.id === Number(id))?.ten ?? '';
+  const tenCd = (id: unknown) => tenCdMap.get(String(id)) ?? '';
   const ds = d ? d.suKien.filter(x => moiCo || x.can_xu_ly === true) : null;
   const soChiDeBiet = d ? d.soChiDeBiet ?? d.suKien.filter(x => x.can_xu_ly !== true).length : 0;
   return (
@@ -38,19 +53,14 @@ function CanXemSheet({ xuong, onClose }: { xuong: string; onClose: () => void })
         {ds && ds.length > 0 && (
           <ul className={`${KHOI} ${KE} border border-slate-200`}>
             {ds.map(x => (
-              <li key={String(x.id)} className="space-y-2 px-4 py-3">
-                <p className="text-base text-slate-900">
-                  <span className="tabular-nums">{hhmm(Date.parse(String(x.device_ts_hieu_chinh)))}</span> · {moTaSuKien({ loai: String(x.loai) })}
-                  {x.hex ? <span className="tabular-nums"> · {String(x.hex)}</span> : null}
-                </p>
-                <p className={`text-base ${MAU.ngung.chu}`}>{((x.co as string[]) ?? []).map(tenCo).join(' · ')}</p>
-                <button className={NUT_PHU} disabled={dang === x.id} onClick={async () => {
-                  if (!window.confirm('Huỷ thao tác này?')) return;
+              <li key={String(x.id)} className="px-4 py-3">
+                <DongCanXem x={x} tenTo={tenTo} tenCd={tenCd} nut={NUT_PHU} dangHuy={dang === x.id} onHuy={async () => {
                   setDang(String(x.id));
-                  const r = await xuongSetupApi.huy(String(x.id));
+                  const r = await huyCoLyDo(String(x.id));
                   setDang(null);
+                  if (!r) return;
                   if (r.ok) tai(); else setLoi(r.message);
-                }}>Huỷ thao tác</button>
+                }} />
               </li>
             ))}
           </ul>
@@ -67,13 +77,15 @@ function CanXemSheet({ xuong, onClose }: { xuong: string; onClose: () => void })
   );
 }
 
-export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
+export default function TongQuanXuong({ onChonTo, onMoKeHoach, onMoQuanLy }: {
   onChonTo: (to: { id: number; ten: string; xuong: string }) => void;
   /** Mở Quản lý → Báo cáo → Kế hoạch tuần của xưởng */
   onMoKeHoach?: (xuong: string) => void;
+  /** Mở Quản lý ở một mục của xưởng (không đổi tab Báo cáo đã nhớ) */
+  onMoQuanLy?: (xuong: string, muc: string) => void;
 }) {
   const [xuong, setXuong] = useState<string | undefined>(() => { try { return localStorage.getItem(KHOA_XUONG) || undefined; } catch { return undefined; } });
-  const [d, setD] = useState<{ dsXuong: string[]; xuong: string | null; canXem?: number | null; to: TongQuanTo[] } | null>(null);
+  const [d, setD] = useState<{ dsXuong: string[]; xuong: string | null; canXem?: number | null; to: TongQuanTo[]; choKhai?: ChoKhaiTom } | null>(null);
   const [loi, setLoi] = useState('');
   const [dang, setDang] = useState(false);
   const [canXem, setCanXem] = useState(false);
@@ -113,20 +125,27 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
   }, [xuongDangXem]);
 
   const [moVang, setMoVang] = useState(false);
-  // Lọc "cần chú ý": tổ có việc mà chưa điểm danh / chốt quân số, có thao tác cần xem, hoặc hạng mục tạm ngưng
+  // Lọc "cần chú ý": tổ có việc mà chưa điểm danh / chốt quân số, hoặc có thao tác cần xem (tạm ngưng chỉ hiện nhãn vàng)
   const [chuY, setChuY] = useState(false);
-  const canChuY = (t: TongQuanTo) => (t.quanSo === null && !t.diemDanh?.daDiemDanh && (t.dangChay + t.tamNgung + t.choNhan + (t.chuaBatDau ?? 0)) > 0)
-    || t.canXem > 0 || t.tamNgung > 0;
+  const canChuY = (t: TongQuanTo) => chuaDiemDanh(t) || t.canXem > 0;
   const coDd = (d?.to ?? []).filter(t => t.diemDanh?.daDiemDanh);
   const dd = coDd.reduce((a, t) => ({
     coMat: a.coMat + t.diemDanh!.coMat, tong: a.tong + t.diemDanh!.tong,
     vang: a.vang + t.diemDanh!.vang.length, tre: a.tre + t.diemDanh!.tre.length, veSom: a.veSom + t.diemDanh!.veSom.length,
   }), { coMat: 0, tong: 0, vang: 0, tre: 0, veSom: 0 });
 
-  const tong = (d?.to ?? []).reduce((a, t) => ({
-    chuaChot: a.chuaChot + (t.quanSo === null && (t.dangChay + t.tamNgung + t.choNhan + (t.chuaBatDau ?? 0)) > 0 ? 1 : 0),
-    dangChay: a.dangChay + t.dangChay, choNhan: a.choNhan + t.choNhan,
-  }), { chuaChot: 0, dangChay: 0, choNhan: 0 });
+  const tongChoNhan = (d?.to ?? []).reduce((a, t) => a + t.choNhan, 0);
+  // Mở Quản lý → Khai CĐ chi tiết: XuongSetup đọc tham số ql / xuong trên URL lúc mở (rồi xoá); onMoQuanLy chỉ đặt
+  // xưởng / mục, không đổi tab Báo cáo đã nhớ (vỏ cũ chưa có thì lùi về lối Kế hoạch tuần)
+  const moQl = onMoQuanLy ?? (onMoKeHoach ? (x: string) => onMoKeHoach(x) : undefined);
+  const moKhaiChiTiet = (x: string) => {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.set('ql', 'khai-chi-tiet'); u.searchParams.set('xuong', x);
+      history.replaceState(history.state, '', u);
+    } catch { /* bỏ qua */ }
+    moQl?.(x, 'khai-chi-tiet');
+  };
   // Nút "Cần xem (N)": máy chủ đếm cả xưởng (kể cả thao tác không gắn tổ) — đúng số dòng danh sách mở ra
   const soCanXem = d?.canXem === undefined ? (d?.to ?? []).reduce((a, t) => a + t.canXem, 0) : (d.canXem ?? 0);
 
@@ -151,21 +170,8 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-3 px-4">
-        {/* Tóm tắt xưởng: cuộn theo trang (không dính) */}
-        {d?.xuong && (
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-slate-700">
-            {/* Chỉ đếm tổ có việc mà chưa điểm danh — 0 thì không hiện */}
-            {tong.chuaChot > 0 && (
-              // Bấm để chỉ xem các tổ cần chú ý
-              <button type="button" aria-pressed={chuY} onClick={() => setChuY(v => !v)}
-                className={`min-h-11 font-semibold underline underline-offset-4 ${MAU.loi.chu}`}>
-                {tong.chuaChot} tổ chưa {d.to.some(t => t.diemDanh !== undefined && t.diemDanh !== null) ? 'điểm danh' : 'chốt quân số'}
-              </button>
-            )}
-            <span>{tong.dangChay} lượt công đoạn đang chạy</span>
-            {tong.choNhan > 0 && <span>{tong.choNhan} chờ nhận</span>}
-          </p>
-        )}
+        {/* Tóm tắt xưởng: cuộn theo trang (không dính); tổ chưa điểm danh xem ở khối chấm công + lọc Cần chú ý */}
+        {d?.xuong && tongChoNhan > 0 && <p className="text-base text-slate-700">{tongChoNhan} chờ nhận</p>}
         {/* Chấm công hôm nay: có mặt / vắng / trễ / về sớm của cả xưởng, mở ra xem tên theo tổ */}
         {coDd.length > 0 && (
           <div className={`${KHOI} border border-slate-200`}>
@@ -205,6 +211,17 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
             {onMoKeHoach && <ChevronRight size="1.2em" className="mt-0.5 shrink-0 text-slate-500" aria-hidden />}
           </button>
         )}
+        {/* Thành phần xưởng khác giao về, chờ xưởng này khai CĐ chi tiết — chưa khai thì tổ đầu tuyến chưa thấy hàng */}
+        {d?.choKhai && d.choKhai.so > 0 && xuongDangXem && (
+          <button type="button" onClick={() => moKhaiChiTiet(xuongDangXem)} disabled={!moQl}
+            className={`flex w-full items-start gap-3 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3 text-left active:opacity-80`}>
+            <ListTree size="1.2em" className={`mt-0.5 shrink-0 ${MAU.ngung.chu}`} aria-hidden />
+            <span className={`min-w-0 flex-1 text-base font-semibold ${MAU.ngung.chu}`}>
+              {d.choKhai.so} thành phần chờ khai CĐ chi tiết{d.choKhai.cuNhat ? ` · lâu nhất từ ${ngayThang(d.choKhai.cuNhat)}` : ''}
+            </span>
+            {moQl && <ChevronRight size="1.2em" className="mt-0.5 shrink-0 text-slate-500" aria-hidden />}
+          </button>
+        )}
         {loi && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loi}</p>}
         <div className="grid grid-cols-2 gap-3">
           <button className={NUT_PHU} onClick={() => setTrienKhai({ hex: null })}><Rocket size="1.25em" aria-hidden /> Triển khai</button>
@@ -234,19 +251,19 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
                       <p className="text-lg font-semibold text-slate-900">{t.ten}</p>
                       <p className={CHU_PHU}>{t.toTruong ?? 'Chưa có tổ trưởng'}{t.thaoTacCuoi ? ` · thao tác cuối ${hhmm(Date.parse(t.thaoTacCuoi))}` : ''}</p>
                       <p className="flex flex-wrap gap-x-3 gap-y-1 text-base">
+                        {/* Việc cần làm lên đầu: chưa điểm danh, cần xem */}
+                        {chuaDiemDanh(t) && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><Users size="1em" aria-hidden /> {t.diemDanh ? 'Chưa điểm danh' : 'Chưa chốt quân số'}</span>}
+                        {t.canXem > 0 && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><AlertTriangle size="1em" aria-hidden /> {t.canXem} cần xem</span>}
                         {t.diemDanh?.daDiemDanh
                           ? <span className="inline-flex items-center gap-1 text-slate-700"><Users size="1em" aria-hidden /> {t.diemDanh.coMat}{t.diemDanh.tong ? `/${t.diemDanh.tong}` : ''} có mặt
                               {t.diemDanh.vang.length > 0 && <span className={MAU.loi.chu}> · {t.diemDanh.vang.length} vắng</span>}
                               {t.diemDanh.tre.length > 0 && <span className={MAU.ngung.chu}> · {t.diemDanh.tre.length} trễ</span>}</span>
-                          : t.quanSo !== null
-                          ? <span className="inline-flex items-center gap-1 text-slate-700"><Users size="1em" aria-hidden /> {t.quanSo} người</span>
-                          : coViec && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><Users size="1em" aria-hidden /> {t.diemDanh ? 'Chưa điểm danh' : 'Chưa chốt quân số'}</span>}
+                          : t.quanSo !== null && <span className="inline-flex items-center gap-1 text-slate-700"><Users size="1em" aria-hidden /> {t.quanSo} người</span>}
                         {t.dangChay > 0 && <span className={`inline-flex items-center gap-1 ${MAU.chay.chu}`}><Play size="1em" aria-hidden /> {t.dangChay} đang chạy</span>}
                         {t.tamNgung > 0 && <span className={`inline-flex items-center gap-1 ${MAU.ngung.chu}`}><Pause size="1em" aria-hidden /> {t.tamNgung} tạm ngưng</span>}
                         {(t.chuaBatDau ?? 0) > 0 && <span className="inline-flex items-center gap-1 text-slate-700"><Circle size="1em" aria-hidden /> {t.chuaBatDau} chưa bắt đầu</span>}
                         {t.choNhan > 0 && <span className="inline-flex items-center gap-1 text-slate-700"><Inbox size="1em" aria-hidden /> {t.choNhan} chờ nhận</span>}
                         {t.choGiao > 0 && <span className="inline-flex items-center gap-1 text-slate-700"><PackageCheck size="1em" aria-hidden /> {t.choGiao} chờ giao</span>}
-                        {t.canXem > 0 && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><AlertTriangle size="1em" aria-hidden /> {t.canXem} cần xem</span>}
                         {!coViec && t.choGiao === 0 && <span className="text-slate-600">Chưa có việc</span>}
                       </p>
                     </div>
@@ -258,7 +275,7 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
           </ul>
         )}
       </main>
-      {canXem && d?.xuong && <CanXemSheet xuong={d.xuong} onClose={() => { setCanXem(false); tai(); }} />}
+      {canXem && d?.xuong && <CanXemSheet xuong={d.xuong} dsTo={d.to} onClose={() => { setCanXem(false); tai(); }} />}
       {trienKhai && !quet && (
         <TrienKhaiGon hexBanDau={trienKhai.hex} xuongBanDau={d?.xuong ?? null}
           onQuet={() => setQuet(true)}

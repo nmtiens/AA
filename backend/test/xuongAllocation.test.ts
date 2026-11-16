@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, thuTrongTuan, tyLeCoViecThap } from '../src/server/xuong/allocation.js';
+import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, thuTrongTuan, tyLeCoViecThap, doanNgoaiCa } from '../src/server/xuong/allocation.js';
 import type { LichCaRow } from '../src/server/xuong/types.js';
 import { tomTatDiemDanh } from '../src/server/xuong/chamCong.js';
 
@@ -275,5 +275,46 @@ describe('tyLeCoViecThap', () => {
   it('dưới 1 giờ công (vừa điểm danh): bỏ qua', () => {
     assert.equal(tyLeCoViecThap(0.5, 0), false);
     assert.equal(tyLeCoViecThap(0, 0), false);
+  });
+});
+
+describe('chạy ngoài giờ ca — cờ chay_ngoai_ca (không đổi giờ công)', () => {
+  const khung = (ngay: string) => ({ start: t('06:00', ngay), end: t('06:00', ngay) + 24 * 3_600_000 });
+  const CN = '2026-10-18'; // Chủ nhật
+
+  it('Chủ nhật chưa khai tăng ca, có đoạn chạy: có cờ tổ + hạng mục và số giờ; giờ công vẫn 0', () => {
+    const kq = phanBoGioCong({
+      cuaSo: cuaSoTrongNgay(CN, LICH, []), quanSo: {}, now: t('23:00', CN), khungNgay: khung(CN),
+      doanChay: { A: [{ start: t('08:00', CN), end: t('11:00', CN) }] },
+      soNguoi: [{ key: 'A', at: t('08:00', CN), soNguoi: 2 }],
+    });
+    assert.ok(kq.co.includes('chay_ngoai_ca'));
+    assert.deepEqual(kq.theoHangMuc.A.co, ['chay_ngoai_ca']);
+    assert.equal(kq.theoHangMuc.A.gioNgoaiCa, 3);
+    assert.equal(kq.gioChayNgoaiCa, 3);
+    assert.equal(kq.theoHangMuc.A.gioCongThuong, 0);
+  });
+
+  it('ngày thường: bấm dừng 18:00 khi không khai tăng ca → 2,25 giờ (15:45–18:00); chạy trong ca / qua nghỉ trưa thì không', () => {
+    const cs = cuaSoTrongNgay(NGAY, LICH, []);
+    assert.deepEqual(doanNgoaiCa([{ start: t('08:00'), end: t('18:00') }], cs, khung(NGAY), t('23:00')), [[t('15:45'), t('18:00')]]);
+    assert.deepEqual(doanNgoaiCa([{ start: t('08:00'), end: t('14:00') }], cs, khung(NGAY), t('23:00')), []);
+    const kq = phanBoGioCong({
+      cuaSo: cs, quanSo: { chinh: 5 }, now: t('23:00'), khungNgay: khung(NGAY),
+      doanChay: { A: [{ start: t('08:00'), end: t('14:00') }] }, soNguoi: [{ key: 'A', at: t('08:00'), soNguoi: 2 }],
+    });
+    assert.deepEqual(kq.co, []);
+    assert.equal(kq.gioChayNgoaiCa, undefined);
+  });
+
+  it('bấm tay để chạy qua đêm (không bấm gì ngoài ca trong ngày): không gắn cờ', () => {
+    const cs = cuaSoTrongNgay(NGAY, LICH, []);
+    const doan = [{ start: t('08:00', '2026-10-12'), end: t('09:00', '2026-10-14') }];
+    assert.deepEqual(doanNgoaiCa(doan, cs, khung(NGAY), t('23:00', '2026-10-14')), []);
+  });
+
+  it('bắt đầu sớm trước ca: tính tới lúc vào ca; đã khai tăng ca thì dừng trong tăng ca không bị cờ', () => {
+    const cs = cuaSoTrongNgay(NGAY, LICH, ['ca2']);
+    assert.deepEqual(doanNgoaiCa([{ start: t('06:30'), end: t('19:00') }], cs, khung(NGAY), t('23:00')), [[t('06:30'), t('07:30')]]);
   });
 });

@@ -122,16 +122,12 @@ export default function TraCuuXuong() {
           </section>
         ) : hex ? (
           <section className="space-y-2 rounded-2xl bg-white p-3 rmd:p-4" aria-label={`Hạng mục ${hex}`}>
-            <p className="text-lg font-semibold text-slate-900">Hạng mục <span className="tabular-nums">{hex}</span></p>
             {/* Màn chi tiết dùng chung với máy tính: nút / chữ cỡ điện thoại */}
             <div className={KHO_DIEN_THOAI}><XuongHexChiTiet key={hex} hex={hex} /></div>
           </section>
         ) : (
           <div className="space-y-3 rounded-2xl bg-white p-5">
-            <p className={CHU_PHU}>
-              Quét phiếu, gõ vài số của mã HEX hoặc tìm theo tên hạng mục / công trình để xem hạng mục đang ở tổ nào, đã nhận / xong / giao bao nhiêu,
-              thời gian trong xưởng, giờ công sản phẩm và ảnh tiến độ.
-            </p>
+            <p className={CHU_PHU}>Quét phiếu hoặc gõ mã HEX / tên hạng mục, công trình</p>
             {ganDay.length > 0 && (
               <div className="space-y-2">
                 <p className="text-base font-semibold text-slate-800">Tra gần đây</p>

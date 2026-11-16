@@ -1,6 +1,7 @@
 import { getToken } from './userService';
 import { authXuong } from './xuongClock';
 import type { LoaiCa, TrangThai } from './xuongModel';
+import type { ViTriMra } from '../components/Dashboard/core/viTriMra';
 
 // ============================================================================
 // API MỤC XƯỞNG — PHẦN MÁY TÍNH (backend/src/routes/xuongSetup.ts + GET /api/xuong/hex/:hex).
@@ -21,7 +22,11 @@ export interface SetupXuong {
   /** Tài khoản tổ trưởng: chỉ xem các tổ này (danh sách tổ đã lọc); null = cả xưởng */
   chiTo?: number[] | null;
   congDoan: CongDoanSetup[]; to: ToSetup[]; lichCa: LichCaSetup[]; quanLy: Array<{ userId: number; ten: string }>;
+  /** Thành phần chờ xưởng này khai CĐ chi tiết (chỉ quản lý xưởng; còn lại so = 0) */
+  choKhai?: ChoKhaiTom;
 }
+/** Số thành phần chờ khai CĐ chi tiết; cuNhat = ngày đợt cũ nhất */
+export interface ChoKhaiTom { so: number; cuNhat: string | null }
 export interface CongDoanHex {
   hex: string; congDoanId: string; ten: string | null; xuong: string | null; thuTu: number | null; trangThai: TrangThai;
   slGiaoDen: number; slNhan: number; slHoanThanh: number; slGiao: number; soNguoi: number | null;
@@ -54,7 +59,15 @@ export interface ChiTietHex {
   /** Lịch sử MRA theo xưởng: thao tác đầu → hoàn thành / giao cuối (null = MRA dừng khi chưa xong) */
   thoiGianMra: Array<{ xuong: string; tu: string; den: string | null }>;
 }
-export interface TomTatHex { soCongDoan: number; dangO: Array<{ xuong: string | null; ten: string | null; trangThai: TrangThai }> }
+export interface TomTatHex {
+  soCongDoan: number;
+  /** tu = đang làm: lúc bắt đầu chạy lượt hiện tại; trạng thái khác: lúc thao tác cuối (null = không rõ) */
+  dangO: Array<{ xuong: string | null; ten: string | null; trangThai: TrangThai; tu?: string | null }>;
+  /** Số lượng đã triển khai trên app; xong = chắc chắn đã xong đủ ở cuối mọi thành phần */
+  daTrienKhai?: number; xong?: boolean;
+  /** choKhai = còn thành phần chờ xưởng phụ khai CĐ chi tiết; slXong = số xong ở cuối tuyến (thiếu = không xác định) */
+  choKhai?: boolean; slXong?: number;
+}
 /** Công đoạn thành phần (QT1): Gỗ / Sofa / Kim loại / Kính / Đá — mỗi thành phần một xưởng thực hiện và tuyến CĐ chi tiết.
  *  Xưởng phụ để trống tuyến => xưởng phụ tự khai CĐ chi tiết (QT2). */
 export interface ThanhPhanTrienKhai { ten: string; xuong: string; tuyen: string[] }
@@ -93,6 +106,8 @@ export interface TheoDoiHangMuc {
   choKhai: Array<{ thanhPhan: string; xuong: string }>;
   ngoaiTuyen: TheoDoiCongDoan[];
   slXong: number; xong: boolean; dangLam: number; tamNgung: number; choNhan: number;
+  /** Thao tác cuối trên hạng mục (max su_kien_cuoi các công đoạn) */
+  capNhatCuoi?: string | null;
   /** Các đợt triển khai còn hiệu lực, mới trước; huyDuoc = người xem là admin / quản lý xưởng chính của đợt */
   dotTrienKhai?: DotTrienKhai[];
 }
@@ -186,8 +201,11 @@ export interface KeHoachTuanDong {
   trienKhai: { sl: number; luc: string } | null; congDoan: KeHoachTuanCongDoan[];
   /** Dự báo (tuần chưa qua, hạng mục có tuyến): ngày lịch còn cần theo mốc "thường mất" từng công đoạn còn lại */
   duBao?: {
-    canNgay: number; conNgay: number; muc: 'rot' | 'sat' | 'kip'; nguonMoc: 'app' | 'mra' | 'ca_hai';
+    /** 'chua_ro' = mọi công đoạn còn lại thiếu mốc (khongDuMoc) */
+    canNgay: number; conNgay: number; muc: 'rot' | 'sat' | 'kip' | 'chua_ro'; nguonMoc: 'app' | 'mra' | 'ca_hai';
     tenConLai: string[]; tenThieuMoc: string[];
+    /** Mọi công đoạn còn lại đều thiếu mốc: không dự báo được (muc giữ nguyên, không coi là kịp) */
+    khongDuMoc?: boolean;
   } | null;
 }
 export interface KeHoachTuan {
@@ -205,7 +223,11 @@ export interface BaoCaoXuong {
   /** Đối chiếu Dữ liệu Điểm danh (theo xưởng × ngày); null = chưa có bảng diem_danh */
   chamCong: {
     moiNhat: string | null;
-    theoNgay: Array<{ ngay: string; congNhan: number; gioHc: number; gioTc: number; quanSoApp: number; gioThuongApp: number; gioTangCaApp: number }>;
+    theoNgay: Array<{
+      ngay: string; congNhan: number; gioHc: number; gioTc: number; quanSoApp: number; gioThuongApp: number; gioTangCaApp: number;
+      /** Số tổ có kết quả phân bổ ngày đó / số tổ active của xưởng — chỉ so điểm danh khi đủ tổ */
+      soToApp?: number; soToActive?: number;
+    }>;
   } | null;
   chiSo: {
     nhatKy: { tong: number; du: number }; guiTrong1Gio: { tong: number; nhanh: number };
@@ -288,6 +310,13 @@ export interface TongQuanTo {
   } | null;
 }
 
+/** Vị trí công đoạn MRA phủ lên cột bop / so_ngay_cd_hien_tai (GET /api/xuong/vi-tri-bop) */
+export type ThongKeViTriBop = { soHex: number; chuaNoi: string[]; giuPc: number };
+/** same = ver gửi lên vẫn đúng; ver 'off' = máy chủ tắt phủ MRA (map rỗng) */
+export type KetQuaViTriBop =
+  | { same: true }
+  | { same?: false; ver: string; tinhLuc?: string; map: Record<string, ViTriMra>; thongKe: ThongKeViTriBop };
+
 type KetQua<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
 
 async function goi<T>(method: string, path: string, body?: unknown): Promise<KetQua<T>> {
@@ -322,19 +351,22 @@ export async function taiAnhXuong(id: string): Promise<string> {
 export const xuongSetupApi = {
   setup: (xuong?: string) => goi<SetupXuong>('GET', `/api/xuong/setup?${q({ xuong })}`),
   luuCongDoan: (d: Omit<CongDoanSetup, 'id'> & { id?: string; xuong: string }) => goi<{ id: string }>('POST', '/api/xuong/setup/cong-doan', d),
-  luuTo: (d: { id?: number; xuong: string; ten: string; toTruongUserId: number | null; congDoan: string[]; thanhVien: string[]; active: boolean; capQuyen?: boolean }) =>
+  luuTo: (d: { id?: number; xuong: string; ten: string; toTruongUserId: number | null; congDoan: string[]; thanhVien: string[]; active: boolean; capQuyen?: boolean; xacNhan?: boolean }) =>
+    // 409 = có người Nhân sự đang ở tổ khác / đã nghỉ: hỏi lại rồi gửi xacNhan: true
     goi<{ id: number }>('POST', '/api/xuong/setup/to', d),
   luuLichCa: (d: LichCaSetup) => goi<unknown>('PUT', '/api/xuong/setup/lich-ca', d),
   boLichCa: (xuong: string, loaiCa: LoaiCa) => goi<unknown>('DELETE', '/api/xuong/setup/lich-ca', { xuong, loaiCa }),
   quanLy: (userId: number, xuong: string, bo = false) => goi<unknown>('POST', '/api/xuong/setup/quan-ly', { userId, xuong, bo }),
   timNguoi: (s: string) => goi<{ ketQua: NguoiDung[] }>('GET', `/api/xuong/setup/nguoi-dung?${q({ q: s })}`),
   /** canXem = số thao tác cần xử lý cả xưởng (đúng số dòng danh sách Cần xem ở bộ lọc mặc định); null = không mở được danh sách */
-  tongQuan: (xuong?: string) => goi<{ dsXuong: string[]; xuong: string | null; canXem?: number | null; to: TongQuanTo[] }>('GET', `/api/xuong/tong-quan?${q({ xuong })}`),
+  tongQuan: (xuong?: string) => goi<{ dsXuong: string[]; xuong: string | null; canXem?: number | null; to: TongQuanTo[]; choKhai?: ChoKhaiTom }>('GET', `/api/xuong/tong-quan?${q({ xuong })}`),
   /** suKien[].can_xu_ly do máy chủ tính (server/xuong/canXem.ts); soCanXuLy / soChiDeBiet = tổng thật (danh sách giữ 300 dòng mỗi nhóm) */
-  canXem: (xuong: string) => goi<{ suKien: Array<Record<string, unknown>>; trangThai: Array<Record<string, unknown>>; soCanXuLy?: number; soChiDeBiet?: number }>('GET', `/api/xuong/can-xem?${q({ xuong })}`),
+  canXem: (xuong: string) => goi<{ suKien: Array<Record<string, unknown>>; trangThai: Array<Record<string, unknown>>; soCanXuLy?: number; soChiDeBiet?: number; catBot?: boolean }>('GET', `/api/xuong/can-xem?${q({ xuong })}`),
   huy: (suKienId: string, lyDo?: string) => goi<unknown>('POST', '/api/xuong/huy', { suKienId, lyDo }),
   hex: (hex: string) => goi<ChiTietHex>('GET', `/api/xuong/hex/${encodeURIComponent(hex)}`),
   tomTat: (hexes: string[]) => goi<{ tomTat: Record<string, TomTatHex> }>('POST', '/api/xuong/hex-tom-tat', { hexes }),
+  /** Bản đồ vị trí MRA theo HEX; gửi ver đang có để máy chủ trả { same: true } khi chưa đổi */
+  viTriBop: (ver?: string) => goi<KetQuaViTriBop>('GET', '/api/xuong/vi-tri-bop' + (ver ? '?ver=' + encodeURIComponent(ver) : '')),
   dsTrienKhai: (xuong: string, opt: { q?: string; chua?: boolean; hex?: string } = {}) =>
     goi<DanhSachTrienKhai>('GET', `/api/xuong/trien-khai?${q({ xuong, q: opt.q, chua: opt.chua ? '1' : undefined, hex: opt.hex })}`),
   dsCongNhan: (xuong: string) => goi<{ congNhan: CongNhanXuong[] }>('GET', `/api/xuong/cong-nhan?${q({ xuong })}`),
@@ -343,6 +375,8 @@ export const xuongSetupApi = {
   napCongNhan: (rows: DongNapNhanSu[], nghiNguoiVang: boolean) =>
     goi<{ daNap: number; boQua: number; nghi: number; loi: string[]; toKhongKhop: string[] }>('POST', '/api/xuong/cong-nhan/nap', { rows, nghiNguoiVang }),
   baoCao: (xuong: string, tu: string, den: string) => goi<BaoCaoXuong>('GET', `/api/xuong/bao-cao?${q({ xuong, tu, den })}`),
+  /** Tính dần ngày-tổ còn thiếu (nhẹ, không trả báo cáo): mỗi lượt tối đa 30 ngày-tổ */
+  baoCaoTinh: (xuong: string, tu: string, den: string) => goi<{ conThieu: number; banLuu: boolean }>('GET', `/api/xuong/bao-cao/tinh?${q({ xuong, tu, den })}`),
   phanTich: (xuong: string, tu: string, den: string) => goi<PhanTichXuong>('GET', `/api/xuong/phan-tich?${q({ xuong, tu, den })}`),
   keHoachTuan: (xuong: string, nam: number, tuan: number) =>
     goi<KeHoachTuan>('GET', `/api/xuong/ke-hoach-tuan?${q({ xuong, nam: String(nam), tuan: String(tuan) })}`),

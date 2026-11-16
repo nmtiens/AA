@@ -117,7 +117,7 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
           </div>
           <button className={`${NUT_PHU} shrink-0`} onClick={onQuet} aria-label="Quét phiếu"><ScanLine size="1.25em" /></button>
         </div>
-        <button type="button" onClick={doiBanPhim} className="text-base font-medium text-slate-600 underline underline-offset-4">
+        <button type="button" onClick={doiBanPhim} className="inline-flex min-h-14 items-center text-base font-medium text-slate-600 underline underline-offset-4">
           {banPhimChu ? 'Gõ mã số' : 'Tìm theo tên hạng mục / công trình'}
         </button>
         {goiY && !hex && (

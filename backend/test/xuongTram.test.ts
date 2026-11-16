@@ -6,6 +6,7 @@ import {
 import { tinhTrangThai } from '../src/server/xuong/state.js';
 import { cuaSoTrongNgay, phanBoGioCong } from '../src/server/xuong/allocation.js';
 import { doanCoMat } from '../src/server/xuong/chamCong.js';
+import { coMatSuaNgay } from '../src/routes/xuongTram.js';
 import { pairKey, type LichCaRow, type SuKien } from '../src/server/xuong/types.js';
 
 // Trạm quét theo tổ (docs/designs/xuong-tram-quet.md): sổ trạm → đoạn ở hàng, soNguoi có tên, doanChay, state
@@ -319,5 +320,28 @@ describe('coSuaNgay — cờ màn Sửa ngày', () => {
     assert.deepEqual(coSuaNgay([], [{ start: t('07:30'), end: null }], CUOI_NGAY), ['khong_vao_hang']);
     const gon = chuyenDoiTram([vao('NV1', A, t('07:30')), raCa('NV1', t('11:00'))], { now: CUOI_NGAY, cuaSoTheoTo: CUA_SO });
     assert.deepEqual(coSuaNgay(gon.doanNguoi, [{ start: t('07:30'), end: t('11:00') }], CUOI_NGAY), []);
+  });
+});
+
+describe('coMatSuaNgay — có mặt ở màn Sửa ngày', () => {
+  it('ngày chế độ trạm: người chỉ được điểm danh tay, không vào hàng → có trong danh sách, nguồn app, cờ không vào hàng', () => {
+    const cm = coMatSuaNgay([], [vaoCa('NV9', t('07:30'), false)]);
+    assert.deepEqual(cm, [{ mnv: 'NV9', start: t('07:30'), end: null, loaiCa: 'chinh', nguon: 'diem_danh_app' }]);
+    assert.deepEqual(coSuaNgay([], cm.filter(d => d.mnv === 'NV9'), CUOI_NGAY), ['khong_vao_hang']);
+  });
+  it('ngày song song (nơi gọi không truyền điểm danh tay): chỉ người quét ở trạm', () => {
+    assert.deepEqual(coMatSuaNgay([vaoCa('NV1', t('07:30'))], []).map(d => [d.mnv, d.nguon]), [['NV1', 'tram']]);
+  });
+  it('giữ loại ca từng đoạn; điểm danh tay trùng giờ lượt quét trạm cùng ca thì bỏ', () => {
+    const tc = ev({ loai: 'vao_ca', duLieu: { loaiCa: 'ca1', nguoi: [{ mnv: 'NV1' }], mnv: 'NV1', tram: true } }, t('16:15'));
+    const cm = coMatSuaNgay([vaoCa('NV1', t('07:30')), raCa('NV1', t('15:45')), tc], [vaoCa('NV1', t('07:35'), false)]);
+    assert.deepEqual(cm.map(d => [d.loaiCa, d.nguon, d.end]), [['chinh', 'tram', t('15:45')], ['ca1', 'tram', null]]);
+  });
+  it('vào ca tay, ra ca ở trạm → một đoạn đã đóng, nguồn app; vào ở trạm, ra tay → đoạn trạm đóng theo lượt ra tay', () => {
+    const cm = coMatSuaNgay([raCa('NV1', t('15:45'))], [vaoCa('NV1', t('07:30'), false)]);
+    assert.deepEqual(cm, [{ mnv: 'NV1', start: t('07:30'), end: t('15:45'), loaiCa: 'chinh', nguon: 'diem_danh_app' }]);
+    const raTay = ev({ loai: 'ra_ca', duLieu: { loaiCa: 'chinh', nguoi: [{ mnv: 'NV2' }] } }, t('15:00'));
+    const cm2 = coMatSuaNgay([vaoCa('NV2', t('07:30'))], [raTay]);
+    assert.deepEqual(cm2.map(d => [d.nguon, d.end]), [['tram', t('15:00')]]);
   });
 });

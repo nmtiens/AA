@@ -5,7 +5,7 @@ import { authXuong } from '../../../services/xuongClock';
 import { tramQuanLyApi, type SuaNgayData, type DoanNguoiSua } from '../../../services/xuongTramApi';
 import type { SuKienNhap } from '../../../services/xuongQueue';
 import { hhmm, mocTrongNgay, type DongViec } from '../../../services/xuongModel';
-import { ngayCa } from '../../../utils/xuongTheNv';
+import { ngayCa, type LoaiCaTram } from '../../../utils/xuongTheNv';
 import { NUT_CHINH, NUT_PHU, MAU } from './xuongUi';
 
 // ============================================================================
@@ -25,6 +25,21 @@ const TEN_KET_THUC: Record<string, string> = {
 
 const doiNgay = (ngay: string, d: number) => new Date(Date.parse(`${ngay}T12:00:00+07:00`) + d * 86_400_000).toISOString().slice(0, 10);
 
+/** Đoạn có mặt (máy chủ gắn loại ca cho từng đoạn) */
+type DoanCoMat = SuaNgayData['nguoi'][number]['coMat'][number] & { loaiCa?: LoaiCaTram };
+/** Các loại ca người đó còn đoạn có mặt đang mở (chưa ra ca) — ghi hộ Ra ca đóng từng ca */
+const caDangMo = (coMat: DoanCoMat[]): LoaiCaTram[] => [...new Set(coMat.filter(c => c.end === null).map(c => c.loaiCa ?? 'chinh'))];
+/** Hạng mục để ghi hộ vào: hàng tổ đang làm + hàng có người làm trong ngày đang xem (ngày cũ có thể đã xong) */
+function hangGhiHo(dong: DongViec[], data: SuaNgayData, ngayCu: boolean): Array<{ hex: string; congDoanId: string; tenHangMuc: string | null }> {
+  const out = new Map<string, { hex: string; congDoanId: string; tenHangMuc: string | null }>();
+  for (const r of ngayCu ? dong : dong.filter(x => x.slNhan > x.slHoanThanh)) out.set(`${r.hex}|${r.congDoanId}`, { hex: r.hex, congDoanId: r.congDoanId, tenHangMuc: r.tenHangMuc ?? null });
+  for (const d of data.nguoi.flatMap(n => n.doan)) {
+    const k = `${d.hex}|${d.congDoanId}`;
+    if (!out.has(k) || !out.get(k)!.tenHangMuc) out.set(k, { hex: d.hex, congDoanId: d.congDoanId, tenHangMuc: d.tenHangMuc ?? out.get(k)?.tenHangMuc ?? null });
+  }
+  return [...out.values()];
+}
+
 export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
   toId: number;
   /** Hạng mục của tổ (để ghi hộ vào hàng) */
@@ -36,7 +51,7 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
   const [ngay, setNgay] = useState<string | null>(null);
   const [data, setData] = useState<SuaNgayData | null>(null);
   const [loi, setLoi] = useState('');
-  const [ghiHo, setGhiHo] = useState<{ mnv: string; hoTen: string } | null>(null);
+  const [ghiHo, setGhiHo] = useState<{ mnv: string; hoTen: string; caMo: LoaiCaTram[] } | null>(null);
 
   const tai = useCallback(() => {
     setLoi('');
@@ -83,7 +98,7 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
           <li key={n.mnv} className="rounded-2xl border border-slate-200 p-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <p className="text-lg font-semibold text-slate-900">{n.hoTen} <span className="text-base font-normal text-slate-600">{n.mnv}</span></p>
-              {data.suaDuoc && <button className={NUT_PHU} onClick={() => setGhiHo({ mnv: n.mnv, hoTen: n.hoTen })}>Ghi hộ</button>}
+              {data.suaDuoc && <button className={NUT_PHU} onClick={() => setGhiHo({ mnv: n.mnv, hoTen: n.hoTen, caMo: caDangMo(n.coMat) })}>Ghi hộ</button>}
             </div>
             {n.co.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -105,7 +120,7 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
         ))}
       </ul>
       {ghiHo && data && ngay && (
-        <GhiHo nguoi={ghiHo} ngay={ngay} dong={dong} onDong={() => setGhiHo(null)}
+        <GhiHo nguoi={ghiHo} ngay={ngay} ds={hangGhiHo(dong, data, ngay < ngayCa(now))} onDong={() => setGhiHo(null)}
           onGhi={async (evs, moTa) => {
             const ok = await onGhi(evs.map(e => ({ ...e, toId, duLieu: { ...(e.duLieu ?? {}), mnv: ghiHo.mnv, tram: true } })), moTa);
             if (ok) { setGhiHo(null); setTimeout(tai, 1500); }
@@ -140,24 +155,28 @@ function DongDoan({ d, suaDuoc, onHuy, onDung, onSai }: {
   );
 }
 
-/** Ghi hộ một người: vào hàng / ra hàng / ra ca lúc HH:MM của ngày đang xem */
-function GhiHo({ nguoi, ngay, dong, onGhi, onDong }: {
-  nguoi: { mnv: string; hoTen: string }; ngay: string; dong: DongViec[];
+/** Ghi hộ một người: vào hàng / ra hàng / ra ca lúc HH:MM của ngày đang xem (trước 06:00 = rạng sáng hôm sau, ca qua đêm) */
+function GhiHo({ nguoi, ngay, ds, onGhi, onDong }: {
+  /** caMo: loại ca người đó còn đoạn có mặt đang mở */
+  nguoi: { mnv: string; hoTen: string; caMo: LoaiCaTram[] }; ngay: string;
+  ds: Array<{ hex: string; congDoanId: string; tenHangMuc: string | null }>;
   onGhi: (evs: SuKienNhap[], moTa: string) => Promise<void>; onDong: () => void;
 }) {
   const [loai, setLoai] = useState<'nguoi_vao' | 'nguoi_ra' | 'ra_ca'>('nguoi_vao');
   const [hang, setHang] = useState('');
   const [gio, setGio] = useState(() => hhmm(Date.now()));
-  const luc = /^\d{2}:\d{2}$/.test(gio) ? mocTrongNgay(ngay, gio) : NaN;
-  const hopLe = Number.isFinite(luc) && luc <= Date.now() && (loai !== 'nguoi_vao' || !!hang);
-  const ds = dong.filter(r => r.slNhan > r.slHoanThanh);
+  // Ngày ca từ 06:00 tới 06:00 hôm sau
+  const luc = /^\d{2}:\d{2}$/.test(gio) ? mocTrongNgay(gio < '06:00' ? doiNgay(ngay, 1) : ngay, gio) : NaN;
+  const hopLe = Number.isFinite(luc) && luc <= Date.now() && (loai !== 'nguoi_vao' || !!hang) && (loai !== 'ra_ca' || nguoi.caMo.length > 0);
   const ghi = () => {
     if (!hopLe) return;
     const [hex, congDoanId] = hang.split('|');
     const ten = ds.find(r => `${r.hex}|${r.congDoanId}` === hang)?.tenHangMuc ?? hex;
     if (loai === 'nguoi_vao') void onGhi([{ loai, hex, congDoanId, lucXayRa: luc }], `Ghi hộ ${nguoi.hoTen} vào ${ten} lúc ${gio}`);
     else if (loai === 'nguoi_ra') void onGhi([{ loai, lucXayRa: luc }], `Ghi hộ ${nguoi.hoTen} ra khỏi hàng lúc ${gio}`);
-    else void onGhi([{ loai: 'nguoi_ra', lucXayRa: luc }, { loai: 'ra_ca', lucXayRa: luc, duLieu: { loaiCa: 'chinh', nguoi: [{ mnv: nguoi.mnv }] } }],
+    // Ra ca: đóng mọi ca người đó còn mở (vd ca chính + tăng ca)
+    else void onGhi([{ loai: 'nguoi_ra', lucXayRa: luc },
+      ...nguoi.caMo.map(loaiCa => ({ loai: 'ra_ca' as const, lucXayRa: luc, duLieu: { loaiCa, nguoi: [{ mnv: nguoi.mnv }] } }))],
       `Ghi hộ ${nguoi.hoTen} ra ca lúc ${gio}`);
   };
   return (
@@ -165,9 +184,11 @@ function GhiHo({ nguoi, ngay, dong, onGhi, onDong }: {
       <p className="text-lg font-semibold text-slate-900">Ghi hộ {nguoi.hoTen}</p>
       <div className="grid grid-cols-3 gap-2">
         {([['nguoi_vao', 'Vào hàng'], ['nguoi_ra', 'Ra hàng'], ['ra_ca', 'Ra ca']] as const).map(([k, t]) => (
-          <button key={k} className={loai === k ? NUT_CHINH.replace('h-16', 'h-14') : NUT_PHU} onClick={() => setLoai(k)}>{t}</button>
+          <button key={k} className={loai === k ? NUT_CHINH.replace('h-16', 'h-14') : NUT_PHU} onClick={() => setLoai(k)}
+            disabled={k === 'ra_ca' && !nguoi.caMo.length}>{t}</button>
         ))}
       </div>
+      {!nguoi.caMo.length && <p className="text-base text-slate-600">Đã ra ca (không còn ca đang mở).</p>}
       {loai === 'nguoi_vao' && (
         <select className="h-14 w-full rounded-2xl border border-slate-300 px-3 text-base" value={hang} onChange={e => setHang(e.target.value)} aria-label="Hạng mục">
           <option value="">— Chọn hạng mục —</option>

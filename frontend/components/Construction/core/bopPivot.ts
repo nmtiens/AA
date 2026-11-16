@@ -7,7 +7,7 @@
 // chưa đủ) + TỔNG + Kho lũy kế (Đã nhập P022 · Đã xuất P025 · Tồn kho · Chênh · Xuất vượt nhập).
 // ============================================================================
 import type { DataRow } from '../../../types';
-import { extractStage, remainBucketOf, type RemainBucket } from '../../Dashboard/core/stages';
+import { extractStage, laDongMra, remainBucketOf, type RemainBucket } from '../../Dashboard/core/stages';
 import { parseNumber } from '../../Dashboard/utils/numberParsers';
 import { BOP_STAGE_ORDER, stageRank, isQtyComplete, remainValue, doneValue } from '../../../utils/productionMetrics';
 import { fmtInt, fmtTy } from '../../../utils/format';
@@ -177,7 +177,7 @@ export function mucBopTuDong(row: DataRow, k: KhoaMucBop): MucBop {
   return {
     stage,
     // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
-    bucket: open || remain > 0 ? remainBucketOf(status, stage) : null,
+    bucket: open || remain > 0 ? remainBucketOf(status, stage, laDongMra(row)) : null,
     open,
     total,
     inv: doneValue(total, nk),

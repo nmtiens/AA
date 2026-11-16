@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Play, Pause, Circle, Inbox, PackageCheck, AlertTriangle, Clock, Check } from 'lucide-react';
 import { cauCo, chayTu, hienSl, tenGon, tenLyDo, type DongViec, type CongNhanTo } from '../../../services/xuongModel';
 import { CHU_PHU, MAU } from './xuongUi';
@@ -38,6 +38,8 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
   congNhan?: CongNhanTo[];
 }) {
   const m = META[r.trangThai] ?? META.da_nhan;
+  // Chạm tên để xem đủ tên hạng mục / công trình (mặc định gọn để thấy nhiều hạng mục)
+  const [moRong, setMoRong] = useState(false);
   const Icon = m.icon;
   const coThay = r.co.map(c => cauCo(c, r)).filter((x): x is string => !!x);
   const dvt = r.dvt ? ` ${r.dvt}` : '';
@@ -56,9 +58,13 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
             {r.hex}
             {tenCongDoan && <span className="ml-2 text-base font-normal text-slate-600">· {tenCongDoan}</span>}
           </p>
-          {/* Gọn để màn điện thoại thấy được nhiều hạng mục: tên tối đa 2 dòng, công trình 1 dòng (chạm hạng mục / Tra cứu để xem đủ) */}
-          {r.tenHangMuc && <p className="line-clamp-2 break-words text-base text-slate-800" title={r.tenHangMuc}>{r.tenHangMuc}</p>}
-          {r.tenCongTrinh && <p className={`truncate ${CHU_PHU}`} title={r.tenCongTrinh}>{r.tenCongTrinh}</p>}
+          {/* Gọn để màn điện thoại thấy được nhiều hạng mục: tên tối đa 2 dòng, công trình 1 dòng — chạm tên để xem đủ */}
+          {(r.tenHangMuc || r.tenCongTrinh) && (
+            <button type="button" aria-expanded={moRong} onClick={() => setMoRong(v => !v)} className="block w-full min-w-0 text-left">
+              {r.tenHangMuc && <span className={`block break-words text-base text-slate-800 ${moRong ? '' : 'line-clamp-2'}`} title={r.tenHangMuc}>{r.tenHangMuc}</span>}
+              {r.tenCongTrinh && <span className={`block ${moRong ? 'break-words' : 'truncate'} ${CHU_PHU}`} title={r.tenCongTrinh}>{r.tenCongTrinh}</span>}
+            </button>
+          )}
         </div>
         <NhanGui gui={gui} />
       </div>
@@ -83,7 +89,8 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
       {coThay.map(c => (
         <p key={c} className={`flex items-center gap-1.5 text-base font-medium ${MAU.loi.chu}`}><AlertTriangle size="1em" aria-hidden /> {c}</p>
       ))}
-      {children && <div className="flex gap-3 pt-1">{children}</div>}
+      {/* Chữ to (cỡ chữ máy lớn) thì nút tự xuống hàng, không bóp chữ */}
+      {children && <div className="flex flex-wrap gap-3 pt-1">{children}</div>}
     </li>
   );
 }

@@ -24,6 +24,103 @@ import XuongHexChiTiet from '../../../Xuong/XuongHexChiTiet';
 import { ModalShell } from '../../../shared/ModalShell';
 import * as bang from '../../../shared/bangBaoCao';
 import { chenCotSoHex, soHex, tongHex, type KhoaSoHex, type SoHex } from '../../core/chiTietHex';
+import { extractStage } from '../../core/stages';
+
+// ---------------------------------------------------------------------------
+// Vị trí công đoạn từ MRA (POST /api/xuong/hex-tom-tat) — dùng chung cho Chi tiết theo Hex,
+// cửa sổ chi tiết hạng mục (Báo cáo tiến độ) và Tra cứu HEX.
+// Trường tu / xong / daTrienKhai tùy chọn: máy chủ cũ chưa trả thì chỉ hiện phần có dữ liệu.
+// ---------------------------------------------------------------------------
+
+const TEN_TRANG_THAI_MRA: Record<string, string> = {
+  dang_lam: 'Đang làm', da_nhan: 'Đã nhận', tam_ngung: 'Tạm ngưng', cho_giao: 'Chờ giao', cho_nhan: 'Chờ nhận', xong: 'Xong',
+};
+// Nhiều công đoạn đang mở: ưu tiên chỗ đang làm thật
+const THU_TU_TRANG_THAI_MRA = ['dang_lam', 'da_nhan', 'tam_ngung', 'cho_giao', 'cho_nhan'];
+
+/** Thời gian kể từ mốc `tu` tới giờ: "3 ngày", "5 giờ", "dưới 1 giờ"; mốc hỏng => '' */
+export const thoiGianTuMra = (tu: string | null | undefined, now = Date.now()): string => {
+  const t = tu ? Date.parse(tu) : NaN;
+  if (!Number.isFinite(t)) return '';
+  const ms = Math.max(0, now - t);
+  const ngay = Math.floor(ms / 86_400_000);
+  if (ngay >= 1) return `${ngay} ngày`;
+  const gio = Math.floor(ms / 3_600_000);
+  return gio >= 1 ? `${gio} giờ` : 'dưới 1 giờ';
+};
+
+/** Một dòng ngắn "công đoạn · trạng thái · thời gian": đang làm => "Đang làm 3 ngày" (từ lúc bắt đầu chạy), trạng thái
+ *  khác => "thao tác cuối 3 ngày trước". Hết công đoạn đang mở: 'xong' khi chắc chắn; chờ xưởng phụ khai; 'xong một
+ *  phần' chỉ khi máy chủ trả slXong; còn lại câu trung tính (vẫn mở được chi tiết). Không có dữ liệu xưởng => null. */
+export const dongXuongMra = (t: TomTatHex | undefined, now = Date.now()): string | null => {
+  if (!t) return null;
+  const hang = (s: string) => { const i = THU_TU_TRANG_THAI_MRA.indexOf(s); return i < 0 ? 99 : i; };
+  const o = [...t.dangO].sort((a, b) => hang(a.trangThai) - hang(b.trangThai))[0];
+  if (o) {
+    const tg = thoiGianTuMra(o.tu, now);
+    const tt = TEN_TRANG_THAI_MRA[o.trangThai] ?? o.trangThai;
+    const dong = [o.ten || o.xuong || 'Công đoạn',
+      o.trangThai === 'dang_lam' ? [tt, tg].filter(Boolean).join(' ') : tt,
+      o.trangThai !== 'dang_lam' && tg ? `thao tác cuối ${tg} trước` : '']
+      .filter(Boolean).join(' · ');
+    return t.dangO.length > 1 ? `${dong} (+${t.dangO.length - 1} công đoạn)` : dong;
+  }
+  if (t.xong === true) return 'xong';
+  if (t.choKhai) return 'chờ xưởng phụ khai công đoạn';
+  const daTk = t.daTrienKhai ?? 0;
+  if (t.slXong !== undefined && t.slXong > 0 && t.slXong < daTk) return 'xong một phần';
+  if (daTk > 0) return 'chưa rõ công đoạn tiếp';
+  return t.soCongDoan > 0 ? 'hết công đoạn đang mở' : null;
+};
+
+// ---------------------------------------------------------------------------
+// Nguồn vị trí BOP của 1 dòng sản xuất: dòng đã phủ MRA có nguon_bop = 'MRA', giữ BOP PC ở bop_pc,
+// tên CĐ ở mra_cd, mốc ở mra_tu (core/viTriMra.ts). Không có nguon_bop = theo kiểm tay PC.
+// Dùng chung cho Chi tiết theo Hex, Chi tiết hạng mục (BOP × BOT), Tra cứu HEX, bảng BOP công trình.
+// ---------------------------------------------------------------------------
+
+type DongBop = Record<string, unknown> | null | undefined;
+export const laNguonMra = (row: DongBop): boolean => row?.nguon_bop === 'MRA';
+
+const ngayThang = (iso: unknown): string => {
+  const t = typeof iso === 'string' ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+/** Chữ rê chuột nhãn MRA: "MRA · Mộc, Sơn · từ 03/11" */
+export const tieuDeMra = (row: DongBop): string => {
+  const ngay = ngayThang(row?.mra_tu);
+  return ['MRA', String(row?.mra_cd ?? '').trim(), ngay ? `từ ${ngay}` : ''].filter(Boolean).join(' · ');
+};
+
+/** BOP PC của dòng đã phủ khi khác công đoạn đang hiện; trùng công đoạn / không phủ => null */
+export const bopPcKhac = (row: DongBop, bopKey = 'bop'): string | null => {
+  if (!laNguonMra(row)) return null;
+  const pc = String(row?.bop_pc ?? '').trim();
+  if (pc && extractStage(pc) === extractStage(row?.[bopKey])) return null;
+  return pc || '(trống)';
+};
+
+/** Nhãn nhỏ "MRA" (rê chuột: tên CĐ + ngày bắt đầu) */
+export const NhanMra: React.FC<{ row: DongBop; className?: string }> = ({ row, className = '' }) => (
+  <span title={tieuDeMra(row)}
+    className={`inline-block rounded bg-emerald-50 px-1 align-middle text-[0.625rem] font-semibold leading-4 text-emerald-700 ${className}`}>
+    MRA
+  </span>
+);
+
+/** Dòng mờ dưới BOP: "PC (kiểm tay): …" khi MRA khác PC; dòng không phủ => "theo kiểm tay PC" (khi hienPc) */
+export const DongNguonBop: React.FC<{ row: DongBop; bopKey?: string; hienPc?: boolean; className?: string }> = ({
+  row, bopKey = 'bop', hienPc = true, className = '',
+}) => {
+  if (laNguonMra(row)) {
+    const pc = bopPcKhac(row, bopKey);
+    return pc ? <span className={`block text-[0.625rem] font-normal text-slate-400 ${className}`}>PC (kiểm tay): {pc}</span> : null;
+  }
+  return hienPc ? <span className={`block text-[0.625rem] font-normal text-slate-400 ${className}`}>theo kiểm tay PC</span> : null;
+};
 
 export interface HexDetailColumnKeys {
   hexKey: string;
@@ -512,6 +609,9 @@ export const HexDetailModal = ({
   const [materialCountByHex, setMaterialCountByHex] = useState<Record<string, number> | null>(null);
   // Mục Xưởng: hạng mục đang ở công đoạn nào (chỉ hex đã có dữ liệu xưởng) + hex đang mở chi tiết
   const [xuongTomTat, setXuongTomTat] = useState<Record<string, TomTatHex>>({});
+  // Gọi tóm tắt xưởng lỗi: hiện chữ xám "chưa tải được" thay vì im lặng như hex chưa có dữ liệu
+  // Hex thuộc lô tải tóm tắt xưởng bị lỗi
+  const [xuongLoi, setXuongLoi] = useState<Set<string>>(() => new Set());
   const [xuongHex, setXuongHex] = useState<string | null>(null);
   // Mặc định hiện ĐỦ hex (khớp số ở bảng ngoài)
   const [materialFilter, setMaterialFilter] = useState<MaterialFilter>('all');
@@ -563,15 +663,17 @@ export const HexDetailModal = ({
 
   useEffect(() => {
     setXuongTomTat({});
+    setXuongLoi(new Set());
     if (!isOpen || hexList.length === 0) return;
     let huy = false;
-    // API nhận tối đa 1000 hex / lần: chia lô rồi gộp
+    // API nhận tối đa 1000 hex / lần: chia lô rồi gộp; chỉ hex thuộc lô lỗi mới báo "chưa tải được"
     const lo: string[][] = [];
     for (let i = 0; i < hexList.length; i += 1000) lo.push(hexList.slice(i, i + 1000));
     Promise.all(lo.map(x => xuongSetupApi.tomTat(x))).then(rs => {
       if (huy) return;
       setXuongTomTat(Object.assign({}, ...rs.map(r => (r.ok ? r.data.tomTat : {}))));
-    });
+      setXuongLoi(new Set(lo.filter((_, i) => !rs[i].ok).flat()));
+    }, () => { if (!huy) setXuongLoi(new Set(hexList)); });
     return () => { huy = true; };
   }, [isOpen, hexList]);
 
@@ -771,6 +873,8 @@ export const HexDetailModal = ({
     () => filteredRows.map((row, i) => ({ row, stt: i + 1 })),
     [filteredRows]
   );
+  // Có dòng lấy vị trí từ MRA => dòng còn lại ghi rõ "theo kiểm tay PC" (không có dòng MRA thì khỏi ghi)
+  const coMra = useMemo(() => rows.some(laNguonMra), [rows]);
 
   const sortedRows = useMemo(() => {
     if (!sort) return indexedRows;
@@ -840,6 +944,7 @@ export const HexDetailModal = ({
     'Hạng Mục',
     'Khu Vực SX',
     'BOP',
+    ...(coMra ? ['Nguồn BOP', 'BOP PC (kiểm tay)'] : []),
     'Tình Trạng',
     'Phân Loại Nhóm Sản Phẩm',
     'Trị Giá Đơn Hàng Tổng (Triệu đồng)',
@@ -886,6 +991,10 @@ export const HexDetailModal = ({
       'Hạng Mục': String(row[hangMucKey] || ''),
       'Khu Vực SX': String(row[xuongKey] || ''),
       'BOP': String(row[bopKey] || ''),
+      ...(coMra ? {
+        'Nguồn BOP': laNguonMra(row) ? 'MRA' : 'PC',
+        'BOP PC (kiểm tay)': String((laNguonMra(row) ? row.bop_pc : row[bopKey]) || ''),
+      } : {}),
       'Tình Trạng': String(row[tinhTrangKey] || ''),
       'Phân Loại Nhóm Sản Phẩm': String(row[phanLoaiNhomSanPhamKey] || ''),
       'Trị Giá Đơn Hàng Tổng (Triệu đồng)': parseNumber(row[triGiaDonHangTongKey]),
@@ -1042,7 +1151,13 @@ export const HexDetailModal = ({
         return oChu(key, row[xuongKey]);
 
       case 'bop':
-        return oChu(key, row[bopKey]);
+        return (
+          <td key={key} className={`${bang.tdB} break-words group-hover:bg-slate-50`}>
+            {String(row[bopKey] || '—')}
+            {laNguonMra(row) && <NhanMra row={row} className="ml-1" />}
+            <DongNguonBop row={row} bopKey={bopKey} hienPc={coMra} />
+          </td>
+        );
 
       case 'tinhTrang':
         return oChu(key, row[tinhTrangKey]);
@@ -1319,14 +1434,19 @@ export const HexDetailModal = ({
                               </button>
                             ) : '—'}
                             {s.huy && <span className="ml-1 rounded bg-red-50 px-1 text-[0.625rem] font-semibold text-red-700">HỦY</span>}
-                            {row[hexKey] && xuongTomTat[String(row[hexKey])] && (() => {
-                              const t = xuongTomTat[String(row[hexKey])];
-                              const o = t.dangO[0];
+                            {row[hexKey] && (() => {
+                              const h = String(row[hexKey]);
+                              const dong = dongXuongMra(xuongTomTat[h]);
+                              if (!dong) {
+                                return xuongLoi.has(h) && !xuongTomTat[h]
+                                  ? <span className="mt-0.5 block text-[0.6875rem] font-normal text-slate-400">Xưởng: chưa tải được</span>
+                                  : null;
+                              }
                               return (
-                                <button type="button" onClick={() => setXuongHex(String(row[hexKey]))}
+                                <button type="button" onClick={() => setXuongHex(h)}
                                   title="Xem tiến độ ở xưởng: công đoạn, số lượng, giờ công"
                                   className="mt-0.5 block text-left text-[0.6875rem] font-normal text-emerald-700 hover:underline">
-                                  {o ? `Xưởng: ${o.ten ?? ''}${t.dangO.length > 1 ? ` +${t.dangO.length - 1}` : ''}` : 'Xưởng: xong'}
+                                  Xưởng: {dong}
                                 </button>
                               );
                             })()}

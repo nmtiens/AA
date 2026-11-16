@@ -9,11 +9,11 @@ import { doanCoMat, chuanMnv } from '../server/xuong/chamCong.js';
 import { suKienConHieuLuc } from '../server/xuong/state.js';
 import { CHE_DO_CHAM, cheDoTheoNgay, coSuaNgay, laSuKienTram, mnvCua, ngayCa, nhomLanTruoc, diemDanhTayChuaHuy, type CheDoCham, type NguonDoan } from '../server/xuong/tram.js';
 import { nguoiTrongSuKien } from '../server/xuong/chamCong.js';
-import { pairKey, type SuKien } from '../server/xuong/types.js';
+import { pairKey, type LoaiCa, type SuKien } from '../server/xuong/types.js';
 import {
   fail, coQuyenXuong, xuongQuanLy, quanLyDuoc, quyenXuongCua, phamViTuQuyen, COT_SU_KIEN, toSuKien, suKienTheoHex,
   suKienSchema, kiemTraTheoLoai, ghiVaTinhLai, thongTinHangMuc, lichCaCuaXuong, coBangTram, mocCheDo, gioiHanNhan,
-  soTram, nguoiDungTheoId, tenNguoi, type Row, type SuKienVao,
+  soTram, nguoiDungTheoId, tenNguoi, khoaCap, type Row, type SuKienVao,
 } from './xuong.js';
 
 // ============================================================================
@@ -365,25 +365,6 @@ app.post('/api/xuong/tram/may/events', async (req: Request, res: Response) => {
       poolMra.query('SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1', [t.toId]),
     ]);
     const cdCuaTo = new Set(cdRows.rows.map(x => String(x.cong_doan_id)));
-    // Số lượng từng cặp (giao tới / đã nhận / đã xong), cập nhật dần theo thứ tự trong lô: Nhận rồi vào hàng cùng lô được
-    const capLo = [...new Map(hopLe.filter(e => ['nguoi_vao', 'nhan', 'hoan_thanh'].includes(e.loai) && e.hex && e.congDoanId)
-      .map(e => [pairKey(e.hex!, e.congDoanId!), [e.hex!, e.congDoanId!] as [string, string]])).values()];
-    const soCap = new Map<string, { den: number; nhan: number; ht: number }>();
-    const lamDuoc = new Set<string>();
-    let ghNhan = new Map<string, { moc: number | null; daNhan: number }>();
-    if (capLo.length) {
-      const tt = await poolMra.query(
-        `SELECT t.hex, t.cong_doan_id, t.sl_giao_den, t.sl_nhan, t.sl_hoan_thanh FROM xuong_trang_thai t
-         JOIN unnest($1::text[], $2::text[]) AS c(hex, cd) ON c.hex = t.hex AND c.cd = t.cong_doan_id`,
-        [capLo.map(x => x[0]), capLo.map(x => x[1])]);
-      for (const x of tt.rows) {
-        const k = pairKey(String(x.hex), String(x.cong_doan_id));
-        soCap.set(k, { den: Number(x.sl_giao_den), nhan: Number(x.sl_nhan), ht: Number(x.sl_hoan_thanh) });
-        if (Number(x.sl_nhan) > Number(x.sl_hoan_thanh) + SAI_SO) lamDuoc.add(k);
-      }
-      if (hopLe.some(e => e.loai === 'nhan')) ghNhan = await gioiHanNhan(poolMra, capLo.filter(([h, c]) => hopLe.some(e => e.loai === 'nhan' && e.hex === h && e.congDoanId === c)));
-    }
-    const ctx = { congNhan: new Set(cn.rows.map(x => String(x.mnv))), cdCuaTo, lamDuoc };
     // Khai hộ vào hàng chỉ cho người đã điểm danh vào ca (tự quét thẻ ở trạm hoặc tổ trưởng điểm danh, trong ngày ca) —
     // không ghi hộ người vắng
     const duocKhai = hopLe.filter(e => typeof e.duLieu?.khaiBoi === 'string').map(e => mnvCua({ duLieu: e.duLieu ?? null })).filter((x): x is string => !!x);
@@ -401,52 +382,79 @@ app.post('/api/xuong/tram/may/events', async (req: Request, res: Response) => {
       for (const x of r.rows) daVaoCa.add(String(x.mnv));
     }
 
-    const ghi: Row[] = [];
-    for (const e of hopLe) {
-      const why = kiemTraSuKienTram(e, ctx);
-      if (why) { tuChoi.push({ id: e.id, reason: why }); continue; }
-      const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
-      const co = ['tram', ...gio.co];
-      if (e.duLieu?.ngoaiCa === true) co.push('ngoai_ca');
-      // Nhận đủ / Xong hết: số lượng máy chủ tính lúc ghi (chỉ có đủ, không vượt)
-      let soLuong: number | null = null;
-      if (e.loai === 'nhan' || e.loai === 'hoan_thanh') {
-        const k = pairKey(e.hex!, e.congDoanId!);
-        const c = soCap.get(k) ?? { den: 0, nhan: 0, ht: 0 };
-        if (e.loai === 'nhan') {
-          let con = c.den - c.nhan;
-          const g = ghNhan.get(`${e.hex}|${e.congDoanId}`);
-          if (g && g.moc !== null) con = Math.min(con, g.moc - g.daNhan - (c.nhan - (soCap.get(k)?.nhan ?? 0)));
-          if (con <= SAI_SO) { tuChoi.push({ id: e.id, reason: 'Không còn hàng chờ nhận ở hạng mục này' }); continue; }
-          soLuong = lamTron3(con); c.nhan += soLuong; lamDuoc.add(k); co.push('nhan_du');
-        } else {
-          const con = c.nhan - c.ht;
-          if (con <= SAI_SO) { tuChoi.push({ id: e.id, reason: 'Hạng mục đã xong hết số đã nhận' }); continue; }
-          soLuong = lamTron3(con); c.ht += soLuong; lamDuoc.delete(k); co.push('xong_het');
+    // Đọc số lượng và ghi trong cùng một giao dịch, khoá theo cặp Nhận / Xong trước khi đọc: hai trạm (hoặc trạm và app
+    // tổ trưởng) gửi cùng lúc không nhận / xong vượt
+    const ghi = await withTransactionMra(async client => {
+      await khoaCap(client, hopLe.filter(e => (e.loai === 'nhan' || e.loai === 'hoan_thanh') && e.hex && e.congDoanId)
+        .map(e => [e.hex!, e.congDoanId!] as [string, string]));
+      // Số lượng từng cặp (giao tới / đã nhận / đã xong), cập nhật dần theo thứ tự trong lô: Nhận rồi vào hàng cùng lô được
+      const capLo = [...new Map(hopLe.filter(e => ['nguoi_vao', 'nhan', 'hoan_thanh'].includes(e.loai) && e.hex && e.congDoanId)
+        .map(e => [pairKey(e.hex!, e.congDoanId!), [e.hex!, e.congDoanId!] as [string, string]])).values()];
+      const soCap = new Map<string, { den: number; nhan: number; ht: number }>();
+      const lamDuoc = new Set<string>();
+      let ghNhan = new Map<string, { moc: number | null; daNhan: number }>();
+      if (capLo.length) {
+        const tt = await client.query(
+          `SELECT t.hex, t.cong_doan_id, t.sl_giao_den, t.sl_nhan, t.sl_hoan_thanh FROM xuong_trang_thai t
+           JOIN unnest($1::text[], $2::text[]) AS c(hex, cd) ON c.hex = t.hex AND c.cd = t.cong_doan_id`,
+          [capLo.map(x => x[0]), capLo.map(x => x[1])]);
+        for (const x of tt.rows) {
+          const k = pairKey(String(x.hex), String(x.cong_doan_id));
+          soCap.set(k, { den: Number(x.sl_giao_den), nhan: Number(x.sl_nhan), ht: Number(x.sl_hoan_thanh) });
+          if (Number(x.sl_nhan) > Number(x.sl_hoan_thanh) + SAI_SO) lamDuoc.add(k);
         }
-        soCap.set(k, c);
+        if (hopLe.some(e => e.loai === 'nhan')) ghNhan = await gioiHanNhan(client, capLo.filter(([h, c]) => hopLe.some(e => e.loai === 'nhan' && e.hex === h && e.congDoanId === c)));
       }
-      // Một người khai cho cả nhóm làm chung: gắn mã người khai để đối chiếu máy chấm công (R2)
-      if (typeof e.duLieu?.khaiBoi === 'string') {
-        if (e.loai === 'vao_ca') { tuChoi.push({ id: e.id, reason: 'Mỗi người tự quét thẻ vào ca' }); continue; }
-        if (e.loai === 'nguoi_vao' && !daVaoCa.has(mnvCua({ duLieu: e.duLieu })!)) {
-          tuChoi.push({ id: e.id, reason: 'Người này chưa điểm danh vào ca' }); continue;
+      const ctx = { congNhan: new Set(cn.rows.map(x => String(x.mnv))), cdCuaTo, lamDuoc };
+
+      const ghi: Row[] = [];
+      for (const e of hopLe) {
+        const why = kiemTraSuKienTram(e, ctx);
+        if (why) { tuChoi.push({ id: e.id, reason: why }); continue; }
+        const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
+        const co = ['tram', ...gio.co];
+        if (e.duLieu?.ngoaiCa === true) co.push('ngoai_ca');
+        // Nhận đủ / Xong hết: số lượng máy chủ tính lúc ghi (chỉ có đủ, không vượt)
+        let soLuong: number | null = null;
+        if (e.loai === 'nhan' || e.loai === 'hoan_thanh') {
+          const k = pairKey(e.hex!, e.congDoanId!);
+          const c = soCap.get(k) ?? { den: 0, nhan: 0, ht: 0 };
+          if (e.loai === 'nhan') {
+            let con = c.den - c.nhan;
+            const g = ghNhan.get(`${e.hex}|${e.congDoanId}`);
+            if (g && g.moc !== null) con = Math.min(con, g.moc - g.daNhan - (c.nhan - (soCap.get(k)?.nhan ?? 0)));
+            if (con <= SAI_SO) { tuChoi.push({ id: e.id, reason: 'Không còn hàng chờ nhận ở hạng mục này' }); continue; }
+            soLuong = lamTron3(con); c.nhan += soLuong; lamDuoc.add(k); co.push('nhan_du');
+          } else {
+            const con = c.nhan - c.ht;
+            if (con <= SAI_SO) { tuChoi.push({ id: e.id, reason: 'Hạng mục đã xong hết số đã nhận' }); continue; }
+            soLuong = lamTron3(con); c.ht += soLuong; lamDuoc.delete(k); co.push('xong_het');
+          }
+          soCap.set(k, c);
         }
-        const kb = chuanMnv(e.duLieu.khaiBoi);
-        if (!ctx.congNhan.has(kb) && !(await laCongNhan(kb))) { tuChoi.push({ id: e.id, reason: 'Người khai không có trong danh sách' }); continue; }
-        e.duLieu.khaiBoi = kb;
-        co.push('khai_ho');
+        // Một người khai cho cả nhóm làm chung: gắn mã người khai để đối chiếu máy chấm công (R2)
+        if (typeof e.duLieu?.khaiBoi === 'string') {
+          if (e.loai === 'vao_ca') { tuChoi.push({ id: e.id, reason: 'Mỗi người tự quét thẻ vào ca' }); continue; }
+          if (e.loai === 'nguoi_vao' && !daVaoCa.has(mnvCua({ duLieu: e.duLieu })!)) {
+            tuChoi.push({ id: e.id, reason: 'Người này chưa điểm danh vào ca' }); continue;
+          }
+          const kb = chuanMnv(e.duLieu.khaiBoi);
+          if (!ctx.congNhan.has(kb) && !(await laCongNhan(kb))) { tuChoi.push({ id: e.id, reason: 'Người khai không có trong danh sách' }); continue; }
+          e.duLieu.khaiBoi = kb;
+          co.push('khai_ho');
+        }
+        ghi.push({
+          id: e.id, loai: e.loai, hex: e.hex ?? null, cong_doan_id: e.congDoanId ?? null, to_id: t.toId, xuong: t.xuong,
+          so_luong: soLuong, cong_doan_den_id: null, cong_doan_nguon_id: null, xuong_nguon: null, so_nguoi: null,
+          ly_do_tam_ngung: null, tien_do: null, ghi_chu: null, du_lieu: e.duLieu,
+          device_ts: new Date(e.deviceTs).toISOString(), lech_ms: e.lechMs === undefined || e.lechMs === null ? null : Math.round(e.lechMs),
+          device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
+          user_id: t.sentBy, user_id_khai: null, sent_by: t.sentBy, device_id: t.deviceId, sua_cho: null, co,
+        });
       }
-      ghi.push({
-        id: e.id, loai: e.loai, hex: e.hex ?? null, cong_doan_id: e.congDoanId ?? null, to_id: t.toId, xuong: t.xuong,
-        so_luong: soLuong, cong_doan_den_id: null, cong_doan_nguon_id: null, xuong_nguon: null, so_nguoi: null,
-        ly_do_tam_ngung: null, tien_do: null, ghi_chu: null, du_lieu: e.duLieu,
-        device_ts: new Date(e.deviceTs).toISOString(), lech_ms: e.lechMs === undefined || e.lechMs === null ? null : Math.round(e.lechMs),
-        device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
-        user_id: t.sentBy, user_id_khai: null, sent_by: t.sentBy, device_id: t.deviceId, sua_cho: null, co,
-      });
-    }
-    if (ghi.length) await withTransactionMra(client => ghiVaTinhLai(client, ghi));
+      if (ghi.length) await ghiVaTinhLai(client, ghi);
+      return ghi;
+    });
     poolMra.query('UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2', [t.deviceId, t.sentBy]).catch(() => {});
     res.json({ success: true, available: true, saved: ghi.map(x => String(x.id)), rejected: tuChoi, serverNow, token: giaHan(req, t) });
   } catch (e) { fail(res, e, '/api/xuong/tram/may/events'); }
@@ -529,6 +537,34 @@ app.get('/api/xuong/to/:id/phan-cong', async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // Sửa ngày (tổ trưởng / quản lý): dòng thời gian từng người — vào ca → các đoạn ở hàng → ra ca, kèm cờ
 // ---------------------------------------------------------------------------
+export interface DoanCoMatSuaNgay { mnv: string; start: number; end: number | null; loaiCa: LoaiCa; nguon: 'tram' | 'diem_danh_app' }
+
+/**
+ * Đoạn có mặt của màn Sửa ngày, giữ loại ca từng đoạn: vào / ra ca ở trạm, cộng điểm danh tay trên app (chỉ truyền ở
+ * ngày chế độ trạm). Hai nguồn gộp rồi dựng đoạn một lần (vào tay, ra ở trạm vẫn thành một đoạn đóng — giống màn trạm);
+ * nguồn của đoạn theo lượt vào ca mở đoạn, cùng giờ thì ưu tiên trạm. Thuần — tách để test.
+ */
+export function coMatSuaNgay(ddTram: SuKien[], ddTay: SuKien[]): DoanCoMatSuaNgay[] {
+  const laTram = new Set(ddTram);
+  const tatCa = [...ddTram, ...ddTay].sort((a, b) => a.ts - b.ts);
+  // Lượt vào ca của từng người: ca|mnv|giờ vào → nguồn (cùng cách tính giờ với doanCoMat)
+  const nguonVao = new Map<string, DoanCoMatSuaNgay['nguon']>();
+  for (const e of tatCa) {
+    if (e.loai !== 'vao_ca') continue;
+    for (const n of nguoiTrongSuKien(e.duLieu)) {
+      const k = `${String(e.duLieu?.loaiCa ?? '')}|${n.mnv}|${Math.min(n.luc ?? e.ts, e.ts + 3 * 3_600_000)}`;
+      if (laTram.has(e)) nguonVao.set(k, 'tram');
+      else if (!nguonVao.has(k)) nguonVao.set(k, 'diem_danh_app');
+    }
+  }
+  return (Object.entries(doanCoMat(tatCa)) as Array<[LoaiCa, Array<{ mnv: string; start: number; end: number | null }> | undefined]>)
+    .flatMap(([loaiCa, ds]) => (ds ?? []).map(d => ({
+      mnv: d.mnv, start: d.start, end: d.end, loaiCa,
+      nguon: nguonVao.get(`${loaiCa}|${d.mnv}|${d.start}`) ?? ('tram' as const),
+    })))
+    .sort((a, b) => a.start - b.start);
+}
+
 app.get('/api/xuong/to/:id/sua-ngay', async (req: Request, res: Response) => {
   try {
     if (!(await coBangTram())) return chuaBat(res);
@@ -547,12 +583,17 @@ app.get('/api/xuong/to/:id/sua-ngay', async (req: Request, res: Response) => {
     // Ngày ca: 06:00 hôm đó tới 06:00 hôm sau (ca 4 qua đêm) — lấy rộng hơn 1 giờ mỗi bên cho quét sớm
     const dau = Date.parse(`${ngay}T05:00:00+07:00`);
     const cuoi = dau + 25 * 3_600_000;
-    const evs = await soTramCuaTo(toId, dau, cuoi);
+    // Sổ trạm + điểm danh tay (vao_ca / ra_ca không của trạm, chưa huỷ) trong cùng khoảng: 1 lượt đọc (soCuaTo kemTay)
+    const { evs, ddTay: tayKhoang } = await soCuaTo(toId, dau, cuoi, true);
     const st = await soTram(poolMra, evs, 'so_khop', now);
     const doan = (st?.kq.doanNguoi ?? []).filter(d => d.toId === toId && ngayCa(d.start) === ngay);
     const hl = suKienConHieuLuc(evs);
     const dd = hl.filter(e => (e.loai === 'vao_ca' || e.loai === 'ra_ca') && laSuKienTram(e) && ngayCa(e.ts) === ngay);
-    const coMat = Object.values(doanCoMat(dd)).flat().filter((d): d is NonNullable<typeof d> => !!d);
+    // Ngày chế độ trạm: điểm danh tay của tổ trưởng cũng là có mặt (người không quét thẻ vẫn hiện, cờ không vào hàng);
+    // ngày song song giữ như cũ (chỉ sổ trạm để so khớp)
+    const cheDo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay);
+    const ddTay = cheDo === 'tram' ? tayKhoang.filter(e => ngayCa(e.ts) === ngay) : [];
+    const coMat = coMatSuaNgay(dd, ddTay);
     const mnvs = [...new Set([...doan.map(d => d.mnv), ...coMat.map(d => d.mnv)])];
     const [ten, info] = await Promise.all([
       mnvs.length ? poolMra.query('SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])', [mnvs]) : Promise.resolve({ rows: [] as Row[] }),
@@ -567,7 +608,7 @@ app.get('/api/xuong/to/:id/sua-ngay', async (req: Request, res: Response) => {
     for (const k of Object.keys(gioTheoNguon) as NguonDoan[]) gioTheoNguon[k] = Math.round(gioTheoNguon[k] * 100) / 100;
     res.json({
       success: true, available: true, ngay, serverNow: now, gioTheoNguon,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
+      cheDo,
       // Huỷ / ghi hộ: tổ trưởng của tổ (sự kiện trạm trong 7 ngày) hoặc quản lý xưởng
       suaDuoc: quanLy || laToTruong,
       nguoi: mnvs.sort().map(m => {
@@ -575,7 +616,8 @@ app.get('/api/xuong/to/:id/sua-ngay', async (req: Request, res: Response) => {
         const ds = doan.filter(d => d.mnv === m).sort((a, b) => a.start - b.start);
         return {
           mnv: m, hoTen: hoTen.get(m) ?? m,
-          coMat: cm.map(d => ({ start: d.start, end: d.end })),
+          // Kèm loại ca từng đoạn (ra ca ghi hộ đúng ca đang mở) và nguồn: 'diem_danh_app' là điểm danh tay — màn không cho huỷ
+          coMat: cm.map(d => ({ start: d.start, end: d.end, loaiCa: d.loaiCa, nguon: d.nguon })),
           doan: ds.map(d => ({ ...d, tenHangMuc: info.get(d.hex)?.ten_hang_muc ?? null })),
           co: coSuaNgay(ds, cm, now),
         };
