@@ -274,11 +274,8 @@ export default function CuaHang() {
           )}
           <a href="#/cua-hang" className={`${moTimDT ? 'hidden md:flex' : 'flex'} min-w-0 items-center gap-2.5 ${BO_GOC} ${VONG_FOCUS}`}
             onClick={e => { e.preventDefault(); khungRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-            <img src="/logo-aa-mark.png" alt="" className="h-8 w-8 shrink-0 object-contain" draggable={false} />
-            <span className="flex min-w-0 flex-col">
-              <span className="whitespace-nowrap text-[13px] font-semibold uppercase leading-[18px] tracking-[0.12em] text-stone-900 md:text-[14px] md:leading-5">AA Corporation</span>
-              <span className="truncate text-[12px] leading-4 text-stone-600 md:text-[13px] md:leading-[18px]">Vật tư thanh lý & tồn kho</span>
-            </span>
+            {/* Logo đầy đủ (biểu tượng + AA Corporation + Interior Solutions, Since 1989) — bản ngang cho vừa đầu trang 1 hàng */}
+            <img src="/logo-aa-ngang.png" alt="AA Corporation — Interior Solutions, Since 1989" className="h-10 w-auto shrink-0 object-contain md:h-11" draggable={false} />
           </a>
           <div className="hidden min-w-0 flex-1 justify-center md:flex">
             <div className="w-full max-w-[480px]"><OTim tim={tim} setTim={setTim} placeholder="Tìm tên, mã, màu, quy cách, thương hiệu…" /></div>

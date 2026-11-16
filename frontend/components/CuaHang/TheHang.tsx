@@ -130,8 +130,8 @@ export const TheHang = React.memo(function TheHang({ h, slTrongGio, onMo, onThem
         <span className="min-w-0 flex-1 truncate text-stone-500 max-sm:flex-auto" title={nhan.map(t => `#${t}`).join(' ') || undefined}>
           {nhan.map((t, i) => <span key={i} className="mr-1 last:mr-0">#{t}</span>)}
         </span>
-        <span className="shrink-0 truncate text-right tabular-nums text-stone-600 max-sm:ml-auto max-sm:max-w-full sm:max-w-[60%]" title={`Còn ${soCon}`}>
-          Còn {soCon}
+        <span className="shrink-0 truncate text-right tabular-nums text-stone-500 max-sm:ml-auto max-sm:max-w-full sm:max-w-[60%]" title={`Còn ${soCon}`}>
+          Còn <b className="font-semibold text-stone-900">{soCon}</b>
         </span>
       </div>
       {/* Giá (trái) + nút thêm (phải) luôn ở đáy thẻ (thẻ cùng hàng cao bằng nhau) */}

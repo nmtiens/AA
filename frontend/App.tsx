@@ -97,6 +97,11 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: strin
   { key: 'stock_vt', label: '7. Tồn kho vật tư', path: '/charts/ton-kho-vat-tu', permId: 'chart_stock_vt' },
 ];
 
+// Nhóm menu "Vật tư": mọi trang liên quan đến vật tư (không lặp ở Biểu đồ / Dữ liệu)
+const VAT_TU_CHART_KEYS = ['stock_vt'];
+const VAT_TU_VIEW_IDS = ['materials'];
+const VAT_TU_PATHS = ['/ban-vat-tu', '/charts/ton-kho-vat-tu', '/materials'];
+
 const CONSTRUCTION_PATH = '/cong-trinh/tong-quan';
 // Lúc mở app chờ tối đa bấy nhiêu cho setup gộp xưởng / KH đã đạt / bảng tên công trình trước khi áp dữ liệu
 const META_WAIT_MS = 1500;
@@ -628,6 +633,7 @@ const MainLayout: React.FC = () => {
   // Trạng thái đóng/mở của các nhóm menu - mặc định đóng
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
+  const [isVatTuMenuOpen, setIsVatTuMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -698,6 +704,7 @@ const MainLayout: React.FC = () => {
 
   // Tự mở nhóm menu chứa trang hiện tại
   useEffect(() => {
+    if (VAT_TU_PATHS.includes(location.pathname)) { setIsVatTuMenuOpen(true); return; }
     if (CHART_SUB_ITEMS.some(item => item.path === location.pathname)) {
       setIsChartMenuOpen(true);
     }
@@ -1172,10 +1179,18 @@ const MainLayout: React.FC = () => {
   const usersView = APP_VIEWS.find(v => v.id === 'users' && hasPermission(v.id));
 
   const canSeeConstruction = hasPermission('construction_overview');
-  const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
-  const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
+  const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId) && !VAT_TU_CHART_KEYS.includes(i.key));
+  const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && !VAT_TU_VIEW_IDS.includes(v.id) && hasPermission(v.id));
   const coXuong = user?.role === 'ADMIN' || hasPermission('xuong_quan_ly');
   const coBanVatTu = hasPermission('ban_vat_tu');
+  // Nhóm "Vật tư": Danh mục vật tư (bán tồn) + Tồn kho vật tư (biểu đồ) + Dữ liệu vật tư — chỉ mục có quyền
+  const vatTuItems = [
+    ...(coBanVatTu ? [{ key: 'ban_vat_tu', label: 'Danh mục vật tư', path: '/ban-vat-tu' }] : []),
+    ...CHART_SUB_ITEMS.filter(i => VAT_TU_CHART_KEYS.includes(i.key) && hasPermission(i.permId))
+      .map(i => ({ key: i.key, label: 'Tồn kho vật tư', path: i.path })),
+    ...APP_VIEWS.filter(v => VAT_TU_VIEW_IDS.includes(v.id) && hasPermission(v.id))
+      .map(v => ({ key: v.id, label: 'Dữ liệu vật tư', path: v.path })),
+  ];
   // Mục "Nhập BOT": tài khoản có bộ phận được giao ít nhất 1 công đoạn (Setup phân công) hoặc ADMIN
   const [coNhapBot, setCoNhapBot] = useState(false);
   useEffect(() => {
@@ -1320,7 +1335,21 @@ const MainLayout: React.FC = () => {
             </NavGroup>
           )}
 
-          {(vuongMacView || coXuong || coNhapBot || coBanVatTu) && <TieuDeNhom ten="Ứng dụng" collapsed={isCollapsed} />}
+          {/* Vật tư: 1 nhóm gập/mở gom mọi trang liên quan đến vật tư */}
+          {vatTuItems.length > 0 && (
+            <NavGroup
+              icon={<Package size={18} className="shrink-0" />}
+              label="Vật tư"
+              collapsed={isCollapsed}
+              open={isVatTuMenuOpen}
+              active={vatTuItems.some(i => i.path === location.pathname)}
+              onToggle={makeGroupToggle(isVatTuMenuOpen, setIsVatTuMenuOpen)}
+            >
+              {renderSubLinks(vatTuItems)}
+            </NavGroup>
+          )}
+
+          {(vuongMacView || coXuong || coNhapBot) && <TieuDeNhom ten="Ứng dụng" collapsed={isCollapsed} />}
           {vuongMacView && (
             <NavLink
               key={vuongMacView.id}
@@ -1350,18 +1379,6 @@ const MainLayout: React.FC = () => {
               icon={<CalendarClock size={18} />}
               label="Nhập BOT"
               active={location.pathname === '/nhap-bot'}
-              onClick={closeMobileSidebar}
-              collapsed={isCollapsed}
-            />
-          )}
-
-          {/* Bán vật tư tồn kho: toàn bộ hàng tồn kho vật tư đem bán (giá chào, ảnh, trạng thái) */}
-          {coBanVatTu && (
-            <NavLink
-              to="/ban-vat-tu"
-              icon={<ShoppingCart size={18} />}
-              label="Danh mục vật tư"
-              active={location.pathname === '/ban-vat-tu'}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />

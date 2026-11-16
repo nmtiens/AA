@@ -247,8 +247,10 @@ export function ChiTietHang({ h, slTrongGio, onDong, onThem, ds, onMo }: {
               <div className={`relative ${BO_GOC} border border-stone-200 bg-stone-50 p-5`}>
                 <CachMua lienHe={h.giaBanVnd === null} />
                 <div className="pr-24"><GiaKhach h={h} to /></div>
-                <p className="mt-1.5 text-sm text-stone-600">
-                  Còn <span className="font-medium tabular-nums text-stone-900">{dinhDangSoLuong(h.soLuong, h.dvt)}</span>
+                {/* Số lượng còn: làm nổi (khung trắng, số to đậm) — khách cần biết ngay còn bao nhiêu */}
+                <p className="mt-3 inline-flex max-w-full flex-wrap items-baseline gap-x-2 rounded-md border border-stone-300 bg-white px-3 py-1.5">
+                  <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-stone-500">Còn</span>
+                  <span className="text-[20px] font-semibold leading-7 tabular-nums tracking-[-0.01em] text-stone-900 md:text-[22px]">{dinhDangSoLuong(h.soLuong, h.dvt)}</span>
                 </p>
               </div>
 
