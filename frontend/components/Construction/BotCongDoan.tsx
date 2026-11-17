@@ -392,7 +392,7 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
           {chiCuaToi ? (
           <thead className={bang.thead}>
             <tr>
-              <th rowSpan={3} className={`${bang.thC} sticky left-0 z-20 w-[24rem] min-w-[16rem] whitespace-nowrap bg-emerald-300`}>
+              <th rowSpan={3} className={`${bang.thC} sticky left-0 z-20 min-w-[16rem] whitespace-nowrap bg-emerald-300`}>
                 {TEN_CHIEU_BCD[chieu]} <span className="font-normal">({fmtInt(soHex)} HEX)</span>
                 <NutMoTatCa onMo={() => setMoDong(new Set(cay.map(c => c.ct)))} onThu={() => setMoDong(new Set())} />
               </th>
@@ -407,7 +407,7 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
           ) : (
           <thead className={bang.thead}>
             <tr>
-              <th rowSpan={soTang} className={`${bang.thC} sticky left-0 z-20 w-[24rem] min-w-[16rem] whitespace-nowrap bg-emerald-300`}>
+              <th rowSpan={soTang} className={`${bang.thC} sticky left-0 z-20 min-w-[16rem] whitespace-nowrap bg-emerald-300`}>
                 {TEN_CHIEU_BCD[chieu]} <span className="font-normal">({fmtInt(soHex)} HEX)</span>
                 <NutMoTatCa onMo={() => setMoDong(new Set(cay.map(c => c.ct)))} onThu={() => setMoDong(new Set())} />
               </th>
@@ -448,8 +448,9 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
               return (
                 <React.Fragment key={c.ct}>
                   <tr className={`${nen} font-bold`}>
-                    <td className={`${bang.tdB} sticky left-0 z-[1] max-w-[24rem] truncate ${nen}`} title={c.ct}>
-                      <button type="button" onClick={() => doi(c.ct)} className="text-left hover:underline">
+                    <td className={`${bang.tdB} sticky left-0 z-[1] ${nen}`} title={c.ct}>
+                      {/* Tên công trình hiện đủ (không cắt "…" làm mất số HEX) — cùng kiểu bảng BÁO CÁO BOT */}
+                      <button type="button" onClick={() => doi(c.ct)} className="w-max min-w-[16rem] whitespace-nowrap text-left hover:underline">
                         <span className="inline-block w-4 text-slate-500">{mo ? '▾' : '▸'}</span>
                         {mau && <span className={`mr-1.5 inline-block min-w-[1.5rem] rounded px-1 text-center text-sm ${mau.stt}`}>{thuTuNhom(c.ct)!.stt}</span>}
                         {c.ct} <span className="font-normal text-slate-500">({fmtInt(c.tong)})</span>
@@ -462,7 +463,7 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
                     const tt2 = c2 === 'ct' ? thuTuNhom(n.nsp) : null, mau2 = mauLuong(tt2);
                     return (
                       <tr key={kN} className="bg-slate-50 font-semibold">
-                        <td className={`${bang.tdB} sticky left-0 z-[1] max-w-[24rem] truncate bg-slate-50 pl-11`} title={n.nsp}>
+                        <td className={`${bang.tdB} sticky left-0 z-[1] whitespace-nowrap bg-slate-50 pl-11`} title={n.nsp}>
                           {mau2 && <span className={`mr-1.5 inline-block min-w-[1.5rem] rounded px-1 text-center text-sm ${mau2.stt}`}>{tt2!.stt}</span>}
                           {n.nsp} <span className="font-normal text-slate-500">({fmtInt(n.hs.length)})</span>
                         </td>

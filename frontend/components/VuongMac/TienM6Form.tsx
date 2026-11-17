@@ -91,7 +91,7 @@ export function AnhO({ anh, lon }: { anh?: AnhSpProps; lon?: boolean }) {
   const co = !!(moi || id);
   const kt = lon ? 'h-20 w-20' : 'h-12 w-12';
   return (
-    <div className={`flex items-center gap-1.5 ${lon ? '' : 'mt-1'}`}>
+    <div className={`flex flex-wrap items-center gap-1.5 ${lon ? '' : 'mt-1'}`}>
       {co && (
         url
           ? <button type="button" onClick={() => setXem(true)} title="Xem ảnh lớn" className={`${kt} shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100`}>
@@ -144,15 +144,6 @@ export function BangTraGia({ hexes, mainHex, kq, loading, err, cot = ['gia'], on
     <div className="space-y-1.5">
       {moChiTiet && <BangChiTietHex hexes={hexes} mainHex={mainHex} kq={kq} loading={loading} err={err} giaMin={giaMin} anh={anh} coVatTu={cot.includes('vatTu')} onRemove={onRemove} onDong={() => setMoChiTiet(false)} />}
       {err && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
-      {anh && (anh.onChon || anh.daCo || anh.moi) && (
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-700">Hình ảnh sản phẩm</p>
-            <p className="text-xs text-slate-500">1 ảnh dùng chung cho cả {hexes.length} mã (cùng 1 sản phẩm)</p>
-          </div>
-          <AnhO anh={anh} lon />
-        </div>
-      )}
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className={`w-full border-collapse ${txt}`}>
           <thead className="bg-slate-50">
@@ -185,6 +176,8 @@ export function BangTraGia({ hexes, mainHex, kq, loading, err, cot = ['gia'], on
                   <td className={`${td} hidden text-center tabular-nums text-slate-500 sm:table-cell`}>{i + 1}</td>
                   <td className={`${td} whitespace-nowrap !pr-1 font-semibold tabular-nums text-slate-900`}>
                     {h}{h === mainHex && <span className="mt-0.5 block w-max rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600 sm:ml-1.5 sm:mt-0 sm:inline">đang báo</span>}
+                    {/* Ảnh sản phẩm: 1 ảnh chung, hiện ở MỖI dòng (thêm / đổi ở dòng nào cũng áp cho cả nhóm mã) */}
+                    {anh && <AnhO anh={anh} />}
                   </td>
                   {g ? (
                     <>
@@ -249,8 +242,8 @@ function BangChiTietHex({ hexes, mainHex, kq, loading, err, giaMin, coVatTu, onR
   const chenhCua = (g: TraGiaHex | undefined) => (giaMin !== null && typeof g?.donGia === 'number' ? g.donGia - giaMin : null);
   const cot: CotCt[] = [
     ['HEX', h => <span className="font-semibold">{h}{h === mainHex && <span className="ml-1.5 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">đang báo</span>}</span>],
-    // Hình ảnh: 1 ô gộp cho mọi dòng (cùng 1 sản phẩm) — vẽ riêng ở thân bảng
-    ...(anh ? [['HÌNH ẢNH', () => null] as CotCt] : []),
+    // Hình ảnh: 1 ảnh chung của nhóm mã (cùng 1 sản phẩm), hiện ở mỗi dòng
+    ...(anh ? [['HÌNH ẢNH', () => <AnhO anh={anh} lon />] as CotCt] : []),
     ['TÊN HẠNG MỤC', (_, g) => g?.tenHangMuc ?? ''],
     ['ĐVT', (_, g) => g?.dvt ?? '', 'giua'],
     ['SỐ LƯỢNG', (_, g) => (g?.soLuong != null ? fmtSl(g.soLuong) : ''), 'so'],
@@ -312,18 +305,11 @@ function BangChiTietHex({ hexes, mainHex, kq, loading, err, giaMin, coVatTu, onR
               return (
                 <tr key={h} className={`align-top hover:bg-slate-50 ${h === mainHex ? 'bg-blue-50/60' : ''}`}>
                   <td className={bang.tdSo}>{i + 1}</td>
-                  {cot.map(([t, f, kieu]) => (t === 'HÌNH ẢNH' ? (i === 0 ? (
-                    <td key={t} rowSpan={ds.length} className={`${bang.tdB} bg-white text-center align-top`}>
-                      <div className="flex flex-col items-center gap-1">
-                        <AnhO anh={anh} lon />
-                        {ds.length > 1 && <span className="text-xs text-slate-500">dùng chung {ds.length} mã</span>}
-                      </div>
-                    </td>
-                  ) : null) : (
+                  {cot.map(([t, f, kieu]) => (
                     <td key={t} className={`${bang.tdB} ${kieu === 'so' ? 'whitespace-nowrap text-right tabular-nums' : kieu === 'giua' ? 'whitespace-nowrap text-center' : 'min-w-[9rem] max-w-[28rem] whitespace-pre-line'}`}>
                       {!g && t === 'TÊN HẠNG MỤC' ? <span className="text-slate-400">{loading ? 'Đang tra…' : err ? 'Chưa tra được' : 'Không có trong dữ liệu'}</span> : f(h, g)}
                     </td>
-                  )))}
+                  ))}
                   {onRemove && (
                     <td className={`${bang.tdB} text-center`}>
                       {h !== mainHex && (
