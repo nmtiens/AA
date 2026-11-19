@@ -77,6 +77,8 @@ app.get('/api/khnk-sheet/kho', async (_req: Request, res: Response) => {
 // GET /api/khnk-sheet/thong-tin => { ct: { 'CT26-116': { kv, kh, tksx } } } — bộ lọc Khu vực / Khách hàng của bảng KHNK
 // + tksx = Σ thanh_tien_tinh_phieu (TRIỆU) bỏ hạng mục HỦY: cột GT ĐÃ TKSX tính lại trên app (người dùng 19/11/2026 — số
 //   của file có chỗ vượt GT đơn hàng làm CHƯA TKSX âm); CHƯA TKSX = GT ĐƠN HÀNG − tksx do giao diện tính.
+// + nk = Σ đã nhập kho (TRIỆU) bỏ hạng mục HỦY, mỗi hạng mục 0 ≤ nhập ≤ trị giá (như doneValue của app): cột NHẬP KHO (P022)
+//   tính lại trên app — file cộng cả phần đã nhập của hạng mục HỦY (người dùng 19/11/2026 chọn bỏ HỦY).
 // (người dùng 19/11/2026). File KHNK không có 2 cột này => lấy từ bảng sản xuất theo mã công trình, mỗi mã lấy giá trị
 // xuất hiện nhiều nhất (bỏ trống). Nhớ theo phiên bản bảng sản xuất.
 // ----------------------------------------------------------------------------
@@ -90,15 +92,17 @@ app.get('/api/khnk-sheet/thong-tin', async (_req: Request, res: Response) => {
     const payload = await cachedByVersions(ttCache, 'tt', ['production'], async () => {
       const [kv, kh, tk] = await Promise.all([timedQuery(modeSql('khu_vuc_du_an')), timedQuery(modeSql('khach_hang')),
         timedQuery(`SELECT UPPER(TRIM(ma_cong_trinh)) AS ma,
-               COALESCE(SUM(${numericCol('production_status_app', 'thanh_tien_tinh_phieu')}), 0)::float8 AS v
+               COALESCE(SUM(${numericCol('production_status_app', 'thanh_tien_tinh_phieu')}), 0)::float8 AS v,
+               COALESCE(SUM(LEAST(GREATEST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), 0), GREATEST(COALESCE(tri_gia_don_hang_tong, 0), 0))), 0)::float8 AS nk
           FROM production_status_app
-         WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%HỦY%'
+         WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''
+           AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%HỦY%' AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%HUỶ%'
          GROUP BY 1`)]);
-      const ct: Record<string, { kv: string | null; kh: string | null; tksx: number }> = {};
+      const ct: Record<string, { kv: string | null; kh: string | null; tksx: number; nk?: number }> = {};
       const o = (ma: string) => (ct[ma] ??= { kv: null, kh: null, tksx: 0 });
       for (const x of kv.rows) o(x.ma).kv = x.v ?? null;
       for (const x of kh.rows) o(x.ma).kh = x.v ?? null;
-      for (const x of tk.rows) o(x.ma).tksx = Number(x.v) || 0;
+      for (const x of tk.rows) { o(x.ma).tksx = Number(x.v) || 0; o(x.ma).nk = Number(x.nk) || 0; }
       return { ct };
     }, '', '', false);
     res.json(payload);

@@ -84293,16 +84293,21 @@ app.get("/api/khnk-sheet/thong-tin", async (_req, res) => {
         timedQuery(modeSql("khu_vuc_du_an")),
         timedQuery(modeSql("khach_hang")),
         timedQuery(`SELECT UPPER(TRIM(ma_cong_trinh)) AS ma,
-               COALESCE(SUM(${numericCol("production_status_app", "thanh_tien_tinh_phieu")}), 0)::float8 AS v
+               COALESCE(SUM(${numericCol("production_status_app", "thanh_tien_tinh_phieu")}), 0)::float8 AS v,
+               COALESCE(SUM(LEAST(GREATEST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), 0), GREATEST(COALESCE(tri_gia_don_hang_tong, 0), 0))), 0)::float8 AS nk
           FROM production_status_app
-         WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%'
+         WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''
+           AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%' AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%HU\u1EF6%'
          GROUP BY 1`)
       ]);
       const ct = {};
       const o = (ma) => ct[ma] ??= { kv: null, kh: null, tksx: 0 };
       for (const x of kv.rows) o(x.ma).kv = x.v ?? null;
       for (const x of kh.rows) o(x.ma).kh = x.v ?? null;
-      for (const x of tk.rows) o(x.ma).tksx = Number(x.v) || 0;
+      for (const x of tk.rows) {
+        o(x.ma).tksx = Number(x.v) || 0;
+        o(x.ma).nk = Number(x.nk) || 0;
+      }
       return { ct };
     }, "", "", false);
     res.json(payload);

@@ -245,10 +245,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const [detailSearch, setDetailSearch] = useState('');
   // Cửa sổ danh sách HEX: ct = công trình (null = mọi công trình trong cửa sổ chi tiết);
   // inDetail = lấy trong phạm vi cửa sổ chi tiết đang mở, ngược lại theo dòng bảng công trình
-  const [hexScope, setHexScope] = useState<{ ct: string | null; inDetail: boolean } | null>(null);
+  // tatCa: mở từ Bảng KHNK — mọi Tình trạng IPO (bỏ HỦY), không theo bộ lọc trang, vì số của bảng là cả công trình
+  const [hexScope, setHexScope] = useState<{ ct: string | null; inDetail: boolean; ma?: string } | null>(null);
   // Tổng quan 1 công trình (BOT / BOP / BOM) — mở khi bấm 1 dòng trong bảng công trình
   // inDetail = mở từ cửa sổ chi tiết (vd PC): chỉ tính các dòng trong phạm vi cửa sổ đó
-  const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(null);
+  // ma: mở từ Bảng KHNK — mọi dòng của mã CT (mọi Tình trạng IPO, không theo bộ lọc trang) để số khớp bảng (người dùng 19/11/2026)
+  const [health, setHealth] = useState<{ ct: string; inDetail: boolean; ma?: string } | null>(null);
   // View cho TẤT CẢ công trình đang xem (cùng bộ lọc trang): tổng quan / BOP / BOT / BOM (như tab trong cửa sổ 1 công trình)
   const [viewCT, setViewCT] = useState<'tong' | 'bop' | 'bom' | 'bcbot' | 'botcd'>('tong');
   const [hexXem, setHexXem] = useState<string | null>(null);
@@ -552,18 +554,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // Mở từ cửa sổ chi tiết: lấy trong phạm vi cửa sổ đó; mở từ bảng công trình: mọi bộ lọc (trừ lọc công trình)
   const hexRows = useMemo(() => {
     if (!hexScope) return [];
-    const { ct, inDetail } = hexScope;
+    const { ct, inDetail, ma } = hexScope;
+    if (ma) return allRecords.filter(r => r.ma === ma).map(r => r.row);
     const base = inDetail ? detailRows : apply('ct');
     return (ct === null ? base : base.filter(r => r.ct === ct)).map(r => r.row);
-  }, [hexScope, detailRows, records, f]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hexScope, detailRows, records, f, allRecords]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const healthScopeRecs = () =>
-    !health ? [] : (health.inDetail ? detailRows : apply('ct')).filter(r => r.ct === health.ct);
+    !health ? [] : health.ma ? allRecords.filter(r => r.ma === health.ma)
+      : (health.inDetail ? detailRows : apply('ct')).filter(r => r.ct === health.ct);
 
   // Dòng của công trình đang xem tổng quan: cùng phạm vi với dòng bảng công trình (mọi bộ lọc trừ lọc công trình)
   const healthRows = useMemo(
     () => (health ? healthScopeRecs().map(r => r.row) : []),
-    [health, detailRows, records, f] // eslint-disable-line react-hooks/exhaustive-deps
+    [health, detailRows, records, f, allRecords] // eslint-disable-line react-hooks/exhaustive-deps
   );
   // HEX không hủy của công trình, mọi Tình trạng IPO (không qua bộ lọc trang) — nhịp nhập kho trong cửa sổ
   // Dòng không hủy của công trình, mọi Tình trạng IPO — phần Kho (lũy kế) của bảng BOP
@@ -951,7 +955,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         )}
         {/* Nút "Kế Hoạch Nhập Kho" + Tổng quan: bảng kế hoạch nhập kho theo tháng của file PRODUCTION STATUS.xlsx
             (thay khung tổng quan — số đơn vị triệu như file) */}
-        {locKhsx && viewCT === 'tong' && <div className={`${cardCls} p-4 sm:p-5`}><KhnkSheet khuVuc={f.kv} /></div>}
+        {locKhsx && viewCT === 'tong' && <div className={`${cardCls} p-4 sm:p-5`}><KhnkSheet khuVuc={f.kv} onXemCt={(ma, ten) => {
+          // Bấm tên công trình ở Bảng KHNK => cửa sổ chi tiết theo hạng mục (như bảng công trình); khớp theo mã CT
+          if (!canBang()) return;
+          const m = ma.toUpperCase(), ct = allRecords.find(r => r.ma === m)?.ct;
+          if (ct) setHealth({ ct, inDetail: false, ma: m });
+          else showToast(`Chưa có hạng mục sản xuất của ${ma}${ten ? ` (${ten})` : ''}`, 'info');
+        }} onXemHangMuc={(ma, ten) => {
+          // Bấm số (GT đơn hàng / nhập kho / % / còn lại) => danh sách hạng mục của công trình, mọi tình trạng (bỏ HỦY)
+          if (!canBang()) return;
+          const m = ma.toUpperCase(), ct = allRecords.find(r => r.ma === m)?.ct;
+          if (ct) setHexScope({ ct, inDetail: false, ma: m });
+          else showToast(`Chưa có hạng mục sản xuất của ${ma}${ten ? ` (${ten})` : ''}`, 'info');
+        }} /></div>}
         <div className={viewCT === 'tong' && !locKhsx ? 'space-y-4' : 'hidden'}>
         {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
             Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho
@@ -1513,7 +1529,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         rows={healthRows}
         keys={healthKeys}
         pmText={healthPm}
-        onOpenHexList={() => health && setHexScope({ ct: health.ct, inDetail: health.inDetail })}
+        onOpenHexList={() => health && setHexScope({ ct: health.ct, inDetail: health.inDetail, ma: health.ma })}
         inventory={inventory}
         paceHexes={healthPaceHexes}
         khoRows={healthKhoRows}
@@ -1522,7 +1538,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       <HexDetailModal
         isOpen={hexScope !== null}
         onClose={() => setHexScope(null)}
-        title={hexScope?.inDetail && detail ? `Danh sách HEX · ${detail.title}` : 'Danh sách HEX'}
+        title={hexScope?.ma ? `Chi tiết theo hạng mục · ${hexScope.ct ?? ''}` : hexScope?.inDetail && detail ? `Danh sách HEX · ${detail.title}` : 'Danh sách HEX'}
         projectName={hexScope?.ct ?? null}
         rows={hexRows}
         columnKeys={hexColumnKeys}
