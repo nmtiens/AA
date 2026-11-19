@@ -329,7 +329,9 @@ export function usePivotTables({
       { id: 'P021', name: 'P021. Đóng gói hoàn thành', value: getVal('P021'), color: '#a3e635' },
       // Hạng mục đã ở P022 / P025 mà chưa nhập kho đủ (chỉ có khi bộ lọc IPO gồm HOÀN THÀNH…) — trước không có
       // thanh nên tổng các thanh nhỏ hơn tổng phễu
-      ...(getVal('P022') + getVal('P025') > 0
+      // Giá trị (triệu): dưới 0.5 triệu (= 0,0005 tỷ, cùng ngưỡng ô "P022–P025 nhập chưa đủ" ở Tổng quan công trình) là lệch
+      // làm tròn số lượng / đơn giá (vd nhập 35,84 / 35,843) => không vẽ thanh "<0.01"
+      ...(getVal('P022') + getVal('P025') > (workshopMetric === 'COUNT_HEX' ? 0 : 0.5)
         ? [{ id: 'P022_SHORT', name: 'P022/P025. Nhập kho chưa đủ', value: getVal('P022') + getVal('P025'), color: '#c4b5fd' }]
         : []),
       { id: 'P022', name: p022Label, value: p022Val, color: '#eab308' },

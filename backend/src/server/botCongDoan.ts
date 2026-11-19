@@ -81,3 +81,18 @@ export function docNgay(x: unknown): string | null | undefined {
   if (y < 2000 || y > 2100 || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return undefined;
   return x;
 }
+
+// ---- Giới hạn số lần nhập (người dùng 18/11/2026) ----
+// Đợt đầu chỉ nhập 1 lần; đợt cuối tối đa 2 lần kể từ lần nhập đầu tiên — áp cho MỌI người kể cả ADMIN. "Lần nhập" = 1 dòng
+// lịch sử có ngày mới (đặt / đổi ngày) SAU lần xoá gần nhất. Chỉ ADMIN được xoá ngày (sửa nhập nhầm) => xoá xong đếm lại từ đầu.
+export const GIOI_HAN_NHAP: Record<'dau' | 'cuoi', number> = { dau: 1, cuoi: 2 };
+const TEN_DOT_BOT: Record<'dau' | 'cuoi', string> = { dau: 'đợt đầu', cuoi: 'đợt cuối' };
+/** Lý do chặn 1 ô theo giới hạn số lần (null = cho ghi). `soLan` = số lần đã nhập, `coNgay` = ô đang có ngày. */
+export function lyDoGioiHan(admin: boolean, dot: 'dau' | 'cuoi', soLan: number, coNgay: boolean, ngayMoi: string | null): string | null {
+  const toiDa = GIOI_HAN_NHAP[dot];
+  if (ngayMoi === null) return coNgay && !admin ? `BOT ${TEN_DOT_BOT[dot]} đã nhập không được xoá (nhờ admin xoá nếu nhập nhầm)` : null;
+  if (soLan >= toiDa) return dot === 'dau'
+    ? 'BOT đợt đầu chỉ được nhập 1 lần (đã nhập — admin xoá ngày thì nhập lại được)'
+    : `BOT đợt cuối chỉ được nhập ${toiDa} lần (đã nhập ${soLan} lần)`;
+  return null;
+}

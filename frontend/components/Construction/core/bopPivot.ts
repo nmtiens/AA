@@ -78,9 +78,15 @@ export const khoMuc = (i: MucBop, metric: BopMetric): Kho => (metric === 'count'
   ? { nk: laKho(i, 'nk', metric) ? 1 : 0, xk: laKho(i, 'xk', metric) ? 1 : 0, ton: laKho(i, 'ton', metric) ? 1 : 0, chenh: laKho(i, 'chenh', metric) ? 1 : 0, xv: laKho(i, 'xv', metric) ? 1 : 0 }
   : khoCua(i));
 
-/** Hạng mục vào phần công đoạn: đếm = còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (khớp thẻ BOP) */
+/** Còn lại dưới 10.000đ (0,01 triệu) = sai số làm tròn đơn giá / số lượng lẻ của nguồn (cùng ngưỡng laKho) */
+export const SAI_SO_CON_LAI = 0.01;
+/**
+ * Hạng mục vào phần công đoạn: chỉ hạng mục còn theo dõi (open: chưa nhập đủ tiền lẫn số lượng). Người dùng 18/11/2026:
+ * hạng mục đã nhập đủ SỐ LƯỢNG mà lệch vài nghìn đồng (vd CT24-041 P025 nhập 8/8) không còn tạo cột "P025 chưa đủ";
+ * theo giá trị bỏ thêm phần còn lại < 10.000đ — khớp phễu "Tình trạng đơn hàng" (Dashboard/core/tongQuanSanXuat).
+ */
 export const mucCongDoan = <T extends MucBop>(items: T[], metric: BopMetric): T[] =>
-  (metric === 'count' ? items.filter(i => i.open) : items.filter(i => i.open || i.remain > 0));
+  items.filter(i => i.open && !(metric === 'remain' && i.remain > 0 && i.remain < SAI_SO_CON_LAI));
 export const giaTriBop = (i: MucBop, metric: BopMetric) => (metric === 'count' ? 1 : metric === 'remain' ? i.remain : i.total);
 
 /** Số trong ô: đếm = số nguyên; giá trị = tỷ đồng (utils/format.fmtTy); 0 ghi - */

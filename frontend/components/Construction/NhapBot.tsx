@@ -4,7 +4,7 @@ import { canonicalProjectName } from '../../utils/productionMetrics';
 import { fmtInt } from '../../utils/format';
 import type { HexInfo } from './ProjectHealthTabs';
 import { FormNhapBot, type NgayMap } from './BotCongDoan';
-import { khoaNgay, type OGhi, type QuyenBot } from './core/botCongDoan';
+import { khoaNgay, congLan, type OGhi, type QuyenBot, type SoLanMap } from './core/botCongDoan';
 import { useThuTuLuongDo } from './useThuTuLuongDo';
 
 // ============================================================================
@@ -37,6 +37,7 @@ const thanhHex = (g: GoiHex): HexInfo[] => {
 const NhapBot: React.FC = () => {
   const [goi, setGoi] = useState<GoiHex | null>(null);
   const [ngay, setNgay] = useState<NgayMap>({});
+  const [soLan, setSoLan] = useState<SoLanMap>({});
   const [quyen, setQuyen] = useState<QuyenBot | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
   const [dangLuu, setDangLuu] = useState(false);
@@ -46,7 +47,7 @@ const NhapBot: React.FC = () => {
   useEffect(() => {
     const doc = (u: string) => fetch(`${API_BASE_URL}${u}`).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))));
     Promise.all([doc('/bot-cong-doan/hex'), doc('/bot-cong-doan')])
-      .then(([g, d]) => { setGoi(g); setNgay(d.ngay ?? {}); setQuyen(d.quyen ?? null); })
+      .then(([g, d]) => { setGoi(g); setNgay(d.ngay ?? {}); setSoLan(d.soLan ?? {}); setQuyen(d.quyen ?? null); })
       .catch(e => setLoi(e instanceof Error ? e.message : String(e)));
   }, []);
   const items = useMemo(() => (goi ? thanhHex(goi) : []), [goi]);
@@ -58,6 +59,7 @@ const NhapBot: React.FC = () => {
       const kq = await r.json().catch(() => null);
       if (!r.ok) throw new Error(kq?.error || `Lỗi ${r.status}`);
       const bo = new Set((kq.bo as { hex: string; congDoan: string }[]).map(x => `${x.hex}|${x.congDoan}`));
+      setSoLan(s => congLan(s, ds, bo, ngay));
       setNgay(cu => {
         const n = { ...cu };
         for (const x of ds) {
@@ -96,7 +98,7 @@ const NhapBot: React.FC = () => {
           : !goi ? <p className="py-10 text-center text-sm font-semibold text-slate-500">Đang tải danh sách HEX…</p>
             : !coQuyen || !items.length
               ? <p className="py-10 text-center text-sm text-slate-600">Chưa có HEX nào để nhập: bộ phận của bạn chưa được giao công đoạn (ADMIN gán ở Tổng quan công trình → BOT x BOP → Setup phân công), hoặc chưa có HEX đang sản xuất thuộc xưởng của bạn.</p>
-              : <FormNhapBot nhung items={items} quyen={quyen} ngay={ngay} thuTu={thuTu} onClose={() => { /* trang: không đóng */ }} onLuu={ds => { void luu(ds); }} dangLuu={dangLuu} />}
+              : <FormNhapBot nhung items={items} quyen={quyen} ngay={ngay} soLan={soLan} thuTu={thuTu} onClose={() => { /* trang: không đóng */ }} onLuu={ds => { void luu(ds); }} dangLuu={dangLuu} />}
       </div>
     </div>
   );

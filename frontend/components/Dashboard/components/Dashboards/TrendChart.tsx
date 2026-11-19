@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart2, Eye, X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
 import {
   ComposedChart, Bar, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList, ReferenceLine,
@@ -32,9 +32,12 @@ const localDate = (s: string): Date => {
   return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
 };
 
+// Tháng ghi tên tiếng Anh: "Jan 2026" (người dùng 19/11/2026)
+const THANG_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 const formatLabel = (period: string, granularity: Granularity) => {
   const d = localDate(period);
-  if (granularity === 'month') return `Th${d.getMonth() + 1}/${d.getFullYear()}`;
+  if (granularity === 'month') return `${THANG_EN[d.getMonth()]} ${d.getFullYear()}`;
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 };
 
@@ -167,7 +170,7 @@ function PinnedPopover({ x, y, containerWidth, label, value, unit, money, onView
     >
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 px-4 py-3 text-sm">
         <p className="text-slate-600">Kỳ: <span className="font-semibold text-slate-800">{label}</span></p>
-        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {money ? formatTy(value) : formatDecimal(value)}</p>
+        <p className="text-pink-600 font-semibold mt-0.5">{unit}: {money ? formatTy(value) : formatDecimal(value)}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
@@ -188,15 +191,20 @@ function PinnedPopover({ x, y, containerWidth, label, value, unit, money, onView
   );
 }
 
+/** "Đơn hàng mới" -> "đơn hàng mới" khi đứng sau chữ khác (không viết hoa giữa câu) */
+const chuThuongDau = (t: string) => (t ? t[0].toLocaleLowerCase('vi') + t.slice(1) : t);
+
 interface TrendChartProps {
   source: TrendSource;
   embedded?: boolean;
+  /** Số thứ tự trên tiêu đề: "1. Xu hướng …" (người dùng 19/11/2026) */
+  stt?: number;
   displayMode: DisplayMetric;
   /** Vẽ thêm cột Kế hoạch năm (khsx_nam) — chỉ khi xem theo Tháng, chế độ Giá trị */
   planOverlay?: boolean;
 }
 
-export default function TrendChart({ source, embedded = false, displayMode, planOverlay = false }: TrendChartProps) {
+export default function TrendChart({ source, embedded = false, stt, displayMode, planOverlay = false }: TrendChartProps) {
   const {
     granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
     hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI: selectedDatesCsv
@@ -393,8 +401,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          Xu hướng {theme.label}
+          {stt ? `${stt}. ` : ''}Xu hướng {chuThuongDau(theme.label)}
         </h4>
       </div>
 
@@ -487,19 +494,17 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
             title={isStock
               ? `Tồn kho là số chụp tại từng ngày nên không cộng các ngày — hiện số của ngày mới nhất có dữ liệu.${stockMissing ? ` ${stockMissing} ngày không có dữ liệu tồn kho (để trống).` : ''}`
               : displayMode === 'COUNT' ? 'Số HEX duy nhất trong khoảng — 1 HEX nhập ở nhiều ngày chỉ tính 1' : undefined}
-            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-sm font-bold"
-            style={{
-              color: theme.barDark,
-              borderColor: theme.bar,
-              backgroundColor: `${theme.bar}1A`,
-            }}
+            className="absolute top-3 right-4 z-10 rounded-full px-4 py-1.5 text-base font-bold text-white shadow-md tabular-nums"
+            // Nổi bật (người dùng 19/11/2026): nền màu đậm của biểu đồ, chữ trắng
+            style={{ backgroundColor: theme.barDark }}
           >
             {isStock
               ? (stockLatest ? `${stockLatest.period}: ${fmt(stockLatest.total ?? 0)}` : 'Không có dữ liệu')
-              : `Tổng: ${fmt(totalAll)} · TB: ${fmtShort(avgAll)}`}
+              // TB = tổng ÷ số kỳ (ngày / tuần / tháng) — khác TB của biểu đồ theo khu vực / công trình (÷ số cột)
+              : `Tổng: ${fmt(totalAll)}${isMoney ? ' tỷ' : ''} · TB: ${fmtShort(avgAll)}${isMoney ? ' tỷ' : ''}/${granularity === 'month' ? 'tháng' : granularity === 'week' ? 'tuần' : 'ngày'}`}
             {showPlan && (
-              <span style={{ color: PLAN_DARK }}>
-                {' '}· KH: {fmt(planTotal)} · Đạt <span className={totalAll > 0 ? '' : 'text-red-600'}>{fmtPt(planTotal > 0 ? (totalAll / planTotal) * 100 : 0)}</span>
+              <span className="text-amber-200">
+                {' '}· KH: {fmt(planTotal)} · Đạt <span className={totalAll > 0 ? '' : 'text-red-200'}>{fmtPt(planTotal > 0 ? (totalAll / planTotal) * 100 : 0)}</span>
               </span>
             )}
           </div>
@@ -523,7 +528,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
       <DetailDataModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        title={`Chi tiết ${theme.label} — Kỳ: ${pinned?.point.period ?? ''}`}
+        title={`Chi tiết ${chuThuongDau(theme.label)} — Kỳ: ${pinned?.point.period ?? ''}`}
         accentColor={theme.bar}
         rows={detailRows}
         columns={detailColumns}

@@ -13,7 +13,7 @@ import { STATUS_META, PRIORITY_META, CAT_CODE, CAT_NAME, fmtHours, fmtShort, fmt
 import * as bang from '../shared/bangBaoCao';
 import { fmtInt } from '../../utils/format';
 import { DetailSheet, FormSheet, StatusPill, PriorityPill } from './sheets';
-import { LOAI_TIEN_META, fmtDong } from './tienM6';
+import { LOAI_TIEN_META, fmtDong, tenNganTien, tenDayDuTien } from './tienM6';
 import { BOP_STAGE_ORDER } from '../../utils/productionMetrics';
 
 // ============================================================================
@@ -179,7 +179,7 @@ export default function VuongMacManager() {
         'Hạn nhập kho hạng mục': fmtDay(v.deadline), 'Xử lý xong lúc': fmtShort(v.resolvedAt), 'Nội dung đã xử lý': v.resolvedNote ?? '',
         'Đóng lúc': fmtShort(v.closedAt), 'Người đóng': v.closedBy ?? '', 'Số lần gia hạn': v.extensions?.length ?? 0,
         'Đã báo quản lý': v.escalatedAt ? 'Có' : '', 'Số ảnh': v.photos?.length ?? 0,
-        'Vấn đề tiền (M6)': v.category === 'money' && v.chiTiet?.loai ? LOAI_TIEN_META[v.chiTiet.loai].label : '',
+        'Vấn đề tiền (M6)': v.category === 'money' && v.chiTiet?.loai ? tenDayDuTien(v.chiTiet) : '',
         'HEX cùng sản phẩm': v.chiTiet?.hexTrung?.join(', ') ?? '',
         'Chi phí GCVT (đ)': v.chiTiet?.chiPhiGcvt ?? '',
         'Giải trình': v.chiTiet?.giaiTrinh ?? '',
@@ -444,7 +444,7 @@ export default function VuongMacManager() {
                     <td className={`${bang.tdB} max-w-[360px]`}><p className="line-clamp-3 text-slate-800">{v.content}</p>{(v.photos?.length ?? 0) > 0 && <span className="text-xs text-slate-400">📷 {v.photos!.length}</span>}</td>
                     <td className={bang.tdSo}>
                       {CAT_CODE[v.category]}
-                      {v.category === 'money' && v.chiTiet?.loai && <span className="block whitespace-nowrap text-xs text-slate-500" title={LOAI_TIEN_META[v.chiTiet.loai].label}>{LOAI_TIEN_META[v.chiTiet.loai].short}</span>}
+                      {v.category === 'money' && v.chiTiet?.loai && <span className="block whitespace-nowrap text-xs text-slate-500" title={tenDayDuTien(v.chiTiet)}>{tenNganTien(v.chiTiet)}</span>}
                     </td>
                     <td className={`${bang.tdB} whitespace-nowrap`}>{v.xuong || '—'}<br /><span className="text-xs text-slate-500">{v.stage || '—'}{v.bop && v.stage && !String(v.bop).toUpperCase().startsWith(v.stage) ? ` → ${String(v.bop).slice(0, 4)}` : ''}</span></td>
                     <td className={`${bang.tdB} whitespace-nowrap`}>{v.handler ? <span className={mine ? 'font-medium text-indigo-700' : 'text-slate-700'}>{v.handler}</span> : <span className="text-amber-700">Chưa giao</span>}</td>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart2, Eye, X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
+import { soSanhKhuVuc } from '../../utils/khuVuc';
 import {
   ComposedChart, Bar, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList, ReferenceLine,
@@ -66,8 +67,8 @@ function PinnedPopover({ x, y, containerWidth, label, value, unit, money, onView
       }}
     >
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 px-4 py-3 text-sm">
-        <p className="text-slate-600">Xưởng: <span className="font-semibold text-slate-800">{label}</span></p>
-        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {money ? formatTy(value) : formatDecimal(value)}</p>
+        <p className="text-slate-600">Khu vực: <span className="font-semibold text-slate-800">{label}</span></p>
+        <p className="text-pink-600 font-semibold mt-0.5">{unit}: {money ? formatTy(value) : formatDecimal(value)}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
@@ -91,12 +92,14 @@ function PinnedPopover({ x, y, containerWidth, label, value, unit, money, onView
 interface TrendByXuongChartProps {
   source: TrendSource;
   embedded?: boolean;
+  /** Số thứ tự trên tiêu đề: "1. Xu hướng …" (người dùng 19/11/2026) */
+  stt?: number;
   displayMode: DisplayMetric;
   /** Vẽ thêm cột Kế hoạch năm (khsx_nam) của các tháng trong khoảng ngày — chế độ Giá trị */
   planOverlay?: boolean;
 }
 
-export default function TrendByXuongChart({ source, embedded = false, displayMode, planOverlay = false }: TrendByXuongChartProps) {
+export default function TrendByXuongChart({ source, embedded = false, stt, displayMode, planOverlay = false }: TrendByXuongChartProps) {
   const {
     dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
     hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI
@@ -199,7 +202,8 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
       Object.keys(planByXuong).forEach(x => { if (!have.has(x)) rows.push({ xuong: x, periodKey: x, total: 0 }); });
       rows.forEach(r => { r.plan = planByXuong[String(r.periodKey).trim().toUpperCase()] ?? 0; });
     }
-    return rows.sort((a, b) => b.total - a.total);
+    // Thứ tự khu vực cố định (2A, 3A, 4A, 5A, 8AB, 8C, KHÁC cuối) — cùng bảng "Chi tiết theo khu vực"
+    return rows.sort((a, b) => soSanhKhuVuc(a.xuong, b.xuong));
   }, [raw, displayMode, hasValidRange, showPlan, planByXuong]);
   const planTotal = useMemo(
     () => (showPlan ? chartData.reduce((s, p) => s + (p.plan ?? 0), 0) : 0),
@@ -273,14 +277,13 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          {theme.label} theo xưởng
+          {stt ? `${stt}. ` : ''}{theme.label} theo khu vực
         </h4>
       </div>
 
       {isStock && (
         <div className={`${embedded ? 'mb-3' : 'bg-white rounded-xl border border-slate-100 p-3 shadow-sm mb-4'} text-sm text-slate-600`}>
-          Tồn kho không chia theo xưởng
+          Tồn kho không chia theo khu vực
         </div>
       )}
 
@@ -311,7 +314,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
               />
               <RechartsTooltip
                 formatter={(v: number, name: string) => [fmt(v), name]}
-                labelFormatter={(l) => `Xưởng: ${l}`}
+                labelFormatter={(l) => `Khu vực: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
               <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: 13 }} />
@@ -365,17 +368,14 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
         )}
         {chartData.length > 0 && !loading && (
           <div
-            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-sm font-bold"
-            style={{
-              color: theme.barDark,
-              borderColor: theme.bar,
-              backgroundColor: `${theme.bar}1A`,
-            }}
+            className="absolute top-3 right-4 z-10 rounded-full px-4 py-1.5 text-base font-bold text-white shadow-md tabular-nums"
+            // Nổi bật (người dùng 19/11/2026): nền màu đậm của biểu đồ, chữ trắng
+            style={{ backgroundColor: theme.barDark }}
           >
-            Tổng: {fmt(totalAll)} · TB: {fmtShort(avgAll)}
+            Tổng: {fmt(totalAll)}{isMoney ? ' tỷ' : ''} · {chartData.length} khu vực · TB: {fmtShort(avgAll)}{isMoney ? ' tỷ' : ''}/khu vực
             {showPlan && (
-              <span style={{ color: PLAN_DARK }}>
-                {' '}· KH: {fmt(planTotal)} · Đạt <span className={totalAll > 0 ? '' : 'text-red-600'}>{fmtPt(planTotal > 0 ? (totalAll / planTotal) * 100 : 0)}</span>
+              <span className="text-amber-200">
+                {' '}· KH: {fmt(planTotal)} · Đạt <span className={totalAll > 0 ? '' : 'text-red-200'}>{fmtPt(planTotal > 0 ? (totalAll / planTotal) * 100 : 0)}</span>
               </span>
             )}
           </div>
@@ -398,7 +398,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
       <DetailDataModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        title={`Chi tiết ${theme.label} — Xưởng: ${pinned?.point.xuong ?? ''}`}
+        title={`Chi tiết ${theme.label.charAt(0).toLocaleLowerCase('vi') + theme.label.slice(1)} — Khu vực: ${pinned?.point.xuong ?? ''}`}
         accentColor={theme.bar}
         rows={detailRows}
         columns={detailColumns}

@@ -12,14 +12,33 @@ export const LOAI_TIEN_META: Record<LoaiTien, { icon: string; label: string; sho
     hint: 'Nhìn hàng thật thấy vài mã HEX là cùng 1 sản phẩm mà đơn giá khác nhau',
   },
   gia_thap_gcvt: {
-    icon: '🏭', label: 'Giá thấp, không gia công vệ tinh được', short: 'Giá thấp GCVT',
-    hint: 'Sản phẩm lớn nhưng giá thấp, chi phí GCVT báo giá vượt giá sản phẩm',
+    icon: '🏭', label: 'Giá thấp so với sản phẩm', short: 'Giá thấp',
+    hint: 'GCVT báo giá vượt giá sản phẩm, hoặc giá thấp so với quy mô sản phẩm',
   },
   vat_tu_vuot_gia: {
     icon: '🪵', label: 'Tiền vật tư cao hơn giá sản phẩm', short: 'Vật tư > giá',
     hint: 'Tổng tiền vật tư của hạng mục lớn hơn trị giá sản phẩm',
   },
 };
+
+/** 2 nguyên nhân của loại "Giá thấp" (người dùng 18/11/2026); bản cũ không có nguyenNhan = GCVT */
+export const NGUYEN_NHAN_GIA_THAP: Record<'gcvt' | 'quy_mo', { label: string; short: string; hint: string; goiY: string }> = {
+  gcvt: {
+    label: 'GCVT báo giá vượt giá sản phẩm', short: 'GCVT', hint: 'Không gia công vệ tinh được vì chi phí GCVT cao hơn giá',
+    goiY: 'Vì sao không gia công vệ tinh được: kích thước, khối lượng, đơn vị GCVT báo giá…',
+  },
+  quy_mo: {
+    label: 'Giá thấp so với quy mô sản phẩm', short: 'quy mô', hint: 'Sản phẩm lớn / nhiều công nhưng đơn giá thấp',
+    goiY: 'Vì sao giá thấp so với quy mô: kích thước, khối lượng, số công, vật liệu…',
+  },
+};
+export const nguyenNhanGiaThap = (ct: Pick<ChiTietTien, 'nguyenNhan'> | null | undefined): 'gcvt' | 'quy_mo' => ct?.nguyenNhan ?? 'gcvt';
+/** Tên ngắn của vấn đề tiền (danh sách / thẻ): "Giá thấp · GCVT" / "Giá thấp · quy mô" */
+export const tenNganTien = (ct: ChiTietTien): string =>
+  ct.loai === 'gia_thap_gcvt' ? `${LOAI_TIEN_META[ct.loai].short} · ${NGUYEN_NHAN_GIA_THAP[nguyenNhanGiaThap(ct)].short}` : LOAI_TIEN_META[ct.loai].short;
+/** Tên đầy đủ: "Giá thấp so với sản phẩm: GCVT báo giá vượt giá sản phẩm" */
+export const tenDayDuTien = (ct: ChiTietTien): string =>
+  ct.loai === 'gia_thap_gcvt' ? `${LOAI_TIEN_META[ct.loai].label}: ${NGUYEN_NHAN_GIA_THAP[nguyenNhanGiaThap(ct)].label}` : LOAI_TIEN_META[ct.loai].label;
 
 /** HEX hợp lệ: đúng 9 chữ số */
 export const HEX_RE = /^\d{9}$/;
@@ -155,7 +174,9 @@ export const chuanHoaChiTiet = (ct: Partial<ChiTietTien>, hexChinh?: string): Ch
   // Ảnh sản phẩm chung của nhóm mã
   if (ct.loai === 'nhieu_gia' && ct.anhSp) out.anhSp = ct.anhSp;
   if (ct.loai === 'gia_thap_gcvt') {
-    if (typeof ct.chiPhiGcvt === 'number' && Number.isFinite(ct.chiPhiGcvt)) out.chiPhiGcvt = ct.chiPhiGcvt;
+    const nn = nguyenNhanGiaThap(ct);
+    if (nn === 'quy_mo') out.nguyenNhan = nn; // không có trường = GCVT (như máy chủ)
+    if (nn === 'gcvt' && typeof ct.chiPhiGcvt === 'number' && Number.isFinite(ct.chiPhiGcvt)) out.chiPhiGcvt = ct.chiPhiGcvt;
     if (ct.giaiTrinh?.trim()) out.giaiTrinh = ct.giaiTrinh.trim();
   }
   if (ct.ghiChu?.trim()) out.ghiChu = ct.ghiChu.trim();
@@ -172,8 +193,8 @@ export const noiDungTuDong = (hex: string, ct: ChiTietTien, kq: Record<string, T
   }
   if (ct.loai === 'gia_thap_gcvt') {
     const phan = [g ? `đơn giá ${fmtDong(g.donGia)}` : `HEX ${hex}`];
-    if (ct.chiPhiGcvt != null) phan.push(`chi phí GCVT báo giá ${fmtDong(ct.chiPhiGcvt)}`);
-    return `${meta.label}: ${phan.join(', ')}. ${ct.giaiTrinh ?? ''}`.trim();
+    if (nguyenNhanGiaThap(ct) === 'gcvt' && ct.chiPhiGcvt != null) phan.push(`chi phí GCVT báo giá ${fmtDong(ct.chiPhiGcvt)}`);
+    return `${tenDayDuTien(ct)}: ${phan.join(', ')}. ${ct.giaiTrinh ?? ''}`.trim();
   }
   // Vật tư > giá: chỉ ghi "chênh" khi có đủ 2 số; không có quyền xem / chưa có số thì không khẳng định
   if (!g) return `${meta.label}: HEX ${hex}`;

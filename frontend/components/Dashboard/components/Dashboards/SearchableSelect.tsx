@@ -8,6 +8,8 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   options: FilterOption[];
   allLabel: string;
+  /** Chữ của dòng "tất cả" trong danh sách (mặc định = allLabel) */
+  allOption?: string;
   icon?: React.ReactNode;
   className?: string;
   /** Bề rộng tối đa của nút hiển thị + panel dropdown (tailwind class, ví dụ 'max-w-[220px]') */
@@ -19,6 +21,7 @@ export default function SearchableSelect({
   onChange,
   options,
   allLabel,
+  allOption,
   icon,
   className = '',
   widthClass = 'max-w-[220px]',
@@ -71,7 +74,7 @@ export default function SearchableSelect({
       <button
         type="button"
         onClick={() => setIsOpen(o => !o)}
-        className="w-full flex items-center gap-1.5 px-2 py-1 border border-slate-300 rounded-md outline-none bg-white text-slate-700 text-left"
+        className="w-full h-8 flex items-center gap-1.5 px-2 border border-slate-300 rounded-md outline-none bg-white text-slate-700 text-left"
       >
         {icon}
         <span className="flex-1 truncate">{selectedLabel}</span>
@@ -109,7 +112,7 @@ export default function SearchableSelect({
                 !value ? 'bg-slate-100 font-semibold text-slate-800' : 'text-slate-600'
               }`}
             >
-              {allLabel}
+              {allOption ?? allLabel}
             </button>
 
             {filteredOptions.length === 0 ? (

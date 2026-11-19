@@ -24,7 +24,7 @@ import {
   loadRecentHex, pushRecentHex, initials,
 } from './model';
 import { TienM6Fields, TienM6View } from './TienM6Form';
-import { LOAI_TIEN_META, thieuTruongTien, chuanHoaChiTiet, noiDungTuDong } from './tienM6';
+import { thieuTruongTien, chuanHoaChiTiet, noiDungTuDong, tenNganTien } from './tienM6';
 
 // ============================================================================
 // Các cửa sổ (sheet) dùng chung cho app điện thoại và màn quản lý trên web:
@@ -104,7 +104,7 @@ export function VmCard({ v, onOpen, me }: { v: VuongMacItem; onOpen: () => void;
       </p>
       <p className="mt-1.5 line-clamp-2 text-base text-slate-700">{v.content}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
-        <span>{catIcon(v.category)} {CAT_CODE[v.category] ?? FIVE_M_LABELS[v.category]}{v.category === 'money' && v.chiTiet?.loai ? ` · ${LOAI_TIEN_META[v.chiTiet.loai].short}` : ''}</span>
+        <span>{catIcon(v.category)} {CAT_CODE[v.category] ?? FIVE_M_LABELS[v.category]}{v.category === 'money' && v.chiTiet?.loai ? ` · ${tenNganTien(v.chiTiet)}` : ''}</span>
         {v.stage && <span>🧩 {v.stage}</span>}
         {v.xuong && <span>🏭 {v.xuong}</span>}
         {v.handler && <span className={mineHandler ? 'font-medium text-indigo-700' : ''}>👤 {mineHandler ? 'Tôi xử lý' : v.handler}</span>}
@@ -825,9 +825,10 @@ export function FormSheet({ row, preset, presetTien, onClose, onDone }: {
           </div>
         )}
 
-        <LabeledField label="Nội dung vướng mắc" required={!noiDungTu} className="md:col-span-2">
+        {/* M6 đã đủ chi tiết tiền: app tự soạn nội dung => ô này chỉ để bổ sung (tránh trùng Giải trình) */}
+        <LabeledField label={laTien && tien.loai ? 'Bổ sung (không bắt buộc)' : 'Nội dung vướng mắc'} required={!(laTien && tien.loai)} className="md:col-span-2">
           <MentionTextarea value={content} onChange={setContent} rows={3} maxLength={2000}
-            placeholder={noiDungTu ? 'Để trống thì app tự ghi theo vấn đề tiền ở trên. Gõ @ để tag' : 'Đang vướng gì, ảnh hưởng thế nào… Gõ @ để tag người liên quan'} className={inputCls} />
+            placeholder={laTien && tien.loai ? 'Để trống thì app tự ghi theo vấn đề tiền + giải trình ở trên. Gõ @ để tag người liên quan' : 'Đang vướng gì, ảnh hưởng thế nào… Gõ @ để tag người liên quan'} className={inputCls} />
         </LabeledField>
 
         {/* Ảnh — đưa lên gần nội dung: công nhân chụp ngay hiện trường */}

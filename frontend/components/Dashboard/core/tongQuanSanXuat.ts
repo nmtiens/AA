@@ -16,7 +16,7 @@ import {
 } from '../../../utils/productionMetrics';
 import { extractStage, remainBucketOf, type RemainBucket } from './stages';
 import type { MetricType, BottleneckItem, WorkshopPivotData, ProjectPivotData } from '../types';
-import { mucBopTuDong, tinhBangCongTrinhBop, mucCongDoan, stageOfBop, khoMuc, type BangCongTrinhBop, type MucBop, type KhoCot } from '../../Construction/core/bopPivot';
+import { SAI_SO_CON_LAI, mucBopTuDong, tinhBangCongTrinhBop, mucCongDoan, stageOfBop, khoMuc, type BangCongTrinhBop, type MucBop, type KhoCot } from '../../Construction/core/bopPivot';
 
 // ---------------------------------------------------------------------------
 // Cột bảng sản xuất
@@ -231,7 +231,13 @@ export function hamGiaTri(k: KhoaPivot) {
     remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
   const funnelValue = (row: DataRow, metric: MetricType): number => {
     if (isCancelledRow(row)) return 0;
-    if (metric !== 'COUNT_HEX') return rowRemain(row);
+    // Đủ số lượng = đã nhập đủ (cùng định nghĩa daNhapDu): phần tiền lệch làm tròn đơn giá không tính "còn lại"
+    // (vd 3 HEX CT24-041 P025 nhập 8/8 mà thiếu ~3.700đ mỗi HEX => phễu hiện "Nhập kho chưa đủ <0.01")
+    if (metric !== 'COUNT_HEX') {
+      if (isQtyComplete(row)) return 0;
+      const con = rowRemain(row);
+      return con < SAI_SO_CON_LAI ? 0 : con; // < 10.000đ: sai số làm tròn (cùng bảng BOP — bopPivot.mucCongDoan)
+    }
     const total = parseNumber(row[k.triGiaDonHangTongKey]);
     const nk = k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0;
     return daNhapDu(total, nk, false, isQtyComplete(row)) ? 0 : 1;

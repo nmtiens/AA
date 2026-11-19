@@ -121,3 +121,26 @@ export function ngayNhom(hexs: readonly string[], khoa: string, ngay: Record<str
   }
   return { ngay: co && tu === den ? tu : null, tu, den, co, tong: hexs.length };
 }
+
+// ---- Giới hạn số lần nhập (như máy chủ server/botCongDoan.ts lyDoGioiHan; người dùng 18/11/2026) ----
+// Đợt đầu nhập 1 lần, đợt cuối tối đa 2 lần kể từ lần đầu; đã nhập không xoá. ADMIN không giới hạn.
+export const GIOI_HAN_NHAP: Record<DotBot, number> = { dau: 1, cuoi: 2 };
+/** Số lần đã nhập (sau lần xoá gần nhất) của từng ô: {hex: {'P014': n, 'P014:dau': n}} (GET /api/bot-cong-doan soLan) */
+export type SoLanMap = Record<string, Record<string, number>>;
+/** Ô (đã có quyền nhập) còn nhập được không, đã nhập mấy lần / tối đa. Giới hạn áp cả ADMIN; chỉ ADMIN xoá được ngày. */
+export const luotNhap = (q: QuyenBot | null, soLan: SoLanMap | undefined, hex: string, cd: string, dot: DotBot) => {
+  const n = soLan?.[hex]?.[khoaNgay(cd, dot)] ?? 0, toiDa = GIOI_HAN_NHAP[dot];
+  return { n, toiDa, con: n < toiDa, xoaDuoc: !!q?.admin };
+};
+/** Sau khi lưu: cộng lần cho các ô vừa đặt / đổi ngày, ô vừa xoá về 0 (ô bị từ chối không tính) */
+export const congLan = (soLan: SoLanMap, ds: OGhi[], bo: Set<string>, ngayCu: Record<string, Record<string, string>>): SoLanMap => {
+  const n = { ...soLan };
+  for (const x of ds) {
+    if (bo.has(`${x.hex}|${x.congDoan}`)) continue;
+    const k = khoaNgay(x.congDoan, x.dot), cu = ngayCu[x.hex]?.[k] ?? null;
+    if (cu === (x.ngay ?? null)) continue;
+    if (!x.ngay) { if (n[x.hex]?.[k]) n[x.hex] = { ...n[x.hex], [k]: 0 }; continue; }
+    n[x.hex] = { ...(n[x.hex] ?? {}), [k]: (n[x.hex]?.[k] ?? 0) + 1 };
+  }
+  return n;
+};

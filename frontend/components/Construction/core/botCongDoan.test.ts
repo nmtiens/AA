@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { docNgayNhap, docDan, ngayNhom, duocNhap, CONG_DOAN_BOT } from './botCongDoan';
+import { docNgayNhap, docDan, ngayNhom, duocNhap, CONG_DOAN_BOT, luotNhap, congLan } from './botCongDoan';
 
 describe('docNgayNhap', () => {
   it('nhận các dạng ngày thường gặp', () => {
@@ -87,5 +87,28 @@ describe('docDan — tiêu đề 2 dòng (file mẫu gộp ô)', () => {
   it('tiêu đề 1 dòng vẫn như cũ; dòng 2 là dữ liệu thì không coi là tiêu đề', () => {
     const kq = docDan('HEX\tP014 ĐẦU\tP014\n260815398\t20/11/2026\t30/11/2026', null);
     expect(kq.ghi.map(x => [x.dot, x.ngay])).toEqual([['dau', '2026-11-20'], ['cuoi', '2026-11-30']]);
+  });
+});
+
+describe('giới hạn số lần nhập BOT', () => {
+  const nv = { admin: false, boPhan: 'PC', congDoan: ['P014'], xuong: null };
+  it('đợt đầu 1 lần, đợt cuối 2 lần; admin không giới hạn', () => {
+    const sl = { '1': { 'P014:dau': 1, P014: 1 } };
+    expect(luotNhap(nv, sl, '1', 'P014', 'dau')).toMatchObject({ n: 1, toiDa: 1, con: false, xoaDuoc: false });
+    expect(luotNhap(nv, sl, '1', 'P014', 'cuoi')).toMatchObject({ n: 1, toiDa: 2, con: true });
+    expect(luotNhap({ ...nv, admin: true }, sl, '1', 'P014', 'dau')).toMatchObject({ con: false, xoaDuoc: true });
+  });
+  it('congLan chỉ cộng ô đổi ngày, không cộng ô bị từ chối / không đổi', () => {
+    const kq = congLan({}, [
+      { hex: '1', congDoan: 'P014', dot: 'dau', ngay: '2026-11-20' },
+      { hex: '2', congDoan: 'P014', dot: 'cuoi', ngay: '2026-11-21' },
+      { hex: '3', congDoan: 'P014', dot: 'cuoi', ngay: null },
+      { hex: '4', congDoan: 'P014', dot: 'cuoi', ngay: '2026-11-22' },
+    ], new Set(['2|P014']), { '4': { P014: '2026-11-22' } });
+    expect(kq).toEqual({ '1': { 'P014:dau': 1 } });
+  });
+  it('congLan: admin xoá ngày => đếm lại từ 0', () => {
+    const kq = congLan({ '5': { 'P014:dau': 1 } }, [{ hex: '5', congDoan: 'P014', dot: 'dau', ngay: null }], new Set(), { '5': { 'P014:dau': '2026-11-20' } });
+    expect(kq).toEqual({ '5': { 'P014:dau': 0 } });
   });
 });

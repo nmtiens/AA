@@ -78139,7 +78139,8 @@ var laKho = (i, f, metric) => {
   return !conTon && coChenh;
 };
 var khoMuc = (i, metric) => metric === "count" ? { nk: laKho(i, "nk", metric) ? 1 : 0, xk: laKho(i, "xk", metric) ? 1 : 0, ton: laKho(i, "ton", metric) ? 1 : 0, chenh: laKho(i, "chenh", metric) ? 1 : 0, xv: laKho(i, "xv", metric) ? 1 : 0 } : khoCua(i);
-var mucCongDoan = (items, metric) => metric === "count" ? items.filter((i) => i.open) : items.filter((i) => i.open || i.remain > 0);
+var SAI_SO_CON_LAI = 0.01;
+var mucCongDoan = (items, metric) => items.filter((i) => i.open && !(metric === "remain" && i.remain > 0 && i.remain < SAI_SO_CON_LAI));
 var giaTriBop = (i, metric) => metric === "count" ? 1 : metric === "remain" ? i.remain : i.total;
 var khoRong = () => ({ nk: 0, xk: 0, ton: 0, chenh: 0, xv: 0 });
 var congKho = (e, v) => {
@@ -78349,7 +78350,11 @@ function hamGiaTri(k) {
   const rowRemain = (row) => remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
   const funnelValue = (row, metric) => {
     if (isCancelledRow(row)) return 0;
-    if (metric !== "COUNT_HEX") return rowRemain(row);
+    if (metric !== "COUNT_HEX") {
+      if (isQtyComplete(row)) return 0;
+      const con = rowRemain(row);
+      return con < SAI_SO_CON_LAI ? 0 : con;
+    }
     const total = parseNumber(row[k.triGiaDonHangTongKey]);
     const nk = k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0;
     return daNhapDu(total, nk, false, isQtyComplete(row)) ? 0 : 1;
@@ -84253,6 +84258,59 @@ app.get("/api/khnk-sheet", async (_req, res) => {
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c k\u1EBF ho\u1EA1ch nh\u1EADp kho" });
   }
 });
+var khoCache = createCache(2);
+app.get("/api/khnk-sheet/kho", async (_req, res) => {
+  try {
+    const payload = await cachedByVersions(khoCache, "kho", ["export", "stock"], async () => {
+      const [xuat, ton] = await Promise.all([
+        timedQuery(`SELECT UPPER(TRIM(ma_cong_trinh)) AS ma, COALESCE(SUM(${numericCol("xuat_kho", "thanh_tien_xuat_kho")}), 0)::float8 AS v
+          FROM xuat_kho WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' GROUP BY 1`),
+        timedQuery(`WITH m AS (SELECT max(date_parsed) AS d FROM ton_kho)
+          SELECT UPPER(TRIM(t.ma_cong_trinh)) AS ma, COALESCE(SUM(t.gia_tri_num), 0)::float8 AS v, (SELECT d FROM m)::text AS ngay
+            FROM ton_kho t, m WHERE t.date_parsed = m.d AND COALESCE(TRIM(t.ma_cong_trinh), '') <> '' GROUP BY 1`)
+      ]);
+      const kho = {};
+      const o = (ma) => kho[ma] ??= { xuat: 0, ton: 0 };
+      for (const x of xuat.rows) o(x.ma).xuat = Number(x.v) || 0;
+      for (const x of ton.rows) o(x.ma).ton = Number(x.v) || 0;
+      return { kho, ngayTon: ton.rows[0]?.ngay ?? null };
+    }, "", "", false);
+    res.json(payload);
+  } catch (e) {
+    console.error("[khnk-sheet/kho]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c xu\u1EA5t / t\u1ED3n kho" });
+  }
+});
+var ttCache = createCache(2);
+var modeSql = (col) => `SELECT DISTINCT ON (ma) ma, v FROM (
+    SELECT UPPER(TRIM(ma_cong_trinh)) AS ma, NULLIF(TRIM(${col}), '') AS v, count(*) AS n
+      FROM production_status_app WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' GROUP BY 1, 2) x
+  ORDER BY ma, (v IS NULL), n DESC, v`;
+app.get("/api/khnk-sheet/thong-tin", async (_req, res) => {
+  try {
+    const payload = await cachedByVersions(ttCache, "tt", ["production"], async () => {
+      const [kv, kh, tk] = await Promise.all([
+        timedQuery(modeSql("khu_vuc_du_an")),
+        timedQuery(modeSql("khach_hang")),
+        timedQuery(`SELECT UPPER(TRIM(ma_cong_trinh)) AS ma,
+               COALESCE(SUM(${numericCol("production_status_app", "thanh_tien_tinh_phieu")}), 0)::float8 AS v
+          FROM production_status_app
+         WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%'
+         GROUP BY 1`)
+      ]);
+      const ct = {};
+      const o = (ma) => ct[ma] ??= { kv: null, kh: null, tksx: 0 };
+      for (const x of kv.rows) o(x.ma).kv = x.v ?? null;
+      for (const x of kh.rows) o(x.ma).kh = x.v ?? null;
+      for (const x of tk.rows) o(x.ma).tksx = Number(x.v) || 0;
+      return { ct };
+    }, "", "", false);
+    res.json(payload);
+  } catch (e) {
+    console.error("[khnk-sheet/thong-tin]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c khu v\u1EF1c / kh\xE1ch h\xE0ng" });
+  }
+});
 
 // src/server/botCongDoan.ts
 var CONG_DOAN = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
@@ -84305,6 +84363,14 @@ function docNgay(x) {
   if (y < 2e3 || y > 2100 || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return void 0;
   return x;
 }
+var GIOI_HAN_NHAP = { dau: 1, cuoi: 2 };
+var TEN_DOT_BOT = { dau: "\u0111\u1EE3t \u0111\u1EA7u", cuoi: "\u0111\u1EE3t cu\u1ED1i" };
+function lyDoGioiHan(admin, dot, soLan, coNgay, ngayMoi) {
+  const toiDa = GIOI_HAN_NHAP[dot];
+  if (ngayMoi === null) return coNgay && !admin ? `BOT ${TEN_DOT_BOT[dot]} \u0111\xE3 nh\u1EADp kh\xF4ng \u0111\u01B0\u1EE3c xo\xE1 (nh\u1EDD admin xo\xE1 n\u1EBFu nh\u1EADp nh\u1EA7m)` : null;
+  if (soLan >= toiDa) return dot === "dau" ? "BOT \u0111\u1EE3t \u0111\u1EA7u ch\u1EC9 \u0111\u01B0\u1EE3c nh\u1EADp 1 l\u1EA7n (\u0111\xE3 nh\u1EADp \u2014 admin xo\xE1 ng\xE0y th\xEC nh\u1EADp l\u1EA1i \u0111\u01B0\u1EE3c)" : `BOT \u0111\u1EE3t cu\u1ED1i ch\u1EC9 \u0111\u01B0\u1EE3c nh\u1EADp ${toiDa} l\u1EA7n (\u0111\xE3 nh\u1EADp ${soLan} l\u1EA7n)`;
+  return null;
+}
 
 // src/routes/botCongDoan.ts
 var docSetupDb = async () => {
@@ -84326,23 +84392,33 @@ var chuanHex = (h) => /^\d{6,15}$/.test(h) ? BigInt(h).toString() : null;
 app.get("/api/bot-cong-doan", authenticateJWT, async (req, res) => {
   try {
     const nguoi = await nguoiNhapNho(req);
-    const [setup, ngay3, boPhanDs] = await Promise.all([
+    const [setup, ngay3, boPhanDs, lan] = await Promise.all([
       nguoi.admin ? setupNho.docMoi() : setupNho.lay(),
       timedQuery(`SELECT hex, cong_doan, dot, to_char(ngay, 'YYYY-MM-DD') AS ngay FROM bot_cong_doan`),
-      nguoi.admin ? boPhanNho.docMoi() : boPhanNho.lay()
+      nguoi.admin ? boPhanNho.docMoi() : boPhanNho.lay(),
+      // số lần nhập SAU lần xoá gần nhất của từng ô
+      timedQuery(`SELECT hex, cong_doan, dot, count(*) FILTER (WHERE ngay_moi IS NOT NULL AND luc > COALESCE(xoa, '-infinity'))::int AS n
+        FROM (SELECT hex, cong_doan, dot, ngay_moi, luc,
+                     max(luc) FILTER (WHERE ngay_moi IS NULL) OVER (PARTITION BY hex, cong_doan, dot) AS xoa
+                FROM bot_cong_doan_lich_su) t
+       GROUP BY 1, 2, 3 HAVING count(*) FILTER (WHERE ngay_moi IS NOT NULL AND luc > COALESCE(xoa, '-infinity')) > 0`)
     ]);
     const m = {};
     for (const x of ngay3.rows) (m[x.hex] ??= {})[x.dot === "dau" ? `${x.cong_doan}:dau` : x.cong_doan] = x.ngay;
+    const soLan = {};
+    for (const x of lan.rows) (soLan[x.hex] ??= {})[x.dot === "dau" ? `${x.cong_doan}:dau` : x.cong_doan] = x.n;
     res.json({
       coBang: true,
       congDoan: CONG_DOAN,
       ngay: m,
+      soLan,
+      gioiHan: GIOI_HAN_NHAP,
       quyen: { admin: nguoi.admin, boPhan: nguoi.boPhan, congDoan: nguoi.active ? congDoanDuocNhap(nguoi, setup) : [], xuong: xuongDuocNhap(nguoi, setup) },
       setup,
       boPhanDs
     });
   } catch (e) {
-    if (laThieuBang3(e)) return res.json({ coBang: false, congDoan: CONG_DOAN, ngay: {}, quyen: null, setup: SETUP_RONG, boPhanDs: [] });
+    if (laThieuBang3(e)) return res.json({ coBang: false, congDoan: CONG_DOAN, ngay: {}, soLan: {}, gioiHan: GIOI_HAN_NHAP, quyen: null, setup: SETUP_RONG, boPhanDs: [] });
     console.error("[bot-cong-doan]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c BOT c\xF4ng \u0111o\u1EA1n" });
   }
@@ -84391,11 +84467,34 @@ app.post("/api/bot-cong-doan", authenticateJWT, async (req, res) => {
       }
       ghi.set(`${x.hex}|${x.congDoan}|${x.dot}`, { hex: x.hex, congDoan: x.congDoan, dot: x.dot, ngay: ngay3 });
     }
-    const ds2 = [...ghi.values()];
+    const ds0 = [...ghi.values()];
     let soDoi = 0;
-    if (ds2.length) {
+    if (ds0.length) {
       soDoi = await withTransaction(async (c) => {
         await c.query("LOCK TABLE bot_cong_doan IN SHARE ROW EXCLUSIVE MODE");
+        const hien = await c.query(
+          `
+          WITH k AS (SELECT * FROM unnest($1::text[], $2::text[], $3::text[]) AS k(hex, cong_doan, dot))
+          SELECT k.hex, k.cong_doan, k.dot, to_char(b.ngay, 'YYYY-MM-DD') AS ngay,
+                 (SELECT count(*)::int FROM bot_cong_doan_lich_su l
+                   WHERE l.hex = k.hex AND l.cong_doan = k.cong_doan AND l.dot = k.dot AND l.ngay_moi IS NOT NULL
+                     AND l.luc > COALESCE((SELECT max(x.luc) FROM bot_cong_doan_lich_su x
+                                            WHERE x.hex = k.hex AND x.cong_doan = k.cong_doan AND x.dot = k.dot AND x.ngay_moi IS NULL), '-infinity')) AS n
+            FROM k LEFT JOIN bot_cong_doan b USING (hex, cong_doan, dot)`,
+          [ds0.map((x) => x.hex), ds0.map((x) => x.congDoan), ds0.map((x) => x.dot)]
+        );
+        const hienCua = new Map(hien.rows.map((r2) => [`${r2.hex}|${r2.cong_doan}|${r2.dot}`, { ngay: r2.ngay, n: Number(r2.n) }]));
+        const ds2 = ds0.filter((x) => {
+          const h = hienCua.get(`${x.hex}|${x.congDoan}|${x.dot}`) ?? { ngay: null, n: 0 };
+          if ((h.ngay ?? null) === (x.ngay ?? null)) return false;
+          const lyDo = lyDoGioiHan(nguoi.admin, x.dot, h.n, !!h.ngay, x.ngay);
+          if (lyDo) {
+            bo.push({ hex: x.hex, congDoan: x.congDoan, lyDo });
+            return false;
+          }
+          return true;
+        });
+        if (!ds2.length) return 0;
         const hexs2 = ds2.map((x) => x.hex), cds = ds2.map((x) => x.congDoan), dots = ds2.map((x) => x.dot), ngays = ds2.map((x) => x.ngay);
         const r = await c.query(`
           WITH moi AS (SELECT * FROM unnest($1::text[], $2::text[], $6::text[], $3::date[]) AS m(hex, cong_doan, dot, ngay)),
@@ -84507,10 +84606,15 @@ app.get("/api/bot-cong-doan/lich-su", authenticateJWT, async (req, res) => {
   const hex3 = String(req.query.hex ?? "").trim();
   if (!hex3) return res.status(400).json({ error: "Thi\u1EBFu HEX" });
   try {
-    const r = await timedQuery(`SELECT cong_doan, dot, to_char(ngay_cu, 'YYYY-MM-DD') AS ngay_cu, to_char(ngay_moi, 'YYYY-MM-DD') AS ngay_moi,
-             nguoi, bo_phan, to_char(luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luc
-        FROM bot_cong_doan_lich_su WHERE hex = $1 ORDER BY luc DESC LIMIT 200`, [hex3]);
-    res.json({ ds: r.rows });
+    const r = await timedQuery(`SELECT cong_doan, dot, ngay_cu, ngay_moi, nguoi, bo_phan, luc,
+             CASE WHEN ngay_moi IS NULL THEN NULL
+                  ELSE count(*) FILTER (WHERE ngay_moi IS NOT NULL) OVER (PARTITION BY cong_doan, dot, dot_xoa ORDER BY t ROWS UNBOUNDED PRECEDING)::int END AS lan
+        FROM (SELECT cong_doan, dot, to_char(ngay_cu, 'YYYY-MM-DD') AS ngay_cu, to_char(ngay_moi, 'YYYY-MM-DD') AS ngay_moi,
+                     nguoi, bo_phan, to_char(luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luc, luc AS t,
+                     count(*) FILTER (WHERE ngay_moi IS NULL) OVER (PARTITION BY cong_doan, dot ORDER BY luc ROWS UNBOUNDED PRECEDING) AS dot_xoa
+                FROM bot_cong_doan_lich_su WHERE hex = $1) s
+       ORDER BY t DESC LIMIT 200`, [hex3]);
+    res.json({ ds: r.rows, gioiHan: GIOI_HAN_NHAP });
   } catch (e) {
     if (laThieuBang3(e)) return res.json({ ds: [] });
     console.error("[bot-cong-doan/lich-su]", e);
@@ -84575,6 +84679,7 @@ var khoaChungDoanhSo = (year, namHienTai) => year === namHienTai ? "revenue-nam-
 // src/routes/revenue.ts
 var revenueCache = createCache(20);
 var REVENUE_VERSION_KEYS = ["yearlyPlan", "inventory", "production"];
+var PLAN_ACTUAL_VERSION_KEYS = [...REVENUE_VERSION_KEYS, "khsx"];
 app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
   try {
     const yearParam = Number(req.params.year);
@@ -84662,7 +84767,7 @@ app.get("/api/khsx-nam/plan-actual", async (req, res) => {
   try {
     const year = Number(req.query.year) || currentVnYear();
     const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
-    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}|${congTrinhList.join("|")}`, REVENUE_VERSION_KEYS, async () => {
+    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}|${congTrinhList.join("|")}`, PLAN_ACTUAL_VERSION_KEYS, async () => {
       const yearStart = `${year}-01-01`;
       const yearEnd = `${year}-12-31`;
       const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C')`;
@@ -84672,7 +84777,13 @@ app.get("/api/khsx-nam/plan-actual", async (req, res) => {
         actualParams.push(congTrinhList);
         actualCt = ` AND ${normNameSql("ten_cong_trinh")} = ANY($3::text[])`;
       }
-      const [plan, actual] = await Promise.all([
+      const khThangParams = [String(year)];
+      let khThangCt = "";
+      if (congTrinhList.length) {
+        khThangParams.push(congTrinhList);
+        khThangCt = ` AND ${normNameSql("ten_cong_trinh")} = ANY($2::text[])`;
+      }
+      const [plan, actual, planThangRows] = await Promise.all([
         congTrinhList.length ? Promise.resolve({ rows: [] }) : timedQuery(
           `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS value
@@ -84686,15 +84797,24 @@ app.get("/api/khsx-nam/plan-actual", async (req, res) => {
          WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}${actualCt}
          GROUP BY 1, 2`,
           actualParams
+        ),
+        timedQuery(
+          `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
+                COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / ${TRIEU_TO_TY} AS value
+         FROM khsx
+         WHERE UPPER(TRIM(phan_loai_kh)) LIKE '%TH\xC1NG%' AND nam = $1::bigint AND thang IS NOT NULL
+           AND ${notCancelledHexCond("hex")}${khThangCt}
+         GROUP BY 1, 2`,
+          khThangParams
         )
       ]);
       const map2 = (rows) => rows.map((r) => ({ thang: Number(r.thang), xuong: String(r.xuong), value: Number(r.value) }));
-      const p = map2(plan.rows), a = map2(actual.rows);
-      const seen = new Set([...p, ...a].map((r) => r.xuong).filter(Boolean));
+      const p = map2(plan.rows), a = map2(actual.rows), pt = map2(planThangRows.rows);
+      const seen = new Set([...p, ...a, ...pt].map((r) => r.xuong).filter(Boolean));
       const main = TARGET_WORKSHOPS.filter((w) => seen.has(w));
       const rest = [...seen].filter((w) => !TARGET_WORKSHOPS.includes(w) && w !== "KH\xC1C").sort();
       const workshops = [...main, ...rest, ...seen.has("KH\xC1C") ? ["KH\xC1C"] : []];
-      return { year, workshops, plan: p, actual: a };
+      return { year, workshops, plan: p, actual: a, planThang: pt };
     }, workshopGroupsVersion());
     res.json(payload);
   } catch (error61) {
@@ -86363,6 +86483,7 @@ var taoNhoTheoKhoa = (ttlMs, toiDa = 2e3, now = Date.now) => {
 
 // src/server/vuongMacTien.ts
 var LOAI_TIEN = ["nhieu_gia", "gia_thap_gcvt", "vat_tu_vuot_gia"];
+var NGUYEN_NHAN_GIA_THAP = ["gcvt", "quy_mo"];
 var TRIEU = 1e6;
 var trieuSangVnd = (v) => {
   const n = soHuuHan(v);
@@ -86380,6 +86501,7 @@ var lamTronVnd = (v) => {
 var chiTietTienSchema = external_exports.object({
   loai: external_exports.enum(LOAI_TIEN).optional().nullable(),
   hexTrung: external_exports.array(external_exports.string().max(40)).max(100).optional().nullable(),
+  nguyenNhan: external_exports.enum(NGUYEN_NHAN_GIA_THAP).optional().nullable(),
   chiPhiGcvt: external_exports.number().nonnegative().max(1e13).optional().nullable(),
   giaiTrinh: external_exports.string().max(2e3).optional().nullable(),
   ghiChu: external_exports.string().max(2e3).optional().nullable(),
@@ -86425,12 +86547,15 @@ var kiemChiTietTien = (category, chiTiet, hexChinh) => {
   }
   if (c.loai === "gia_thap_gcvt") {
     const giaiTrinh = chuSach(c.giaiTrinh);
-    if (!giaiTrinh) return { ok: false, message: "Gi\xE1 th\u1EA5p, kh\xF4ng GCVT \u0111\u01B0\u1EE3c: vui l\xF2ng nh\u1EADp gi\u1EA3i tr\xECnh" };
-    const chiPhi = soHuuHan(c.chiPhiGcvt);
+    if (!giaiTrinh) return { ok: false, message: "Gi\xE1 th\u1EA5p: vui l\xF2ng nh\u1EADp gi\u1EA3i tr\xECnh" };
+    const nguyenNhan = c.nguyenNhan ?? "gcvt";
+    const chiPhi = nguyenNhan === "gcvt" ? soHuuHan(c.chiPhiGcvt) : null;
     return {
       ok: true,
       value: {
         loai: "gia_thap_gcvt",
+        // Chỉ lưu khi khác mặc định: bản cũ (không có trường) = 'gcvt' => sửa bản cũ không đổi gì không sinh nhật ký
+        ...nguyenNhan === "quy_mo" ? { nguyenNhan } : {},
         ...chiPhi !== null ? { chiPhiGcvt: Math.round(chiPhi) } : {},
         giaiTrinh,
         ...ghiChu ? { ghiChu } : {}

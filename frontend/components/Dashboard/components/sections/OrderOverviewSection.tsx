@@ -2,8 +2,7 @@ import { macDinhCuaSo } from '../../core/dauTrang';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ShoppingCart, FileText, ClipboardList, Package, Box, Eye, Download, X,
-  Layers, Building2, Briefcase, XCircle as CloseIcon,
+  Eye, Download, X, XCircle as CloseIcon,
   TrendingUp,
   Table2,
   Activity,
@@ -302,7 +301,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     isExportDetailModalOpen,
   ]);
 
-  // ---------- Bấm 1 ô số ở bảng "Chi tiết theo Xưởng / Công trình" => danh sách hạng mục (view có sẵn của Dashboard) ----------
+  // ---------- Bấm 1 ô số ở bảng "Chi tiết theo khu vực / công trình" => danh sách hạng mục (view có sẵn của Dashboard) ----------
   // Như phễu (OnLineStageDetailModal.onValueClick -> HexDetailModal): lấy các HEX tạo nên số đó rồi Dashboard mở
   // HexDetailModal từ bảng sản xuất; Tồn kho -> StockItemsModal (danh sách mã tồn của công trình, ngày tồn đang lọc).
   // HEX lấy qua /api/detail?chiHex=1 (chỉ danh sách HEX, không giới hạn dòng) cùng phạm vi với số trên bảng (/api/overview/by-group): cột "trong ngày" = các ngày đang
@@ -500,7 +499,7 @@ const periodLabel = overviewDateFilters.length > 1
                   <span className="ml-1 text-sm font-medium text-slate-600">{dem ? 'mã SAP' : valueUnitLabel.toLowerCase()}</span>
                 </span>
                 <span className="mt-0.5 text-sm font-medium tabular-nums text-slate-700">
-                  cuối T{prevMonthNo}: {so(latestStockStatsPrevMonth.count, latestStockStatsPrevMonth.value)}
+                  Cuối T{prevMonthNo}: {so(latestStockStatsPrevMonth.count, latestStockStatsPrevMonth.value)}
                   {dem && stockOverviewMa0 > 0 && ` · ${stockOverviewMa0.toLocaleString('en-US')} mã giá trị 0`}
                 </span>
               </button>
@@ -509,7 +508,7 @@ const periodLabel = overviewDateFilters.length > 1
         })()}
       </div>
 
-      {/* Modal: Chi tiết Đơn hàng mới (IPO) */}
+      {/* Modal: Chi tiết đơn hàng mới (IPO) */}
       {isIpoDetailModalOpen && createPortal(
        <div className={`fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
           <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
@@ -517,8 +516,7 @@ const periodLabel = overviewDateFilters.length > 1
   <div className="flex items-center gap-6">
     <div>
       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-        <ShoppingCart className="text-pink-600" size={20} />
-        Chi tiết Đơn hàng mới (IPO)
+        Chi tiết đơn hàng mới (IPO)
       </h3>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-pink-200 rounded-lg p-1 shadow-sm">
@@ -547,7 +545,7 @@ const periodLabel = overviewDateFilters.length > 1
     <button
       onClick={handleOpenOrderExport}
       className="flex items-center gap-1.5 px-3.5 py-1.5 bg-pink-50 text-pink-700 hover:bg-pink-100 rounded-lg text-sm font-bold border border-pink-200 transition-all shadow-sm active:scale-95 cursor-pointer"
-      title="Xuất dữ liệu Đơn hàng mới (P001) ra file .CSV"
+      title="Xuất dữ liệu đơn hàng mới (P001) ra file CSV"
     >
       <Download size={15} />
       <span>Xuất CSV</span>
@@ -566,11 +564,11 @@ const periodLabel = overviewDateFilters.length > 1
                 <>
                   <SharedDateFilterBar showProductFilters /> 
                   <div className="p-6">
-                    <TrendChart source="order" embedded displayMode={ipoMetric} />
-                    <ByXuongChart source="order" displayMode={ipoMetric} />
-                    <ByCongTrinhChart source="order" displayMode={ipoMetric} />
-                  <TrendByCategoryChart kind="phanloai" source="order" displayMode={ipoMetric} embedded />
-<TrendByCategoryChart kind="dvt" source="order" displayMode={ipoMetric} embedded />
+                    <TrendChart source="order" stt={1} embedded displayMode={ipoMetric} />
+                    <ByXuongChart source="order" stt={2} displayMode={ipoMetric} />
+                    <ByCongTrinhChart source="order" stt={3} displayMode={ipoMetric} />
+                  <TrendByCategoryChart kind="phanloai" source="order" stt={4} displayMode={ipoMetric} embedded />
+<TrendByCategoryChart kind="dvt" source="order" stt={5} displayMode={ipoMetric} embedded />
                   </div>
                 </>
               ) : (
@@ -578,8 +576,10 @@ const periodLabel = overviewDateFilters.length > 1
                   <DetailModalTable
                     onValueClick={moDanhSach('order', 'xuong', 'Đơn hàng mới')}
                     data={toAnalysisItems(groupAnalysisCache[`order-xuong-${filterKey}`] ?? [], ipoMetric)}
-                    title="Chi tiết theo Xưởng"
-                    icon={Layers}
+                    title="Chi tiết theo khu vực"
+                    stt={1}
+                    sapTheoKhuVuc
+                    tenCot="Khu vực"
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                     unitLabel={ipoMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -595,8 +595,8 @@ const periodLabel = overviewDateFilters.length > 1
                       data={toAnalysisItems(groupAnalysisCache[`order-congtrinh-${filterKey}`] ?? [], ipoMetric)}
                       unitLabel={ipoMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                       formatValue={ipoMetric === 'COUNT' ? undefined : formatTrieuAsTy}
-                      title="Chi tiết theo Công trình"
-                      icon={Building2}
+                      title="Chi tiết theo công trình"
+                      stt={2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                       primaryColorClass="text-pink-600"
@@ -618,8 +618,7 @@ const periodLabel = overviewDateFilters.length > 1
   <div className="flex items-center gap-6">
     <div>
       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-        <FileText className="text-blue-600" size={20} />
-        Chi tiết Triển khai Bản vẽ (TKBV)
+        Chi tiết triển khai bản vẽ (TKBV)
       </h3>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-blue-200 rounded-lg p-1 shadow-sm">
@@ -648,7 +647,7 @@ const periodLabel = overviewDateFilters.length > 1
     <button
       onClick={() => handleOpenGenericExport('tkbv')}
       className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-sm font-bold border border-blue-200 transition-all shadow-sm active:scale-95 cursor-pointer"
-      title="Xuất dữ liệu TKBV ra file .CSV"
+      title="Xuất dữ liệu TKBV ra file CSV"
     >
       <Download size={15} />
       <span>Xuất CSV</span>
@@ -666,11 +665,11 @@ const periodLabel = overviewDateFilters.length > 1
                 <>
                   <SharedDateFilterBar showProductFilters /> 
                <div className="p-6">
-  <TrendChart source="tkbv" embedded displayMode={tkbvMetric} />
-  <ByXuongChart source="tkbv" displayMode={tkbvMetric} />
-  <ByCongTrinhChart source="tkbv" displayMode={tkbvMetric} />
-  <TrendByCategoryChart kind="phanloai" source="tkbv" displayMode={tkbvMetric} embedded />
-  <TrendByCategoryChart kind="dvt" source="tkbv" displayMode={tkbvMetric} embedded />
+  <TrendChart source="tkbv" stt={1} embedded displayMode={tkbvMetric} />
+  <ByXuongChart source="tkbv" stt={2} displayMode={tkbvMetric} />
+  <ByCongTrinhChart source="tkbv" stt={3} displayMode={tkbvMetric} />
+  <TrendByCategoryChart kind="phanloai" source="tkbv" stt={4} displayMode={tkbvMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="tkbv" stt={5} displayMode={tkbvMetric} embedded />
 </div>
                 </>
               ) : (
@@ -678,8 +677,10 @@ const periodLabel = overviewDateFilters.length > 1
                   <DetailModalTable
                     onValueClick={moDanhSach('tkbv', 'xuong', 'Triển khai BV')}
                     data={toAnalysisItems(groupAnalysisCache[`tkbv-xuong-${filterKey}`] ?? [], tkbvMetric)}
-                    title="Chi tiết theo Xưởng"
-                    icon={Layers}
+                    title="Chi tiết theo khu vực"
+                    stt={1}
+                    sapTheoKhuVuc
+                    tenCot="Khu vực"
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                     unitLabel={tkbvMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -692,8 +693,8 @@ const periodLabel = overviewDateFilters.length > 1
                     <DetailModalTable
                       onValueClick={moDanhSach('tkbv', 'congtrinh', 'Triển khai BV')}
                       data={toAnalysisItems(groupAnalysisCache[`tkbv-congtrinh-${filterKey}`] ?? [], tkbvMetric)}
-                      title="Chi tiết theo Công trình"
-                      icon={Building2}
+                      title="Chi tiết theo công trình"
+                      stt={2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                       unitLabel={tkbvMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -717,8 +718,7 @@ const periodLabel = overviewDateFilters.length > 1
   <div className="flex items-center gap-6">
     <div>
       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-        <ClipboardList className="text-purple-600" size={20} />
-        Chi tiết Đã Tính Phiếu (PTHSP)
+        Chi tiết đã tính phiếu (PTHSP)
       </h3>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-purple-200 rounded-lg p-1 shadow-sm">
@@ -747,7 +747,7 @@ const periodLabel = overviewDateFilters.length > 1
     <button
       onClick={() => handleOpenGenericExport('pthsp')}
       className="flex items-center gap-1.5 px-3.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-sm font-bold border border-purple-200 transition-all shadow-sm active:scale-95 cursor-pointer"
-      title="Xuất dữ liệu PTHSP ra file .CSV"
+      title="Xuất dữ liệu PTHSP ra file CSV"
     >
       <Download size={15} />
       <span>Xuất CSV</span>
@@ -766,11 +766,11 @@ const periodLabel = overviewDateFilters.length > 1
                 <>
                   <SharedDateFilterBar showProductFilters /> 
                  <div className="p-6">
-  <TrendChart source="pthsp" embedded displayMode={pthspMetric} />
-  <ByXuongChart source="pthsp" displayMode={pthspMetric} />
-  <ByCongTrinhChart source="pthsp" displayMode={pthspMetric} />
-  <TrendByCategoryChart kind="phanloai" source="pthsp" displayMode={pthspMetric} embedded />
-  <TrendByCategoryChart kind="dvt" source="pthsp" displayMode={pthspMetric} embedded />
+  <TrendChart source="pthsp" stt={1} embedded displayMode={pthspMetric} />
+  <ByXuongChart source="pthsp" stt={2} displayMode={pthspMetric} />
+  <ByCongTrinhChart source="pthsp" stt={3} displayMode={pthspMetric} />
+  <TrendByCategoryChart kind="phanloai" source="pthsp" stt={4} displayMode={pthspMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="pthsp" stt={5} displayMode={pthspMetric} embedded />
 </div>
                 </>
               ) : (
@@ -778,8 +778,10 @@ const periodLabel = overviewDateFilters.length > 1
                   <DetailModalTable
                     onValueClick={moDanhSach('pthsp', 'xuong', 'Tính phiếu')}
                     data={toAnalysisItems(groupAnalysisCache[`pthsp-xuong-${filterKey}`] ?? [], pthspMetric)}
-                    title="Chi tiết theo Xưởng"
-                    icon={Layers}
+                    title="Chi tiết theo khu vực"
+                    stt={1}
+                    sapTheoKhuVuc
+                    tenCot="Khu vực"
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                     unitLabel={pthspMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -792,8 +794,8 @@ const periodLabel = overviewDateFilters.length > 1
                     <DetailModalTable
                       onValueClick={moDanhSach('pthsp', 'congtrinh', 'Tính phiếu')}
                       data={toAnalysisItems(groupAnalysisCache[`pthsp-congtrinh-${filterKey}`] ?? [], pthspMetric)}
-                      title="Chi tiết theo Công trình"
-                      icon={Building2}
+                      title="Chi tiết theo công trình"
+                      stt={2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                       unitLabel={pthspMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -817,8 +819,7 @@ const periodLabel = overviewDateFilters.length > 1
   <div className="flex items-center gap-6">
     <div>
       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-        <Package className="text-teal-600" size={20} />
-        Chi tiết Nhập Kho
+        Chi tiết nhập kho
       </h3>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-teal-200 rounded-lg p-1 shadow-sm">
@@ -848,7 +849,7 @@ const periodLabel = overviewDateFilters.length > 1
     <button
       onClick={() => handleOpenGenericExport('inventory')}
       className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg text-sm font-bold border border-teal-200 transition-all shadow-sm active:scale-95 cursor-pointer"
-      title="Xuất dữ liệu Nhập kho ra file .CSV"
+      title="Xuất dữ liệu nhập kho ra file CSV"
     >
       <Download size={15} />
       <span>Xuất CSV</span>
@@ -867,17 +868,17 @@ const periodLabel = overviewDateFilters.length > 1
                 <>
                   <SharedDateFilterBar showProductFilters /> 
               <div className="p-6">
-  <TrendChart source="inventory" embedded displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
-  <ByXuongChart source="inventory" displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
+  <TrendChart source="inventory" stt={1} embedded displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
+  <ByXuongChart source="inventory" stt={2} displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
   {inventoryPlanOverlay ? (
     // Mở từ ô "Kế hoạch năm": kế hoạch năm không chia theo công trình / nhóm SP / ĐVT
     // -> thay 3 biểu đồ đó bằng bảng KH – TH phân cấp Năm / 6 tháng / Quý / Tháng
-    <YearPlanTable />
+    <YearPlanTable stt={3} />
   ) : (
     <>
-      <ByCongTrinhChart source="inventory" displayMode={inventoryMetric} />
-      <TrendByCategoryChart kind="phanloai" source="inventory" displayMode={inventoryMetric} embedded />
-      <TrendByCategoryChart kind="dvt" source="inventory" displayMode={inventoryMetric} embedded />
+      <ByCongTrinhChart source="inventory" stt={3} displayMode={inventoryMetric} />
+      <TrendByCategoryChart kind="phanloai" source="inventory" stt={4} displayMode={inventoryMetric} embedded />
+      <TrendByCategoryChart kind="dvt" source="inventory" stt={5} displayMode={inventoryMetric} embedded />
     </>
   )}
 </div>
@@ -887,8 +888,10 @@ const periodLabel = overviewDateFilters.length > 1
                   <DetailModalTable
                     onValueClick={moDanhSach('inventory', 'xuong', 'Nhập kho')}
                     data={toAnalysisItems(groupAnalysisCache[`inventory-xuong-${filterKey}`] ?? [], inventoryMetric)}
-                    title="Chi tiết theo Xưởng"
-                    icon={Layers}
+                    title="Chi tiết theo khu vực"
+                    stt={1}
+                    sapTheoKhuVuc
+                    tenCot="Khu vực"
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                     unitLabel={inventoryMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -901,8 +904,8 @@ const periodLabel = overviewDateFilters.length > 1
                     <DetailModalTable
                       onValueClick={moDanhSach('inventory', 'congtrinh', 'Nhập kho')}
                       data={toAnalysisItems(groupAnalysisCache[`inventory-congtrinh-${filterKey}`] ?? [], inventoryMetric)}
-                      title="Chi tiết theo Công trình"
-                      icon={Building2}
+                      title="Chi tiết theo công trình"
+                      stt={2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                       unitLabel={inventoryMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -926,8 +929,7 @@ const periodLabel = overviewDateFilters.length > 1
         <div className="flex items-center gap-6">
           <div>
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Package className="text-amber-600" size={20} />
-              Chi tiết Xuất Kho
+              Chi tiết xuất kho
             </h3>
           </div>
           <div className="inline-flex items-center gap-1 bg-white border border-amber-200 rounded-lg p-1 shadow-sm">
@@ -956,7 +958,7 @@ const periodLabel = overviewDateFilters.length > 1
           <button
             onClick={() => handleOpenGenericExport('export')}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-sm font-bold border border-amber-200 transition-all shadow-sm active:scale-95 cursor-pointer"
-            title="Xuất dữ liệu Xuất kho ra file .CSV"
+            title="Xuất dữ liệu xuất kho ra file CSV"
           >
             <Download size={15} />
             <span>Xuất CSV</span>
@@ -976,11 +978,11 @@ const periodLabel = overviewDateFilters.length > 1
                 <>
                   <SharedDateFilterBar showProductFilters /> 
                  <div className="p-6">
-  <TrendChart source="export" embedded displayMode={exportMetric} />
-  <ByXuongChart source="export" displayMode={exportMetric} />
-  <ByCongTrinhChart source="export" displayMode={exportMetric} />
-  <TrendByCategoryChart kind="phanloai" source="export" displayMode={exportMetric} embedded />
-  <TrendByCategoryChart kind="dvt" source="export" displayMode={exportMetric} embedded />
+  <TrendChart source="export" stt={1} embedded displayMode={exportMetric} />
+  <ByXuongChart source="export" stt={2} displayMode={exportMetric} />
+  <ByCongTrinhChart source="export" stt={3} displayMode={exportMetric} />
+  <TrendByCategoryChart kind="phanloai" source="export" stt={4} displayMode={exportMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="export" stt={5} displayMode={exportMetric} embedded />
 </div>
                 </>
               ) : (
@@ -988,8 +990,10 @@ const periodLabel = overviewDateFilters.length > 1
                   <DetailModalTable
                     onValueClick={moDanhSach('export', 'xuong', 'Xuất kho')}
                     data={toAnalysisItems(groupAnalysisCache[`export-xuong-${filterKey}`] ?? [], exportMetric)}
-                    title="Chi tiết theo Xưởng"
-                    icon={Layers}
+                    title="Chi tiết theo khu vực"
+                    stt={1}
+                    sapTheoKhuVuc
+                    tenCot="Khu vực"
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                     unitLabel={exportMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -1002,8 +1006,8 @@ const periodLabel = overviewDateFilters.length > 1
                     <DetailModalTable
                       onValueClick={moDanhSach('export', 'congtrinh', 'Xuất kho')}
                       data={toAnalysisItems(groupAnalysisCache[`export-congtrinh-${filterKey}`] ?? [], exportMetric)}
-                      title="Chi tiết theo Công trình"
-                      icon={Briefcase}
+                      title="Chi tiết theo công trình"
+                      stt={2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
                       unitLabel={exportMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
@@ -1036,13 +1040,12 @@ const periodLabel = overviewDateFilters.length > 1
         <div className="flex items-center gap-6">
           <div>
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Box className="text-slate-600" size={20} />
               Tồn kho thành phẩm (tỷ)
               {closestStockDate && <span className="text-sm font-semibold text-slate-600">{closestStockDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>}
             </h3>
           </div>
           <div className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
-            {([['tongquan', 'Tổng quan sức khoẻ', Activity], ['detail', 'Theo công trình', Table2], ['chart', 'Biểu đồ theo bộ lọc', TrendingUp]] as const).map(([k, nhan, Icon]) => (
+            {([['tongquan', 'Tổng quan sức khỏe', Activity], ['detail', 'Theo công trình', Table2], ['chart', 'Biểu đồ theo bộ lọc', TrendingUp]] as const).map(([k, nhan, Icon]) => (
               <button
                 key={k}
                 onClick={() => setStockTab(k)}
@@ -1061,7 +1064,7 @@ const periodLabel = overviewDateFilters.length > 1
           <button
             onClick={() => handleOpenGenericExport('stock')}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-bold border border-slate-200 transition-all shadow-sm active:scale-95 cursor-pointer"
-            title="Xuất dữ liệu Tồn kho ra file .CSV"
+            title="Xuất dữ liệu tồn kho ra file CSV"
           >
             <Download size={15} />
             <span>Xuất CSV</span>
@@ -1090,10 +1093,10 @@ const periodLabel = overviewDateFilters.length > 1
                 <>
                    <SharedDateFilterBar showProductFilters /> 
                 <div className="p-6">
-  <TrendChart source="stock" embedded displayMode={stockMetric} />
-  <ByCongTrinhChart source="stock" displayMode={stockMetric} />
-  <TrendByCategoryChart kind="phanloai" source="stock" displayMode={stockMetric} embedded />
-  <TrendByCategoryChart kind="dvt" source="stock" displayMode={stockMetric} embedded />
+  <TrendChart source="stock" stt={1} embedded displayMode={stockMetric} />
+  <ByCongTrinhChart source="stock" stt={2} displayMode={stockMetric} />
+  <TrendByCategoryChart kind="phanloai" source="stock" stt={3} displayMode={stockMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="stock" stt={4} displayMode={stockMetric} embedded />
 </div>
                 </>
               ) : (
@@ -1105,8 +1108,8 @@ const periodLabel = overviewDateFilters.length > 1
                       daily: stockMetric === 'COUNT' ? r.count : r.value,
                       mtd: stockMetric === 'COUNT' ? r.count : r.value,
                     }))}
-                    title="Chi tiết theo Công trình"
-                    icon={Briefcase}
+                    title="Chi tiết theo công trình"
+                    stt={1}
                     dateLabel={`NGÀY TỒN ${
                       closestStockDate
                         ? `(${closestStockDate.getDate().toString().padStart(2, '0')}/${(closestStockDate.getMonth() + 1)
@@ -1114,7 +1117,7 @@ const periodLabel = overviewDateFilters.length > 1
                             .padStart(2, '0')}/${closestStockDate.getFullYear()})`
                         : ''
                     }`}
-                    unitLabel={stockMetric === 'COUNT' ? '(SL Mã SAP)' : '(Tỷ đồng)'}
+                    unitLabel={stockMetric === 'COUNT' ? '(SL mã SAP)' : '(Tỷ đồng)'}
                     formatValue={stockMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                   />
                 </div>

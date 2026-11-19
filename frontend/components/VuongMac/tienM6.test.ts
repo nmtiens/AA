@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tachHex, tomTatMucGia, docSoTien, nhapSoTien, fmtDongGon, thieuTruongTien, chuanHoaChiTiet, hieu, noiDungTuDong } from './tienM6';
+import { tachHex, tomTatMucGia, docSoTien, nhapSoTien, fmtDongGon, thieuTruongTien, chuanHoaChiTiet, hieu, noiDungTuDong, tenNganTien } from './tienM6';
 
 describe('tachHex', () => {
   it('dán nhiều mã cách nhau phẩy / khoảng trắng / xuống dòng, bỏ trùng và HEX chính', () => {
@@ -69,6 +69,10 @@ describe('kiểm tra + chuẩn hoá chi tiết', () => {
   it('bỏ trường không thuộc loại / rỗng', () => {
     expect(chuanHoaChiTiet({ loai: 'vat_tu_vuot_gia', hexTrung: ['1'], giaiTrinh: 'x', ghiChu: ' ' })).toEqual({ loai: 'vat_tu_vuot_gia' });
     expect(chuanHoaChiTiet({ loai: 'gia_thap_gcvt', chiPhiGcvt: 5_000_000, giaiTrinh: ' lý do ' })).toEqual({ loai: 'gia_thap_gcvt', chiPhiGcvt: 5_000_000, giaiTrinh: 'lý do' });
+    // Giá thấp so với quy mô: không gửi chi phí GCVT
+    expect(chuanHoaChiTiet({ loai: 'gia_thap_gcvt', nguyenNhan: 'quy_mo', chiPhiGcvt: 5_000_000, giaiTrinh: 'x' })).toEqual({ loai: 'gia_thap_gcvt', nguyenNhan: 'quy_mo', giaiTrinh: 'x' });
+    expect(tenNganTien({ loai: 'gia_thap_gcvt' })).toBe('Giá thấp · GCVT');
+    expect(tenNganTien({ loai: 'gia_thap_gcvt', nguyenNhan: 'quy_mo' })).toBe('Giá thấp · quy mô');
     expect(chuanHoaChiTiet({})).toBeNull();
   });
 });

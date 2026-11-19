@@ -11,7 +11,8 @@ import { BOP_GROUP } from './core/bopPivot';
 import { mauLuong, soSanhThuTu } from './core/thuTuNhom';
 import { useThuTuLuongDo } from './useThuTuLuongDo';
 import {
-  CONG_DOAN_BOT, TEN_CONG_DOAN_BOT, TEN_DOT, chuanTen, docDan, duocNhap, fmtNgayBot, khoaNgay, ngayNhom, type DotBot, type OGhi, type QuyenBot,
+  CONG_DOAN_BOT, TEN_CONG_DOAN_BOT, TEN_DOT, chuanTen, docDan, duocNhap, fmtNgayBot, khoaNgay, ngayNhom, luotNhap, congLan, GIOI_HAN_NHAP,
+  type DotBot, type OGhi, type QuyenBot, type SoLanMap,
 } from './core/botCongDoan';
 
 // ============================================================================
@@ -23,7 +24,7 @@ import {
 
 export type NgayMap = Record<string, Record<string, string>>;
 interface Setup { congDoan: Record<string, string[]>; xuongCua: Record<string, string[]> }
-interface DuLieu { coBang: boolean; ngay: NgayMap; quyen: QuyenBot | null; setup: Setup; boPhanDs: string[] }
+interface DuLieu { coBang: boolean; ngay: NgayMap; soLan?: SoLanMap; quyen: QuyenBot | null; setup: Setup; boPhanDs: string[] }
 
 // Không nhớ giữa các lần mở (quyền theo tài khoản đang đăng nhập — đổi tài khoản không dùng nhầm quyền cũ)
 const taiBot = async (): Promise<DuLieu> => {
@@ -75,6 +76,8 @@ const chuaQua = (h: HexInfo, cd: string) => { const r = stageRank(h.stage); retu
 export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: HexInfo[]; onHexClick?: (hex: string) => void; chiCuaToi?: boolean }) => {
   const [du, setDu] = useState<DuLieu | null>(null);
   const [ngay, setNgay] = useState<NgayMap>({});
+  // Số lần đã nhập từng ô (giới hạn: đợt đầu 1 lần, đợt cuối 2 lần — máy chủ kiểm lại)
+  const [soLan, setSoLan] = useState<SoLanMap>({});
   // Lần lưu đang / vừa chạy: kết quả tải lại bắt đầu TRƯỚC lần lưu thì bỏ (không đè ngày vừa lưu bằng số cũ)
   const soLanLuu = useRef(0);
   const huySua = useRef(false);
@@ -101,7 +104,7 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
   const tai = useCallback(() => {
     setDangTai(true); setLoi(null);
     const luc = soLanLuu.current;
-    taiBot().then(d => { setDu(d); if (soLanLuu.current === luc) setNgay(d.ngay); }).catch(e => setLoi(e instanceof Error ? e.message : String(e))).finally(() => setDangTai(false));
+    taiBot().then(d => { setDu(d); if (soLanLuu.current === luc) { setNgay(d.ngay); setSoLan(d.soLan ?? {}); } }).catch(e => setLoi(e instanceof Error ? e.message : String(e))).finally(() => setDangTai(false));
   }, []);
   useEffect(() => { tai(); }, [tai]);
 
@@ -158,6 +161,7 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
     }
     // Ô bị từ chối (máy chủ trả hex + công đoạn): không cập nhật ở máy cả 2 đợt của ô đó
     const bo = new Set(d.bo.map(x => `${x.hex}|${x.congDoan}`));
+    setSoLan(s => congLan(s, ds, bo, ngay));
     setNgay(cu => {
       const n = { ...cu };
       for (const x of ds) {
@@ -178,7 +182,16 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
   // Nhập 1 ngày (đợt đầu / cuối) cho 1 nhóm HEX (dòng tầng 1 / tầng 2) ở công đoạn cd
   const apNgay = (hs: HexInfo[], cd: string, dot: DotBot, v: string | null) => {
     const k = khoaNgay(cd, dot);
-    const duoc = hs.filter(h => duocNhap(q, cd, h.area));
+    const coQuyen = hs.filter(h => duocNhap(q, cd, h.area));
+    // Giới hạn số lần: ô hết lượt (đặt / đổi ngày) hoặc đã có ngày (xoá) thì bỏ, báo số ô bỏ
+    const duoc = coQuyen.filter(h => {
+      const l = luotNhap(q, soLan, h.hex, cd, dot), cu = ngay[h.hex]?.[k] ?? null;
+      if (cu === v) return true;
+      return v === null ? (!cu || l.xoaDuoc) : l.con;
+    });
+    if (coQuyen.length > duoc.length) {
+      setThongBao({ loai: 'loi', noiDung: `${fmtInt(coQuyen.length - duoc.length)} HEX bỏ qua: BOT ${TEN_DOT[dot].toLowerCase()} ${v === null ? 'đã nhập không được xoá' : `chỉ được nhập ${GIOI_HAN_NHAP[dot]} lần (đã hết lượt)`}` });
+    }
     if (!duoc.length) return;
     const khac = duoc.filter(h => ngay[h.hex]?.[k] && ngay[h.hex][k] !== v).length;
     if (duoc.length > 1 && khac && !window.confirm(v
@@ -232,7 +245,9 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
   const oNgay = (khoa: string, hs: HexInfo[], cd: string, dot: DotBot) => {
     const k = khoaNgay(cd, dot);
     const g = ngayNhom(hs.map(h => h.hex), k, ngay);
-    const sua = hs.some(h => duocNhap(q, cd, h.area));
+    // Còn ít nhất 1 HEX được nhập + còn lượt (đợt đầu 1 lần, đợt cuối 2 lần)
+    const sua = hs.some(h => duocNhap(q, cd, h.area) && luotNhap(q, soLan, h.hex, cd, dot).con);
+    const hetLuot = !sua && hs.some(h => duocNhap(q, cd, h.area));
     const dangO = dangSua?.khoa === khoa && dangSua.cd === cd && dangSua.dot === dot;
     // Nhóm đủ ngày và cùng 1 ngày => mở sẵn ngày đó; nhóm thiếu / khác ngày => ô trống (chọn ngày nào là áp ngày đó)
     const batDau = g.ngay && g.co === g.tong ? g.ngay : '';
@@ -242,7 +257,7 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
     return (
       <td key={`${cd}-${dot}`} onClick={sua && !dangO ? () => setDangSua({ khoa, cd, dot }) : undefined}
         className={`${bang.tdSo} min-w-[6.5rem] text-sm ${sua ? 'cursor-pointer hover:bg-amber-50' : 'bg-slate-50/60'} ${dot === 'dau' ? vien(cd) : ''} ${tre ? 'font-bold text-red-600' : xong ? 'text-slate-400' : 'text-blue-800'}`}
-        title={`${cd} · ${TEN_CONG_DOAN_BOT[cd as keyof typeof TEN_CONG_DOAN_BOT]} · ${TEN_DOT[dot]}${g.co && !g.ngay ? ` · ${g.co}/${g.tong} HEX có ngày, từ ${fmtNgayBot(g.tu)} đến ${fmtNgayBot(g.den)}` : ''}${tre ? ' · đã qua BOT mà chưa xong công đoạn' : ''}${sua ? ' · bấm để nhập' : ' · không có quyền nhập'}`}>
+        title={`${cd} · ${TEN_CONG_DOAN_BOT[cd as keyof typeof TEN_CONG_DOAN_BOT]} · ${TEN_DOT[dot]}${g.co && !g.ngay ? ` · ${g.co}/${g.tong} HEX có ngày, từ ${fmtNgayBot(g.tu)} đến ${fmtNgayBot(g.den)}` : ''}${tre ? ' · đã qua BOT mà chưa xong công đoạn' : ''}${sua ? ' · bấm để nhập' : hetLuot ? ` · đã hết lượt nhập (${TEN_DOT[dot].toLowerCase()} tối đa ${GIOI_HAN_NHAP[dot]} lần)` : ' · không có quyền nhập'}`}>
         {dangO ? (
           <span className="inline-flex items-center gap-1" onClick={e => e.stopPropagation()}>
             <input type="date" min={NGAY_MIN} max={NGAY_MAX} autoFocus defaultValue={batDau} className="w-[8.5rem] rounded border border-slate-300 px-1 text-sm text-slate-900"
@@ -257,7 +272,7 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
                 if (huy || !v || v === batDau || !ngayHopLe(v)) return;
                 apNgay(hs, cd, dot, v);
               }} />
-            {g.co > 0 && (
+            {g.co > 0 && q?.admin && (
               <button type="button" title="Xoá ngày BOT" aria-label="Xoá ngày BOT" className="rounded px-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
                 onMouseDown={e => { e.preventDefault(); huySua.current = true; }}
                 onClick={() => { setDangSua(null); huySua.current = false; apNgay(hs, cd, dot, null); }}>×</button>
@@ -505,13 +520,13 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
         </table>
       </div>
 
-      {moForm && <FormNhapBot items={items} quyen={q} ngay={ngay} thuTu={thuTuNhom} onClose={() => setMoForm(false)}
+      {moForm && <FormNhapBot items={items} quyen={q} ngay={ngay} soLan={soLan} thuTu={thuTuNhom} onClose={() => setMoForm(false)}
         onLuu={ds => { setMoForm(false); void luu(ds); }} />}
       {moDan && <DanExcel quyen={q} xuongCua={xuongCua} onClose={() => setMoDan(false)} onLuu={ds => { setMoDan(false); void luu(ds); }} />}
       {moSetup && du && <SetupPhanCong du={du}
         xuongDs={[...new Set([...items.map(h => chuanTen(h.area)), ...Object.values(du.setup.xuongCua).flat()].filter(Boolean))].sort()}
         onClose={() => setMoSetup(false)} onDaLuu={tai} />}
-      {xem && <CuaSoHex xem={xem} ngay={ngay} quyen={q} today={today} onHexClick={onHexClick} onLichSu={setLichSu}
+      {xem && <CuaSoHex xem={xem} ngay={ngay} soLan={soLan} quyen={q} today={today} onHexClick={onHexClick} onLichSu={setLichSu}
         thongBao={thongBao} onLuu={luu} onClose={() => setXem(null)} />}
       {lichSu && <LichSu hex={lichSu} onClose={() => setLichSu(null)} />}
     </div>
@@ -522,8 +537,8 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
 // ---------------------------------------------------------------------------- cửa sổ HEX của 1 ô số
 // Danh sách HEX tạo nên số vừa bấm (tổng dòng = số đó). Ngày BOT đợt đầu / cuối của công đoạn ô (ô gộp trên chuyền / ô tổng:
 // công đoạn hiện tại của HEX) nhập được ngay trong cửa sổ nếu bộ phận có quyền.
-const CuaSoHex = ({ xem, ngay, quyen, today, thongBao, onHexClick, onLichSu, onLuu, onClose }: {
-  xem: XemSo; ngay: NgayMap; quyen: QuyenBot | null; today: string; thongBao: { loai: 'ok' | 'loi'; noiDung: string } | null;
+const CuaSoHex = ({ xem, ngay, soLan, quyen, today, thongBao, onHexClick, onLichSu, onLuu, onClose }: {
+  xem: XemSo; ngay: NgayMap; soLan: SoLanMap; quyen: QuyenBot | null; today: string; thongBao: { loai: 'ok' | 'loi'; noiDung: string } | null;
   onHexClick?: (hex: string) => void; onLichSu: (hex: string) => void; onLuu: (ds: OGhi[]) => Promise<void>; onClose: () => void;
 }) => {
   const [tim, setTim] = useState('');
@@ -552,6 +567,22 @@ const CuaSoHex = ({ xem, ngay, quyen, today, thongBao, onHexClick, onLichSu, onL
     const k = khoaNgay(cd, dot), v = ngay[h.hex]?.[k] ?? '';
     const tre = !!v && v < today && chuaQua(h, cd);
     if (!duocNhap(quyen, cd, h.area)) return <td className={`${bang.tdSo} text-sm ${tre ? 'font-bold text-red-600' : 'text-blue-800'}`}>{v ? fmtNgayBot(v) : ''}</td>;
+    // Giới hạn: đợt đầu 1 lần, đợt cuối 2 lần kể từ lần đầu; hết lượt => chỉ xem (khoá)
+    const l = luotNhap(quyen, soLan, h.hex, cd, dot);
+    const dem = <span className={`block text-xs font-normal ${l.n >= l.toiDa ? 'text-slate-500' : 'text-slate-400'}`}>
+      {!l.n ? `nhập tối đa ${l.toiDa} lần` : l.n > l.toiDa ? `đã nhập ${l.n} lần · tối đa ${l.toiDa}` : `đã nhập ${l.n}/${l.toiDa} lần`}
+    </span>;
+    if (!l.con) {
+      const xoa = v && l.xoaDuoc;
+      return (
+        <td className={`${bang.tdSo} text-sm`} title={`BOT ${TEN_DOT[dot].toLowerCase()} đã nhập đủ ${l.toiDa} lần — khoá${xoa ? ' · admin bấm × để xoá ngày rồi nhập lại' : ' (nhờ admin xoá nếu nhập nhầm)'}`}>
+          <span className={`inline-flex items-center gap-1 ${tre ? 'font-bold text-red-600' : 'text-blue-800'}`}>🔒 {v ? fmtNgayBot(v) : '—'}
+            {xoa && <button type="button" title="Xoá ngày BOT (admin) — xoá xong đếm lại số lần" aria-label="Xoá ngày BOT" className="rounded px-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+              onClick={() => ghi({ hex: h.hex, congDoan: cd, dot, ngay: null })}>×</button>}
+          </span>{dem}
+        </td>
+      );
+    }
     return (
       <td className={`${bang.tdSo} text-sm`}>
         <span className="inline-flex items-center gap-1">
@@ -563,10 +594,11 @@ const CuaSoHex = ({ xem, ngay, quyen, today, thongBao, onHexClick, onLichSu, onL
               if (boQuaBlur.current) { boQuaBlur.current = false; return; }
               if (m && m !== v && ngayHopLe(m)) ghi({ hex: h.hex, congDoan: cd, dot, ngay: m });
             }} />
-          {v && <button type="button" title="Xoá ngày BOT" aria-label="Xoá ngày BOT" className="rounded px-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
+          {v && l.xoaDuoc && <button type="button" title="Xoá ngày BOT" aria-label="Xoá ngày BOT" className="rounded px-1 text-slate-500 hover:bg-red-50 hover:text-red-600"
             onMouseDown={e => { e.preventDefault(); boQuaBlur.current = true; }}
             onClick={() => { boQuaBlur.current = false; ghi({ hex: h.hex, congDoan: cd, dot, ngay: null }); }}>×</button>}
         </span>
+        {dem}
       </td>
     );
   };
@@ -657,8 +689,8 @@ const CuaSoHex = ({ xem, ngay, quyen, today, thongBao, onHexClick, onLichSu, onL
 // Chọn công trình → phạm vi (cả công trình / nhóm sản phẩm / từng HEX) → công đoạn của mình → ngày đợt đầu / đợt cuối
 // → xem trước số HEX sẽ ghi / ghi đè / bỏ qua → Lưu. Ô ngày để trống = không đổi ngày đợt đó.
 // nhung: hiện thẳng trên trang (trang Nhập BOT), không phải cửa sổ
-export const FormNhapBot = ({ items, quyen, ngay, thuTu, onClose, onLuu, nhung = false, dangLuu = false }: {
-  items: HexInfo[]; quyen: QuyenBot | null; ngay: NgayMap; thuTu: (ten: unknown) => { stt: number } | null;
+export const FormNhapBot = ({ items, quyen, ngay, soLan, thuTu, onClose, onLuu, nhung = false, dangLuu = false }: {
+  items: HexInfo[]; quyen: QuyenBot | null; ngay: NgayMap; soLan?: SoLanMap; thuTu: (ten: unknown) => { stt: number } | null;
   onClose: () => void; onLuu: (ds: OGhi[]) => void; nhung?: boolean; dangLuu?: boolean;
 }) => {
   const cdCua = CONG_DOAN_BOT.filter(cd => quyen?.admin || quyen?.congDoan.includes(cd));
@@ -693,6 +725,7 @@ export const FormNhapBot = ({ items, quyen, ngay, thuTu, onClose, onLuu, nhung =
     const ghi: OGhi[] = [];
     let deDe = 0;
     const boQua = new Set<string>();
+    let hetLuot = 0;
     const dots: [DotBot, string][] = [];
     if (ngayDau) dots.push(['dau', ngayDau]);
     if (ngayCuoi) dots.push(['cuoi', ngayCuoi]);
@@ -701,12 +734,13 @@ export const FormNhapBot = ({ items, quyen, ngay, thuTu, onClose, onLuu, nhung =
       for (const [dot, v] of dots) {
         const cu = ngay[h.hex]?.[khoaNgay(cd, dot)];
         if (cu === v) continue;
+        if (!luotNhap(quyen, soLan, h.hex, cd, dot).con) { hetLuot++; continue; }
         if (cu) deDe++;
         ghi.push({ hex: h.hex, congDoan: cd, dot, ngay: v });
       }
     }
-    return { ghi, deDe, boQua: boQua.size };
-  }, [hsPhamVi, cdChon, ngayDau, ngayCuoi, ngay, quyen]);
+    return { ghi, deDe, boQua: boQua.size, hetLuot };
+  }, [hsPhamVi, cdChon, ngayDau, ngayCuoi, ngay, quyen, soLan]);
   const ngoaiKhoang = !ngayHopLe(ngayDau) || !ngayHopLe(ngayCuoi);
   const sai = ngoaiKhoang || (ngayDau && ngayCuoi && ngayDau > ngayCuoi);
   const ctLoc = dsCt.filter(x => !timCt.trim() || x.toUpperCase().includes(timCt.trim().toUpperCase())).slice(0, 200);
@@ -811,6 +845,7 @@ export const FormNhapBot = ({ items, quyen, ngay, thuTu, onClose, onLuu, nhung =
                 : <>Sẽ lưu <b>{fmtInt(xemTruoc.ghi.length)}</b> ô cho <b>{fmtInt(new Set(xemTruoc.ghi.map(x => x.hex)).size)}</b> HEX
                   {xemTruoc.deDe > 0 && <> · <b className="text-amber-700">{fmtInt(xemTruoc.deDe)}</b> ô đang có ngày khác sẽ bị ghi đè</>}
                   {xemTruoc.boQua > 0 && <> · {fmtInt(xemTruoc.boQua)} HEX không thuộc xưởng bạn nhập (bỏ qua)</>}
+                  {xemTruoc.hetLuot > 0 && <> · <b className="text-amber-700">{fmtInt(xemTruoc.hetLuot)}</b> ô đã hết lượt nhập (đợt đầu 1 lần, đợt cuối {GIOI_HAN_NHAP.cuoi} lần) — bỏ qua</>}
                   {!xemTruoc.ghi.length && <> — không có gì thay đổi</>}</>}
         </div>
       )}
@@ -965,37 +1000,68 @@ const SetupPhanCong = ({ du, xuongDs, onClose, onDaLuu }: { du: DuLieu; xuongDs:
 
 // ---------------------------------------------------------------------------- lịch sử sửa 1 HEX
 const LichSu = ({ hex, onClose }: { hex: string; onClose: () => void }) => {
-  const [ds, setDs] = useState<{ cong_doan: string; dot?: string; ngay_cu: string | null; ngay_moi: string | null; nguoi: string; bo_phan: string | null; luc: string }[] | null>(null);
+  const [ds, setDs] = useState<{ cong_doan: string; dot?: string; ngay_cu: string | null; ngay_moi: string | null; nguoi: string; bo_phan: string | null; luc: string; lan?: number | null }[] | null>(null);
   useEffect(() => {
     fetch(`${API_BASE_URL}/bot-cong-doan/lich-su?hex=${encodeURIComponent(hex)}`).then(r => r.json()).then(d => setDs(d.ds ?? [])).catch(() => setDs([]));
   }, [hex]);
+  // Mở từ cửa sổ HEX (z 9993) => lớp phải cao hơn
   return (
     <ModalShell open onClose={onClose} labelledBy="bcd-ls" closeOnEsc closeOnBackdrop
-      overlayClassName="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/40 p-4"
-      panelClassName="flex max-h-[80vh] w-full max-w-2xl flex-col gap-3 rounded-xl bg-white p-5 shadow-xl">
+      overlayClassName="fixed inset-0 z-[9996] flex items-center justify-center bg-slate-900/40 p-4"
+      panelClassName="flex max-h-[80vh] w-full max-w-3xl flex-col gap-3 rounded-xl bg-white p-5 shadow-xl">
       <div className="flex items-start justify-between">
         <h3 id="bcd-ls" className="text-base font-bold text-slate-900">Lịch sử ngày BOT · HEX {hex}</h3>
         <button type="button" onClick={onClose} aria-label="Đóng" className="rounded p-1 hover:bg-slate-100"><X className="h-5 w-5" /></button>
       </div>
-      {!ds ? <p className="text-sm text-slate-500">Đang tải…</p> : !ds.length ? <p className="text-sm text-slate-500">Chưa có lần sửa nào.</p> : (
-        <div className={`${bang.khung} min-h-0`}>
-          <table className={bang.table}>
-            <thead className={bang.thead}><tr>{['Lúc', 'Công đoạn', 'Đợt', 'Ngày cũ', 'Ngày mới', 'Người sửa'].map(t => <th key={t} className={bang.thC}>{t}</th>)}</tr></thead>
-            <tbody>
-              {ds.map((x, i) => (
-                <tr key={i}>
-                  <td className={bang.tdSo}>{new Date(x.luc).toLocaleString('vi-VN')}</td>
-                  <td className={bang.tdSo}>{x.cong_doan}</td>
-                  <td className={bang.tdSo}>{x.dot === 'dau' ? TEN_DOT.dau : TEN_DOT.cuoi}</td>
-                  <td className={bang.tdSo}>{fmtNgayBot(x.ngay_cu) || '—'}</td>
-                  <td className={bang.tdSo}>{fmtNgayBot(x.ngay_moi) || '(xoá)'}</td>
-                  <td className={bang.tdB}>{x.nguoi}{x.bo_phan ? ` · ${x.bo_phan}` : ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {!ds ? <p className="text-sm text-slate-500">Đang tải…</p> : !ds.length ? <p className="text-sm text-slate-500">Chưa có lần nhập nào.</p> : (() => {
+        // Gom theo công đoạn × đợt: dòng tóm tắt "đã nhập n/tối đa" + từng lần nhập theo thứ tự thời gian
+        const nhom = new Map<string, typeof ds>();
+        for (const x of [...ds].sort((a, b) => a.luc.localeCompare(b.luc))) {
+          const k = `${x.cong_doan}|${x.dot === 'dau' ? 'dau' : 'cuoi'}`;
+          nhom.set(k, [...(nhom.get(k) ?? []), x]);
+        }
+        const khoaNhom = [...nhom.keys()].sort((a, b) => a.localeCompare(b) || 0);
+        return (
+          <div className={`${bang.khung} min-h-0`}>
+            <table className={bang.table}>
+              <thead className={bang.thead}><tr>{['Lần', 'Lúc', 'Ngày cũ', 'Ngày mới', 'Người nhập'].map(t => <th key={t} className={bang.thC}>{t}</th>)}</tr></thead>
+              <tbody>
+                {khoaNhom.map(k => {
+                  const [cd, dot] = k.split('|') as [string, DotBot];
+                  const dong = nhom.get(k)!, toiDa = GIOI_HAN_NHAP[dot];
+                  // đếm sau lần xoá gần nhất (xoá = admin sửa nhầm, đếm lại từ đầu)
+                  const viTriXoa = dong.map(x => !x.ngay_moi).lastIndexOf(true);
+                  const daNhap = dong.slice(viTriXoa + 1).filter(x => x.ngay_moi).length;
+                  return (
+                    <React.Fragment key={k}>
+                      <tr className="bg-slate-100">
+                        <td colSpan={5} className={`${bang.tdB} font-semibold text-slate-800`}>
+                          {cd} · {TEN_DOT[dot]}
+                          <span className={`ml-2 text-sm font-normal ${daNhap >= toiDa ? 'text-red-700' : 'text-slate-600'}`}>
+                            đã nhập {daNhap}/{toiDa} lần{daNhap >= toiDa ? ' · 🔒 khoá' : ` · còn ${toiDa - daNhap} lần`}
+                          </span>
+                        </td>
+                      </tr>
+                      {dong.map((x, i) => (
+                        <tr key={i}>
+                          <td className={`${bang.tdSo} ${x.lan && x.lan > toiDa ? 'text-red-600' : ''}`} title={x.lan && x.lan > toiDa ? 'Vượt giới hạn (nhập trước khi có quy định / admin sửa)' : undefined}>
+                            {x.lan ? `${x.lan}/${toiDa}` : 'xoá · đếm lại'}
+                          </td>
+                          <td className={bang.tdSo}>{new Date(x.luc).toLocaleString('vi-VN')}</td>
+                          <td className={bang.tdSo}>{fmtNgayBot(x.ngay_cu) || '—'}</td>
+                          <td className={bang.tdSo}>{fmtNgayBot(x.ngay_moi) || '(xoá)'}</td>
+                          <td className={bang.tdB}>{x.nguoi}{x.bo_phan ? ` · ${x.bo_phan}` : ''}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
+      <p className="text-xs text-slate-500">Quy định (áp cho mọi người, kể cả admin): BOT đợt đầu chỉ nhập 1 lần; đợt cuối tối đa {GIOI_HAN_NHAP.cuoi} lần kể từ lần nhập đầu tiên. Chỉ admin xoá được ngày nhập nhầm, xoá xong đếm lại từ đầu.</p>
     </ModalShell>
   );
 };

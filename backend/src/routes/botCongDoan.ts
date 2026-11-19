@@ -6,6 +6,7 @@ import { authenticateJWT, requireRole } from '../server/auth.js';
 import { ensureWorkshopGroups, workshopGroupOf } from '../server/workshopGroups.js';
 import {
   CONG_DOAN, SETUP_RONG, docSetup, congDoanDuocNhap, xuongDuocNhap, lyDoCam, docNgay, chuanTen, nguoiTuQuyen, khoaNhoHex,
+  lyDoGioiHan, GIOI_HAN_NHAP,
   type NguoiNhap, type SetupBot,
 } from '../server/botCongDoan.js';
 import { loadUserAccess } from '../server/permissions.js';
@@ -19,7 +20,9 @@ import { layMocFile } from './congTrinh.js';
 //   POST /api/bot-cong-doan            body { ds: [{hex, congDoan, dot?: 'dau' | 'cuoi', ngay: 'YYYY-MM-DD' | null}] } — ghi / xoá, kiểm quyền TỪNG ô
 //        mỗi HEX × công đoạn có 2 ngày: đợt đầu (dot 'dau') và đợt cuối (dot 'cuoi', mặc định)
 //        => { ghi, bo: [{hex, congDoan, lyDo}] }  (ô không được phép bị bỏ, ô khác vẫn ghi)
-//   GET  /api/bot-cong-doan/lich-su?hex=  => lịch sử sửa của 1 HEX
+//   GET  /api/bot-cong-doan/lich-su?hex=  => lịch sử sửa của 1 HEX (kèm lần thứ mấy của từng đợt)
+//   Giới hạn (18/11/2026): đợt đầu nhập 1 lần, đợt cuối tối đa 2 lần — mọi người kể cả ADMIN; chỉ ADMIN xoá được ngày, xoá xong
+//   đếm lại từ đầu (server/botCongDoan.ts lyDoGioiHan). GET trả thêm soLan {hex: {'P014': n, 'P014:dau': n}} + gioiHan để giao diện khoá ô.
 //   GET  /api/bot-cong-doan/quyen      => { admin, boPhan, congDoan[], xuong } — menu "Nhập BOT" chỉ hiện khi có công đoạn
 //   GET  /api/bot-cong-doan/hex        => HEX đang sản xuất (theo file công trình, IPO 01) người này được nhập, dạng cột gọn —
 //        trang "Nhập BOT" mở nhanh không cần bảng sản xuất; bộ phận giới hạn xưởng chỉ nhận HEX xưởng mình
@@ -58,23 +61,33 @@ app.get('/api/bot-cong-doan', authenticateJWT, async (req: Request, res: Respons
     const nguoi = await nguoiNhapNho(req);
     // ADMIN là người sửa phân công: luôn đọc setup + danh sách bộ phận mới từ DB (không sửa đè trên bản cũ của instance
     // khác). Người khác: bản nhớ => chỉ còn 1 câu (bot_cong_doan) thay vì 4 câu trên pool 2 kết nối.
-    const [setup, ngay, boPhanDs] = await Promise.all([
+    const [setup, ngay, boPhanDs, lan] = await Promise.all([
       nguoi.admin ? setupNho.docMoi() : setupNho.lay(),
       timedQuery(`SELECT hex, cong_doan, dot, to_char(ngay, 'YYYY-MM-DD') AS ngay FROM bot_cong_doan`),
       nguoi.admin ? boPhanNho.docMoi() : boPhanNho.lay(),
+      // số lần nhập SAU lần xoá gần nhất của từng ô
+      timedQuery(`SELECT hex, cong_doan, dot, count(*) FILTER (WHERE ngay_moi IS NOT NULL AND luc > COALESCE(xoa, '-infinity'))::int AS n
+        FROM (SELECT hex, cong_doan, dot, ngay_moi, luc,
+                     max(luc) FILTER (WHERE ngay_moi IS NULL) OVER (PARTITION BY hex, cong_doan, dot) AS xoa
+                FROM bot_cong_doan_lich_su) t
+       GROUP BY 1, 2, 3 HAVING count(*) FILTER (WHERE ngay_moi IS NOT NULL AND luc > COALESCE(xoa, '-infinity')) > 0`),
     ]);
     const m: Record<string, Record<string, string>> = {};
     for (const x of ngay.rows) (m[x.hex] ??= {})[x.dot === 'dau' ? `${x.cong_doan}:dau` : x.cong_doan] = x.ngay;
+    const soLan: Record<string, Record<string, number>> = {};
+    for (const x of lan.rows) (soLan[x.hex] ??= {})[x.dot === 'dau' ? `${x.cong_doan}:dau` : x.cong_doan] = x.n;
     res.json({
       coBang: true,
       congDoan: CONG_DOAN,
       ngay: m,
+      soLan,
+      gioiHan: GIOI_HAN_NHAP,
       quyen: { admin: nguoi.admin, boPhan: nguoi.boPhan, congDoan: nguoi.active ? congDoanDuocNhap(nguoi, setup) : [], xuong: xuongDuocNhap(nguoi, setup) },
       setup,
       boPhanDs,
     });
   } catch (e) {
-    if (laThieuBang(e)) return res.json({ coBang: false, congDoan: CONG_DOAN, ngay: {}, quyen: null, setup: SETUP_RONG, boPhanDs: [] });
+    if (laThieuBang(e)) return res.json({ coBang: false, congDoan: CONG_DOAN, ngay: {}, soLan: {}, gioiHan: GIOI_HAN_NHAP, quyen: null, setup: SETUP_RONG, boPhanDs: [] });
     console.error('[bot-cong-doan]', e);
     res.status(500).json({ error: 'Không đọc được BOT công đoạn' });
   }
@@ -115,12 +128,31 @@ app.post('/api/bot-cong-doan', authenticateJWT, async (req: Request, res: Respon
       if (lyDo) { bo.push({ hex: x.hex, congDoan: x.congDoan, lyDo }); continue; }
       ghi.set(`${x.hex}|${x.congDoan}|${x.dot}`, { hex: x.hex, congDoan: x.congDoan, dot: x.dot, ngay });
     }
-    const ds = [...ghi.values()];
+    const ds0 = [...ghi.values()];
     let soDoi = 0;
-    if (ds.length) {
+    if (ds0.length) {
       soDoi = await withTransaction(async c => {
         // Ghi lần lượt (ít người sửa cùng lúc): lịch sử ngày cũ -> mới luôn đúng thứ tự, không ghi đè lẫn nhau
         await c.query('LOCK TABLE bot_cong_doan IN SHARE ROW EXCLUSIVE MODE');
+        // Giới hạn số lần nhập: đọc ngày hiện tại + số lần đã nhập SAU khi khoá (không 2 người cùng vượt giới hạn)
+        const hien = await c.query(`
+          WITH k AS (SELECT * FROM unnest($1::text[], $2::text[], $3::text[]) AS k(hex, cong_doan, dot))
+          SELECT k.hex, k.cong_doan, k.dot, to_char(b.ngay, 'YYYY-MM-DD') AS ngay,
+                 (SELECT count(*)::int FROM bot_cong_doan_lich_su l
+                   WHERE l.hex = k.hex AND l.cong_doan = k.cong_doan AND l.dot = k.dot AND l.ngay_moi IS NOT NULL
+                     AND l.luc > COALESCE((SELECT max(x.luc) FROM bot_cong_doan_lich_su x
+                                            WHERE x.hex = k.hex AND x.cong_doan = k.cong_doan AND x.dot = k.dot AND x.ngay_moi IS NULL), '-infinity')) AS n
+            FROM k LEFT JOIN bot_cong_doan b USING (hex, cong_doan, dot)`,
+          [ds0.map(x => x.hex), ds0.map(x => x.congDoan), ds0.map(x => x.dot)]);
+        const hienCua = new Map(hien.rows.map(r => [`${r.hex}|${r.cong_doan}|${r.dot}`, { ngay: r.ngay as string | null, n: Number(r.n) }]));
+        const ds = ds0.filter(x => {
+          const h = hienCua.get(`${x.hex}|${x.congDoan}|${x.dot}`) ?? { ngay: null, n: 0 };
+          if ((h.ngay ?? null) === (x.ngay ?? null)) return false;          // không đổi: không tính lần
+          const lyDo = lyDoGioiHan(nguoi.admin, x.dot, h.n, !!h.ngay, x.ngay);
+          if (lyDo) { bo.push({ hex: x.hex, congDoan: x.congDoan, lyDo }); return false; }
+          return true;
+        });
+        if (!ds.length) return 0;
         const hexs = ds.map(x => x.hex), cds = ds.map(x => x.congDoan), dots = ds.map(x => x.dot), ngays = ds.map(x => x.ngay);
         // Chỉ ô thật sự đổi mới ghi + lưu lịch sử
         const r = await c.query(`
@@ -226,10 +258,16 @@ app.get('/api/bot-cong-doan/lich-su', authenticateJWT, async (req: Request, res:
   const hex = String(req.query.hex ?? '').trim();
   if (!hex) return res.status(400).json({ error: 'Thiếu HEX' });
   try {
-    const r = await timedQuery(`SELECT cong_doan, dot, to_char(ngay_cu, 'YYYY-MM-DD') AS ngay_cu, to_char(ngay_moi, 'YYYY-MM-DD') AS ngay_moi,
-             nguoi, bo_phan, to_char(luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luc
-        FROM bot_cong_doan_lich_su WHERE hex = $1 ORDER BY luc DESC LIMIT 200`, [hex]);
-    res.json({ ds: r.rows });
+    // lan = lần nhập thứ mấy của (công đoạn, đợt) tính tới dòng này, đếm lại sau mỗi lần xoá (dòng xoá = null)
+    const r = await timedQuery(`SELECT cong_doan, dot, ngay_cu, ngay_moi, nguoi, bo_phan, luc,
+             CASE WHEN ngay_moi IS NULL THEN NULL
+                  ELSE count(*) FILTER (WHERE ngay_moi IS NOT NULL) OVER (PARTITION BY cong_doan, dot, dot_xoa ORDER BY t ROWS UNBOUNDED PRECEDING)::int END AS lan
+        FROM (SELECT cong_doan, dot, to_char(ngay_cu, 'YYYY-MM-DD') AS ngay_cu, to_char(ngay_moi, 'YYYY-MM-DD') AS ngay_moi,
+                     nguoi, bo_phan, to_char(luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luc, luc AS t,
+                     count(*) FILTER (WHERE ngay_moi IS NULL) OVER (PARTITION BY cong_doan, dot ORDER BY luc ROWS UNBOUNDED PRECEDING) AS dot_xoa
+                FROM bot_cong_doan_lich_su WHERE hex = $1) s
+       ORDER BY t DESC LIMIT 200`, [hex]);
+    res.json({ ds: r.rows, gioiHan: GIOI_HAN_NHAP });
   } catch (e) {
     if (laThieuBang(e)) return res.json({ ds: [] });
     console.error('[bot-cong-doan/lich-su]', e);

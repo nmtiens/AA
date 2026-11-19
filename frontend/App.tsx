@@ -1263,21 +1263,8 @@ const MainLayout: React.FC = () => {
               key={dashboardView.id}
               to={dashboardView.path}
               icon={ICON_MAP[dashboardView.iconName || 'Table']}
-              label={dashboardView.label}
+              label="Tổng quan đơn hàng"
               active={location.pathname === dashboardView.path}
-              onClick={closeMobileSidebar}
-              collapsed={isCollapsed}
-            />
-          )}
-
-          {/* Tra cứu hex - đặt ngay dưới Tổng quan */}
-          {hexLookupView && (
-            <NavLink
-              key={hexLookupView.id}
-              to={hexLookupView.path}
-              icon={ICON_MAP[hexLookupView.iconName || 'Table']}
-              label={hexLookupView.label}
-              active={location.pathname === hexLookupView.path}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />
@@ -1290,6 +1277,19 @@ const MainLayout: React.FC = () => {
               icon={<Box size={18} className="shrink-0" />}
               label="Tổng quan công trình"
               active={location.pathname === CONSTRUCTION_PATH}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {/* Tra cứu hex - đặt dưới Tổng quan công trình (người dùng 18/11/2026) */}
+          {hexLookupView && (
+            <NavLink
+              key={hexLookupView.id}
+              to={hexLookupView.path}
+              icon={ICON_MAP[hexLookupView.iconName || 'Table']}
+              label={hexLookupView.label}
+              active={location.pathname === hexLookupView.path}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />

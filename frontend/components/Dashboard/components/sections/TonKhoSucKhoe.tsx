@@ -236,8 +236,8 @@ const VanDe: React.FC<{ d: StockHealth; onOpen?: MoCt; coLoc: boolean }> = ({ d,
   if (dc.huy.gt > 0) {
     const dongHuy = d.goiCu.dong.find(x => x.huy);
     dong.push({
-      mau: MAU.cam, ten: `Đơn huỷ${dc.huy.soGhi ? `, sổ ghi ${dc.huy.soGhi}` : ''}`, so: dc.huy.gt, yc: { loai: 'huy' },
-      chung: <>{dc.huy.ct.length === 1 ? `Toàn bộ ở ${dc.huy.ct[0]}` : <So bam={{ yc: { loai: 'huy' }, nhan: 'Đơn huỷ' }}>{dc.huy.ct.length} mã</So>} · <So bam={neuTr(dc.huy.cu, { loai: 'huy', cu: true }, 'Đơn huỷ trên 6 tháng')}>{ty(dc.huy.cu)}</So> trên 6 tháng</>,
+      mau: MAU.cam, ten: `Đơn hủy${dc.huy.soGhi ? `, sổ ghi ${dc.huy.soGhi}` : ''}`, so: dc.huy.gt, yc: { loai: 'huy' },
+      chung: <>{dc.huy.ct.length === 1 ? `Toàn bộ ở ${dc.huy.ct[0]}` : <So bam={{ yc: { loai: 'huy' }, nhan: 'Đơn hủy' }}>{dc.huy.ct.length} mã</So>} · <So bam={neuTr(dc.huy.cu, { loai: 'huy', cu: true }, 'Đơn hủy trên 6 tháng')}>{ty(dc.huy.cu)}</So> trên 6 tháng</>,
       ai: `PM ${dongHuy ? tenNho(dongHuy.duAn) : ''}: ${dc.huy.soGhi ? 'xác nhận chuyển HEX' : 'xác nhận xử lý'}`.replace('PM :', 'PM:'),
     });
   }
@@ -723,7 +723,7 @@ const GoiCu: React.FC<{ d: StockHealth; onOpen?: MoCt }> = ({ d, onOpen }) => {
     </div>
   );
   const tenDongGoi = (x: typeof g.dong[number]) => {
-    if (x.huy) return `${x.ct} đơn huỷ${d.doiChieu.huy.soGhi ? `, sổ ghi ${d.doiChieu.huy.soGhi}` : ''}`;
+    if (x.huy) return `${x.ct} đơn hủy${d.doiChieu.huy.soGhi ? `, sổ ghi ${d.doiChieu.huy.soGhi}` : ''}`;
     if (!/^CT\d/.test(x.ct)) return `${tenNho(x.duAn)} (${tenNgan(x.ten)}…)`;
     return `${x.ct} ${tenNgan(x.ten)}`;
   };
@@ -876,7 +876,7 @@ const TheoKy: React.FC<{ d: StockHealth }> = ({ d }) => {
   const cuoi = coThang[coThang.length - 1], dau = coThang[0];
   const lo = d.ky.thangTheoLo;
   const phan = [
-    ...(cuoi?.thangTon != null && lo !== null ? [so1(cuoi.thangTon) === so1(lo) ? `Tồn còn ${so1(lo)} tháng` : `Tồn còn ${so1(Math.min(cuoi.thangTon, lo))}–${so1(Math.max(cuoi.thangTon, lo))} tháng tuỳ cách đo`] : []),
+    ...(cuoi?.thangTon != null && lo !== null ? [so1(cuoi.thangTon) === so1(lo) ? `Tồn còn ${so1(lo)} tháng` : `Tồn còn ${so1(Math.min(cuoi.thangTon, lo))}–${so1(Math.max(cuoi.thangTon, lo))} tháng tùy cách đo`] : []),
     ...(cuoi && dau && cuoi !== dau && cuoi.thangTon! < dau.thangTon! ? [`xuất nhanh hơn từ ${ngay(dau.den)}`] : []),
   ];
   return (
@@ -1017,7 +1017,7 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
         <Kpi nhan="Trên 6 tháng" so={ty(tong.cu)} mau="text-red-700" bam={neuTr(tong.cu, { loai: 'ton', tuoi: 'cu' }, 'Trên 6 tháng')}
           phu={<span className="text-red-700"><So bam={neuTr(tong.cu, { loai: 'ton', tuoi: 'cu' }, 'Trên 6 tháng', ghiPt(tong.cu, tong.v, 'tổng tồn'))}>{so1(pt(tong.cu, tong.v))}%</So>{goi && boGoi !== null && <> · bỏ {goi.ct} vẫn <So bam={neuTr(cuoi.cu - cuoi.cuGoi, { loai: 'moc', d: cuoi.d, cu: true, phan: 'con' }, `Hàng cũ bỏ ${goi.ct}`, ghiPt(cuoi.cu - cuoi.cuGoi, cuoi.v - cuoi.tonGoi, 'tồn bỏ gói'))}>{so1(boGoi)}%</So></>}</span>} />
         <Kpi nhan="Chưa xuất TÍNH" so={ty(tong.chuaXuat)} mau="text-amber-600" bam={neuTr(tong.chuaXuat, { loai: 'chua_xuat' }, 'Chưa xuất TÍNH')}
-          phu={<span className="text-amber-700"><So bam={neuTr(tong.chuaXuat, { loai: 'chua_xuat' }, 'Chưa xuất TÍNH', ghiPt(tong.chuaXuat, tong.v, 'tổng tồn'))}>{so1(pt(tong.chuaXuat, tong.v))}%</So> · <So bam={neuTr(tong.chuaXuat4, { loai: 'chua_xuat', nhomTuoi: ['t46', 't6'] }, 'Chưa xuất từ 4 tháng')}>{ty(tong.chuaXuat4)}</So> đã từ 4 tháng</span>} />
+          phu={<span className="text-amber-700"><So bam={neuTr(tong.chuaXuat, { loai: 'chua_xuat' }, 'Chưa xuất TÍNH', ghiPt(tong.chuaXuat, tong.v, 'tổng tồn'))}>{so1(pt(tong.chuaXuat, tong.v))}%</So> · <So bam={neuTr(tong.chuaXuat4, { loai: 'chua_xuat', nhomTuoi: ['t46', 't6'] }, 'Chưa xuất từ 4 tháng')}>{ty(tong.chuaXuat4)}</So> đã nằm từ 4 tháng</span>} />
         <Kpi nhan="Nhập chưa khớp xuất + tồn" so={!coLoc && tong.du > 0 ? ty(tong.du) : '—'} mau="text-violet-600" bam={!coLoc ? neuTr(tong.du, { loai: 'du' }, 'Nhập chưa khớp') : null}
           phu={coLoc ? <span className="text-slate-500">Chỉ tính khi xem toàn kho</span> : <span className="text-violet-600">{data.soSach.tu ? `từ ${ngay(data.soSach.tu)} · ` : ''}mới phân loại <So bam={neuTr(tong.duPhanLoai, { loai: 'so_sach', muc: 'phan_loai' }, 'Đã phân loại')}>{ty(tong.duPhanLoai)}</So></span>} />
       </div>

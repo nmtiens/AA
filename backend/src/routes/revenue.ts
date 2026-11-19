@@ -12,6 +12,8 @@ import { parseNameList, expandProjectNames, normNameSql } from '../server/projec
 // Cache theo phiên bản bảng (server/cache.ts): kế hoạch năm chỉ đổi khi khsx_nam / nhap_kho / sản xuất đổi
 const revenueCache = createCache<unknown>(20);
 const REVENUE_VERSION_KEYS = ['yearlyPlan', 'inventory', 'production'];
+// plan-actual còn trả KH tháng từ bảng khsx (dòng THÁNG) => thêm phiên bản khsx
+const PLAN_ACTUAL_VERSION_KEYS = [...REVENUE_VERSION_KEYS, 'khsx'];
 
 // Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
 // Trước đây năm 2026 bị hardcode trong SQL — giờ nhận qua path param ?/:year, mặc định năm hiện tại.
@@ -124,18 +126,23 @@ app.get('/api/khsx-nam/plan', async (req: Request, res: Response) => {
 // theo THÁNG × XƯỞNG của 1 năm — cho bảng "Kế hoạch năm – Thực hiện" chia theo khu vực sản xuất.
 // Xưởng theo setup gộp xưởng (server/workshopGroups.ts); xưởng chính (TARGET_WORKSHOPS) xếp trước.
 // ?congTrinh= lọc thực hiện; khsx_nam không có cột công trình nên khi lọc thì plan rỗng.
+// planThang: KH THÁNG của bảng khsx (file KHNK từng tháng — người dùng 18/11/2026: ô "KH tháng" lấy theo KHSX tháng),
+// TỶ, không tính hạng mục HỦY, lọc được theo công trình. Tháng chưa có KHSX thì client quay về plan (khsx_nam).
 app.get('/api/khsx-nam/plan-actual', async (req: Request, res: Response) => {
   try {
     const year = Number(req.query.year) || currentVnYear();
     const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
-    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}|${congTrinhList.join('|')}`, REVENUE_VERSION_KEYS, async () => {
+    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}|${congTrinhList.join('|')}`, PLAN_ACTUAL_VERSION_KEYS, async () => {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
     const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql('xuong_chinh')}, ''), 'KHÁC')`;
     const actualParams: unknown[] = [yearStart, yearEnd];
     let actualCt = '';
     if (congTrinhList.length) { actualParams.push(congTrinhList); actualCt = ` AND ${normNameSql('ten_cong_trinh')} = ANY($3::text[])`; }
-    const [plan, actual] = await Promise.all([
+    const khThangParams: unknown[] = [String(year)];
+    let khThangCt = '';
+    if (congTrinhList.length) { khThangParams.push(congTrinhList); khThangCt = ` AND ${normNameSql('ten_cong_trinh')} = ANY($2::text[])`; }
+    const [plan, actual, planThangRows] = await Promise.all([
       congTrinhList.length ? Promise.resolve({ rows: [] as any[] }) : timedQuery(
         `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS value
@@ -150,15 +157,24 @@ app.get('/api/khsx-nam/plan-actual', async (req: Request, res: Response) => {
          GROUP BY 1, 2`,
         actualParams
       ),
+      timedQuery(
+        `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
+                COALESCE(SUM(${numericCol('khsx', 'thanh_tien_ke_hoach')}), 0) / ${TRIEU_TO_TY} AS value
+         FROM khsx
+         WHERE UPPER(TRIM(phan_loai_kh)) LIKE '%THÁNG%' AND nam = $1::bigint AND thang IS NOT NULL
+           AND ${notCancelledHexCond('hex')}${khThangCt}
+         GROUP BY 1, 2`,
+        khThangParams
+      ),
     ]);
     const map = (rows: any[]) => rows.map(r => ({ thang: Number(r.thang), xuong: String(r.xuong), value: Number(r.value) }));
-    const p = map(plan.rows), a = map(actual.rows);
+    const p = map(plan.rows), a = map(actual.rows), pt = map(planThangRows.rows);
     // Thứ tự cột: xưởng chính trước, các xưởng gộp khác theo ABC, "KHÁC" cuối
-    const seen = new Set([...p, ...a].map(r => r.xuong).filter(Boolean));
+    const seen = new Set([...p, ...a, ...pt].map(r => r.xuong).filter(Boolean));
     const main = TARGET_WORKSHOPS.filter(w => seen.has(w));
     const rest = [...seen].filter(w => !TARGET_WORKSHOPS.includes(w) && w !== 'KHÁC').sort();
     const workshops = [...main, ...rest, ...(seen.has('KHÁC') ? ['KHÁC'] : [])];
-    return { year, workshops, plan: p, actual: a };
+    return { year, workshops, plan: p, actual: a, planThang: pt };
     }, workshopGroupsVersion());
     res.json(payload);
   } catch (error) {

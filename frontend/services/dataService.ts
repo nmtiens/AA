@@ -997,6 +997,8 @@ export interface YearPlanActualData {
   workshops: string[];
   plan: { thang: number; xuong: string; value: number }[];
   actual: { thang: number; xuong: string; value: number }[];
+  /** KH THÁNG từ bảng khsx (file KHNK từng tháng), tỷ — tháng chưa có thì không có dòng */
+  planThang?: { thang: number; xuong: string; value: number }[];
 }
 export const fetchYearPlanActual = async (year: number): Promise<YearPlanActualData | null> => {
   try {

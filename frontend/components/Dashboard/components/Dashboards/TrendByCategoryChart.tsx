@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart2, Eye, X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
+import { tenGroup, soSanhGroup } from '../../utils/nhomSp';
 import {
   ComposedChart, Bar, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList, ReferenceLine,
@@ -30,7 +31,8 @@ const KIND_CONFIG: Record<CategoryKind, {
   ownFilter: 'dvt' | 'phanLoai';
   label: string;
   title: string;
-  avgLabel: string;
+  /** Đơn vị nhóm dùng để chia trung bình: "ĐVT" / "group" */
+  donViChia: string;
   noDataNote: string;
   marginRight: [number, number]; // [embedded, đầy đủ] — chừa chỗ cho nhãn đường trung bình
 }> = {
@@ -41,7 +43,7 @@ const KIND_CONFIG: Record<CategoryKind, {
     ownFilter: 'dvt',
     label: 'ĐVT',
     title: 'theo đơn vị tính',
-    avgLabel: 'TB',
+    donViChia: 'ĐVT',
     noDataNote: 'Dữ liệu nguồn này không có thông tin đơn vị tính.',
     marginRight: [130, 150],
   },
@@ -50,9 +52,9 @@ const KIND_CONFIG: Record<CategoryKind, {
     codeField: 'phanLoaiCode',
     nameField: 'phanLoaiName',
     ownFilter: 'phanLoai',
-    label: 'Phân loại',
-    title: 'theo phân loại',
-    avgLabel: 'TB',
+    label: 'Group',
+    title: 'theo group',
+    donViChia: 'group',
     noDataNote: 'Dữ liệu nguồn này không có thông tin phân loại nhóm sản phẩm.',
     marginRight: [90, 110],
   },
@@ -101,7 +103,7 @@ function PinnedPopover({ kindLabel, x, y, containerWidth, label, value, unit, mo
     >
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 px-4 py-3 text-sm">
         <p className="text-slate-600">{kindLabel}: <span className="font-semibold text-slate-800">{label}</span></p>
-        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {money ? formatTy(value) : formatDecimal(value)}</p>
+        <p className="text-pink-600 font-semibold mt-0.5">{unit}: {money ? formatTy(value) : formatDecimal(value)}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
@@ -126,6 +128,8 @@ interface TrendByCategoryChartProps {
   kind: CategoryKind;
   source: TrendSource;
   embedded?: boolean;
+  /** Số thứ tự trên tiêu đề: "1. Xu hướng …" (người dùng 19/11/2026) */
+  stt?: number;
   displayMode: DisplayMetric;
   /** false = nguồn dữ liệu không có chiều này */
   supported?: boolean;
@@ -135,6 +139,7 @@ export default function TrendByCategoryChart({
   kind,
   source,
   embedded = false,
+  stt,
   displayMode,
   supported = true,
 }: TrendByCategoryChartProps) {
@@ -221,8 +226,16 @@ export default function TrendByCategoryChart({
     const pickValue = (p: ApiCategoryPoint) => (displayMode === 'COUNT' ? p.totalCount : isMoney ? trieuToTy(p.total) : p.total);
     return raw
       .map(p => ({ name: p[cfg.nameField] || p[cfg.codeField], code: p[cfg.codeField], total: pickValue(p) }))
-      .sort((a, b) => b.total - a.total);
-  }, [raw, displayMode, canFetch, cfg]);
+      // Group sản phẩm: nhãn "G.08.Tường", sắp theo số group (người dùng 19/11/2026); ĐVT giữ sắp theo giá trị
+      .sort((a, b) => (kind === 'phanloai' ? soSanhGroup(a.name, b.name) : b.total - a.total))
+      .map(p => (kind === 'phanloai' ? { ...p, name: tenGroup(p.name) } : p));
+  }, [raw, displayMode, canFetch, cfg, kind]);
+
+  // Nhãn nghiêng 35°: chiều cao trục + lề trái theo nhãn dài nhất / nhãn đầu (font 12px ≈ 6.6px/ký tự) — không cắt chữ
+  // dài như "G.05.Khung gương" (người dùng 19/11/2026)
+  const nhanNghieng = chartData.length > 6;
+  const caoTruc = Math.min(140, Math.round(Math.max(0, ...chartData.map(p => String(p.name).length)) * 6.6 * 0.58) + 22);
+  const leTrai = Math.min(90, Math.max(0, Math.round(String(chartData[0]?.name ?? '').length * 6.6 * 0.82) - 40));
 
   const avgAll = useMemo(() => {
     if (chartData.length === 0) return 0;
@@ -293,8 +306,7 @@ export default function TrendByCategoryChart({
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          {theme.label} {cfg.title}
+          {stt ? `${stt}. ` : ''}{theme.label} {cfg.title}
         </h4>
       </div>
 
@@ -316,13 +328,13 @@ export default function TrendByCategoryChart({
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
-              margin={{ top: embedded ? 40 : 48, right: 16, left: 0, bottom: 0 }}
+              margin={{ top: embedded ? 40 : 48, right: 16, left: nhanNghieng ? leTrai : 0, bottom: 0 }}
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#475569' }} interval={0}
-                     angle={chartData.length > 6 ? -35 : 0} textAnchor={chartData.length > 6 ? 'end' : 'middle'}
-                     height={chartData.length > 6 ? 70 : 30} />
+                     angle={nhanNghieng ? -35 : 0} textAnchor={nhanNghieng ? 'end' : 'middle'}
+                     height={nhanNghieng ? caoTruc : 30} />
               <YAxis
                 tickFormatter={fmt}
                 tick={{ fontSize: 12, fill: '#475569' }}
@@ -373,14 +385,11 @@ export default function TrendByCategoryChart({
         )}
         {chartData.length > 0 && !loading && (
           <div
-            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-sm font-bold"
-            style={{
-              color: theme.barDark,
-              borderColor: theme.bar,
-              backgroundColor: `${theme.bar}1A`,
-            }}
+            className="absolute top-3 right-4 z-10 rounded-full px-4 py-1.5 text-base font-bold text-white shadow-md tabular-nums"
+            // Nổi bật (người dùng 19/11/2026): nền màu đậm của biểu đồ, chữ trắng
+            style={{ backgroundColor: theme.barDark }}
           >
-            Tổng: {fmt(totalAll)} · {cfg.avgLabel}: {fmtShort(avgAll)}
+            Tổng: {fmt(totalAll)}{isMoney ? ' tỷ' : ''} · {chartData.length} {cfg.donViChia} · TB: {fmtShort(avgAll)}{isMoney ? ' tỷ' : ''}/{cfg.donViChia}
           </div>
         )}
         {pinned && (
@@ -402,7 +411,7 @@ export default function TrendByCategoryChart({
       <DetailDataModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        title={`Chi tiết ${theme.label} — ${cfg.label}: ${pinned?.point.name ?? ''}`}
+        title={`Chi tiết ${theme.label.charAt(0).toLocaleLowerCase('vi') + theme.label.slice(1)} — ${cfg.label}: ${pinned?.point.name ?? ''}`}
         accentColor={theme.bar}
         rows={detailRows}
         columns={detailColumns}

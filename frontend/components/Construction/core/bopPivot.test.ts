@@ -38,10 +38,11 @@ describe('khoCua / laKho', () => {
 });
 
 describe('mucCongDoan / fmtGiaTriBop', () => {
-  it('đếm = còn theo dõi; giá trị = còn theo dõi hoặc còn tiền chưa nhập', () => {
-    const a = muc({ open: true }), b = muc({ open: false, remain: 3 }), c = muc({ open: false, remain: 0 });
-    expect(mucCongDoan([a, b, c], 'count')).toEqual([a]);
-    expect(mucCongDoan([a, b, c], 'remain')).toEqual([a, b]);
+  it('chỉ hạng mục còn theo dõi; đủ số lượng mà lệch tiền không tính; giá trị bỏ phần còn lại < 10.000đ', () => {
+    const a = muc({ open: true, remain: 5 }), b = muc({ open: false, remain: 3 }), c = muc({ open: false, remain: 0 });
+    const le = muc({ open: true, remain: 0.0004 }); // nhập 35,84 / 35,843 — thiếu 376đ
+    expect(mucCongDoan([a, b, c, le], 'count')).toEqual([a, le]);
+    expect(mucCongDoan([a, b, c, le], 'remain')).toEqual([a]);
   });
   it('dưới 0.01 tỷ ghi <0.01, 0 ghi -', () => {
     expect(fmtGiaTriBop(3, 'remain')).toBe('<0.01');
@@ -59,16 +60,23 @@ describe('tinhPivotBop', () => {
     muc({ stage: 'XYZ', bucket: 'shortfall', remain: 10 }),
     muc({ nsp: 'BÀN', stage: 'P025', bucket: null, open: false, remain: 0, inv: 100, xuat: 100 }),
   ];
-  it('đủ cột cố định P001 → P021, P022 chỉ khi còn hạng mục, công đoạn lạ cuối', () => {
+  it('đủ cột cố định P001 → P021, công đoạn lạ cuối; P022 đủ số lượng mà lệch tiền KHÔNG tạo cột (18/11/2026)', () => {
     const p = tinhPivotBop(items, items, 'remain', i => [i.nsp]);
-    expect(p.stages).toEqual(['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'XYZ']);
-    expect(p.groups.map(g => [g.bucket, g.stages.length])).toEqual([['notDeployed', 1], ['p002', 1], ['onLine', 8], ['shortfall', 2]]);
-    expect(p.dong.get('TỦ')).toEqual({ cells: { P001: 100, P012: 40, P022: 5, XYZ: 10 }, total: 155, n: 4 });
-    expect(p.grand).toBe(155);
+    expect(p.stages).toEqual(['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'XYZ']);
+    expect(p.groups.map(g => [g.bucket, g.stages.length])).toEqual([['notDeployed', 1], ['p002', 1], ['onLine', 8], ['shortfall', 1]]);
+    expect(p.dong.get('TỦ')).toEqual({ cells: { P001: 100, P012: 40, XYZ: 10 }, total: 150, n: 3 });
+    expect(p.grand).toBe(150);
     // Dòng chỉ có hàng đã xong vẫn hiện (cột công đoạn trống), có số kho
     expect(p.dong.get('BÀN')).toEqual({ cells: {}, total: 0, n: 0 });
     expect(p.kho.get('BÀN')).toEqual({ nk: 100, xk: 100, ton: 0, chenh: 0, xv: 0 });
     expect(p.khoTot.nk).toBe(255);
+  });
+  it('P022 / P025 thành cột "chưa đủ" khi còn hạng mục thật sự nhập thiếu (≥ 10.000đ)', () => {
+    const ds = [...items, muc({ stage: 'P025', bucket: 'shortfall', remain: 3, inv: 97 }), muc({ stage: 'P022', bucket: 'shortfall', remain: 0.0004, inv: 99.9996 })];
+    const p = tinhPivotBop(ds, ds, 'remain', i => [i.nsp]);
+    expect(p.stages).toContain('P025');
+    expect(p.stages).not.toContain('P022'); // thiếu 400đ: sai số làm tròn
+    expect(p.dong.get('TỦ')?.cells.P025).toBe(3);
   });
   it('đếm: bỏ hạng mục không còn theo dõi', () => {
     const p = tinhPivotBop(items, items, 'count', i => [i.nsp]);

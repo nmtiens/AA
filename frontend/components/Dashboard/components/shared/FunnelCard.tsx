@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Eye } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import { extractStage, remainBucketOf } from '../../core/stages';
@@ -71,7 +71,33 @@ export function FunnelCard<T extends FunnelCardItem>({
   // Các mục gọi FunnelCard chưa truyền soPhuMra: lấy từ context của trang (ngoài Outlet => null)
   const ctx = useOutletContext<{ soPhuMra?: number } | null | undefined>();
   const chuThich = chuThichNguonBop(soPhuMra ?? ctx?.soPhuMra ?? 0);
+  // Nhóm có dòng ngay sau "chuyen" (để lấy vạch dưới của khối)
+  const coNhom = NHOM.filter(g => items.some(i => nhomCua(i.id) === g.key)).map(g => g.key);
+  const sauChuyen = coNhom[coNhom.indexOf('chuyen') + 1] ?? null;
   const cot = 'grid grid-cols-[minmax(0,12rem)_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]';
+  // Nhấn đường kẻ phễu ở đoạn "Đang trên chuyền" (người dùng 19/11/2026): đo vị trí nhóm so với khung SVG phễu
+  // => y1..y2 (% chiều cao), vẽ đè hai cạnh đậm hơn ở đoạn đó; không tô nền, phần phễu còn lại giữ nguyên.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const chuyenRef = useRef<HTMLDivElement>(null);   // vạch đứt đầu nhóm Đang trên chuyền
+  const sauChuyenRef = useRef<HTMLDivElement>(null); // vạch đứt đầu nhóm ngay sau (không có => đáy nhóm)
+  const nhomChuyenRef = useRef<HTMLDivElement>(null);
+  const [doanChuyen, setDoanChuyen] = useState<{ y1: number; y2: number } | null>(null);
+  useLayoutEffect(() => {
+    const do_ = () => {
+      const sv = svgRef.current?.getBoundingClientRect(), g = chuyenRef.current?.getBoundingClientRect();
+      if (!sv || !g || sv.height <= 0) { setDoanChuyen(null); return; }
+      const sau = sauChuyenRef.current?.getBoundingClientRect();
+      const day = sau ? sau.top + sau.height / 2 : (nhomChuyenRef.current?.getBoundingClientRect().bottom ?? g.bottom);
+      const pt = (v: number) => Math.max(0, Math.min(100, ((v - sv.top) / sv.height) * 100));
+      const y1 = pt(g.top + g.height / 2), y2 = pt(day);
+      setDoanChuyen(c => (c && Math.abs(c.y1 - y1) < 0.2 && Math.abs(c.y2 - y2) < 0.2 ? c : { y1, y2 }));
+    };
+    do_();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(do_) : null;
+    if (ro && svgRef.current) ro.observe(svgRef.current);
+    if (ro && nhomChuyenRef.current) ro.observe(nhomChuyenRef.current);
+    return () => ro?.disconnect();
+  });
 
   return (
     <div className={`flex flex-col rounded-2xl border border-slate-200 bg-white p-5 lg:p-6 ${className}`}>
@@ -92,9 +118,20 @@ export function FunnelCard<T extends FunnelCardItem>({
         {/* Khung phễu nét đứt sau các thanh: đáy rộng bằng cột thanh, nhọn dần xuống giữa (nằm cùng lưới với các dòng) */}
         <div className={`${cot} pointer-events-none absolute inset-0 grid-rows-[minmax(0,1fr)] overflow-hidden pb-1 pt-3`} style={{ alignItems: 'stretch' }} aria-hidden>
           <span />
-          <svg className="block h-full min-h-0 w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg ref={svgRef} className="block h-full min-h-0 w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
             <polygon points="0,0 100,0 50,100" fill="#fef2f2" fillOpacity="0.45" stroke="#f87171" strokeOpacity="0.7"
               strokeWidth="1.25" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
+            {/* Khối Đang trên chuyền: viền hình thang đậm — 2 cạnh xiên (trái x = y/2, phải x = 100 − y/2) + vạch trên / dưới */}
+            {doanChuyen && (() => {
+              const { y1, y2 } = doanChuyen;
+              const net = { stroke: '#dc2626', strokeWidth: 3, strokeDasharray: '7 4', vectorEffect: 'non-scaling-stroke' as const };
+              return (<>
+                <line x1={y1 / 2} y1={y1} x2={y2 / 2} y2={y2} {...net} />
+                <line x1={100 - y1 / 2} y1={y1} x2={100 - y2 / 2} y2={y2} {...net} />
+                <line x1={y1 / 2} y1={y1} x2={100 - y1 / 2} y2={y1} {...net} />
+                <line x1={y2 / 2} y1={y2} x2={100 - y2 / 2} y2={y2} {...net} />
+              </>);
+            })()}
           </svg>
         </div>
         {NHOM.map(g => {
@@ -102,14 +139,13 @@ export function FunnelCard<T extends FunnelCardItem>({
           if (!ds.length) return null;
           const tongNhom = ds.reduce((s, i) => s + i.value, 0);
           return (
-            // Nhóm giãn theo số dòng => các dòng chia đều chiều cao khung (cao bằng khung Nhóm đơn hàng bên cạnh)
-            <div key={g.key} className="relative flex flex-col" style={{ flexGrow: ds.length + 1 }}>
-              {/* Tiêu đề nhóm: vạch đứt ngang cột thanh + tên nhóm · tổng */}
-              <div className="mb-1 mt-3 flex items-center gap-3 pl-[13rem] lg:pl-[17rem]">
-                <span className="flex-1 border-t-2 border-dashed border-slate-200" aria-hidden />
-                <span className={`whitespace-nowrap bg-white pl-1 text-sm font-bold lg:text-base ${g.chu}`}>
-                  {g.label} · {barLabel({ ...ds[0], value: tongNhom })}
-                </span>
+            // Nhóm giãn theo số dòng => các dòng chia đều chiều cao khung (cao bằng khung Nhóm đơn hàng bên cạnh).
+            // Người dùng 19/11/2026: bỏ chữ nhãn nhóm "… · tổng", giữ vạch đứt ngăn nhóm; tổng nhóm còn khi rê chuột
+            <div key={g.key} ref={g.key === 'chuyen' ? nhomChuyenRef : undefined} className="relative flex flex-col" style={{ flexGrow: ds.length + 1 }}
+              title={`${g.label}: ${barLabel({ ...ds[0], value: tongNhom })}`}>
+              <div ref={g.key === 'chuyen' ? chuyenRef : sauChuyen === g.key ? sauChuyenRef : undefined}
+                className="mb-1 mt-3 flex items-center gap-3 pl-[13rem] lg:pl-[17rem]" aria-hidden>
+                <span className="flex-1 border-t-2 border-dashed border-slate-200" />
               </div>
               {ds.map((item, thuTu) => {
                 const [ten, ma] = tachTen(item.name);

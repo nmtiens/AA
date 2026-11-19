@@ -30,7 +30,7 @@ export const trangThaiSo = (tu: Date | null | undefined, den: Date | null | unde
 };
 
 interface DongKhTh { thang: number; xuong: string; value: number }
-export interface KhThNam { plan?: DongKhTh[]; actual?: DongKhTh[] }
+export interface KhThNam { plan?: DongKhTh[]; actual?: DongKhTh[]; planThang?: DongKhTh[] }
 
 const cong = (ds: DongKhTh[] | undefined, xuong: string[], loc: (thang: number) => boolean) =>
   (ds ?? []).filter(r => loc(r.thang) && (xuong.length === 0 || xuong.includes(r.xuong))).reduce((a, r) => a + r.value, 0);
@@ -39,6 +39,20 @@ const cong = (ds: DongKhTh[] | undefined, xuong: string[], loc: (thang: number) 
 export const khThTheoLoc = (d: KhThNam | null | undefined, xuong: string[], thang?: number) => {
   const loc = (t: number) => thang === undefined || t === thang;
   return { kh: cong(d?.plan, xuong, loc), th: cong(d?.actual, xuong, loc) };
+};
+
+/**
+ * KH / TH của 1 tháng: KH lấy từ KHSX tháng (bảng khsx, dòng THÁNG — file KHNK của tháng) khi tháng đó đã có KHSX,
+ * chưa có thì lấy KH năm chia tháng (khsx_nam). Người dùng 18/11/2026: ô "KH tháng" lấy theo KHSX tháng.
+ */
+export const khThThang = (d: KhThNam | null | undefined, xuong: string[], thang: number) => {
+  const coKhsx = (d?.planThang ?? []).some(r => r.thang === thang);
+  const loc = (t: number) => t === thang;
+  return {
+    kh: coKhsx ? cong(d?.planThang, xuong, loc) : cong(d?.plan, xuong, loc),
+    th: cong(d?.actual, xuong, loc),
+    nguon: coKhsx ? ('khsx' as const) : ('nam' as const),
+  };
 };
 
 /** Mốc KH lũy kế cuối mỗi quý */

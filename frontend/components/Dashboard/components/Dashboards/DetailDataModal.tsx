@@ -1,8 +1,8 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Eye, X, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Download } from 'lucide-react';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
-import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
+import { resolveVisibleModalColumns, ModalColumnDef, getFrozenColumns } from '../../../Construction/utils/tableColumnConfig';
 import { fmtInt, fmtQty, fmtTy } from '../../../../utils/format';
 import { ModalShell } from '../../../shared/ModalShell';
 import * as bang from '../../../shared/bangBaoCao';
@@ -185,6 +185,36 @@ export default function DetailDataModal({
     [visibleCols]
   );
 
+  // ==== Ghim cột (Setup cột → ghim): trước đây chỉ lưu cấu hình mà bảng không áp => cuộn ngang mất STT/HEX.
+  // frozenColumns GỒM 2 cột cố định của nút Setup (STT + cột mở nhóm); phần dư = số cột dữ liệu đầu được ghim.
+  // Độ rộng cột tự co theo dữ liệu nên đo thật ở dòng tiêu đề rồi đặt left cho từng cột ghim.
+  const dauCot = canGroup ? 2 : 1;
+  const soCotGhim = useMemo(() => {
+    const f = getFrozenColumns(effectiveModalId);
+    if (f <= 0) return 0;
+    if (f === 1) return 1;
+    return Math.min(dauCot + (f - 2), dauCot + Math.max(orderedColumns.length - 1, 0)); // chừa ít nhất 1 cột cuộn
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveModalId, cfgVersion, dauCot, orderedColumns.length]);
+  const hangTieuDe = useRef<HTMLTableRowElement>(null);
+  const [leCot, setLeCot] = useState<number[]>([]);
+  useLayoutEffect(() => {
+    const tr = hangTieuDe.current;
+    const moi: number[] = [];
+    if (tr && soCotGhim) {
+      const ths = Array.from(tr.children) as HTMLElement[];
+      // khung cuộn có lề trái (px-4): sticky tính từ mép trong lề => trừ lề để cột ghim che kín, không lộ chữ cột khác
+      const khung = tr.closest('.overflow-auto');
+      let x = khung ? -parseFloat(getComputedStyle(khung).paddingLeft || '0') : 0;
+      for (let i = 0; i < soCotGhim && i < ths.length; i++) { moi.push(x); x += ths[i].getBoundingClientRect().width; }
+    }
+    setLeCot(cu => (cu.length === moi.length && cu.every((v, i) => Math.abs(v - moi[i]) < 0.5) ? cu : moi));
+  });
+  /** class + style ghim cho ô ở vị trí i (0 = STT); bg phải đặc để che nội dung cuộn qua */
+  const ghim = (i: number, bg = 'bg-white', z = 'z-10') => (i < leCot.length
+    ? { cls: ` sticky ${z} ${bg}${i === leCot.length - 1 ? ' shadow-[2px_0_3px_-1px_rgba(0,0,0,0.18)]' : ''}`, st: { left: leCot[i] } }
+    : { cls: '', st: undefined });
+
   const groups = useMemo(
     () => (canGroup ? buildGroups(rows, columns, groupCol) : []),
     [rows, columns, canGroup, groupCol]
@@ -286,15 +316,16 @@ export default function DetailDataModal({
           ) : (
             <table className={`${bang.table} min-w-full`}>
               <thead className={bang.thead}>
-                <tr>
-                  <th className={`${bang.thC} w-10 whitespace-nowrap`}>STT</th>
-                  {canGroup && <th className={`${bang.thB} w-6`} />}
+                <tr ref={hangTieuDe}>
+                  <th className={`${bang.thC} w-10 whitespace-nowrap${ghim(0, 'bg-emerald-300', 'z-30').cls}`} style={ghim(0).st}>STT</th>
+                  {canGroup && <th className={`${bang.thB} w-6${ghim(1, 'bg-emerald-300', 'z-30').cls}`} style={ghim(1).st} />}
                   {/* ✅ Header lặp theo orderedColumns (đúng thứ tự + tập cột đã setup)
                       thay vì luôn lặp cố định theo toàn bộ columns gốc. */}
-                  {orderedColumns.map(col => (
+                  {orderedColumns.map((col, j) => (
                     <th
                       key={col}
-                      className={`${bang.thB} whitespace-nowrap ${isSoCol(col) ? 'text-center' : 'text-left'}`}
+                      className={`${bang.thB} whitespace-nowrap ${isSoCol(col) ? 'text-center' : 'text-left'}${ghim(dauCot + j, 'bg-emerald-300', 'z-30').cls}`}
+                      style={ghim(dauCot + j).st}
                     >
                       {formatColumnLabel(col)}
                     </th>
@@ -316,15 +347,16 @@ export default function DetailDataModal({
                             }
                             onClick={() => isMulti && toggleGroup(g.key)}
                           >
-                            <td className={`${bang.tdSo} text-slate-500`}>{(page - 1) * ROWS_PER_PAGE + gi + 1}</td>
-                            <td className={`${bang.tdB} !px-1 text-slate-600`}>
+                            <td className={`${bang.tdSo} text-slate-500${ghim(0, isMulti ? 'bg-indigo-50' : 'bg-white').cls}`} style={ghim(0).st}>{(page - 1) * ROWS_PER_PAGE + gi + 1}</td>
+                            <td className={`${bang.tdB} !px-1 text-slate-600${ghim(1, isMulti ? 'bg-indigo-50' : 'bg-white').cls}`} style={ghim(1).st}>
                               {isMulti && (isOpen ? <ChevronDown size={14} strokeWidth={2.75} /> : <ChevronRightIcon size={14} strokeWidth={2.75} />)}
                             </td>
                             {/* ✅ Body (hàng cha đã gộp) lặp theo orderedColumns. */}
-                            {orderedColumns.map(col => (
+                            {orderedColumns.map((col, j) => (
                               <td
                                 key={col}
-                                className={`${isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`} ${isMulti ? 'font-bold' : ''}`}
+                                className={`${isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`} ${isMulti ? 'font-bold' : ''}${ghim(dauCot + j, isMulti ? 'bg-indigo-50' : 'bg-white').cls}`}
+                                style={ghim(dauCot + j).st}
                               >
                                 {formatCellValue(g.merged[col], col)}
                                 {col === groupCol && isMulti && (
@@ -337,11 +369,11 @@ export default function DetailDataModal({
                           </tr>
                           {isMulti && isOpen && g.rows.map((row, i) => (
                             <tr key={`${g.key}-${i}`} className="bg-indigo-50/20 text-slate-600">
-                              <td className={bang.tdB} />
-                              <td className={bang.tdB} />
+                              <td className={`${bang.tdB}${ghim(0).cls}`} style={ghim(0).st} />
+                              <td className={`${bang.tdB}${ghim(1).cls}`} style={ghim(1).st} />
                               {/* ✅ Body (các dòng con khi mở nhóm) lặp theo orderedColumns. */}
-                              {orderedColumns.map(col => (
-                                <td key={col} className={isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}>
+                              {orderedColumns.map((col, j) => (
+                                <td key={col} className={`${isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}${ghim(dauCot + j).cls}`} style={ghim(dauCot + j).st}>
                                   {formatCellValue(row[col], col)}
                                 </td>
                               ))}
@@ -352,10 +384,10 @@ export default function DetailDataModal({
                     })
                   : pagedRows.map((row, i) => (
                       <tr key={i} className="odd:bg-white even:bg-slate-50/50 hover:bg-indigo-50/40">
-                        <td className={`${bang.tdSo} text-slate-500`}>{(page - 1) * ROWS_PER_PAGE + i + 1}</td>
+                        <td className={`${bang.tdSo} text-slate-500${ghim(0).cls}`} style={ghim(0).st}>{(page - 1) * ROWS_PER_PAGE + i + 1}</td>
                         {/* ✅ Body (chế độ phẳng, không group) lặp theo orderedColumns. */}
-                        {orderedColumns.map(col => (
-                          <td key={col} className={isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}>
+                        {orderedColumns.map((col, j) => (
+                          <td key={col} className={`${isSoCol(col) ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}${ghim(dauCot + j).cls}`} style={ghim(dauCot + j).st}>
                             {formatCellValue(row[col], col)}
                           </td>
                         ))}
@@ -364,9 +396,9 @@ export default function DetailDataModal({
               </tbody>
               <tfoot className={bang.tfoot}>
                 <tr>
-                  <td className={bang.tdSo} colSpan={canGroup ? 2 : 1}>{truncated ? 'TỔNG đã tải' : 'TỔNG'}</td>
-                  {orderedColumns.map(col => (
-                    <td key={col} className={bang.tdSo}>{isSumColumn(col) ? formatCellValue(tongCot(rows, col), col) : ''}</td>
+                  <td className={`${bang.tdSo}${leCot.length ? ' !z-[3] shadow-[2px_0_3px_-1px_rgba(0,0,0,0.18)]' : ''}`} style={leCot.length ? { left: leCot[0] } : undefined} colSpan={canGroup ? 2 : 1}>{truncated ? 'TỔNG đã tải' : 'TỔNG'}</td>
+                  {orderedColumns.map((col, j) => (
+                    <td key={col} className={`${bang.tdSo}${dauCot + j < leCot.length ? ' !z-[3]' : ''}`} style={dauCot + j < leCot.length ? { left: leCot[dauCot + j] } : undefined}>{isSumColumn(col) ? formatCellValue(tongCot(rows, col), col) : ''}</td>
                   ))}
                 </tr>
               </tfoot>

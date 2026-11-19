@@ -8,7 +8,7 @@ import { fmtInt } from '../../utils/format';
 import { LOAI_TIEN, UNAUTHORIZED, traGia, fetchVuongMacPhotoUrl, type ChiTietTien, type LoaiTien, type TraGiaHex } from '../../services/vuongMacService';
 import { LabeledField, inputCls } from '../Mobile/mobileUi';
 import {
-  LOAI_TIEN_META, tachHex, tomTatMucGia, fmtDong, fmtDongGon, docSoTien, nhapSoTien, hieu, fmtGiaCongNgoai, hexTrungThat,
+  LOAI_TIEN_META, NGUYEN_NHAN_GIA_THAP, nguyenNhanGiaThap, tachHex, tomTatMucGia, fmtDong, fmtDongGon, docSoTien, nhapSoTien, hieu, fmtGiaCongNgoai, hexTrungThat,
 } from './tienM6';
 
 // ============================================================================
@@ -367,6 +367,7 @@ function SoLieuTien({ hex, ct, kq, loading, err, dense }: { hex: string; ct: Par
     );
   }
   if (ct.loai === 'gia_thap_gcvt') {
+    const coGcvt = nguyenNhanGiaThap(ct) === 'gcvt';
     const chenhDg = hieu(ct.chiPhiGcvt, g.donGia);
     const chenhTg = g.triGia !== g.donGia ? hieu(ct.chiPhiGcvt, g.triGia) : null;
     return (
@@ -374,9 +375,11 @@ function SoLieuTien({ hex, ct, kq, loading, err, dense }: { hex: string; ct: Par
         <Dong label="Đơn giá sản phẩm" value={`${fmtDong(g.donGia)}${g.dvt ? ` / ${g.dvt}` : ''}`} />
         <Dong label="Trị giá đơn hàng" value={fmtDong(g.triGia)} />
         <Dong label="Có gia công ngoài" value={fmtGiaCongNgoai(g.coGiaCongNgoai)} />
-        <Dong label="Chi phí GCVT báo giá" value={fmtDong(ct.chiPhiGcvt ?? null)} strong />
-        <Dong label="Chi phí GCVT − đơn giá SP" value={fmtChenh(chenhDg)} tone={chenhTone(chenhDg)} strong />
-        {chenhTg !== null && <Dong label="Chi phí GCVT − trị giá đơn hàng" value={fmtChenh(chenhTg)} tone={chenhTone(chenhTg)} />}
+        {coGcvt && <>
+          <Dong label="Chi phí GCVT báo giá" value={fmtDong(ct.chiPhiGcvt ?? null)} strong />
+          <Dong label="Chi phí GCVT − đơn giá SP" value={fmtChenh(chenhDg)} tone={chenhTone(chenhDg)} strong />
+          {chenhTg !== null && <Dong label="Chi phí GCVT − trị giá đơn hàng" value={fmtChenh(chenhTg)} tone={chenhTone(chenhTg)} />}
+        </>}
       </dl>
     );
   }
@@ -481,9 +484,27 @@ export function TienM6Fields({ mainHex, value, onChange, batBuocLoai, scanButton
         </div>
       )}
 
+      {value.loai === 'gia_thap_gcvt' && (
+        <div>
+          <p className="mb-1.5 text-base font-medium text-slate-700">Nguyên nhân<span className="text-red-500"> *</span></p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {(['gcvt', 'quy_mo'] as const).map(n => {
+              const on = nguyenNhanGiaThap(value) === n, m = NGUYEN_NHAN_GIA_THAP[n];
+              return (
+                <button type="button" key={n} aria-pressed={on} onClick={() => set({ nguyenNhan: n })}
+                  className={`rounded-2xl px-3 py-2.5 text-left ${on ? 'bg-[#d3e3fd] ring-2 ring-[#8ab4f8]' : 'border border-slate-200 bg-white active:bg-slate-50'}`}>
+                  <span className={`block text-base leading-snug ${on ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}`}>{m.label}</span>
+                  <span className="mt-0.5 block text-sm leading-snug text-slate-500">{m.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {value.loai === 'gia_thap_gcvt' && mainHex && (
         <>
-          <LabeledField label="Chi phí GCVT báo giá (đồng)">
+          {nguyenNhanGiaThap(value) === 'gcvt' && <LabeledField label="Chi phí GCVT báo giá (đồng)">
             <div className="relative">
               <input value={tienInput} inputMode="numeric" placeholder="Vd: 12,500,000"
                 onChange={e => {
@@ -493,11 +514,11 @@ export function TienM6Fields({ mainHex, value, onChange, batBuocLoai, scanButton
                 className={`${inputCls} !pr-10 text-right tabular-nums`} />
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-base text-slate-400">đ</span>
             </div>
-          </LabeledField>
+          </LabeledField>}
           <SoLieuTien hex={mainHex} ct={value} kq={kq} loading={loading} err={err} />
           <LabeledField label="Giải trình" required>
             <textarea value={value.giaiTrinh ?? ''} onChange={e => set({ giaiTrinh: e.target.value })} rows={3} maxLength={2000}
-              placeholder="Vì sao không gia công vệ tinh được: kích thước, khối lượng, đơn vị GCVT báo giá…" className={inputCls} />
+              placeholder={NGUYEN_NHAN_GIA_THAP[nguyenNhanGiaThap(value)].goiY} className={inputCls} />
           </LabeledField>
         </>
       )}
@@ -505,7 +526,8 @@ export function TienM6Fields({ mainHex, value, onChange, batBuocLoai, scanButton
       {value.loai === 'vat_tu_vuot_gia' && mainHex && <SoLieuTien hex={mainHex} ct={value} kq={kq} loading={loading} err={err} />}
       {err && value.loai !== 'nhieu_gia' && <p className="text-sm text-red-600">{err}</p>}
 
-      {value.loai && (
+      {/* Ghi chú về tiền trùng ô "Nội dung vướng mắc" (người dùng 18/11/2026) => chỉ còn cho bản cũ đã có ghi chú */}
+      {value.loai && !!value.ghiChu && (
         <LabeledField label="📝 Ghi chú về tiền">
           <textarea value={value.ghiChu ?? ''} onChange={e => set({ ghiChu: e.target.value })} rows={2} maxLength={2000}
             placeholder="Không bắt buộc" className={inputCls} />
@@ -529,6 +551,7 @@ export function TienM6View({ hex, ct, dense }: { hex: string; ct?: ChiTietTien |
     <div className={`space-y-2 ${txt}`}>
       <p className={tieuDe}>💰 Vấn đề tiền</p>
       <p className="font-semibold text-slate-900">{m.icon} {m.label}</p>
+      {ct.loai === 'gia_thap_gcvt' && <p className="text-slate-700">Nguyên nhân: <b className="font-semibold">{NGUYEN_NHAN_GIA_THAP[nguyenNhanGiaThap(ct)].label}</b></p>}
       {ct.loai === 'nhieu_gia' && (
         <>
           <BangTraGia hexes={ds} mainHex={hex} kq={kq} loading={loading} err={err} dense={dense}

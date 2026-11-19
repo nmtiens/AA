@@ -3,6 +3,7 @@ import { AnalysisItem } from '../../types';
 import { ArrowDown, ArrowUp, ArrowUpDown, Filter, Search, AlertCircle } from 'lucide-react';
 import { table, tdB, tdSo, tfoot, thB, thead } from '../../../shared/bangBaoCao';
 import { fmtInt } from '../../../../utils/format';
+import { soSanhKhuVuc } from '../../utils/khuVuc';
 
 const defaultFormatValue = fmtInt;
 // Ô coi như 0 (dư số thực vd. -1e-12 không được hiện "-0,00" đỏ)
@@ -12,7 +13,9 @@ const isZeroCell = (v: number) => !Number.isFinite(v) || Math.abs(v) < 0.005;
 export const DetailModalTable = ({
   data,
   title,
-  icon: Icon,
+  stt,
+  sapTheoKhuVuc,
+  tenCot = 'Tên',
   dateLabel,
   mtdLabel,
   unitLabel,
@@ -22,7 +25,14 @@ export const DetailModalTable = ({
 }: {
   data: AnalysisItem[];
   title: string;
-  icon: React.ElementType;
+  /** Không còn hiện icon ở tiêu đề (người dùng 19/11/2026) — giữ prop để nơi gọi cũ không lỗi */
+  icon?: React.ElementType;
+  /** Số thứ tự hiện trước tiêu đề: "1. Chi tiết theo khu vực" */
+  stt?: number;
+  /** Sắp mặc định theo thứ tự khu vực (2A, 3A, 4A, 5A, 8AB, 8C, KHÁC cuối) thay vì theo số */
+  sapTheoKhuVuc?: boolean;
+  /** Tên cột đầu (mặc định "Tên") */
+  tenCot?: string;
   dateLabel: string;
   /** Bỏ trống => bảng chỉ có 1 cột số (daily) */
   mtdLabel?: string;
@@ -44,7 +54,8 @@ export const DetailModalTable = ({
       {formatValue(v)}
     </button>
   ));
-  const [sortConfig, setSortConfig] = useState<{ key: 'name' | 'daily' | 'mtd'; direction: 'asc' | 'desc' }>({ key: coMtd ? 'mtd' : 'daily', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: 'name' | 'daily' | 'mtd'; direction: 'asc' | 'desc' }>(
+    sapTheoKhuVuc ? { key: 'name', direction: 'asc' } : { key: coMtd ? 'mtd' : 'daily', direction: 'desc' });
   
   // ✅ Đã sửa: Khởi tạo giá trị ban đầu trực tiếp trong useState để tránh lặp vô tận
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => {
@@ -133,6 +144,10 @@ useEffect(() => {
     const sortableItems = [...filteredData];
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
+        if (sortConfig.key === 'name' && sapTheoKhuVuc) {
+          const k = soSanhKhuVuc(a.name, b.name);
+          return sortConfig.direction === 'asc' ? k : -k;
+        }
         const valA = a[sortConfig.key];
         const valB = b[sortConfig.key];
         if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -165,7 +180,7 @@ useEffect(() => {
     return (
       <div className="mb-8">
         <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
-          <Icon size={16} className="text-wood-600" /> {title}
+          {stt ? `${stt}. ` : ''}{title}
         </h4>
         <div className="flex flex-col items-center justify-center text-slate-400 p-8 bg-white rounded-lg border border-slate-200 border-dashed">
           <AlertCircle size={32} className="mb-2 opacity-50" />
@@ -181,7 +196,7 @@ useEffect(() => {
   return (
     <div className="mb-8">
       <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
-        <Icon size={16} className="text-wood-600" /> {title}
+        {stt ? `${stt}. ` : ''}{title}
       </h4>
       <div className="bg-white border-l border-t border-slate-300 overflow-hidden flex flex-col max-h-[500px]">
         <div className="overflow-auto custom-scrollbar flex-1 relative">
@@ -195,7 +210,7 @@ useEffect(() => {
                       className="cursor-pointer flex items-center"
                       onClick={() => requestSort('name')}
                     >
-                      Tên <SortIcon columnKey="name" />
+                      {tenCot} <SortIcon columnKey="name" />
                     </span>
                     <div className="relative" ref={filterRef}>
                       <button
@@ -291,7 +306,7 @@ useEffect(() => {
                 <td
                   colSpan={2}
                   className={`${tdB} text-center`}
-                  title="Cộng các dòng nhóm. Khi đếm hạng mục, 1 HEX ở nhiều nhóm (nhiều xưởng / nhiều cách ghi tên công trình) được đếm ở mỗi nhóm nên tổng có thể lớn hơn số trên thẻ; tổng giá trị luôn khớp."
+                  title="Cộng các dòng nhóm. Khi đếm hạng mục, 1 HEX ở nhiều nhóm (nhiều khu vực / nhiều cách ghi tên công trình) được đếm ở mỗi nhóm nên tổng có thể lớn hơn số trên thẻ; tổng giá trị luôn khớp."
                 >
                   TỔNG
                 </td>

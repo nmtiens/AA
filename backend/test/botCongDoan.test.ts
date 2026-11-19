@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { docSetup, congDoanDuocNhap, xuongDuocNhap, lyDoCam, docNgay, CONG_DOAN, nguoiTuQuyen, khoaNhoHex } from '../src/server/botCongDoan.js';
+import { docSetup, congDoanDuocNhap, xuongDuocNhap, lyDoCam, docNgay, CONG_DOAN, nguoiTuQuyen, khoaNhoHex, lyDoGioiHan } from '../src/server/botCongDoan.js';
 
 // Chạy: npm test. BOT theo công đoạn — server/botCongDoan.ts (quyền nhập theo bộ phận / xưởng)
 
@@ -76,5 +76,24 @@ describe('BOT công đoạn — đường đọc dùng quyền đã nạp / kho�
     assert.equal(khoaNhoHex({ coBang: false, khoa: 'khong-bang' }, 'v1'), null);
     assert.equal(khoaNhoHex({ coBang: true, khoa: 'a/1' }, undefined), null);
     assert.equal(khoaNhoHex({ coBang: true, khoa: 'a/1' }, ''), null);
+  });
+});
+
+describe('lyDoGioiHan (đợt đầu 1 lần, đợt cuối 2 lần, không xoá)', () => {
+  it('đợt đầu: lần đầu cho, đã nhập 1 lần thì chặn', () => {
+    assert.equal(lyDoGioiHan(false, 'dau', 0, false, '2026-11-20'), null);
+    assert.match(String(lyDoGioiHan(false, 'dau', 1, true, '2026-11-21')), /1 lần/);
+  });
+  it('đợt cuối: cho 2 lần, lần 3 chặn', () => {
+    assert.equal(lyDoGioiHan(false, 'cuoi', 0, false, '2026-11-20'), null);
+    assert.equal(lyDoGioiHan(false, 'cuoi', 1, true, '2026-11-25'), null);
+    assert.match(String(lyDoGioiHan(false, 'cuoi', 2, true, '2026-11-26')), /2 lần/);
+  });
+  it('đã có ngày thì không xoá; ADMIN xoá được nhưng vẫn bị giới hạn số lần', () => {
+    assert.match(String(lyDoGioiHan(false, 'cuoi', 1, true, null)), /không được xoá/);
+    assert.equal(lyDoGioiHan(false, 'cuoi', 0, false, null), null);
+    assert.equal(lyDoGioiHan(true, 'dau', 5, true, null), null);
+    assert.match(String(lyDoGioiHan(true, 'dau', 1, true, '2026-11-30')), /1 lần/);
+    assert.match(String(lyDoGioiHan(true, 'cuoi', 2, true, '2026-11-30')), /2 lần/);
   });
 });

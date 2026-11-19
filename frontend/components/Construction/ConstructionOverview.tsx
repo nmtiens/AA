@@ -951,7 +951,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         )}
         {/* Nút "Kế Hoạch Nhập Kho" + Tổng quan: bảng kế hoạch nhập kho theo tháng của file PRODUCTION STATUS.xlsx
             (thay khung tổng quan — số đơn vị triệu như file) */}
-        {locKhsx && viewCT === 'tong' && <div className={`${cardCls} p-4 sm:p-5`}><KhnkSheet /></div>}
+        {locKhsx && viewCT === 'tong' && <div className={`${cardCls} p-4 sm:p-5`}><KhnkSheet khuVuc={f.kv} /></div>}
         <div className={viewCT === 'tong' && !locKhsx ? 'space-y-4' : 'hidden'}>
         {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
             Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho

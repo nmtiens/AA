@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { khThTheoLoc, macDinhCuaSo, mauTyLe, mocQuy, mucTyLe, trangThaiSo } from './dauTrang';
+import { khThTheoLoc, khThThang, macDinhCuaSo, mauTyLe, mocQuy, mucTyLe, trangThaiSo } from './dauTrang';
 
 const d = (s: string) => new Date(`${s}T00:00:00`);
 
@@ -48,5 +48,20 @@ describe('macDinhCuaSo', () => {
     expect(macDinhCuaSo([])).toBe('');
     expect(macDinhCuaSo(['A'])).toBe('A');
     expect(macDinhCuaSo(['A', 'B'])).toBe('');
+  });
+});
+
+describe('khThThang', () => {
+  const d = {
+    plan: [{ thang: 11, xuong: '2A', value: 50 }, { thang: 12, xuong: '2A', value: 60 }],
+    planThang: [{ thang: 11, xuong: '2A', value: 31.9 }, { thang: 11, xuong: '3A', value: 36.6 }],
+    actual: [{ thang: 11, xuong: '2A', value: 10 }],
+  };
+  it('tháng đã có KHSX: lấy KH tháng từ khsx, lọc được xưởng', () => {
+    expect(khThThang(d, [], 11)).toEqual({ kh: 31.9 + 36.6, th: 10, nguon: 'khsx' });
+    expect(khThThang(d, ['3A'], 11).kh).toBe(36.6);
+  });
+  it('tháng chưa có KHSX: quay về KH năm chia tháng', () => {
+    expect(khThThang(d, [], 12)).toEqual({ kh: 60, th: 0, nguon: 'nam' });
   });
 });

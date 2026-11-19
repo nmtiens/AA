@@ -39,6 +39,15 @@ test('kiemChiTietTien: nhieu_gia báo mã sai độ dài', () => {
   if (!kq.ok) assert.match(kq.message, /12345/);
 });
 
+test('kiemChiTietTien: gia_thap_gcvt nguyên nhân quy mô — bỏ chi phí GCVT, lưu nguyenNhan; gcvt không lưu trường', () => {
+  assert.deepEqual(kiemChiTietTien('money', { loai: 'gia_thap_gcvt', nguyenNhan: 'quy_mo', chiPhiGcvt: 9_000_000, giaiTrinh: 'tủ lớn' }, '1'),
+    { ok: true, value: { loai: 'gia_thap_gcvt', nguyenNhan: 'quy_mo', giaiTrinh: 'tủ lớn' } });
+  assert.deepEqual(kiemChiTietTien('money', { loai: 'gia_thap_gcvt', nguyenNhan: 'gcvt', chiPhiGcvt: 1_000, giaiTrinh: 'a' }, '1'),
+    { ok: true, value: { loai: 'gia_thap_gcvt', chiPhiGcvt: 1_000, giaiTrinh: 'a' } });
+  assert.equal(kiemChiTietTien('money', { loai: 'gia_thap_gcvt', nguyenNhan: 'quy_mo', giaiTrinh: ' ' }, '1').ok, false);
+  assert.equal(kiemChiTietTien('money', { loai: 'gia_thap_gcvt', nguyenNhan: 'khac', giaiTrinh: 'a' }, '1').ok, false);
+});
+
 test('kiemChiTietTien: gia_thap_gcvt bắt buộc giải trình, chi phí làm tròn đồng', () => {
   assert.equal(kiemChiTietTien('money', { loai: 'gia_thap_gcvt', chiPhiGcvt: 5_000_000 }, '1').ok, false);
   assert.equal(kiemChiTietTien('money', { loai: 'gia_thap_gcvt', giaiTrinh: '   ' }, '1').ok, false);

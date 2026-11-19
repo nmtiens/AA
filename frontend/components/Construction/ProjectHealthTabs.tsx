@@ -302,8 +302,8 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = fal
     if (!e?.gcn) return false;
     return extraSel.st === 'pending' ? !GCN_DONE(e.gcn.st) : (e.gcn.st ?? '(Chưa ghi tình trạng)') === extraSel.st;
   };
-  // Bảng Nhóm sản phẩm × Công đoạn: đếm = hạng mục còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (kể cả
-  // đã nhập đủ SL mà lệch tiền) — để tổng tiền khớp thẻ BOP
+  // Bảng Nhóm sản phẩm × Công đoạn: hạng mục còn theo dõi (đủ số lượng mà lệch tiền không tính; theo giá trị bỏ phần
+  // còn lại < 10.000đ) — core/bopPivot.mucCongDoan, cùng quy tắc phễu trang Tổng quan đơn hàng
   const pivotItems = useMemo(() => mucCongDoan(items, metric), [items, metric]);
   // Dưới 5 triệu làm tròn ra "0.00" tỷ dễ hiểu nhầm là 0 => ghi "<0.01"
   const fmtV = (v: number) => fmtGiaTriBop(v, metric);

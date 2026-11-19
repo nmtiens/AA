@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart2, Eye, X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
 import {
   ComposedChart, Bar, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList, ReferenceLine,
@@ -23,44 +23,51 @@ interface ChartPoint { congTrinh: string; congTrinhCode: string; total: number; 
 const formatDecimal = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const formatShort = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
-function wrapLabel(name: string, maxCharsPerLine: number, maxLines = 3): string[] {
-  const words = name.split(' ');
-  const lines: string[] = [];
-  let current = '';
-
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length > maxCharsPerLine && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = candidate;
-    }
+// Nhãn công trình dễ đọc (người dùng 19/11/2026): dòng 1 = mã CT đậm, dòng 2 = tên (1 dòng, dài quá cắt "…");
+// tên không có mã (vd "Các công trình khác") hiện 1 dòng. Rê chuột hiện đủ tên.
+const MA_CT = /^(.*?)[\s_\-–]*((?:CT|PO)\d{2}-\d{3})\s*$/i;
+export const tachMaCt = (ten: string): { ma: string | null; ten: string } => {
+  const m = MA_CT.exec(String(ten ?? '').trim());
+  return m ? { ma: m[2].toUpperCase(), ten: m[1].replace(/[\s_\-–]+$/, '').trim() } : { ma: null, ten: String(ten ?? '').trim() };
+};
+/** Ngắt tên thành các dòng ≤ n ký tự theo từ — KHÔNG cắt "…" (người dùng: không mất chữ) */
+export const ngatDong = (t: string, n: number): string[] => {
+  const dong: string[] = [];
+  let hien = '';
+  for (const tu of t.split(/\s+/).filter(Boolean)) {
+    const thu = hien ? `${hien} ${tu}` : tu;
+    if (thu.length > n && hien) { dong.push(hien); hien = tu; } else hien = thu;
   }
-  if (current) lines.push(current);
-
-  if (lines.length > maxLines) {
-    const kept = lines.slice(0, maxLines);
-    kept[maxLines - 1] = `${kept[maxLines - 1]}…`;
-    return kept;
-  }
-  return lines;
-}
+  if (hien) dong.push(hien);
+  return dong.length ? dong : [''];
+};
 
 function WrappedYAxisTick(props: any) {
   const { x, y, payload, maxCharsPerLine, fontSize } = props;
-  const lines = wrapLabel(payload.value as string, maxCharsPerLine);
-  const lineHeight = fontSize + 2;
-  const totalHeight = lines.length * lineHeight;
-  const startY = -(totalHeight / 2) + lineHeight / 2;
-
+  const full = String(payload.value ?? '');
+  const { ma, ten } = tachMaCt(full);
+  if (!ma) {
+    return (
+      <text x={x} y={y} textAnchor="end" dominantBaseline="central" fill="#0f172a" fontSize={fontSize} fontWeight={600}>
+        <title>{full}</title>
+        {ten}
+      </text>
+    );
+  }
   return (
-    <text x={x} y={y} textAnchor="end" fill="#334155" fontSize={fontSize}>
-      {lines.map((line, i) => (
-        <tspan key={i} x={x} dy={i === 0 ? startY : lineHeight}>
-          {line}
-        </tspan>
-      ))}
+    <text x={x} y={y} textAnchor="end" fontSize={fontSize}>
+      <title>{full}</title>
+      {(() => {
+        // Mã + các dòng tên, căn giữa theo cột
+        const dong = ngatDong(ten, maxCharsPerLine + 2);
+        const cao = fontSize + 3 + dong.length * (fontSize + 2);
+        return (<>
+          <tspan x={x} dy={-cao / 2 + fontSize} fill="#0f172a" fontWeight={700}>{ma}</tspan>
+          {dong.map((d, i) => (
+            <tspan key={i} x={x} dy={i === 0 ? fontSize + 3 : fontSize + 2} fill="#334155" fontSize={fontSize - 1} fontWeight={500}>{d}</tspan>
+          ))}
+        </>);
+      })()}
     </text>
   );
 }
@@ -107,7 +114,7 @@ function PinnedPopover({ x, y, containerWidth, containerHeight, label, value, un
     >
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 px-4 py-3 text-sm">
         <p className="text-slate-600">Công trình: <span className="font-semibold text-slate-800">{label}</span></p>
-        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {money ? formatTy(value) : formatDecimal(value)}</p>
+        <p className="text-pink-600 font-semibold mt-0.5">{unit}: {money ? formatTy(value) : formatDecimal(value)}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
@@ -131,11 +138,13 @@ function PinnedPopover({ x, y, containerWidth, containerHeight, label, value, un
 interface ByCongTrinhChartProps {
   source: TrendSource;
   embedded?: boolean;
+  /** Số thứ tự trên tiêu đề: "1. Xu hướng …" (người dùng 19/11/2026) */
+  stt?: number;
   displayMode: DisplayMetric;
   topN?: number;
 }
 
-export default function ByCongTrinhChart({ source, embedded = false, displayMode, topN = 15 }: ByCongTrinhChartProps) {
+export default function ByCongTrinhChart({ source, embedded = false, stt, displayMode, topN = 10 }: ByCongTrinhChartProps) {
   const {
     dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
     hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI
@@ -249,16 +258,13 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
     return Number(sum.toFixed(2));
   }, [raw, displayMode, hasValidRange]);
 
-  const maxCharsPerLine = embedded ? 18 : 24;
-  const yAxisFontSize = 12;
-  const yAxisWidth = maxCharsPerLine * (yAxisFontSize * 0.62) + 16;
-
-  const maxLinesNeeded = useMemo(() => {
-    if (chartData.length === 0) return 1;
-    return Math.max(...chartData.map(p => wrapLabel(p.congTrinh, maxCharsPerLine).length));
-  }, [chartData, maxCharsPerLine]);
-
-  const rowHeight = Math.max(embedded ? 28 : 34, maxLinesNeeded * (yAxisFontSize + 2) + 14);
+  // Nhãn trục: mã CT (14px đậm) + tên 1 dòng (12px) — xem WrappedYAxisTick
+  const maxCharsPerLine = embedded ? 30 : 36;
+  const yAxisFontSize = 14;
+  const yAxisWidth = (maxCharsPerLine + 2) * ((yAxisFontSize - 1) * 0.6) + 16;
+  // Cao mỗi hàng theo số dòng tên dài nhất (mã 1 dòng + tên n dòng)
+  const soDongTen = Math.max(1, ...chartData.map(p => ngatDong(tachMaCt(p.congTrinh).ten, maxCharsPerLine + 2).length));
+  const rowHeight = Math.max(embedded ? 50 : 54, 22 + soDongTen * (yAxisFontSize + 1) + 12);
   const chartHeight = Math.max(embedded ? 320 : 420, chartData.length * rowHeight + 60);
 
   const openDetailForPinned = async () => {
@@ -311,8 +317,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-          <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          {theme.label} theo công trình {topN ? `(Top ${topN})` : ''}
+          {stt ? `${stt}. ` : ''}{theme.label} theo công trình {topN ? `(top ${topN})` : ''}
         </h4>
       </div>
 
@@ -385,14 +390,12 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
         )}
         {chartData.length > 0 && !loading && (
           <div
-            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-sm font-bold"
-            style={{
-              color: theme.barDark,
-              borderColor: theme.bar,
-              backgroundColor: `${theme.bar}1A`,
-            }}
+            className="absolute top-3 right-4 z-10 rounded-full px-4 py-1.5 text-base font-bold text-white shadow-md tabular-nums"
+            // Nổi bật (người dùng 19/11/2026): nền màu đậm của biểu đồ, chữ trắng
+            style={{ backgroundColor: theme.barDark }}
           >
-            Tổng: {fmt(totalAll)} · TB: {fmtShort(avgAll)}
+            {/* TB chia cho MỌI công trình có số (gồm cả phần gộp "Các công trình khác"), không chỉ top hiện trên biểu đồ */}
+            Tổng: {fmt(totalAll)}{isMoney ? ' tỷ' : ''} · {raw.length.toLocaleString('en-US')} công trình · TB: {fmtShort(avgAll)}{isMoney ? ' tỷ' : ''}/công trình
           </div>
         )}
         {pinned && (
@@ -414,7 +417,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       <DetailDataModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        title={`Chi tiết ${theme.label} — Công trình: ${pinned?.point.congTrinh ?? ''}`}
+        title={`Chi tiết ${theme.label.charAt(0).toLocaleLowerCase('vi') + theme.label.slice(1)} — Công trình: ${pinned?.point.congTrinh ?? ''}`}
         accentColor={theme.bar}
         rows={detailRows}
         columns={detailColumns}

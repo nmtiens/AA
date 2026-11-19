@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Target } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTrendFilter } from './TrendFilterContext';
 import { fetchYearPlan, fetchYearPlanActual, type YearPlanActualData } from '../../../../services/dataService';
 import { formatTy, trieuToTy } from '../../../../utils/money';
@@ -45,7 +45,7 @@ const barTone = (pct: number) => (pct >= 100 ? 'bg-emerald-500' : pct >= 80 ? 'b
 const sumMonths = (src: MonthMap | undefined, months: number[]) =>
   src ? months.reduce((s, m) => s + (src[m] ?? 0), 0) : 0;
 
-export default function YearPlanTable() {
+export default function YearPlanTable({ stt }: { stt?: number } = {}) {
   const { dateFrom, dateTo, xuong } = useTrendFilter();
   const year = Number((dateTo || dateFrom || '').slice(0, 4)) || new Date().getFullYear();
   const [mode, setMode] = useState<'total' | 'xuong'>('total');
@@ -144,8 +144,7 @@ export default function YearPlanTable() {
   return (
     <div className="mb-8 bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3">
-        <Target className="h-4 w-4 text-amber-600" />
-        <h4 className="text-base font-bold text-slate-800">KH năm – Nhập kho (tỷ)</h4>
+        <h4 className="text-base font-bold text-slate-800">{stt ? `${stt}. ` : ''}KH năm – nhập kho (tỷ)</h4>
         <span className="text-sm font-semibold text-slate-600">
           {year}{mode === 'total' && xuong ? ` · ${xuong}` : ''}
         </span>

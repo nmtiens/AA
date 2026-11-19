@@ -37,7 +37,9 @@ export interface ChiTietTien {
   loai: LoaiTien;
   /** Các mã HEX (9 số) cùng sản phẩm với HEX chính — không gồm HEX chính, không trùng */
   hexTrung?: string[];
-  /** Chi phí GCVT báo giá, ĐƠN VỊ VNĐ */
+  /** Giá thấp: 'gcvt' = GCVT báo giá vượt giá SP, 'quy_mo' = giá thấp so với quy mô SP (không có = 'gcvt', bản cũ) */
+  nguyenNhan?: 'gcvt' | 'quy_mo';
+  /** Chi phí GCVT báo giá, ĐƠN VỊ VNĐ (chỉ nguyên nhân 'gcvt') */
   chiPhiGcvt?: number;
   giaiTrinh?: string;
   ghiChu?: string;

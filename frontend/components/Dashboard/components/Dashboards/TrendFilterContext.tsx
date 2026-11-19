@@ -2,6 +2,9 @@ import { createContext, useContext, useMemo, useState, useEffect, useRef, ReactN
 import { parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
 
 export type Granularity = 'day' | 'week' | 'month';
+/** Lọc theo kỳ: chọn 1 tuần (thứ Hai–Chủ nhật) / 1 tháng / 1 năm; kỳ đang chạy tính tới ngày mốc (ngày dữ liệu mới nhất) */
+export type KyNhanh = 'tuan' | 'thang' | 'nam';
+export interface KyChon { ky: KyNhanh; ma: string }
 export interface FilterOption { code: string; name: string; }
 
 // Danh sách cho ô lọc (xưởng / công trình / ĐVT / nhóm SP): server quét DISTINCT nhiều bảng lớn — instance Vercel
@@ -45,9 +48,14 @@ interface TrendFilterState {
   setDateTo: (d: string) => void;
   applyGranularity: (g: Granularity) => void;
   applyPreset: (days: number) => void;
+  /** Áp 1 kỳ đã chọn: tuISO → denISO (cắt tại ngày mốc); ma = mã kỳ để ô chọn hiện đúng giá trị */
+  applyKy: (ky: KyNhanh, tuISO: string, denISO: string, ma: string) => void;
+  /** Ngày mốc (ngày dữ liệu mới nhất) — dựng danh sách tuần / tháng / năm */
+  layNgayMoc: () => string;
   clearRange: () => void;
 
   activePresetDays: number | null;
+  activeKy: KyChon | null;
 
   xuong: string;
   setXuong: (v: string) => void;
@@ -121,7 +129,13 @@ export function TrendFilterProvider({
   const [uncontrolledFrom, setUncontrolledFrom] = useState(daysAgo(DEFAULT_RANGE_DAYS));
   const [uncontrolledTo, setUncontrolledTo] = useState(yesterday());
 
-  const [activePresetDays, setActivePresetDays] = useState<number | null>(null);
+  const [activePresetDays, setActivePresetDays0] = useState<number | null>(null);
+  const [activeKy, setActiveKy] = useState<KyChon | null>(null);
+  // Mọi thao tác đổi khoảng ngày khác đều bỏ chọn nút kỳ (tuần / tháng / năm này)
+  const setActivePresetDays = (v: number | null) => { setActivePresetDays0(v); setActiveKy(null); kyCho.current = null; };
+  // Kỳ (tuần / tháng / năm) đang chọn: danh sách ngày (unifiedDateOptions) tải xong SAU khi chọn thì áp lại kỳ —
+  // trước đây chọn sớm thì ô kỳ tô đậm mà số liệu vẫn của ngày cũ
+  const kyCho = useRef<{ tu: string; den: string } | null>(null);
   const lastGranularityNonce = useRef<number | null>(null);
    useEffect(() => {
     if (!granularityRequest || granularityRequest.nonce === lastGranularityNonce.current) return;
@@ -231,16 +245,26 @@ export function TrendFilterProvider({
     }
   };
 
+  // Bỏ nút Ngày / Tuần / Tháng (người dùng 19/11/2026): chọn ngày tay thì tự chia theo độ dài khoảng
+  // (≤ 31 ngày: ngày, ≤ 6 tháng: tuần, dài hơn: tháng)
+  const tuChia = (tu: string, den: string) => {
+    if (!tu || !den) return;
+    const ngay = (new Date(den).getTime() - new Date(tu).getTime()) / 864e5 + 1;
+    setGranularity(ngay <= 31 ? 'day' : ngay <= 186 ? 'week' : 'month');
+  };
+
   const setDateFrom = (d: string) => {
     setActivePresetDays(null);
     if (!d && dateTo) { applyRange('', ''); return; }
     applyRange(d, dateTo);
+    tuChia(d, dateTo);
   };
 
   const setDateTo = (d: string) => {
     setActivePresetDays(null);
     if (!d && dateFrom) { applyRange('', ''); return; }
     applyRange(dateFrom, d);
+    tuChia(dateFrom, d);
   };
 
   const applyGranularity = (g: Granularity) => {
@@ -268,6 +292,21 @@ export function TrendFilterProvider({
     else setGranularity('month');
   };
 
+  const applyKy = (ky: KyNhanh, tuISO: string, denISO: string, ma: string) => {
+    const moc = presetAnchorISO();
+    const den = denISO > moc ? moc : denISO;
+    applyRange(tuISO, den);
+    setActivePresetDays(null);
+    setActiveKy({ ky, ma });
+    kyCho.current = { tu: tuISO, den };
+    setGranularity(ky === 'nam' ? 'month' : 'day');
+  };
+
+  useEffect(() => {
+    if (kyCho.current && isControlled && unifiedDateOptions.length) applyRange(kyCho.current.tu, kyCho.current.den);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unifiedDateOptions]);
+
   const clearRange = () => {
     setActivePresetDays(null);
     const anchorISO = presetAnchorISO();
@@ -279,8 +318,9 @@ export function TrendFilterProvider({
   return (
     <TrendFilterContext.Provider
       value={{
-        granularity, dateFrom, dateTo, setDateFrom, setDateTo, applyGranularity, applyPreset, clearRange,
-        activePresetDays,
+        granularity, dateFrom, dateTo, setDateFrom, setDateTo, applyGranularity, applyPreset, applyKy, clearRange,
+        layNgayMoc: presetAnchorISO,
+        activePresetDays, activeKy,
         xuong, setXuong, congTrinh, setCongTrinh, dvt, setDvt, phanLoai, setPhanLoai, clearExtraFilters,
         xuongList, congTrinhList, dvtList, phanLoaiList,
         hasCtWhitelist, ctWhitelistCsv,

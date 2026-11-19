@@ -8,8 +8,10 @@ import { z } from 'zod';
 //     giaiTrinh?: string, ghiChu?: string }
 //   nhieu_gia        Một HEX nhiều giá: xưởng nhìn hàng thật thấy vài mã HEX là cùng 1 sản phẩm mà giá khác nhau
 //                    -> hexTrung (mã 9 số, không gồm HEX chính, không trùng) — BẮT BUỘC >= 1 mã
-//   gia_thap_gcvt    Giá quá thấp so với quy mô, gia công vệ tinh vượt cost -> chiPhiGcvt (VNĐ, tuỳ chọn)
-//                    + giaiTrinh (BẮT BUỘC)
+//   gia_thap_gcvt    Giá thấp, 2 nguyên nhân (người dùng 18/11/2026) — nguyenNhan:
+//                      'gcvt'   GCVT báo giá vượt giá sản phẩm -> chiPhiGcvt (VNĐ, tuỳ chọn)
+//                      'quy_mo' giá thấp so với quy mô sản phẩm (không qua GCVT) -> không có chiPhiGcvt
+//                    bản cũ không có nguyenNhan = 'gcvt'; giaiTrinh BẮT BUỘC cả 2
 //   vat_tu_vuot_gia  Tổng tiền vật tư của HEX > trị giá sản phẩm -> ghiChu tuỳ chọn
 // Chỉ category = 'money' mới có chi tiết; loại khác luôn lưu NULL.
 //
@@ -22,11 +24,16 @@ import { z } from 'zod';
 
 export const LOAI_TIEN = ['nhieu_gia', 'gia_thap_gcvt', 'vat_tu_vuot_gia'] as const;
 export type LoaiTien = typeof LOAI_TIEN[number];
+/** Nguyên nhân của loại "Giá thấp": GCVT báo giá vượt giá SP / giá thấp so với quy mô SP */
+export const NGUYEN_NHAN_GIA_THAP = ['gcvt', 'quy_mo'] as const;
+export type NguyenNhanGiaThap = typeof NGUYEN_NHAN_GIA_THAP[number];
 
 export interface ChiTietTien {
   loai: LoaiTien;
   hexTrung?: string[];
-  /** Chi phí GCVT báo giá — VNĐ */
+  /** Giá thấp: nguyên nhân (không có = 'gcvt', bản cũ) */
+  nguyenNhan?: NguyenNhanGiaThap;
+  /** Chi phí GCVT báo giá — VNĐ (chỉ nguyên nhân 'gcvt') */
   chiPhiGcvt?: number;
   giaiTrinh?: string;
   ghiChu?: string;
@@ -56,6 +63,7 @@ export const lamTronVnd = (v: unknown): number | null => {
 export const chiTietTienSchema = z.object({
   loai: z.enum(LOAI_TIEN).optional().nullable(),
   hexTrung: z.array(z.string().max(40)).max(100).optional().nullable(),
+  nguyenNhan: z.enum(NGUYEN_NHAN_GIA_THAP).optional().nullable(),
   chiPhiGcvt: z.number().nonnegative().max(1e13).optional().nullable(),
   giaiTrinh: z.string().max(2000).optional().nullable(),
   ghiChu: z.string().max(2000).optional().nullable(),
@@ -118,12 +126,16 @@ export const kiemChiTietTien = (category: string, chiTiet: unknown, hexChinh: st
   }
   if (c.loai === 'gia_thap_gcvt') {
     const giaiTrinh = chuSach(c.giaiTrinh);
-    if (!giaiTrinh) return { ok: false, message: 'Giá thấp, không GCVT được: vui lòng nhập giải trình' };
-    const chiPhi = soHuuHan(c.chiPhiGcvt);
+    if (!giaiTrinh) return { ok: false, message: 'Giá thấp: vui lòng nhập giải trình' };
+    const nguyenNhan: NguyenNhanGiaThap = c.nguyenNhan ?? 'gcvt';
+    // Chi phí GCVT chỉ thuộc nguyên nhân GCVT (đổi sang "quy mô" thì bỏ số cũ)
+    const chiPhi = nguyenNhan === 'gcvt' ? soHuuHan(c.chiPhiGcvt) : null;
     return {
       ok: true,
       value: {
         loai: 'gia_thap_gcvt',
+        // Chỉ lưu khi khác mặc định: bản cũ (không có trường) = 'gcvt' => sửa bản cũ không đổi gì không sinh nhật ký
+        ...(nguyenNhan === 'quy_mo' ? { nguyenNhan } : {}),
         ...(chiPhi !== null ? { chiPhiGcvt: Math.round(chiPhi) } : {}),
         giaiTrinh,
         ...(ghiChu ? { ghiChu } : {}),
