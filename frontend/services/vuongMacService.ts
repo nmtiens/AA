@@ -7,13 +7,13 @@ import { getToken } from './userService';
 // ============================================================================
 
 // money (M6): vướng về tiền / đơn giá của HEX. Tên biến giữ FIVE_M_* để không đổi lan man
-export const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement', 'money'] as const;
+export const FIVE_M_CATEGORIES = ['man', 'material', 'machine', 'method', 'measurement', 'money'] as const;
 export type FiveMCategory = typeof FIVE_M_CATEGORIES[number];
 
 export const FIVE_M_LABELS: Record<FiveMCategory, string> = {
   man: 'Man (Con người)',
-  machine: 'Machine (Máy móc)',
   material: 'Material (Nguyên vật liệu)',
+  machine: 'Machine (Máy móc)',
   method: 'Method (Phương pháp)',
   measurement: 'Measurement (Đo lường)',
   money: 'Money (Tiền / đơn giá)',

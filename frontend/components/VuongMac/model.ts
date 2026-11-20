@@ -51,12 +51,12 @@ export const fmtHours = (h: number | null | undefined) => {
 
 // ---------------- Loại vướng mắc (6M: 5M + M6 Tiền) ----------------
 export const CAT_ICON: Record<string, string> = {
-  man: '👷', machine: '⚙️', material: '🪵', method: '📋', measurement: '📏', money: '💰',
+  man: '👷', material: '🪵', machine: '⚙️', method: '📋', measurement: '📏', money: '💰',
 };
 export const catIcon = (c: string) => CAT_ICON[c] ?? '🏷️';
-export const CAT_CODE: Record<string, string> = { man: 'M1', machine: 'M2', material: 'M3', method: 'M4', measurement: 'M5', money: 'M6' };
+export const CAT_CODE: Record<string, string> = { man: 'M1', material: 'M2', machine: 'M3', method: 'M4', measurement: 'M5', money: 'M6' };
 export const CAT_NAME: Record<string, string> = {
-  man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường', money: 'Tiền',
+  man: 'Con người', material: 'Vật tư', machine: 'Máy móc', method: 'Phương pháp', measurement: 'Đo lường', money: 'Tiền',
 };
 /** "M1 · Con người" */
 export const catLabel = (c: string) => (CAT_CODE[c] ? `${CAT_CODE[c]} · ${CAT_NAME[c]}` : c);

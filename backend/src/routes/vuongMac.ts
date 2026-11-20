@@ -45,7 +45,7 @@ import {
 // ============================================================================
 
 // money (M6): HEX vướng về tiền — một HEX nhiều đơn giá, sai / chưa có giá… (cột category là text, không cần SQL)
-const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement', 'money'] as const;
+const FIVE_M_CATEGORIES = ['man', 'material', 'machine', 'method', 'measurement', 'money'] as const;
 export const VM_STATUSES = ['open', 'doing', 'done', 'closed'] as const;
 type VmStatus = typeof VM_STATUSES[number];
 const PRIORITIES = ['normal', 'high', 'urgent'] as const;

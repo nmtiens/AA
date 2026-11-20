@@ -386,11 +386,11 @@ export const NoteContent = ({ text }: { text: string }) => {
 };
 
 // 6M: 5M + money (M6 Tiền / đơn giá)
-const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method', 'measurement', 'money'];
+const FIVE_M_ORDER: FiveMCategory[] = ['man', 'material', 'machine', 'method', 'measurement', 'money'];
 const FIVE_M_SHORT: Record<FiveMCategory, string> = {
   man: 'M1',
-  machine: 'M2',
-  material: 'M3',
+  machine: 'M3',
+  material: 'M2',
   method: 'M4',
   measurement: 'M5',
   money: 'M6',
