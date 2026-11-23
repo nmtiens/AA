@@ -49,3 +49,22 @@
 /* --- Giao diện app điện thoại (/m/) --- */
 * { -webkit-tap-highlight-color: transparent; }
 body { overscroll-behavior: none; }
+
+/* --- Máy tính bảng (html.may-tinh-bang — services/mayTinhBang.ts). Máy tính không bị ảnh hưởng --- */
+html.may-tinh-bang .h-screen { height: 100dvh; }
+html.may-tinh-bang :is(button, a, select, label, summary, [role='button']) { touch-action: manipulation; }
+/* Safari tự phóng to trang khi chạm ô nhập có chữ < 16px */
+html.may-tinh-bang :is(input, select, textarea):not([type='checkbox'], [type='radio'], [type='range']) { font-size: 16px; }
+html.may-tinh-bang :is(input, select):not([type='checkbox'], [type='radio'], [type='range']):not(td *, th *) { min-height: 40px; }
+html.may-tinh-bang input:is([type='checkbox'], [type='radio']):not(th *) { width: 20px; height: 20px; flex-shrink: 0; }
+/* Nút có chữ (có đệm ngang) cao ít nhất 38px; nút số trong bảng giữ nguyên */
+html.may-tinh-bang :is(button, [role='tab'])[class*='px-']:not(td *, th *, aside *) { min-height: 38px; }
+html.may-tinh-bang td :is(button, a).underline { padding-block: 4px; }
+/* Chữ quá nhỏ (9–11px) lên 12px */
+html.may-tinh-bang :is([class*='text-[10px]'], [class*='text-[11px]'], [class*='text-[0.5625rem]'], [class*='text-[0.625rem]'], [class*='text-[0.6875rem]']) { font-size: 12px; }
+/* Phần chỉ hiện khi rê chuột: luôn hiện (không có chuột) */
+html.may-tinh-bang main .group-hover\:opacity-100 { opacity: 1; }
+/* Cuộn trong khung không kéo theo cả trang */
+html.may-tinh-bang .custom-scrollbar { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* Thanh ngang iPad (home indicator) không che nút dưới cùng */
+html.may-tinh-bang aside { padding-bottom: env(safe-area-inset-bottom); }

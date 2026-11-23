@@ -73,7 +73,7 @@ function WrappedYAxisTick(props: any) {
 }
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
-  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Giá trị (tỷ)' },
+  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng', unitValue: 'Giá trị (tỷ)' },
   tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV', unitValue: 'Giá trị (tỷ)' },
   pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu', unitValue: 'Giá trị (tỷ)' },
   inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho', unitValue: 'Giá trị (tỷ)' },
@@ -378,7 +378,7 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
               {chartData.length > 0 && (
                 <ReferenceLine
                   x={avgAll}
-                  stroke="#16a34a"
+                  stroke="#7c3aed"
                   strokeWidth={2}
                   strokeDasharray="6 4"
                 />

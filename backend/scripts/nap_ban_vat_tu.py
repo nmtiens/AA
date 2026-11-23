@@ -10,7 +10,7 @@ Nguồn:
 - MẶC ĐỊNH CHẠY KHÔ: chỉ đọc file + in thống kê (số dòng / mã, tổng triệu đồng, % khớp master, % có thuộc tính),
   KHÔNG kết nối DB. Thêm --ghi mới ghi: XOÁ HẾT ban_vt_ton + ban_vt_master rồi ghi lại trong 1 giao dịch
   (lỗi giữa chừng => dữ liệu cũ giữ nguyên), rồi bump table_versions('ban_vt') để cache API tính lại.
-  Bảng ban_vt_thong_tin (giá bán / ảnh người dùng nhập) KHÔNG bị đụng.
+  Bảng ban_vt_thong_tin (link ảnh người dùng đã dán trước đây) KHÔNG bị đụng.
 - Mã vật tư đọc dạng CHUỖI, giữ nguyên (mã 11 số là mã thật — không thêm số 0). Bỏ dòng trống / dòng tổng.
 - Total Value của file là ĐỒNG (cột Crcy = VND) => gia_tri lưu TRIỆU ĐỒNG (/1e6). Ô G3 (tổng lọc còn sót) bỏ qua.
 - Ngày chốt lấy từ tên file (dd.mm.yyyy); tên file không có ngày thì phải truyền --ngay-chot YYYY-MM-DD.

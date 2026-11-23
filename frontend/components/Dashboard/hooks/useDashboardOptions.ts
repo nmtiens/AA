@@ -4,6 +4,9 @@ import { DataRow } from '../../../types';
 import { formatDateToVN, parseVNDate } from '../utils/dateHelpers';
 import { fetchTuyChonThoiGian, type TuyChonThoiGian } from '../../../services/dataService';
 import { napBang } from '../../../services/napBang';
+import { docNho } from '../../../services/nhoApi';
+import { urlTuyChonThoiGian } from '../../../services/urlTongQuan';
+import { useMocDuLieu } from '../../../hooks/useMocDuLieu';
 
 interface UseDashboardOptionsParams {
   productionData: DataRow[];
@@ -56,22 +59,27 @@ const BANG_TUY_CHON = ['order', 'tkbv', 'pthsp', 'inventory', 'khsx'];
 
 /**
  * Danh sách thời gian từ máy chủ, không cần tải nguyên bảng. API lỗi thì tải bảng như cũ; sanSang = false trong lúc chờ
- * để ngày mặc định không chốt theo danh sách thiếu. `moc` đổi (bảng nhập kho có bản mới) thì lấy lại.
+ * để ngày mặc định không chốt theo danh sách thiếu. `moc` đổi (máy chủ có dữ liệu mới — useMocDuLieu) thì lấy lại.
+ * Có danh sách đã lưu trong ngày (nhoApi) thì dùng ngay từ lượt vẽ đầu; `daXacNhan` = false tới khi máy chủ trả lời
+ * lần đầu (hoặc đã tải bảng dự phòng).
  */
 function useTuyChonThoiGian(moc: unknown) {
-  const [tuMayChu, setTuMayChu] = useState<TuyChonThoiGian | null>(null);
+  // Số cũ chỉ vào state ở đây (giá trị khởi tạo, đồng bộ); phần còn lại của hook chỉ nhận số từ mạng
+  const [tuMayChu, setTuMayChu] = useState<TuyChonThoiGian | null>(() => docNho<TuyChonThoiGian>(urlTuyChonThoiGian()) ?? null);
   const [duPhong, setDuPhong] = useState(false);
-  const daCo = useRef(false);
+  const [daXacNhan, setDaXacNhan] = useState(false);
+  // Đã có danh sách (kể cả từ bản lưu) thì API lỗi không kéo nguyên bảng về làm dự phòng
+  const daCo = useRef(tuMayChu !== null);
   useEffect(() => {
     let huy = false;
     fetchTuyChonThoiGian().then(d => {
       if (huy) return;
-      if (d) { daCo.current = true; setTuMayChu(d); return; }
+      if (d) { daCo.current = true; setTuMayChu(d); setDaXacNhan(true); return; }
       if (!daCo.current) void napBang(BANG_TUY_CHON).finally(() => { if (!huy) setDuPhong(true); });
     });
     return () => { huy = true; };
   }, [moc]);
-  return { tuMayChu, sanSang: tuMayChu !== null || duPhong };
+  return { tuMayChu, sanSang: tuMayChu !== null || duPhong, daXacNhan: daXacNhan || duPhong };
 }
 
 /**
@@ -105,7 +113,10 @@ export function useDashboardOptions({
   pthspDateKey,
   invDateKey,
 }: UseDashboardOptionsParams) {
-  const { tuMayChu, sanSang } = useTuyChonThoiGian(inventoryData);
+  // Mốc = số đếm "máy chủ có dữ liệu mới", không còn là tham chiếu bảng nhập kho: bảng về từng phần làm tham chiếu
+  // đổi 2-3 lần lúc mở trang, mỗi lần gọi lại API này một lượt
+  const moc = useMocDuLieu();
+  const { tuMayChu, sanSang, daXacNhan } = useTuyChonThoiGian(moc);
 
   // --- Production filter options ---
   const congTrinhOptions = useMemo(() => getUniqueOptions(productionData, congTrinhKey), [productionData, congTrinhKey]);
@@ -217,6 +228,10 @@ export function useDashboardOptions({
     unifiedNgayOptions,
     unifiedTuanOptions,
     unifiedDateOptions,
+    /** Danh sách ngày đã đủ để chốt ngày mặc định (có danh sách máy chủ / bản lưu, hoặc đã tải bảng dự phòng) */
+    sanSang,
+    /** false = danh sách ngày đang lấy từ bản lưu, máy chủ chưa trả lời (xem useOverviewSummary) */
+    ngayDaXacNhan: daXacNhan,
   };
 }
 

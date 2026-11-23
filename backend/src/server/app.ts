@@ -44,10 +44,6 @@ app.use(cors((req: Request, callback) => {
   return callback(Object.assign(new Error('CORS: origin không được phép'), { status: 403 }));
 }));
 app.use(compression()); // Nén gzip response — giảm 70-90% dung lượng JSON
-// Trang khách công khai (routes/banVatTuCongKhai.ts — không đăng nhập): parser riêng giới hạn 20kb, đăng ký TRƯỚC parser
-// chung => thân lớn bị chặn 413 ngay khi đọc (parser chung thấy thân đã đọc thì bỏ qua), người lạ không bắt máy chủ đọc
-// + phân tích thân ~2 MB.
-app.use('/api/cong-khai', express.json({ limit: '20kb' }));
 // 2mb: /api/material/by-hex có thể gửi toàn bộ ~52k mã HEX
 app.use(express.json({ limit: '2mb' }));
 
@@ -103,9 +99,7 @@ export const PUBLIC_API_PATHS = new Set([
   '/api/auth/verify-otp',
   '/api/warmup',
 ]);
-// '/api/cong-khai/': trang người mua (routes/banVatTuCongKhai.ts) — chỉ route đọc dữ liệu đã duyệt đăng + gửi yêu cầu
-// báo giá, có rate limit riêng; không route nào dưới tiền tố này đọc req.user.
-export const PUBLIC_API_PREFIXES = ['/api/cron/', '/api/cong-khai/'];
+export const PUBLIC_API_PREFIXES = ['/api/cron/'];
 
 const xacThucChung = authenticateActiveUserKichSom(path => kichNapSom(path));
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -136,15 +130,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 const PROJECT_ALIAS_WAIT_MS = 0;
 // xuong: các route mục Xưởng không dùng tên công trình (dữ liệu ở Supabase) — trước đây kích nạp bảng tên (truy vấn nặng
 // trên DB chính) 10 phút / lần theo nhịp máy trạm quét => DB chính không bao giờ ngủ được (Layerbase tạm dừng, 20/10/2026)
-const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong|cong-khai)(\/|$)/i;
+const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong)(\/|$)/i;
 // Không nạp setup gộp xưởng (bảng trên DB chính): máy trạm (chỉ dùng Supabase), cron / warmup (route nào cần thì tự nạp)
 // + các API không dùng gộp xưởng (tải bảng thô, phiên bản, cấu hình cột / nhóm công trình, nhật ký, tên công trình,
 //   đăng nhập, thông báo): instance mới khỏi chờ thêm 1 truy vấn trước khi vào route. KHÔNG thêm workshop-groups.
-const NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push|cong-khai)(\/|$)/i;
+const NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push)(\/|$)/i;
 // API số liệu chắc chắn hỏi phiên bản bảng (getVersions) ngay đầu route. Danh sách CHO PHÉP (không phải danh sách
 // loại trừ): đăng nhập / người dùng / thông báo / Xưởng / vướng mắc... không bao giờ bị kích câu table_versions thừa
 // (mục Xưởng không được đánh thức DB chính).
-const DUNG_PHIEN_BAN = /^\/api\/(all-data|check-versions|material|production|overview|trend(-by-[a-z]+)?|filters|detail|revenue|khsx(-nam|-nhapkho)?|stock|ton-kho-vt|tong-quan|cong-trinh|bot-tong-hop)(\/|$)/i;
+const DUNG_PHIEN_BAN = /^\/api\/(all-data|check-versions|material|production|overview|trend(-by-[a-z]+)?|filters|detail|revenue|khsx(-nam|-nhapkho)?|stock|ton-kho-vt|vat-tu|tong-quan|cong-trinh|bot-tong-hop)(\/|$)/i;
 /** Đường dẫn (đã viết thường) cần kích sớm những gì. Hàm thuần. */
 export const napSomCho = (path: string): { gopXuong: boolean; phienBan: boolean } => ({
   gopXuong: path.startsWith('/api/') && !NO_WORKSHOP_GROUPS.test(path),

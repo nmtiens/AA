@@ -1,4 +1,6 @@
 import { getToken } from './userService';
+import { goiNho, docNho } from './nhoApi';
+import { urlVuongMacTheoCongTrinh } from './urlTongQuan';
 
 // ============================================================================
 // API vướng mắc sản xuất (6M: 5M + Money) — dùng chung cho app điện thoại (/m/) và web.
@@ -7,13 +9,13 @@ import { getToken } from './userService';
 // ============================================================================
 
 // money (M6): vướng về tiền / đơn giá của HEX. Tên biến giữ FIVE_M_* để không đổi lan man
-export const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement', 'money'] as const;
+export const FIVE_M_CATEGORIES = ['man', 'material', 'machine', 'method', 'measurement', 'money'] as const;
 export type FiveMCategory = typeof FIVE_M_CATEGORIES[number];
 
 export const FIVE_M_LABELS: Record<FiveMCategory, string> = {
   man: 'Man (Con người)',
-  machine: 'Machine (Máy móc)',
   material: 'Material (Nguyên vật liệu)',
+  machine: 'Machine (Máy móc)',
   method: 'Method (Phương pháp)',
   measurement: 'Measurement (Đo lường)',
   money: 'Money (Tiền / đơn giá)',
@@ -224,14 +226,17 @@ async function callJson<T>(path: string, init?: RequestInit): Promise<T> {
 // Vướng mắc đang mở gộp theo công trình (Báo cáo tiến độ công trình). Khớp theo mã công trình trước, tên chuẩn sau.
 export interface VmByProjectRow { ma: string; ten: string; open: number; overdue: number }
 export const fetchVuongMacByProject = async (): Promise<VmByProjectRow[]> => {
+  const url = urlVuongMacTheoCongTrinh();
   try {
-    const r = await fetch('/api/vuong-mac/by-project', { headers: authHeaders() });
-    if (!r.ok) return [];
-    return (await r.json()) as VmByProjectRow[];
+    // Lỗi mạng (goiNho trả null): giữ số đã lưu trong ngày thay vì trả [] — [] sẽ xoá số vướng mắc đang hiện.
+    // Token do authFetch gắn (hàm này chỉ dùng ở bản web).
+    return (await goiNho<VmByProjectRow[]>(url)) ?? docNho<VmByProjectRow[]>(url) ?? [];
   } catch {
-    return [];
+    return docNho<VmByProjectRow[]>(url) ?? [];
   }
 };
+/** Số vướng mắc theo công trình đã lưu trong ngày (đồng bộ, để khởi tạo state); undefined = chưa có */
+export const vuongMacDaNho = (): VmByProjectRow[] | undefined => docNho<VmByProjectRow[]>(urlVuongMacTheoCongTrinh());
 
 const VUONG_MAC_LIST_BATCH = 2000;
 

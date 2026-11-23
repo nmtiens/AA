@@ -90,8 +90,6 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
       const url = (n as AppNotification & { url?: string | null }).url;
       location.href = n.kind === 'xuong_co' ? (url || '/xuong?muc=quanLy&ql=can-xem') : '/xuong';
     }
-    // Khách gửi yêu cầu mua vật tư (trang khách /#/cua-hang): mở trang Bán vật tư
-    else if ((n.kind as string) === 'ban_vt_yeu_cau') location.href = '/#/ban-vat-tu';
   };
 
   const today = dayKey(new Date());

@@ -8,6 +8,7 @@ import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter'
 import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
+import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { projectMatchKey, laIpoMacDinh, tyLeHoanThanh } from '../../utils/productionMetrics';
 import type { RemainBucket } from '../Dashboard/core/stages';
 import { recDaNhapDu } from './core/chiSoCongTrinh';
@@ -18,7 +19,8 @@ import { useToast } from '../../context/ToastContext';
 import { CONFIGURABLE_VIEWS, getProjectsForView, type ProjectGroupId } from './utils/viewDataConfig';
 import { useThuTuLuongDo } from './useThuTuLuongDo';
 import { mauLuong, soSanhThuTu, sttHienThi } from './core/thuTuNhom';
-import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuongMacService';
+import { fetchVuongMacByProject, vuongMacDaNho, type VmByProjectRow } from '../../services/vuongMacService';
+import { NhanSoCu } from '../shared/NhanSoCu';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
 import { hexColumnKeysOf } from '../Dashboard/components/Dashboards/DanhSachHex';
@@ -30,10 +32,11 @@ import { KhnkSheet, taiTruocKhnk } from './KhnkSheet';
 import { BotCongDoan } from './BotCongDoan';
 import { maIpo } from './core/baoCaoBot';
 import { HexTimelineModal } from './HexTimelineModal';
+import { CuaSoKho, type LoaiKho } from './CuaSoKho';
+import { API_BASE_URL } from '../../services/dataService';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
 import { fmtInt, fmtPt } from '../../utils/format';
-import { API_BASE_URL } from '../../services/dataService';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
@@ -161,6 +164,7 @@ interface Props {
    */
   banGhiSan?: Rec[] | null;
   /** Nguồn số liệu, ghi dưới tiêu đề trang (vd. "Số theo file công trình · cập nhật 14:05 12/11") */
+  /** Không còn hiện (bỏ dòng "Đơn vị · bấm số · số theo file" dưới tiêu đề, người dùng 19/11/2026) */
   nguonSo?: React.ReactNode;
 }
 
@@ -183,7 +187,7 @@ const NutSapCot = ({ k, sap, onSap, chuGiam = true }: { k: string; sap: SapCot; 
   </button>
 );
 
-const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory, banGhiSan = null, nguonSo }) => {
+const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory, banGhiSan = null }) => {
   // Nhóm công trình (Luồng đỏ / Căn mẫu = danh sách setup ở Công trình → Setup); null = mọi công trình
   const [group, setGroup] = useState<ProjectGroupId | null>(null);
   // Nút "KHSX tháng này": chỉ công trình có trong kế hoạch sản xuất của tháng hiện tại (KH tháng; chưa có thì KH tuần)
@@ -220,7 +224,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   }, [khsxTrong, khnkCt]);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Vướng mắc đang mở theo công trình (API nhẹ, 1 lần khi mở trang)
-  const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(null);
+  // Khởi tạo từ số đã lưu trong ngày (đọc đồng bộ, đúng tài khoản / mức xem) để ô vướng mắc hiện ngay;
+  // lời gọi bên dưới thay bằng số mới. Chưa có bản lưu thì vẫn null = "Đang tải" như cũ.
+  const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(() => vuongMacDaNho() ?? null);
   useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, []);
   const vmIndex = useMemo(() => {
     const byMa = new Map<string, { open: number; overdue: number }>();
@@ -274,6 +280,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     () => (coBang ? taoBanGhi(data, columns, today) : banGhiSan ?? []),
     [coBang, data, columns, today, banGhiSan]);
   const { showToast } = useToast();
+  // Bảng KHNK: bấm số NHẬP / XUẤT / TỒN => cửa sổ chung Nhập · Xuất · Tồn (CuaSoKho, người dùng 20/11/2026: 3 bảng kho
+  // cùng 1 bộ cột STT / ngày / HEX / hạng mục / công trình / số lượng / giá trị, chuyển qua lại trong cùng cửa sổ)
+  const [khoXem, setKhoXem] = useState<{ ma: string; ten: string; loai: LoaiKho } | null>(null);
+  const moKhoDong = (loai: LoaiKho, ma: string, ten: string) => setKhoXem({ loai, ma, ten });
   /** Danh sách HEX / cửa sổ công trình / xuất Excel cần dòng gốc đầy đủ — chưa có bảng thì báo chờ */
   const canBang = () => {
     if (coBang) return true;
@@ -314,11 +324,32 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     return [...ipoOptions, ...ipoBot.filter(x => !ma.has(maIpo(x)))].sort((a, b) => a.localeCompare(b, 'vi'));
   }, [viewCT, ipoOptions, ipoBot]);
   const laBcBot = viewCT === 'bcbot';   // BÁO CÁO BOT không theo các bộ lọc khác của trang => ẩn cho gọn
+  // Bảng KHNK chỉ theo ô Tình Trạng IPO (khu vực / khách hàng lọc ngay trên bảng) => ẩn các bộ lọc khác (người dùng 19/11/2026)
+  const chiIpo = laBcBot || (locKhsx && viewCT === 'tong');
   const records = useMemo(() => {
     if (ipoSel.length === 0) return groupRecords;
     const set = new Set(ipoSel);
     return groupRecords.filter(r => set.has(r.ipo));
   }, [groupRecords, ipoSel]);
+  // Bảng KHNK: số theo mã CT cho TOÀN công trình, mọi Tình Trạng IPO trừ HỦY (người dùng 19/11/2026 chọn: GT đơn hàng bỏ lọc
+  // IPO để cùng phạm vi với nhập / xuất / tồn lấy từ 3 bảng kho — trước lọc ĐANG SẢN XUẤT làm % hoàn thành > 100%).
+  // dh = GT đơn hàng, nk = đã nhập theo hạng mục (≤ trị giá — để biết công trình còn việc), tk = Σ tính phiếu (mỗi hạng mục
+  // ≤ trị giá => CHƯA TKSX không âm). Dòng chỉ có hex (bản ghi máy chủ) => tk = undefined, bảng giữ số máy chủ.
+  const soKhnk = useMemo(() => {
+    const kTp = findColumnKey(columns, TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU) || 'thanh_tien_tinh_phieu';
+    const m: Record<string, { dh: number; nk: number; tk?: number; n: number }> = {};
+    for (const r of allRecords) {
+      if (!r.ma) continue;
+      const x = (m[r.ma] ??= { dh: 0, nk: 0, n: 0 });
+      if (kTp in r.row) x.tk ??= 0;
+      if (r.status !== 'HỦY') {
+        x.dh += r.total; x.nk += r.done; x.n += 1;
+        // mỗi hạng mục: 0 ≤ tính phiếu ≤ trị giá (phiếu tính cao hơn đơn hàng không làm CHƯA TKSX âm)
+        if (kTp in r.row) x.tk = (x.tk ?? 0) + Math.min(Math.max(parseNumber(r.row[kTp] as string | number | null), 0), Math.max(r.total, 0));
+      }
+    }
+    return m;
+  }, [allRecords, columns]);
 
   // Lọc chéo: mỗi biểu đồ bỏ qua bộ lọc của chính nó để vẫn đổi được lựa chọn
   const apply = (exclude?: FKey) =>
@@ -800,19 +831,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-slate-900">
               Báo cáo tiến độ công trình{group && <span className="text-red-700"> · {GROUP_SHORT[group]}</span>}
+              {/* Chỉ hiện khi gọi máy chủ lỗi mà trang đang dùng số đã lưu */}
+              <NhanSoCu className="ml-2 align-middle" />
             </h2>
-            <p className="text-xs text-slate-500" title="Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết">Đơn vị: tỷ đồng · bấm số để xem chi tiết{nguonSo && <> · {nguonSo}</>}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định tất cả */}
             <DashboardFilter
               label="Tình Trạng IPO"
-              canhPhai={laBcBot}
+              canhPhai={chiIpo}
               options={ipoOptionsHien}
               selectedValues={ipoSel}
               onChange={setIpoSel}
             />
-            {!laBcBot && (<>
+            {!chiIpo && (<>
             <SearchableSelect
               value={f.ct ?? ''}
               onChange={v => setKey('ct', v)}
@@ -870,7 +902,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </div>
         </div>
 
-        {activeKeys.length > 0 && !laBcBot && (
+        {activeKeys.length > 0 && !chiIpo && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {activeKeys.map(k => (
               <button
@@ -955,7 +987,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         )}
         {/* Nút "Kế Hoạch Nhập Kho" + Tổng quan: bảng kế hoạch nhập kho theo tháng của file PRODUCTION STATUS.xlsx
             (thay khung tổng quan — số đơn vị triệu như file) */}
-        {locKhsx && viewCT === 'tong' && <div className={`${cardCls} p-4 sm:p-5`}><KhnkSheet khuVuc={f.kv} onXemCt={(ma, ten) => {
+        {locKhsx && viewCT === 'tong' && <div className={`${cardCls} p-4 sm:p-5`}><KhnkSheet soApp={soKhnk} onXemKho={moKhoDong} onXemCt={(ma, ten) => {
           // Bấm tên công trình ở Bảng KHNK => cửa sổ chi tiết theo hạng mục (như bảng công trình); khớp theo mã CT
           if (!canBang()) return;
           const m = ma.toUpperCase(), ct = allRecords.find(r => r.ma === m)?.ct;
@@ -1370,6 +1402,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       </div>
 
       <HexTimelineModal hex={hexXem} onClose={() => setHexXem(null)} names={tenHexXem} />
+      {khoXem && <CuaSoKho ma={khoXem.ma} ten={khoXem.ten} loai={khoXem.loai} onClose={() => setKhoXem(null)} />}
       {/* Cấp 1: cửa sổ chi tiết (ô KPI / cột tháng / PC) — bấm 1 công trình mở cửa sổ HEX (cấp 2) */}
       <ModalShell
         open={detail !== null && detailData !== null}

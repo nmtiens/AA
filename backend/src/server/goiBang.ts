@@ -23,7 +23,13 @@ const brotli = promisify(brCb);
 // Brotli mức 5: nhỏ hơn gzip ~19% (đo 10/2026, gói sản xuất + TKBV định dạng cột 2.59 -> 2.09 MB), thời gian nén ngang gzip
 const nenBr = (s: string) => brotli(s, { params: { [Z.BROTLI_PARAM_QUALITY]: 5, [Z.BROTLI_PARAM_SIZE_HINT]: Buffer.byteLength(s) } });
 
-const khoaBang = (key: string, gia: boolean, cot: boolean) => `${cot ? 'bangc' : 'bang'}:${key}|${key === 'material' && !gia ? 0 : 1}`;
+// Đổi CỘT / biểu thức đọc của 1 bảng (REPORT_COLUMNS, COT_BIEU_THUC) mà phiên bản dữ liệu không đổi => tăng số ở đây để không
+// dùng lại bản dựng sẵn cũ (lưu trong DB theo khoá + phiên bản). material #2 (23/11/2026): thêm Mã CT, đổi thứ tự, chia giá bê tông 117
+export const PHIEN_BAN_COT: Record<string, number> = { material: 2 };
+/** Tên bảng kèm số phiên bản cột (dùng trong khoá bản dựng sẵn — gộp nhiều bảng ở /api/all-data cũng phải đổi khoá) */
+export const tenKhoaBang = (key: string) => `${key}${PHIEN_BAN_COT[key] ? `#${PHIEN_BAN_COT[key]}` : ''}`;
+export const khoaBang = (key: string, gia: boolean, cot: boolean) =>
+  `${cot ? 'bangc' : 'bang'}:${tenKhoaBang(key)}|${key === 'material' && !gia ? 0 : 1}`;
 /** Phiên bản bảng dạng chuỗi (table_versions.last_updated là timestamptz => pg trả Date; so sánh / lưu cần chuỗi) */
 export const verBang = (v: unknown): string => (v instanceof Date ? v.toISOString() : String(v ?? ''));
 

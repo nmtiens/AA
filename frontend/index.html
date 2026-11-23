@@ -17,6 +17,11 @@
         });
       } else if (!/^\/m(\/|$)/.test(location.pathname)) {
         document.getElementById('app-manifest').setAttribute('href', '/manifest-desktop.webmanifest');
+        // iPad: tên mặc định khi Thêm vào MH chính
+        document.addEventListener('DOMContentLoaded', function () {
+          var t = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+          if (t) t.setAttribute('content', 'Ops Hub');
+        });
       }
 
       // Bắt sớm sự kiện cài đặt (chỉ bắn 1 lần), vì component React được tải muộn hơn

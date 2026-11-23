@@ -284,7 +284,7 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
         Công trình của nhóm <b className="font-semibold text-slate-700">{selectedView?.label}</b> hiện ở nút chọn nhóm của trang Tổng quan công trình, theo thứ tự ưu tiên bên phải.
       </p>
 
-      <div className="grid min-h-0 flex-1 gap-4 p-6 pt-3 lg:grid-cols-2">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-4 p-6 pt-3 lg:grid-cols-2">
         {/* Cột trái: mọi công trình — tìm + tick để thêm / bỏ */}
         <section className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white">
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">

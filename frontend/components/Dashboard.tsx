@@ -4,14 +4,16 @@ import { findColumnKey } from './Dashboard/utils/columnKeyResolver';
 import { materialRowClass } from './Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../types';
 import { XCircle as CloseIcon, AlertTriangle, SlidersHorizontal, X } from 'lucide-react';
-import { fetchVuongMacByProject, type VmByProjectRow } from '../services/vuongMacService';
+import { fetchVuongMacByProject, vuongMacDaNho, type VmByProjectRow } from '../services/vuongMacService';
+import { docNho } from '../services/nhoApi';
+import { urlRevenue } from '../services/urlTongQuan';
+import { NhanSoCu } from './shared/NhanSoCu';
 import { fetchRevenue2026, fetchTongQuanSanXuat, type Revenue2026Data } from '../services/dataService';
 import type { TongQuanSanXuat } from './Dashboard/core/tongQuanSanXuat';
 import { useToast } from '../context/ToastContext';
 import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
 import { ProductionDonutPanel, type OrderMixSelection } from './Dashboard/components/shared/ProductionDonutPanel';
 import { categoryOptions } from './Dashboard/utils/filterMatch';
-import { parseVNDate } from './Dashboard/utils/dateHelpers';
 import { DEFAULT_FILTERS, khoaSanXuat } from './Dashboard/core/tongQuanSanXuat';
 import { useColumnKeys } from './Dashboard/hooks/useColumnKeys';
 import { useDashboardOptions } from './Dashboard/hooks/useDashboardOptions';
@@ -217,18 +219,25 @@ const {
   analysisCongTrinhKey,
   analysisXuongKey,
 });
-const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(null);
 const [stockMetric] = useState<'COUNT' | 'SUM'>('SUM');
 
 // Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
 // Biểu đồ "Phân bổ Kế hoạch theo Xưởng" CHỈ phụ thuộc vào năm này — không phụ thuộc
 // thang/tuan/ngay — nên effect chỉ re-run khi giá trị năm thay đổi.
 const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
+// Số đã lưu trong ngày của đúng năm đang chọn hiện ngay lượt vẽ đầu (chỉ ở giá trị khởi tạo); effect dưới vẫn gọi mạng
+const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(
+  () => docNho<Revenue2026Data>(urlRevenue(selectedRevenueYear)) ?? null,
+);
 // Yêu cầu mở modal "Chi tiết Nhập Kho" theo cả năm (khi bấm ô "Thực hiện lũy kế").
 // nonce tăng mỗi lần bấm để OrderOverviewSection biết có yêu cầu mới.
 const [inventoryOpenRequest, setInventoryOpenRequest] = useState<{ nonce: number; year: number; withPlan?: boolean } | null>(null);
 useEffect(() => {
-  fetchRevenue2026(selectedRevenueYear).then(data => { if (data) setRevenue2026(data); });
+  // Đổi năm thì bỏ phản hồi của năm cũ: lời gọi trùng URL dùng chung 1 request (nhoApi), nên đổi năm A → B → A nhanh
+  // thì A về trước, B về sau — không chốt thì số năm B đè lên năm A đang chọn
+  let on = true;
+  fetchRevenue2026(selectedRevenueYear).then(data => { if (on && data) setRevenue2026(data); });
+  return () => { on = false; };
 }, [selectedRevenueYear]);
  
 const {
@@ -243,6 +252,8 @@ const {
   unifiedNgayOptions,
   unifiedTuanOptions,
   unifiedDateOptions,
+  sanSang,
+  ngayDaXacNhan,
 } = useDashboardOptions({
   productionData,
   khsxData,
@@ -317,6 +328,8 @@ const {
   expXuongKey,
  filters: effectiveFilters,
   unifiedDateOptions,
+  sanSang,
+  ngayDaXacNhan,
 });
 
 const {
@@ -531,12 +544,6 @@ const {
     { k: 'tinhTrang', label: 'Tình trạng', options: tinhTrangOptions, co: !!tinhTrangKey },
   ];
   const datLoc = (k: KhoaLoc, vals: string[]) => setFilters(prev => ({ ...prev, [k]: vals }));
-  // Ngày mới nhất có số liệu (hợp các nguồn đơn hàng / TKBV / phiếu / nhập / xuất)
-  const ngayDuLieu = useMemo(() => {
-    let m: Date | null = null;
-    for (const o of unifiedDateOptions) { const d = parseVNDate(o); if (d && (!m || d > m)) m = d; }
-    return m ? `${String(m.getDate()).padStart(2, '0')}/${String(m.getMonth() + 1).padStart(2, '0')}/${m.getFullYear()}` : '';
-  }, [unifiedDateOptions]);
   const [moChiTiet, setMoChiTiet] = useState<{ nonce: number; k: KhoaChiTiet } | null>(null);
   // Thẻ dòng chảy chỉ lọc theo công trình + xưởng: áp IPO mặc định 01 thì nhập kho tháng mất gần nửa (T10: 154.48 còn 86.03 tỷ)
   const khongTheoLoc = [
@@ -544,10 +551,9 @@ const {
     appliedFilters.phanLoai.length > 0 && 'Nhóm SP',
     appliedFilters.tinhTrang.length > 0 && 'Tình trạng',
   ].filter((x): x is string => !!x);
-  const nkDen = (overviewSummary as { maxDates?: { inventory?: string | null } } | null)?.maxDates?.inventory;
 
   // Thẻ "Vướng mắc đang mở": cộng theo công trình (lọc theo công trình nếu đang chọn)
-  const [vmRows, setVmRows] = useState<VmByProjectRow[]>([]);
+  const [vmRows, setVmRows] = useState<VmByProjectRow[]>(() => vuongMacDaNho() ?? []);
   useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, []);
   const vm = useMemo(() => {
     const chon = effectiveFilters.congTrinh;
@@ -691,7 +697,7 @@ const handleContinueToOrderColumnStep = () => {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex shrink-0 items-baseline gap-3">
             <h2 className="page-title">Tổng quan</h2>
-            {ngayDuLieu && <span className="text-sm font-medium text-slate-600">{nkDen ? `nhập kho đến ${nkDen.split('-').reverse().join('/')}` : `đến ${ngayDuLieu}`}</span>}
+            <NhanSoCu />
           </div>
           <nav className="ml-auto flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Đến khu">
             {([['Đơn hàng AATN', () => scrollToRef(factoryRevenueRef)]] as Array<[string, () => void]>)

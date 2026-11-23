@@ -1,74 +1,18 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  chuanHoaThuocTinh, docMaVatTu, dungDong, giaBinhQuanMotDvt, laThuocTinhNcc, dungSqlUpsert, dungThongTinBan, kiemTraThanPut, laUrlAnhHopLe, xepDong,
+  chuanHoaThuocTinh, docMaVatTu, dungDong, giaBinhQuanMotDvt, laThuocTinhNcc, docAnhLink, xepDong,
   chuanHoaSuyTuTen, thuongHieuTuNcc, tenNcc, docIdAnh, kiemTraThanPutAnh, mimeAnhAnToan, dungAnh, gomAnhTheoMa, laDongPrHuy, dungMuaHang,
-  GIA_BAN_TOI_DA, SO_ANH_TOI_DA, SO_ANH_NOI_BO_TOI_DA, SO_CONG_TRINH_TOI_DA, SO_LAN_MUA_TOI_DA, type DongBanVatTu,
-  kiemTraThanHangLoat, kiemTraThanPutYeuCau, dungYeuCau, docDongYeuCau, coTruongCongKhai, SO_MA_HANG_LOAT_TOI_DA,
+  SO_ANH_NOI_BO_TOI_DA, SO_CONG_TRINH_TOI_DA, SO_LAN_MUA_TOI_DA, type DongBanVatTu,
 } from '../src/routes/banVatTu.js';
 
-// Chạy: npm test. Bán vật tư tồn kho — routes/banVatTu.ts. Chỉ hàm thuần, không đụng DB.
+// Chạy: npm test. Danh mục vật tư (tra tồn kho nội bộ) — routes/banVatTu.ts. Chỉ hàm thuần, không đụng DB.
 
-describe('kiểm tra thân PUT', () => {
-  it('nhận đủ trường hợp lệ, bỏ khoảng trắng, chuỗi rỗng => null', () => {
-    const r = kiemTraThanPut({
-      giaBanVnd: 150000, anhUrls: [' https://a.vn/1.jpg ', 'http://b.vn/2.png'], trangThai: 'da_giu',
-      lienHe: '  0901 234 567 ', ghiChu: '', laTruongLa: 1,
-    });
-    assert.deepEqual(r, {
-      hopLe: true,
-      thayDoi: { giaBanVnd: 150000, anhUrls: ['https://a.vn/1.jpg', 'http://b.vn/2.png'], trangThai: 'da_giu', lienHe: '0901 234 567', ghiChu: null },
-    });
-  });
-  it('chỉ trường có gửi; null xoá giá', () => {
-    assert.deepEqual(kiemTraThanPut({ giaBanVnd: null }), { hopLe: true, thayDoi: { giaBanVnd: null } });
-    assert.deepEqual(kiemTraThanPut({ anhUrls: [] }), { hopLe: true, thayDoi: { anhUrls: [] } });
-  });
-  it('giá: 0 … 1e13, số hữu hạn', () => {
-    assert.equal(kiemTraThanPut({ giaBanVnd: 0 }).hopLe, true);
-    assert.equal(kiemTraThanPut({ giaBanVnd: GIA_BAN_TOI_DA }).hopLe, true);
-    assert.equal(kiemTraThanPut({ giaBanVnd: GIA_BAN_TOI_DA + 1 }).hopLe, false);
-    assert.equal(kiemTraThanPut({ giaBanVnd: -1 }).hopLe, false);
-    assert.equal(kiemTraThanPut({ giaBanVnd: '1000' }).hopLe, false);
-    assert.equal(kiemTraThanPut({ giaBanVnd: Number.NaN }).hopLe, false);
-    assert.equal(kiemTraThanPut({ giaBanVnd: Infinity }).hopLe, false);
-  });
-  it('ảnh: tối đa 10, chỉ http(s), ≤ 1000 ký tự, bỏ trùng', () => {
-    const muoi = Array.from({ length: SO_ANH_TOI_DA }, (_, i) => `https://x.vn/${i}.jpg`);
-    assert.equal(kiemTraThanPut({ anhUrls: muoi }).hopLe, true);
-    assert.equal(kiemTraThanPut({ anhUrls: [...muoi, 'https://x.vn/11.jpg'] }).hopLe, false);
-    // trùng không tính 2 lần
-    assert.deepEqual(kiemTraThanPut({ anhUrls: ['https://x.vn/a', 'https://x.vn/a'] }), { hopLe: true, thayDoi: { anhUrls: ['https://x.vn/a'] } });
-    assert.equal(kiemTraThanPut({ anhUrls: ['javascript:alert(1)'] }).hopLe, false);
-    assert.equal(kiemTraThanPut({ anhUrls: ['ftp://x.vn/a'] }).hopLe, false);
-    assert.equal(kiemTraThanPut({ anhUrls: ['https://x.vn/' + 'a'.repeat(1000)] }).hopLe, false);
-    assert.equal(kiemTraThanPut({ anhUrls: 'https://x.vn/a' }).hopLe, false);
-    assert.equal(kiemTraThanPut({ anhUrls: [123] }).hopLe, false);
-  });
-  it('trạng thái trong tập', () => {
-    for (const t of ['dang_ban', 'da_giu', 'da_ban', 'ngung_ban']) assert.equal(kiemTraThanPut({ trangThai: t }).hopLe, true);
-    assert.equal(kiemTraThanPut({ trangThai: 'het_hang' }).hopLe, false);
-    assert.equal(kiemTraThanPut({ trangThai: null }).hopLe, false);
-  });
-  it('chuỗi ≤ 2000 ký tự', () => {
-    assert.equal(kiemTraThanPut({ ghiChu: 'a'.repeat(2000) }).hopLe, true);
-    assert.equal(kiemTraThanPut({ ghiChu: 'a'.repeat(2001) }).hopLe, false);
-    assert.equal(kiemTraThanPut({ lienHe: 12 }).hopLe, false);
-  });
-  it('thân rỗng / sai kiểu => lỗi', () => {
-    assert.equal(kiemTraThanPut({}).hopLe, false);
-    assert.equal(kiemTraThanPut(null).hopLe, false);
-    assert.equal(kiemTraThanPut([]).hopLe, false);
-    assert.equal(kiemTraThanPut('x').hopLe, false);
-  });
-});
-
-describe('URL ảnh, mã vật tư', () => {
-  it('laUrlAnhHopLe', () => {
-    assert.equal(laUrlAnhHopLe('https://drive.google.com/file/d/abc/view'), true);
-    assert.equal(laUrlAnhHopLe('https://a.vn/có dấu cách.jpg'), false);
-    assert.equal(laUrlAnhHopLe(''), false);
-    assert.equal(laUrlAnhHopLe('a.vn/x.jpg'), false);
+describe('link ảnh, mã vật tư', () => {
+  it('docAnhLink: chỉ giữ chuỗi khác rỗng; không phải mảng => []', () => {
+    assert.deepEqual(docAnhLink(['https://a.vn/1.jpg', '', null, 3]), ['https://a.vn/1.jpg']);
+    assert.deepEqual(docAnhLink(null), []);
+    assert.deepEqual(docAnhLink('https://a.vn/1.jpg'), []);
   });
   it('docMaVatTu giữ nguyên chuỗi (không zfill), bỏ khoảng trắng 2 đầu', () => {
     assert.equal(docMaVatTu('80000012345'), '80000012345');
@@ -81,23 +25,6 @@ describe('URL ảnh, mã vật tư', () => {
   });
 });
 
-describe('SQL upsert', () => {
-  it('chỉ cột có gửi, ép kiểu, tham số theo thứ tự', () => {
-    const { sql, thamSo } = dungSqlUpsert('4000123', 'tien', { anhUrls: ['https://a.vn/1'], ghiChu: null });
-    assert.deepEqual(thamSo, ['4000123', 'tien', ['https://a.vn/1'], null]);
-    assert.match(sql, /INSERT INTO ban_vt_thong_tin \(ma_vat_tu, anh_urls, ghi_chu, updated_by, updated_at\)/);
-    assert.match(sql, /SELECT \$1::text, \$3::text\[\], \$4::text, \$2::text, now\(\)/);
-    assert.match(sql, /WHERE EXISTS \(SELECT 1 FROM ban_vt_ton WHERE ma_vat_tu = \$1::text\)/);
-    assert.match(sql, /DO UPDATE SET anh_urls = EXCLUDED.anh_urls, ghi_chu = EXCLUDED.ghi_chu, updated_by = EXCLUDED.updated_by/);
-    assert.doesNotMatch(sql, /gia_ban_vnd =|trang_thai =|lien_he =/);
-  });
-  it('giá ép numeric', () => {
-    const { sql, thamSo } = dungSqlUpsert('1', null, { giaBanVnd: 5000, trangThai: 'da_ban' });
-    assert.deepEqual(thamSo, ['1', null, 5000, 'da_ban']);
-    assert.match(sql, /\$3::numeric, \$4::text/);
-  });
-});
-
 describe('dựng dòng', () => {
   const dongGoc = {
     ma: '4000123', ten: 'Vải bọc', dvt: 'M', so_luong: '20', gia_tri: '3.5', kho: 'K01', ngay_nhap: '2024-09-30',
@@ -105,8 +32,7 @@ describe('dựng dòng', () => {
     m_ma: '4000123', m_ten: 'Vải bọc master', m_dvt: 'M', m_nhom_sap: 'KVT01', m_ten_nhom_sap: 'Vải', m_loai: 'ZRAW',
     m_gia_binh_quan: '175000', m_chung_loai: 'Vải', m_chat_lieu: null, m_quy_cach: '1.4M', m_mau: 'Xám', m_thuong_hieu: null,
     m_xuat_xu: 'VN', m_thuoc_tinh: { 'MP01 Chủng loại': 'Vải', 'MP05 Khổ': 1.4, 'MP09 Trống': '  ', 'MP10': null },
-    ban_gia: '250000', ban_anh: ['https://a.vn/1.jpg'], ban_trang_thai: 'da_giu', ban_lien_he: 'Anh A', ban_ghi_chu: null,
-    ban_updated_by: 'tien', ban_updated_at: '2026-11-14T03:00:00Z',
+    anh_link: ['https://a.vn/1.jpg'],
   };
   it('có quyền giá: giá trị, đơn giá vốn = giá trị * 1e6 / số lượng', () => {
     const d = dungDong(dongGoc, true);
@@ -116,10 +42,8 @@ describe('dựng dòng', () => {
     assert.equal(d.donGiaVon, 175000);
     assert.equal(d.master?.giaBinhQuan, 175000);
     assert.deepEqual(d.master?.thuocTinh, { 'MP01 Chủng loại': 'Vải', 'MP05 Khổ': '1.4' });
-    assert.deepEqual(d.ban, {
-      giaBanVnd: 250000, anhUrls: ['https://a.vn/1.jpg'], trangThai: 'da_giu', lienHe: 'Anh A', ghiChu: null,
-      updatedBy: 'tien', updatedAt: '2026-11-14T03:00:00Z', dangCongKhai: false, tenHienThi: null, moTaCongKhai: null,
-    });
+    assert.deepEqual(d.anhLink, ['https://a.vn/1.jpg']);
+    assert.ok(!('ban' in d));
     assert.equal(d.chamLuanChuyen, true);
     assert.equal(d.ngayNhap, '2024-09-30');
   });
@@ -128,33 +52,25 @@ describe('dựng dòng', () => {
     assert.equal(d.giaTri, null);
     assert.equal(d.donGiaVon, null);
     assert.equal(d.master?.giaBinhQuan, null);
-    // giá bán vẫn trả (giá chào cho người mua)
-    assert.equal(d.ban.giaBanVnd, 250000);
+    // link ảnh đã dán vẫn trả (không phải thông tin giá)
+    assert.deepEqual(d.anhLink, ['https://a.vn/1.jpg']);
   });
   it('số lượng ≤ 0 => không có đơn giá vốn', () => {
     assert.equal(dungDong({ ...dongGoc, so_luong: 0 }, true).donGiaVon, null);
     assert.equal(dungDong({ ...dongGoc, so_luong: null }, true).donGiaVon, null);
   });
-  it('không master, chưa có thông tin bán => mặc định', () => {
+  it('không master, chưa có link ảnh => mặc định', () => {
     const d = dungDong({ ma: '80000012345', ten: null, dvt: null, so_luong: 1, gia_tri: 0, m_ma: null, m_dvt: 'PC' }, true);
     assert.equal(d.master, null);
     assert.equal(d.ten, '80000012345');
     assert.equal(d.dvt, null);
     assert.equal(d.giaTri, 0);
-    assert.deepEqual(d.ban, {
-      giaBanVnd: null, anhUrls: [], trangThai: 'dang_ban', lienHe: null, ghiChu: null, updatedBy: null, updatedAt: null,
-      dangCongKhai: false, tenHienThi: null, moTaCongKhai: null,
-    });
+    assert.deepEqual(d.anhLink, []);
   });
   it('tên / ĐVT trống thì lấy master', () => {
     const d = dungDong({ ...dongGoc, ten: '  ', dvt: null }, true);
     assert.equal(d.ten, 'Vải bọc master');
     assert.equal(d.dvt, 'M');
-  });
-  it('thông tin bán: trạng thái lạ => đang bán; ảnh không phải mảng => []', () => {
-    const b = dungThongTinBan({ ban_trang_thai: 'xyz', ban_anh: null });
-    assert.equal(b.trangThai, 'dang_ban');
-    assert.deepEqual(b.anhUrls, []);
   });
   it('thuộc tính JSONB dạng chuỗi / sai kiểu', () => {
     assert.deepEqual(chuanHoaThuocTinh('{"MP02 Màu":"Đỏ"}'), { 'MP02 Màu': 'Đỏ' });
@@ -268,6 +184,8 @@ describe('bổ sung 15/11: ảnh nội bộ', () => {
   it('thân PUT ảnh', () => {
     for (const t of ['da_duyet', 'an', 'tu_dong']) assert.deepEqual(kiemTraThanPutAnh({ trangThai: t }), { hopLe: true, trangThai: t });
     assert.equal(kiemTraThanPutAnh({ trangThai: 'xoa' }).hopLe, false);
+    // cờ hiện cho khách cũ không còn nhận
+    assert.equal(kiemTraThanPutAnh({ congKhai: true }).hopLe, false);
     assert.equal(kiemTraThanPutAnh({}).hopLe, false);
     assert.equal(kiemTraThanPutAnh(null).hopLe, false);
     assert.equal(kiemTraThanPutAnh([]).hopLe, false);
@@ -281,8 +199,7 @@ describe('bổ sung 15/11: ảnh nội bộ', () => {
   });
   it('dungAnh bỏ ảnh đã ẩn / id sai', () => {
     assert.deepEqual(dungAnh({ id: '5', chac_chan: false, trang_thai: 'tu_dong', cong_trinh: ' CT26-124 ', code_vat_lieu: 'ST-102' }),
-      { id: 5, chacChan: false, trangThai: 'tu_dong', congTrinh: 'CT26-124', codeVatLieu: 'ST-102', congKhai: false });
-    assert.equal(dungAnh({ id: 6, chac_chan: true, trang_thai: 'da_duyet', cong_khai: true })?.congKhai, true);
+      { id: 5, chacChan: false, trangThai: 'tu_dong', congTrinh: 'CT26-124', codeVatLieu: 'ST-102' });
     assert.equal(dungAnh({ id: 5, chac_chan: true, trang_thai: 'an' }), null);
     assert.equal(dungAnh({ id: 'x', chac_chan: true, trang_thai: 'tu_dong' }), null);
   });
@@ -355,78 +272,5 @@ describe('bổ sung 15/11: lý lịch mua', () => {
     assert.equal(laDongPrHuy('3.ĐÃ NHẬP KHO'), false);
     assert.equal(laDongPrHuy('2.ĐANG MUA'), false);
     assert.equal(laDongPrHuy(null), false);
-  });
-});
-
-describe('trang khách 15/11: phần admin', () => {
-  it('PUT nhận dangCongKhai / tenHienThi (≤ 200) / moTaCongKhai (≤ 2000)', () => {
-    assert.deepEqual(kiemTraThanPut({ dangCongKhai: true, tenHienThi: '  Vải bọc xám ', moTaCongKhai: '' }), {
-      hopLe: true, thayDoi: { dangCongKhai: true, tenHienThi: 'Vải bọc xám', moTaCongKhai: null },
-    });
-    assert.equal(kiemTraThanPut({ dangCongKhai: 'true' }).hopLe, false);
-    assert.equal(kiemTraThanPut({ dangCongKhai: null }).hopLe, false);
-    assert.equal(kiemTraThanPut({ tenHienThi: 'a'.repeat(200) }).hopLe, true);
-    assert.equal(kiemTraThanPut({ tenHienThi: 'a'.repeat(201) }).hopLe, false);
-    assert.equal(kiemTraThanPut({ moTaCongKhai: 'a'.repeat(2001) }).hopLe, false);
-    assert.equal(coTruongCongKhai({ giaBanVnd: 1 }), false);
-    assert.equal(coTruongCongKhai({ tenHienThi: null }), true);
-  });
-  it('SQL upsert: bật đăng ghi mốc đăng (dòng mới now() khi bật; dòng cũ chỉ khi đổi từ tắt sang bật)', () => {
-    const { sql, thamSo } = dungSqlUpsert('1', 'tien', { trangThai: 'dang_ban', dangCongKhai: true });
-    assert.deepEqual(thamSo, ['1', 'tien', 'dang_ban', true]);
-    assert.match(sql, /\(ma_vat_tu, trang_thai, dang_cong_khai, dang_cong_khai_luc, updated_by, updated_at\)/);
-    assert.match(sql, /\$4::boolean, CASE WHEN \$4::boolean THEN now\(\) END, \$2::text, now\(\)/);
-    assert.match(sql, /dang_cong_khai_luc = CASE WHEN EXCLUDED.dang_cong_khai AND NOT ban_vt_thong_tin.dang_cong_khai THEN now\(\)/);
-    assert.match(sql, /ban_dang_cong_khai/);
-    // Không gửi dangCongKhai => không đụng mốc đăng
-    assert.doesNotMatch(dungSqlUpsert('1', null, { giaBanVnd: 1 }).sql, /dang_cong_khai_luc/);
-  });
-  it('SQL upsert: DB chưa có cột trang khách => RETURNING bỏ cột mới (chỉ khi thay đổi không đụng cột đó)', () => {
-    assert.doesNotMatch(dungSqlUpsert('1', null, { giaBanVnd: 1 }, false).sql, /dang_cong_khai|ten_hien_thi/);
-    assert.match(dungSqlUpsert('1', null, { tenHienThi: 'x' }, false).sql, /AS ban_ten_hien_thi/);
-  });
-  it('thông tin bán đọc cột trang khách', () => {
-    const b = dungThongTinBan({ ban_dang_cong_khai: true, ban_ten_hien_thi: 'Tên khách', ban_mo_ta_cong_khai: 'Mô tả' });
-    assert.equal(b.dangCongKhai, true);
-    assert.equal(b.tenHienThi, 'Tên khách');
-    assert.equal(b.moTaCongKhai, 'Mô tả');
-    assert.equal(dungThongTinBan({ ban_dang_cong_khai: 't' }).dangCongKhai, false);
-  });
-  it('PUT ảnh: trangThai và / hoặc congKhai', () => {
-    assert.deepEqual(kiemTraThanPutAnh({ congKhai: true }), { hopLe: true, congKhai: true });
-    assert.deepEqual(kiemTraThanPutAnh({ trangThai: 'da_duyet', congKhai: false }), { hopLe: true, trangThai: 'da_duyet', congKhai: false });
-    assert.equal(kiemTraThanPutAnh({ congKhai: 1 }).hopLe, false);
-    assert.equal(kiemTraThanPutAnh({ trangThai: 'xoa', congKhai: true }).hopLe, false);
-  });
-  it('đăng hàng loạt: 1…6000 mã, bỏ trùng, bat boolean', () => {
-    assert.deepEqual(kiemTraThanHangLoat({ mas: ['1', ' 1 ', '0040001234'], bat: true }), { hopLe: true, mas: ['1', '0040001234'], bat: true });
-    assert.equal(kiemTraThanHangLoat({ mas: [], bat: true }).hopLe, false);
-    assert.equal(kiemTraThanHangLoat({ mas: ['1'] }).hopLe, false);
-    assert.equal(kiemTraThanHangLoat({ mas: ['1'], bat: 'false' }).hopLe, false);
-    assert.equal(kiemTraThanHangLoat({ mas: [''], bat: false }).hopLe, false);
-    assert.equal(kiemTraThanHangLoat({ mas: [123], bat: false }).hopLe, false);
-    assert.equal(kiemTraThanHangLoat({ mas: Array.from({ length: SO_MA_HANG_LOAT_TOI_DA }, (_, i) => String(i + 1)), bat: true }).hopLe, true);
-    assert.equal(kiemTraThanHangLoat({ mas: Array.from({ length: SO_MA_HANG_LOAT_TOI_DA + 1 }, (_, i) => String(i + 1)), bat: true }).hopLe, false);
-    assert.equal(kiemTraThanHangLoat(null).hopLe, false);
-  });
-  it('PUT yêu cầu: trạng thái trong tập, ghi chú nội bộ ≤ 2000', () => {
-    assert.deepEqual(kiemTraThanPutYeuCau({ trangThai: 'dang_xu_ly', ghiChuNoiBo: ' đã gọi ' }), { hopLe: true, trangThai: 'dang_xu_ly', ghiChuNoiBo: 'đã gọi' });
-    assert.deepEqual(kiemTraThanPutYeuCau({ ghiChuNoiBo: '' }), { hopLe: true, ghiChuNoiBo: null });
-    assert.equal(kiemTraThanPutYeuCau({ trangThai: 'xong' }).hopLe, false);
-    assert.equal(kiemTraThanPutYeuCau({ ghiChuNoiBo: 'a'.repeat(2001) }).hopLe, false);
-    assert.equal(kiemTraThanPutYeuCau({}).hopLe, false);
-  });
-  it('dựng yêu cầu: không trả ip_hash / user_agent; items JSONB chuỗi / sai dạng', () => {
-    const y = dungYeuCau({
-      id: '7', ma_yeu_cau: 'YC-20261115-AB12', items: '[{"ma":"1","ten":"Vải","soLuong":2,"dvt":"m"},{"x":1}]', ten_khach: 'An', sdt: '0901234567',
-      email: null, cong_ty: null, ghi_chu: null, trang_thai: 'moi', ghi_chu_noi_bo: null, xu_ly_boi: null, xu_ly_luc: null,
-      created_at: '2026-11-15T01:00:00Z', ip_hash: 'abc', user_agent: 'UA',
-    });
-    assert.equal(y.id, 7);
-    assert.deepEqual(y.items, [{ ma: '1', ten: 'Vải', soLuong: 2, dvt: 'm' }]);
-    assert.ok(!('ipHash' in y) && !('userAgent' in y) && !('ip_hash' in y));
-    assert.equal(dungYeuCau({ trang_thai: 'la' }).trangThai, 'moi');
-    assert.deepEqual(docDongYeuCau('không phải json'), []);
-    assert.deepEqual(docDongYeuCau(null), []);
   });
 });

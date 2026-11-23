@@ -12,7 +12,7 @@ import { ensureProjectAliases, listProjectAliases } from '../server/projectAlias
 import { parseQcEntries, summarizeQc } from '../server/qc.js';
 import { createGzip } from 'zlib';
 import { docSnapshot, luuSnapshot, guiGzip } from '../server/snapshot.js';
-import { dungGoi } from '../server/goiBang.js';
+import { dungGoi, tenKhoaBang } from '../server/goiBang.js';
 import { kichLamNong } from '../server/lamNong.js';
 import { giuHamSong } from '../server/sharedCache.js';
 import { khoaFileNho } from './congTrinh.js';
@@ -96,7 +96,7 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
     if (requested.length && (br || req.acceptsEncodings('gzip'))) {
       const all = await getVersions(VERSIONS_MOI_MS);
       const gia = !requested.includes('material') || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
-      snap = { khoa: `${requested.join(',')}|${gia ? 1 : 0}${cot ? '|cot' : ''}${br ? '|br' : ''}`, ver: JSON.stringify(requested.map(k => all[k] ?? '')) };
+      snap = { khoa: `${requested.map(tenKhoaBang).join(',')}|${gia ? 1 : 0}${cot ? '|cot' : ''}${br ? '|br' : ''}`, ver: JSON.stringify(requested.map(k => all[k] ?? '')) };
       const t1 = Date.now();
       const buf = await docSnapshot(snap.khoa, snap.ver, nguon);
       tDoc = Date.now() - t1;

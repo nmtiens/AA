@@ -147,7 +147,7 @@ export const APP_VIEWS: AppView[] = [
   { id: 'analysis', path: '/analysis', label: 'Phân tích KH-TH', iconName: 'TrendingUp' },
   { id: 'tkbv', path: '/tkbv', label: 'Dữ liệu TKBV', iconName: 'FileText' },
   { id: 'pthsp', path: '/pthsp', label: 'Dữ liệu PTHSP', iconName: 'ClipboardList' },
-  { id: 'materials', path: '/materials', label: 'Vật tư', iconName: 'Package' },
+  { id: 'materials', path: '/materials', label: 'Dữ liệu vật tư', iconName: 'Package' },
   { id: 'users', path: '/users', label: 'Quản trị User', iconName: 'Shield' },
 ];
 
@@ -212,6 +212,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     label: 'Danh mục vật tư',
     items: [
       { id: 'ban_vat_tu', label: 'Danh mục vật tư (xem danh sách)' },
+      { id: 'vt_tieu_hao', label: 'Xuất tiêu hao vật tư' },
     ],
   },
   {
@@ -272,9 +273,9 @@ export const ITEM_ACTIONS: Record<string, { id: string; label: string }[]> = {
   analysis: [
     { id: 'analysis_export', label: 'Xuất báo cáo KH-TH' },
   ],
-  // Trang Bán vật tư tồn kho: sửa giá chào / ảnh / trạng thái / liên hệ (giá vốn theo quyền materials_view_price)
+  // Trang Danh mục vật tư (tra tồn kho nội bộ): duyệt / ẩn ảnh mẫu (giá vốn theo quyền materials_view_price)
   ban_vat_tu: [
-    { id: 'ban_vat_tu_sua', label: 'Sửa thông tin bán (giá chào, ảnh, trạng thái)' },
+    { id: 'ban_vat_tu_sua', label: 'Duyệt / ẩn ảnh vật tư' },
   ],
 };
 

@@ -1,15 +1,13 @@
 import { API_BASE_URL } from './dataService';
 
 // ============================================================================
-// API BÁN VẬT TƯ TỒN KHO (bảng ban_vt_ton + ban_vt_master + ban_vt_thong_tin)
-// Cần đăng nhập (token tự gắn qua authFetch) + quyền 'ban_vat_tu'; sửa thông tin bán cần 'ban_vat_tu_sua'.
+// API DANH MỤC VẬT TƯ — tra cứu tồn kho vật tư nội bộ (bảng ban_vt_ton + ban_vt_master + ban_vt_anh; đọc thêm link
+// ảnh đã dán trước đây ở ban_vt_thong_tin). Đường dẫn API giữ chữ "ban-vat-tu" cho khớp quyền đã cấp.
+// Cần đăng nhập (token tự gắn qua authFetch) + quyền 'ban_vat_tu'; duyệt / ẩn ảnh cần 'ban_vat_tu_sua'.
 // Giá vốn (giaTri triệu đồng, donGiaVon đồng/đvt, giaBinhQuan) chỉ có khi người xem có quyền xem giá vật tư —
-// không có thì máy chủ trả null (coGiaVon = false). Giá bán nhập tay lưu ĐỒNG / 1 đơn vị (giaBanVnd).
+// không có thì máy chủ trả null (coGiaVon = false).
 // Ngày luôn là chuỗi 'YYYY-MM-DD' (máy chủ đổi bằng SQL) => giao diện đọc thẳng chuỗi, KHÔNG new Date(chuỗi).
 // ============================================================================
-
-export type TrangThaiBan = 'dang_ban' | 'da_giu' | 'da_ban' | 'ngung_ban';
-export const DS_TRANG_THAI: TrangThaiBan[] = ['dang_ban', 'da_giu', 'da_ban', 'ngung_ban'];
 
 /** Thuộc tính vật tư từ MASTER DATA (ZMM60) / DEMO — null khi mã chưa có trong master */
 export interface MasterVatTu {
@@ -55,26 +53,6 @@ export interface AnhNoiBo {
   trangThai: 'tu_dong' | 'da_duyet';
   congTrinh: string | null;
   codeVatLieu: string | null;
-  /** true = admin đã bật "Hiện cho khách" (mặc định false: ảnh sheet 03 hay có chữ viết tay / dấu duyệt / tên công trình) */
-  congKhai: boolean;
-}
-
-/** Thông tin bán người dùng nhập trên web (gắn theo mã) */
-export interface ThongTinBan {
-  /** Giá chào bán, ĐỒNG / 1 đơn vị tính; null = chưa có giá ("Liên hệ") */
-  giaBanVnd: number | null;
-  anhUrls: string[];
-  trangThai: TrangThaiBan;
-  lienHe: string | null;
-  ghiChu: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  /** Đã duyệt đăng lên trang khách (/#/cua-hang); trang khách chỉ hiện khi đồng thời trangThai = 'dang_ban' */
-  dangCongKhai: boolean;
-  /** Tên hiện cho khách (trống => tên vật tư) */
-  tenHienThi: string | null;
-  /** Mô tả hiện cho khách */
-  moTaCongKhai: string | null;
 }
 
 /** 1 dòng tồn (1 mã có thể nhiều dòng — khác kho; khoá hiển thị = ma + kho) */
@@ -93,7 +71,8 @@ export interface ItemBanVatTu {
   /** Đồng / đơn vị tính; null khi không có quyền hoặc số lượng ≤ 0 */
   donGiaVon: number | null;
   master: MasterVatTu | null;
-  ban: ThongTinBan;
+  /** Link ảnh người dùng đã dán trước đây (chỉ đọc, không còn sửa trên web) */
+  anhLink: string[];
   /** Ảnh nội bộ (sheet 03), đã bỏ ảnh bị ẩn; thứ tự máy chủ: đã duyệt, chắc chắn, mới nhất */
   anh: AnhNoiBo[];
 }
@@ -108,19 +87,7 @@ export interface DanhSachBanVatTu {
   items: ItemBanVatTu[];
 }
 
-/** Phần gửi lên khi sửa thông tin bán (trường bỏ trống = giữ nguyên) */
-export interface SuaThongTinBan {
-  giaBanVnd?: number | null;
-  anhUrls?: string[];
-  trangThai?: TrangThaiBan;
-  lienHe?: string | null;
-  ghiChu?: string | null;
-  dangCongKhai?: boolean;
-  tenHienThi?: string | null;
-  moTaCongKhai?: string | null;
-}
-
-/** Lỗi gọi API bán vật tư; chuaCoQuyen = true khi máy chủ trả 403 */
+/** Lỗi gọi API Danh mục vật tư; chuaCoQuyen = true khi máy chủ trả 403 */
 export class LoiBanVatTu extends Error {
   readonly maLoi: number;
   readonly chuaCoQuyen: boolean;
@@ -182,29 +149,14 @@ export const docDsAnh = (v: unknown): AnhNoiBo[] => {
       trangThai: o.trangThai === 'da_duyet' ? 'da_duyet' : 'tu_dong',
       congTrinh: chuoiHoacNull(o.congTrinh),
       codeVatLieu: chuoiHoacNull(o.codeVatLieu),
-      congKhai: o.congKhai === true,
     });
   }
   return kq;
 };
 
-const laTrangThai = (v: unknown): v is TrangThaiBan => typeof v === 'string' && (DS_TRANG_THAI as string[]).includes(v);
-
-export const docThongTinBan = (b: unknown): ThongTinBan => {
-  const o = (b && typeof b === 'object' ? b : {}) as Record<string, unknown>;
-  return {
-    giaBanVnd: soHoacNull(o.giaBanVnd),
-    anhUrls: Array.isArray(o.anhUrls) ? o.anhUrls.map(u => String(u ?? '').trim()).filter(u => u !== '') : [],
-    trangThai: laTrangThai(o.trangThai) ? o.trangThai : 'dang_ban',
-    lienHe: chuoiHoacNull(o.lienHe),
-    ghiChu: chuoiHoacNull(o.ghiChu),
-    updatedBy: chuoiHoacNull(o.updatedBy),
-    updatedAt: chuoiHoacNull(o.updatedAt),
-    dangCongKhai: o.dangCongKhai === true,
-    tenHienThi: chuoiHoacNull(o.tenHienThi),
-    moTaCongKhai: chuoiHoacNull(o.moTaCongKhai),
-  };
-};
+/** Link ảnh đã dán (mảng chuỗi): bỏ phần tử rỗng / trùng */
+export const docAnhLink = (v: unknown): string[] =>
+  Array.isArray(v) ? [...new Set(v.map(u => String(u ?? '').trim()).filter(u => u !== ''))] : [];
 
 const docMaster = (m: unknown, coGiaVon: boolean): MasterVatTu | null => {
   if (!m || typeof m !== 'object') return null;
@@ -241,7 +193,7 @@ export const docItem = (d: Record<string, unknown>, coGiaVon: boolean): ItemBanV
   giaTri: coGiaVon ? soHoacNull(d.giaTri) : null,
   donGiaVon: coGiaVon ? soHoacNull(d.donGiaVon) : null,
   master: docMaster(d.master, coGiaVon),
-  ban: docThongTinBan(d.ban),
+  anhLink: docAnhLink(d.anhLink),
   anh: docDsAnh(d.anh),
 });
 
@@ -283,9 +235,9 @@ const goiJson = async (url: string, init: RequestInit, viecLam: string) => {
   }
 };
 
-/** Toàn bộ dòng tồn kho vật tư đem bán (≈5.100 dòng) + quyền của người xem */
+/** Toàn bộ dòng tồn kho vật tư (≈5.100 dòng) + quyền của người xem */
 export async function layDanhSachBanVatTu(signal?: AbortSignal): Promise<DanhSachBanVatTu> {
-  const j = await goiJson(`${API_BASE_URL}/ban-vat-tu/danh-sach`, { signal }, 'xem danh sách bán vật tư');
+  const j = await goiJson(`${API_BASE_URL}/ban-vat-tu/danh-sach`, { signal }, 'xem Danh mục vật tư');
   const coGiaVon = j?.coGiaVon === true;
   return {
     ngayChot: ngayHoacNull(j?.ngayChot),
@@ -297,16 +249,6 @@ export async function layDanhSachBanVatTu(signal?: AbortSignal): Promise<DanhSac
       .map((d: Record<string, unknown>) => docItem(d, coGiaVon))
       .filter((d: ItemBanVatTu) => d.ma !== ''),
   };
-}
-
-/** Sửa thông tin bán của 1 mã (PUT) — trả thông tin đã lưu */
-export async function luuThongTinBan(ma: string, body: SuaThongTinBan): Promise<ThongTinBan> {
-  const j = await goiJson(`${API_BASE_URL}/ban-vat-tu/${encodeURIComponent(ma)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }, 'sửa thông tin bán vật tư');
-  return docThongTinBan(j?.ban);
 }
 
 // ============================================================================
@@ -374,7 +316,7 @@ export async function layLyLichMua(ma: string, signal?: AbortSignal): Promise<Ly
 // - Đếm số chỗ đang dùng mỗi ảnh; thôi dùng thì giữ lại trong hàng chờ nhỏ (cuộn qua lại không tải lại), vượt
 //   GIU_TOI_DA ảnh không ai dùng thì thu hồi objectURL cũ nhất để không giữ blob trong RAM mãi.
 // - Tối đa TAI_SONG_SONG lượt tải cùng lúc của riêng trang này. authFetch đã giới hạn 4 request /api/* cả app; để
-//   3 cho ảnh => luôn còn chỗ cho request khác (lưu thông tin, lý lịch mua) không phải đợi cả loạt ảnh.
+//   3 cho ảnh => luôn còn chỗ cho request khác (duyệt ảnh, lý lịch mua) không phải đợi cả loạt ảnh.
 // ============================================================================
 const TAI_SONG_SONG = 3;
 const GIU_TOI_DA = 150;
@@ -486,139 +428,4 @@ export async function doiTrangThaiAnh(id: number, trangThai: TrangThaiAnh): Prom
   // Máy chủ có thể trả { anh: { trangThai } } / { trangThai } / { ok: true } — không rõ thì coi như đã đổi đúng ý
   const tt = j?.anh?.trangThai ?? j?.trangThai;
   return tt === 'da_duyet' || tt === 'an' || tt === 'tu_dong' ? tt : trangThai;
-}
-
-/**
- * Bật / tắt "Hiện cho khách" của 1 ảnh nội bộ (quyền 'ban_vat_tu_sua'). Mặc định ảnh sheet 03 KHÔNG công khai
- * (thường có chữ viết tay / dấu duyệt / tên công trình) — admin xem rồi bật từng ảnh.
- */
-export async function doiCongKhaiAnh(id: number, congKhai: boolean): Promise<boolean> {
-  const j = await goiJson(`${API_BASE_URL}/ban-vat-tu/anh/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ congKhai }),
-  }, 'đổi ảnh hiện cho khách');
-  const v = j?.anh?.congKhai ?? j?.congKhai;
-  return typeof v === 'boolean' ? v : congKhai;
-}
-
-// ============================================================================
-// TRANG KHÁCH (công khai, /#/cua-hang): đăng / gỡ hàng loạt + yêu cầu mua khách gửi
-// ============================================================================
-
-/** Máy chủ nhận tối đa 6.000 mã / lần */
-export const TOI_DA_MA_HANG_LOAT = 6000;
-
-/**
- * Đăng (bat = true) / gỡ (bat = false) nhiều mã khỏi trang khách (quyền 'ban_vat_tu_sua'). Chia lô 6.000 mã.
- * Trả tổng số mã máy chủ báo đã đổi (máy chủ không báo => số mã gửi).
- */
-export async function dangCongKhaiHangLoat(mas: string[], bat: boolean): Promise<number> {
-  const ds = [...new Set(mas.filter(Boolean))];
-  let tong = 0;
-  for (let i = 0; i < ds.length; i += TOI_DA_MA_HANG_LOAT) {
-    const lo = ds.slice(i, i + TOI_DA_MA_HANG_LOAT);
-    const j = await goiJson(`${API_BASE_URL}/ban-vat-tu/cong-khai-hang-loat`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mas: lo, bat }),
-    }, 'đăng vật tư lên trang khách');
-    const n = soHoacNull(j?.soDoi ?? j?.soMa ?? j?.count ?? j?.changed);
-    tong += n ?? lo.length;
-  }
-  return tong;
-}
-
-export type TrangThaiYeuCau = 'moi' | 'dang_xu_ly' | 'da_xong' | 'huy';
-export const DS_TRANG_THAI_YEU_CAU: TrangThaiYeuCau[] = ['moi', 'dang_xu_ly', 'da_xong', 'huy'];
-
-export interface DongYeuCau { ma: string; ten: string | null; soLuong: number; dvt: string | null }
-
-/** 1 yêu cầu mua khách gửi từ trang khách */
-export interface YeuCauMua {
-  id: number;
-  maYeuCau: string;
-  items: DongYeuCau[];
-  tenKhach: string;
-  sdt: string;
-  email: string | null;
-  congTy: string | null;
-  ghiChu: string | null;
-  trangThai: TrangThaiYeuCau;
-  ghiChuNoiBo: string | null;
-  xuLyBoi: string | null;
-  xuLyLuc: string | null;
-  /** Giờ gửi (chuỗi ISO máy chủ trả) */
-  createdAt: string | null;
-}
-
-export interface DanhSachYeuCau {
-  items: YeuCauMua[];
-  /** Số yêu cầu 'moi' (toàn bộ, không theo bộ lọc) — huy hiệu */
-  soMoi: number;
-  /** Máy chủ báo chức năng chưa sẵn sàng (chưa chạy SQL trang khách — khách gửi đang bị 503) */
-  canhBao: string | null;
-}
-
-const laTrangThaiYeuCau = (v: unknown): v is TrangThaiYeuCau =>
-  typeof v === 'string' && (DS_TRANG_THAI_YEU_CAU as string[]).includes(v);
-
-/** Đọc 1 yêu cầu (chịu cả khoá snake_case) — export để test */
-export const docYeuCau = (v: unknown): YeuCauMua | null => {
-  if (!v || typeof v !== 'object') return null;
-  const o = v as Record<string, unknown>;
-  const id = Number(o.id);
-  if (!Number.isFinite(id)) return null;
-  const tho = Array.isArray(o.items) ? o.items : [];
-  const tt = o.trangThai ?? o.trang_thai;
-  return {
-    id,
-    maYeuCau: chuoiHoacNull(o.maYeuCau ?? o.ma_yeu_cau) ?? `#${id}`,
-    items: tho.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
-      .map(x => ({ ma: String(x.ma ?? '').trim(), ten: chuoiHoacNull(x.ten), soLuong: so(x.soLuong ?? x.so_luong), dvt: chuoiHoacNull(x.dvt) }))
-      .filter(x => x.ma !== ''),
-    tenKhach: chuoiHoacNull(o.tenKhach ?? o.ten_khach) ?? '',
-    sdt: chuoiHoacNull(o.sdt) ?? '',
-    email: chuoiHoacNull(o.email),
-    congTy: chuoiHoacNull(o.congTy ?? o.cong_ty),
-    ghiChu: chuoiHoacNull(o.ghiChu ?? o.ghi_chu),
-    trangThai: laTrangThaiYeuCau(tt) ? tt : 'moi',
-    ghiChuNoiBo: chuoiHoacNull(o.ghiChuNoiBo ?? o.ghi_chu_noi_bo),
-    xuLyBoi: chuoiHoacNull(o.xuLyBoi ?? o.xu_ly_boi),
-    xuLyLuc: chuoiHoacNull(o.xuLyLuc ?? o.xu_ly_luc),
-    createdAt: chuoiHoacNull(o.createdAt ?? o.created_at),
-  };
-};
-
-/** Đọc kết quả danh sách yêu cầu — export để test */
-export const docDanhSachYeuCau = (j: unknown): DanhSachYeuCau => {
-  const o = (j && typeof j === 'object' ? j : {}) as Record<string, unknown>;
-  const tho = Array.isArray(o.items) ? o.items : Array.isArray(o.yeuCau) ? o.yeuCau : [];
-  const items = tho.map(docYeuCau).filter((x): x is YeuCauMua => x !== null);
-  const soMoi = soHoacNull(o.soMoi ?? o.demMoi);
-  return { items, soMoi: soMoi ?? items.filter(x => x.trangThai === 'moi').length, canhBao: chuoiHoacNull(o.canhBao) };
-};
-
-const LOI_CHUA_CO_YEU_CAU = 'Máy chủ chưa có chức năng Yêu cầu mua (cần cập nhật máy chủ / chạy SQL trang khách)';
-
-/** Danh sách yêu cầu mua (mới nhất trước, tối đa 500) — quyền 'ban_vat_tu' */
-export async function layYeuCauMua(trangThai: TrangThaiYeuCau | '' = '', signal?: AbortSignal): Promise<DanhSachYeuCau> {
-  const q = trangThai ? `?trangThai=${encodeURIComponent(trangThai)}` : '';
-  try {
-    const j = await goiJson(`${API_BASE_URL}/ban-vat-tu/yeu-cau${q}`, { signal }, 'xem yêu cầu mua');
-    return docDanhSachYeuCau(j);
-  } catch (e) {
-    if (e instanceof LoiBanVatTu && e.maLoi === 404) throw new LoiBanVatTu(LOI_CHUA_CO_YEU_CAU, 404);
-    throw e;
-  }
-}
-
-/** Đổi trạng thái / ghi chú nội bộ 1 yêu cầu — quyền 'ban_vat_tu_sua'. Máy chủ không trả bản ghi => null */
-export async function suaYeuCauMua(id: number, body: { trangThai?: TrangThaiYeuCau; ghiChuNoiBo?: string | null }): Promise<YeuCauMua | null> {
-  const j = await goiJson(`${API_BASE_URL}/ban-vat-tu/yeu-cau/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }, 'xử lý yêu cầu mua');
-  return docYeuCau(j?.yeuCau ?? j?.item ?? j);
 }

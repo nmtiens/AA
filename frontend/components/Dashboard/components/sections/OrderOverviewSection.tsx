@@ -516,7 +516,7 @@ const periodLabel = overviewDateFilters.length > 1
   <div className="flex items-center gap-6">
     <div>
       <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-        Chi tiết đơn hàng mới (IPO)
+        Chi tiết đơn hàng (IPO)
       </h3>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-pink-200 rounded-lg p-1 shadow-sm">
@@ -545,7 +545,7 @@ const periodLabel = overviewDateFilters.length > 1
     <button
       onClick={handleOpenOrderExport}
       className="flex items-center gap-1.5 px-3.5 py-1.5 bg-pink-50 text-pink-700 hover:bg-pink-100 rounded-lg text-sm font-bold border border-pink-200 transition-all shadow-sm active:scale-95 cursor-pointer"
-      title="Xuất dữ liệu đơn hàng mới (P001) ra file CSV"
+      title="Xuất dữ liệu đơn hàng (P001) ra file CSV"
     >
       <Download size={15} />
       <span>Xuất CSV</span>
@@ -574,7 +574,7 @@ const periodLabel = overviewDateFilters.length > 1
               ) : (
                 <div className="p-6">
                   <DetailModalTable
-                    onValueClick={moDanhSach('order', 'xuong', 'Đơn hàng mới')}
+                    onValueClick={moDanhSach('order', 'xuong', 'Đơn hàng')}
                     data={toAnalysisItems(groupAnalysisCache[`order-xuong-${filterKey}`] ?? [], ipoMetric)}
                     title="Chi tiết theo khu vực"
                     stt={1}
@@ -591,7 +591,7 @@ const periodLabel = overviewDateFilters.length > 1
 
                   <div className="border-t border-slate-200 pt-6">
                     <DetailModalTable
-                      onValueClick={moDanhSach('order', 'congtrinh', 'Đơn hàng mới')}
+                      onValueClick={moDanhSach('order', 'congtrinh', 'Đơn hàng')}
                       data={toAnalysisItems(groupAnalysisCache[`order-congtrinh-${filterKey}`] ?? [], ipoMetric)}
                       unitLabel={ipoMetric === 'COUNT' ? '(Hạng mục)' : '(Tỷ đồng)'}
                       formatValue={ipoMetric === 'COUNT' ? undefined : formatTrieuAsTy}

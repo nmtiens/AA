@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DataRow } from '../../../types';
 import { parseNumber } from '../utils/numberParsers';
 import { fetchKhsxNhapKhoSummary, type KhsxNhapKhoSummary } from '../../../services/dataService';
+import { docNho } from '../../../services/nhoApi';
+import { expandProjectNames } from '../../../utils/productionMetrics';
 import { inPlanWeek } from './useUnifiedTimeFilters';
 import { matchesFilter, toFilterSet } from '../utils/filterMatch';
 import { boDongHexHuy } from '../core/chiTietHex';
@@ -100,6 +102,30 @@ const splitTh = (r: { th: number; thPlan?: number }) => {
   return { thValue: plan, thOutValue: Math.max(Number((r.th - plan).toFixed(2)), 0) };
 };
 
+// Tham số gửi /api/khsx-nhapkho/summary theo bộ lọc — một chỗ cho cả lần đọc bản lưu lẫn lần gọi thật
+const thamSoKhsx = (tg: UnifiedTimeFilters, viewMode: ViewMode) => {
+  const nam = tg.nam[0] ?? new Date().getFullYear().toString();
+  // Gửi MỌI giá trị đã chọn (API nhận danh sách) — trước chỉ lấy giá trị đầu nên lệch bảng năng suất
+  const join = (v: string[]) => (v.length ? v.join(',') : undefined);
+  const thang = join(tg.thang);
+  const mode: 'week' | 'month' = viewMode === 'WEEK' ? 'week' : 'month';
+  const tuan = viewMode === 'WEEK' ? join(tg.tuan) : undefined;
+  const ngay = viewMode === 'WEEK' ? join(tg.ngay) : undefined;
+  return { nam, thang, mode, tuan, ngay };
+};
+
+// Khoá bản lưu = đúng chuỗi URL fetchKhsxNhapKhoSummary (dataService) gửi đi: phải dựng cùng thứ tự tham số.
+// Lệch thì chỉ không nhận lại được số lưu (màn hình trống tới khi mạng về như trước), không sai số.
+const urlKhsxSummary = (p: ReturnType<typeof thamSoKhsx>, congTrinh: string[], xuong: string[]): string => {
+  const q = new URLSearchParams({ nam: p.nam, mode: p.mode });
+  if (p.thang) q.set('thang', p.thang);
+  if (p.tuan) q.set('tuan', p.tuan);
+  if (p.ngay) q.set('ngay', p.ngay);
+  if (congTrinh.length) q.set('congTrinh', expandProjectNames(congTrinh).join('|') + '|');
+  if (xuong.length) q.set('xuong', xuong.join(','));
+  return `/api/khsx-nhapkho/summary?${q.toString()}`;
+};
+
 interface UseKhsxSummaryResult {
   khsxSummary: KhsxNhapKhoSummary | null;
   totalKhsxAmount: number;
@@ -157,8 +183,16 @@ export function useKhsxSummary({
   // -------------------------------------------------------------------------
   // KHSX summary (KH vs TH) — debounced + abortable fetch
   // -------------------------------------------------------------------------
-  const [khsxSummary, setKhsxSummary] = useState<KhsxNhapKhoSummary | null>(null);
+  // Mở lại trang trong ngày: hiện ngay số lần trước của ĐÚNG bộ lọc lúc gắn (đọc đồng bộ từ RAM); request thật
+  // bên dưới vẫn gửi và thay số khi về. Chế độ tuần không được lưu nên docNho trả undefined.
+  const [khsxSummary, setKhsxSummary] = useState<KhsxNhapKhoSummary | null>(() =>
+    viewMode === 'YEAR'
+      ? null
+      : docNho<KhsxNhapKhoSummary>(urlKhsxSummary(thamSoKhsx(unifiedTimeFilters, viewMode), filters.congTrinh, filters.xuong)) ?? null
+  );
   const khsxFetchIdRef = useRef(0);
+  // Đã có lần gọi thật nào chưa: lần đầu không chờ 300 ms (chưa có thao tác nào của người dùng để gom)
+  const daGoi = useRef(false);
 
   useEffect(() => {
     // Ở chế độ NĂM, bảng KH/TH theo tháng-tuần này không hiển thị (xem
@@ -174,16 +208,11 @@ export function useKhsxSummary({
     const controller = new AbortController();
 
     const timer = setTimeout(() => {
-      const nam = unifiedTimeFilters.nam[0] ?? new Date().getFullYear().toString();
-      // Gửi MỌI giá trị đã chọn (API nhận danh sách) — trước chỉ lấy giá trị đầu nên lệch bảng năng suất
-      const join = (v: string[]) => (v.length ? v.join(',') : undefined);
-      const thang = join(unifiedTimeFilters.thang);
-      const mode = viewMode === 'WEEK' ? 'week' : 'month';
-      const tuan = viewMode === 'WEEK' ? join(unifiedTimeFilters.tuan) : undefined;
-      const ngay = viewMode === 'WEEK' ? join(unifiedTimeFilters.ngay) : undefined;
-
+      // Đặt cờ lúc hẹn giờ BẮN chứ không phải lúc hẹn: effect chạy lại ngay sau khi gắn (bộ lọc tuần mặc định đặt
+      // trong effect) huỷ hẹn giờ đầu, lần chạy lại đó vẫn phải là 0 ms
+      daGoi.current = true;
       fetchKhsxNhapKhoSummary({
-        nam, thang, mode, tuan, ngay,
+        ...thamSoKhsx(unifiedTimeFilters, viewMode),
         congTrinh: filters.congTrinh,
         xuong: filters.xuong,
         signal: controller.signal,
@@ -194,7 +223,7 @@ export function useKhsxSummary({
       }).catch(err => {
         if (err.name !== 'AbortError') console.error('Lỗi fetch khsx summary:', err);
       });
-    }, 300);
+    }, daGoi.current ? 300 : 0);
 
     return () => {
       clearTimeout(timer);

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { dangMayTinhBang } from '../../../../services/mayTinhBang';
 import { Link } from 'react-router-dom';
 import { Eye, Download, ShoppingCart, FileText, ClipboardList, Package, PackageOpen, Boxes } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea, Cell, CartesianGrid, LabelList } from 'recharts';
@@ -8,6 +9,9 @@ import { parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
 import { tuanTrongThang } from '../../../../utils/dateUtils';
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { khThTheoLoc, khThThang, mauTyLe, mocQuy, trangThaiSo } from '../../core/dauTrang';
+import { docNho, goiNho } from '../../../../services/nhoApi';
+import { urlKhNgay, urlNkNgay, urlOverviewSummary, urlPlanActual } from '../../../../services/urlTongQuan';
+import { useMocDuLieu } from '../../../../hooks/useMocDuLieu';
 
 // ============================================================================
 // Đầu trang Tổng quan theo ảnh mẫu 2 (docs/designs/figma-thiet-ke-lai/2): chọn kỳ Hôm nay / 7 ngày / Tháng này;
@@ -97,14 +101,26 @@ const ngayLamConLai = (tu: Date) => {
 // Ngăn bằng "|": tên công trình có thể chứa dấu phẩy
 const thamSoCt = (ct: string[]) => `${ct.join('|')}|`;
 /** Nhập kho theo ngày (tỷ) của các xưởng / công trình; rỗng = không lọc */
-const layNkNgay = (tu: Date, den: Date, xuong: string[], ct: string[], signal?: AbortSignal) => {
-  const q = new URLSearchParams({ source: 'inventory', granularity: 'day', dateFrom: toISODateLocal(tu), dateTo: toISODateLocal(den) });
-  if (ct.length) q.set('ctWhitelist', thamSoCt(ct));
-  if (xuong.length) q.set('xuong', xuong.join(','));
-  return fetch(`/api/trend?${q.toString()}`, { signal }).then(r => (r.ok ? r.json() : []))
-    .then((rows: Array<{ period: string; total?: number | string; total_value?: number | string }>) =>
-      new Map((Array.isArray(rows) ? rows : []).map(r => [String(r.period).slice(0, 10), (Number(r.total ?? r.total_value) || 0) / 1000])));
+type DongNk = { period: string; total?: number | string; total_value?: number | string };
+const mapNk = (rows: DongNk[]) =>
+  new Map((Array.isArray(rows) ? rows : []).map(r => [String(r.period).slice(0, 10), (Number(r.total ?? r.total_value) || 0) / 1000]));
+// Qua bản lưu (goiNho): URL dựng bằng urlNkNgay để trùng khít khoá bản lưu / request gửi trước.
+// Trả null khi lỗi mạng / máy chủ báo lỗi — nơi gọi tự quyết giữ số đang hiện hay không.
+const layNkNgay = (tu: Date, den: Date, xuong: string[], ct: string[], signal?: AbortSignal, khongLuu?: boolean) =>
+  goiNho<DongNk[]>(urlNkNgay(tu, den, xuong, ct), { signal, khongLuu }).then(rows => (rows === null ? null : mapNk(rows)));
+type CotNk = { ngay: string; ten: string; v: number; cuoi: boolean };
+/** Các cột của biểu đồ nhập kho theo ngày trong khoảng [tu, den] (hàm thuần: dùng cho cả số lưu lẫn số mới về) */
+const dungNk = (theoNgay: Map<string, number>, tu: Date, den: Date): CotNk[] => {
+  const ds: CotNk[] = [];
+  for (let d = tu; d <= den; d = themNgay(d, 1)) {
+    if (d.getDay() === 0 && !theoNgay.get(toISODateLocal(d))) continue; // bỏ Chủ nhật không có số
+    const k = toISODateLocal(d);
+    ds.push({ ngay: k, ten: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, v: theoNgay.get(k) ?? 0, cuoi: k === toISODateLocal(den) });
+  }
+  return ds;
 };
+const mapKhNgay = (rows: Array<{ ngay: string; kh: number }>) =>
+  new Map((Array.isArray(rows) ? rows : []).map(r => [r.ngay, Number(r.kh) || 0]));
 
 // Ngày mới nhất từng nguồn (máy chủ trả kèm summary)
 type SoKy = OverviewSummary & { maxDates?: Partial<Record<KhoaLuong, string | null>> };
@@ -167,20 +183,55 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   }, [khoang, unifiedDateOptions, setOverviewDateFilters]);
 
   // Số của kỳ này + kỳ trước (cùng bộ lọc công trình / xưởng với dải Dòng chảy)
-  const [so, setSo] = useState<{ nay: SoKy | null; truoc: SoKy | null }>({ nay: null, truoc: null });
+  // Tăng khi dữ liệu máy chủ đổi (sau ETL): các effect tải số bên dưới gọi lại, số đang hiện giữ tới khi số mới về
+  const moc = useMocDuLieu();
+  // uNay / uTruoc = URL của số đang hiện ở từng ô — để khi gọi lỗi chỉ giữ số của ĐÚNG kỳ + bộ lọc đang xem
+  type SoHien = { nay: SoKy | null; truoc: SoKy | null; uNay: string | null; uTruoc: string | null };
+  const urlSo = (k: KhoangKy) => {
+    const loc = { congTrinh: p.congTrinh, xuong: p.xuong };
+    const iso = toISODateLocal;
+    // Cùng hàm dựng URL với fetchOverviewSummary => trùng khoá bản lưu
+    return [urlOverviewSummary(iso(k.tu), iso(k.den), k.dates, loc), urlOverviewSummary(iso(k.truocTu), iso(k.truocDen), undefined, loc)] as const;
+  };
+  // Mở lại trang trong ngày: số lần trước hiện ngay (đọc đồng bộ từ bản lưu), request thật vẫn gửi ở effect dưới
+  const [so, setSo] = useState<SoHien>(() => {
+    if (!khoang) return { nay: null, truoc: null, uNay: null, uTruoc: null };
+    const [uNay, uTruoc] = urlSo(khoang);
+    const nay = docNho<SoKy>(uNay) ?? null, truoc = docNho<SoKy>(uTruoc) ?? null;
+    return { nay, truoc, uNay: nay ? uNay : null, uTruoc: truoc ? uTruoc : null };
+  });
   const locKey = `${p.congTrinh.join('|')}#${p.xuong.join('|')}`;
   useEffect(() => {
     if (!khoang) return;
     const ac = new AbortController();
     const opts = { signal: ac.signal, congTrinh: p.congTrinh, xuong: p.xuong };
     const iso = toISODateLocal;
+    const [uNay, uTruoc] = urlSo(khoang);
+    // Đổi kỳ / bộ lọc: có số lưu của kỳ mới thì hiện ngay (điểm đồng bộ duy nhất ngoài giá trị khởi tạo);
+    // chỉ khi có ĐỦ cả kỳ này lẫn kỳ trước — có 1 trong 2 mà ghép với số đang hiện của kỳ khác thì % so sánh sai;
+    // thiếu thì giữ nguyên cả cặp đang hiện tới khi số mới về, như trước
+    const lNay = docNho<SoKy>(uNay) ?? null, lTruoc = docNho<SoKy>(uTruoc) ?? null;
+    if (lNay && lTruoc) setSo(cu => {
+      const moi: SoHien = { nay: lNay ?? cu.nay, truoc: lTruoc ?? cu.truoc, uNay: lNay ? uNay : cu.uNay, uTruoc: lTruoc ? uTruoc : cu.uTruoc };
+      return moi.nay === cu.nay && moi.truoc === cu.truoc && moi.uNay === cu.uNay && moi.uTruoc === cu.uTruoc ? cu : moi;
+    });
     Promise.all([
       fetchOverviewSummary(iso(khoang.tu), iso(khoang.den), khoang.dates, opts),
       fetchOverviewSummary(iso(khoang.truocTu), iso(khoang.truocDen), undefined, opts),
-    ]).then(([nay, truoc]) => { if (!ac.signal.aborted) setSo({ nay, truoc }); });
+    ]).then(([nay, truoc]) => {
+      if (ac.signal.aborted) return;
+      setSo(cu => {
+        // Gọi lỗi (null): giữ số đang hiện nếu nó là số của đúng URL này; số của kỳ / bộ lọc khác thì bỏ như trước
+        const n2 = nay ?? (cu.uNay === uNay ? cu.nay : null);
+        const t2 = truoc ?? (cu.uTruoc === uTruoc ? cu.truoc : null);
+        const a = n2 ? uNay : null, b = t2 ? uTruoc : null;
+        // Số giống lần trước thì goiNho trả đúng object cũ => không vẽ lại
+        return n2 === cu.nay && t2 === cu.truoc && a === cu.uNay && b === cu.uTruoc ? cu : { nay: n2, truoc: t2, uNay: a, uTruoc: b };
+      });
+    });
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [khoang, locKey]);
+  }, [khoang, locKey, moc]);
 
   // Tiến độ theo Năm (doanh số năm + mốc quý) hoặc Tháng (KH tháng trong khsx_nam vs nhập kho tháng + mốc nhịp tới hôm qua)
   const [tienDo, setTienDo] = useState<'nam' | 'thang'>('nam');
@@ -204,35 +255,56 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const hienTu = tuanChon ? tuanChon.tu : xemThang ? dauThangTD : null;
   const hienDen = tuanChon ? tuanChon.den : xemThang ? cuoiThangTD : null;
   // Nhập kho theo ngày (tỷ): 7 ngày gần nhất, hoặc từ đầu tháng khi xem "Tháng này"
-  const [nk, setNk] = useState<Array<{ ngay: string; ten: string; v: number; cuoi: boolean }>>([]);
-  const [nkKhoang, setNkKhoang] = useState<{ tu: Date; den: Date } | null>(null);
+  // Lúc gắn luôn là kỳ 'ngay' + tiến độ 'nam' => khoảng 7 ngày tới hôm qua, tính được ngay không cần chờ effect
+  // (danh sách xưởng / công trình và kế hoạch ngày gửi cùng đợt đầu thay vì chờ thêm 1 lượt vẽ)
+  const [nkDau] = useState(() => {
+    const tu = themNgay(ngayMoi, -6), den = ngayMoi;
+    const url = urlNkNgay(tu, den, p.xuong, p.congTrinh);
+    const luu = docNho<DongNk[]>(url);
+    return { tu, den, url: luu ? url : null, ds: luu ? dungNk(mapNk(luu), tu, den) : [] };
+  });
+  const [nk, setNk] = useState<CotNk[]>(nkDau.ds);
+  // URL của số đang hiện trong nk (null = chưa có / đã xoá trắng)
+  const nkCua = useRef<string | null>(nkDau.url);
+  const [nkKhoang, setNkKhoang] = useState<{ tu: Date; den: Date } | null>(() => ({ tu: nkDau.tu, den: nkDau.den }));
   useEffect(() => {
     if (!ngayMoi) return;
     // Tự chọn ngày: vẽ từ ngày đầu tới ngày cuối đã chọn (ngày cuối tô đậm)
     // Số thật chỉ tới hôm qua; khoảng hoàn toàn ở tương lai => không tải
-    if (hienTu && hienTu > ngayMoi) { setNk([]); return; }
+    if (hienTu && hienTu > ngayMoi) { setNk([]); nkCua.current = null; return; }
     const den = hienDen ? (hienDen > ngayMoi ? ngayMoi : hienDen) : ky === 'tuy' && khoang ? khoang.den : ngayMoi;
     const tu = hienTu ? hienTu : ky === 'tuy' && khoang ? (khoang.tu < den ? khoang.tu : themNgay(den, -6))
       : ky === 'thang' ? new Date(ngayMoi.getFullYear(), ngayMoi.getMonth(), 1) : themNgay(ngayMoi, -6);
-    setNkKhoang({ tu, den });
+    // Khoảng không đổi thì giữ object cũ (không sinh lượt vẽ thừa)
+    setNkKhoang(cu => (cu && cu.tu.getTime() === tu.getTime() && cu.den.getTime() === den.getTime() ? cu : { tu, den }));
+    const url = urlNkNgay(tu, den, p.xuong, p.congTrinh);
+    // Đổi khoảng / bộ lọc: có số lưu của URL mới thì hiện ngay (điểm đồng bộ)
+    if (nkCua.current !== url) {
+      const luu = docNho<DongNk[]>(url);
+      if (luu) { setNk(dungNk(mapNk(luu), tu, den)); nkCua.current = url; }
+    }
     let on = true;
+    // Gọi lỗi: giữ số đang hiện nếu là số của đúng URL này; đang hiện số của khoảng / bộ lọc khác thì xoá trắng như trước
+    const khiLoi = () => { if (on && nkCua.current !== url) { setNk([]); nkCua.current = null; } };
     layNkNgay(tu, den, p.xuong, p.congTrinh)
       .then(theoNgay => {
         if (!on) return;
-        const ds: Array<{ ngay: string; ten: string; v: number; cuoi: boolean }> = [];
-        for (let d = tu; d <= den; d = themNgay(d, 1)) {
-          if (d.getDay() === 0 && !theoNgay.get(toISODateLocal(d))) continue; // bỏ Chủ nhật không có số
-          const k = toISODateLocal(d);
-          ds.push({ ngay: k, ten: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, v: theoNgay.get(k) ?? 0, cuoi: k === toISODateLocal(den) });
-        }
-        setNk(ds);
+        if (!theoNgay) { khiLoi(); return; }
+        nkCua.current = url;
+        setNk(dungNk(theoNgay, tu, den));
       })
-      .catch(() => { if (on) setNk([]); });
+      .catch(khiLoi);
     return () => { on = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ky, ngayMoi, locKey, khoang, tuanChon, xemThang, thangTD]);
+  }, [ky, ngayMoi, locKey, khoang, tuanChon, xemThang, thangTD, moc]);
 
-  const [khTh, setKhTh] = useState<YearPlanActualData | null>(null);
+  const [khThDau] = useState(() => {
+    const url = urlPlanActual(String(ngayMoi.getFullYear()), p.congTrinh);
+    const luu = docNho<YearPlanActualData>(url) ?? null;
+    return { url: luu ? url : null, d: luu };
+  });
+  const [khTh, setKhTh] = useState<YearPlanActualData | null>(khThDau.d);
+  const khThCua = useRef<string | null>(khThDau.url);
   // Danh sách công trình / xưởng để chọn (lọc chéo theo lựa chọn bên kia)
   useEffect(() => {
     if (!nkKhoang) return;
@@ -273,7 +345,11 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     if (!locDangBat || !nkKhoang) { setNkLoc(null); return; }
     setNkLoc(null);
     const ac = new AbortController();
-    const goi = (xuong: string[]) => layNkNgay(nkKhoang.tu, nkKhoang.den, xuong, locCt.length ? locCt : p.congTrinh, ac.signal);
+    // 1 lần gọi lỗi (null) => bỏ cả phép cộng (catch bên dưới xoá trắng): thiếu 1 xưởng thì tổng / phần 'KHÁC' sai
+    // khongLuu: phần lọc này không bao giờ đọc lại bản lưu, mà chọn 'KHÁC' gọi 1 URL cho MỖI xưởng — lưu thì đẩy số
+    // màn đầu ra khỏi trần 40 mục của bản lưu
+    const goi = (xuong: string[]) => layNkNgay(nkKhoang.tu, nkKhoang.den, xuong, locCt.length ? locCt : p.congTrinh, ac.signal, true)
+      .then(m => { if (!m) throw new Error('Không tải được nhập kho theo ngày'); return m; });
     (async () => {
       const ten = locXuong.filter(x => x !== 'KHÁC');
       const coKhac = locXuong.includes('KHÁC');
@@ -298,15 +374,27 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const namLabel = String(nam);
   useEffect(() => {
     const ac = new AbortController();
-    const q = new URLSearchParams({ year: namLabel });
-    if (p.congTrinh.length) q.set('congTrinh', thamSoCt(p.congTrinh));
-    fetch(`/api/khsx-nam/plan-actual?${q.toString()}`, { signal: ac.signal })
-      .then(r => (r.ok ? r.json() : null))
-      .then((d: YearPlanActualData | null) => { if (!ac.signal.aborted) setKhTh(d); })
-      .catch(() => { /* bỏ qua: huỷ hoặc lỗi mạng */ });
+    const url = urlPlanActual(namLabel, p.congTrinh);
+    // Đổi bộ lọc: có số lưu của URL mới thì hiện ngay (điểm đồng bộ)
+    if (khThCua.current !== url) {
+      const luu = docNho<YearPlanActualData>(url);
+      if (luu) { setKhTh(luu); khThCua.current = url; }
+    }
+    goiNho<YearPlanActualData>(url, { signal: ac.signal })
+      .then(d => {
+        if (ac.signal.aborted) return;
+        if (d === null) {
+          // Gọi lỗi: giữ số đang hiện nếu là số của đúng URL này; đang hiện số của bộ lọc khác thì bỏ (như khi máy chủ báo lỗi trước đây)
+          if (khThCua.current !== url) { setKhTh(null); khThCua.current = null; }
+          return;
+        }
+        khThCua.current = url;
+        setKhTh(d); // số giống lần trước = cùng object => React bỏ qua
+      })
+      .catch(() => { /* bỏ qua: huỷ */ });
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [namLabel, locKey]);
+  }, [namLabel, locKey, moc]);
   // KH năm không chia theo công trình
   const coKhTrang = p.congTrinh.length === 0;
   // Chế độ Tháng: KH tháng lấy từ KHSX tháng (bảng khsx, file KHNK của tháng) khi tháng đó đã có — có cột công trình
@@ -350,16 +438,26 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     if (tienDo !== 'thang') return;
     const ac = new AbortController();
     const ds = tuanTrongThang(ngayMoi.getFullYear(), thangTD);
-    Promise.all(ds.map(w => fetchKhsxNhapKhoSummary({ nam: String(w.nam), mode: 'week', tuan: String(w.tuan), congTrinh: p.congTrinh, xuong: p.xuong, signal: ac.signal })))
+    Promise.all(ds.map(w => fetchKhsxNhapKhoSummary({ nam: String(w.nam), mode: 'week', tuan: String(w.tuan), congTrinh: p.congTrinh, xuong: p.xuong, signal: ac.signal, khongLuu: true })))
       .then(kq => { if (!ac.signal.aborted) setTuanKh(ds.map((w, i) => ({ tuan: w.tuan, tu: w.tu, den: w.den, nhan: w.nhan, kh: kq[i]?.totalKh ?? 0, th: kq[i]?.totalTh ?? 0 }))); });
     const y = ngayMoi.getFullYear();
-    layNkNgay(new Date(y, thangTD - 1, 1), new Date(y, thangTD, 0), p.xuong, p.congTrinh, ac.signal)
-      .then(m => { if (!ac.signal.aborted) setNkThang(m); })
+    const tuT = new Date(y, thangTD - 1, 1), denT = new Date(y, thangTD, 0);
+    // Đổi bộ lọc / tháng: bỏ số của bộ lọc cũ ngay (lấy bản lưu của URL mới nếu có) — lỗi mạng sau đó không để lại số của
+    // xưởng / công trình khác (rà soát gộp nhánh 21/11/2026)
+    const uNk = urlNkNgay(tuT, denT, p.xuong, p.congTrinh);
+    if (nkThangUrl.current !== uNk) {
+      nkThangUrl.current = uNk;
+      const luu = docNho<DongNk[]>(uNk);
+      setNkThang(luu ? mapNk(luu) : new Map());
+    }
+    layNkNgay(tuT, denT, p.xuong, p.congTrinh, ac.signal)
+      .then(m => { if (m && !ac.signal.aborted) setNkThang(m); }) // lỗi (null) khi làm mới cùng URL: giữ số đang hiện
       .catch(() => { /* bỏ qua: huỷ hoặc lỗi mạng */ });
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tienDo, ngayMoi, thangTD, locKey]);
   const [nkThang, setNkThang] = useState<Map<string, number>>(new Map());
+  const nkThangUrl = useRef<string | null>(null);
   // Mục tiêu từng tuần — CHỈ phần ngày nằm trong tháng, để cờ / ô tuần / thanh tháng khớp nhau:
   //  - tuần có KH tuần: KH tuần × (ngày làm việc trong tháng / ngày làm việc của tuần)
   //  - tuần chưa có KH tuần: phần KH tháng còn lại chia đều theo ngày làm việc
@@ -423,23 +521,40 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const tenKh = tienDo === 'nam' ? 'KH năm' : tenKhThang(thangTD, nguonKhThang);
   // Kế hoạch nhập kho từng ngày (KH tuần của khsx theo ngày KHNK) — cột "Kế hoạch" cạnh cột nhập kho; theo bộ lọc
   // xưởng / công trình của biểu đồ (không lọc thì theo bộ lọc chung của trang)
-  const [khNgay, setKhNgay] = useState<Map<string, number> | null>(null);
+  const [khNgayDau] = useState(() => {
+    // Lúc gắn chưa lọc xưởng / công trình ở biểu đồ => theo bộ lọc chung, cùng khoảng 7 ngày của nkDau
+    const url = urlKhNgay(nkDau.tu, nkDau.den, p.xuong, p.congTrinh);
+    const luu = docNho<Array<{ ngay: string; kh: number }>>(url);
+    return { url: luu ? url : null, m: luu ? mapKhNgay(luu) : null };
+  });
+  const [khNgay, setKhNgay] = useState<Map<string, number> | null>(khNgayDau.m);
+  const khNgayCua = useRef<string | null>(khNgayDau.url);
   const khTu = nkKhoang ? toISODateLocal(nkKhoang.tu) : '';
   const khDen = (() => { const d = hienDen && nkKhoang && hienDen > nkKhoang.den ? hienDen : nkKhoang?.den; return d ? toISODateLocal(d) : ''; })();
   useEffect(() => {
-    if (!khTu || !khDen) { setKhNgay(null); return; }
+    if (!khTu || !khDen) { setKhNgay(null); khNgayCua.current = null; return; }
     const ac = new AbortController();
-    const q = new URLSearchParams({ tu: khTu, den: khDen });
     const xs = locXuong.length ? locXuong : p.xuong;
     const ct = locCt.length ? locCt : p.congTrinh;
-    if (xs.length) q.set('xuong', xs.join(','));
-    if (ct.length) q.set('congTrinh', thamSoCt(ct));
-    fetch(`/api/khsx/ke-hoach-ngay?${q.toString()}`, { signal: ac.signal }).then(r => (r.ok ? r.json() : []))
-      .then((rows: Array<{ ngay: string; kh: number }>) => { if (!ac.signal.aborted) setKhNgay(new Map((Array.isArray(rows) ? rows : []).map(r => [r.ngay, Number(r.kh) || 0]))); })
-      .catch(() => { if (!ac.signal.aborted) setKhNgay(new Map()); });
+    const url = urlKhNgay(khTu, khDen, xs, ct);
+    // Đổi khoảng / bộ lọc: có số lưu của URL mới thì hiện ngay (điểm đồng bộ)
+    if (khNgayCua.current !== url) {
+      const luu = docNho<Array<{ ngay: string; kh: number }>>(url);
+      if (luu) { setKhNgay(mapKhNgay(luu)); khNgayCua.current = url; }
+    }
+    // Gọi lỗi: giữ số đang hiện nếu là số của đúng URL này; đang hiện số của khoảng / bộ lọc khác thì xoá trắng như trước
+    const khiLoi = () => { if (!ac.signal.aborted && khNgayCua.current !== url) { setKhNgay(new Map()); khNgayCua.current = null; } };
+    goiNho<Array<{ ngay: string; kh: number }>>(url, { signal: ac.signal })
+      .then(rows => {
+        if (ac.signal.aborted) return;
+        if (rows === null) { khiLoi(); return; }
+        khNgayCua.current = url;
+        setKhNgay(mapKhNgay(rows));
+      })
+      .catch(khiLoi);
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [khTu, khDen, locXuong.join('|'), locCt.join('|'), locKey]);
+  }, [khTu, khDen, locXuong.join('|'), locCt.join('|'), locKey, moc]);
   // Ngày gần nhất CÓ nhập kho (ngày mới nhất có thể chưa nạp số => không báo 'chậm' oan)
   const nkCuoi = [...nk].reverse().find(d => d.v > 0) ?? null;
   // Biểu đồ vẽ phần đã chọn (lọc xưởng / công trình); khung "Cần chú ý" vẫn theo toàn bộ (nkCuoi)
@@ -542,7 +657,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     <div className="flex flex-col gap-4">
       {/* Nhập kho năm / tháng (tiến độ + nhập kho mỗi ngày + cần chú ý) — người dùng 19/11/2026: lên trên 6 thẻ */}
       <div className={`grid grid-cols-1 gap-4 ${moChuY ? 'xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''}`}>
-        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 lg:p-6">
+        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4">
           {/* Tiến độ kỳ (năm / tháng): 3 thẻ số (mỗi số 1 chỗ) + thanh đã nhập / còn lại + cờ mốc */}
           {(() => {
             const con = Math.max(0, td.kh - td.th);
@@ -555,14 +670,13 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
             const phanTram = td.kh > 0 ? (td.th / td.kh) * 100 : 0;
             const xTh = pt(td.th);
             const dangChayKy = td.daQua > 0 && td.conNgay > 0;
-            const the = 'flex flex-col rounded-xl border border-slate-200 border-t-4 bg-white px-4 py-3 text-left';
+            const the = 'flex flex-col rounded-xl border border-slate-200 border-t-4 bg-white px-4 py-2.5 text-left'; // gọn (20/11/2026)
             const nhanThe = 'flex items-baseline justify-between gap-2 text-sm font-bold uppercase tracking-wide text-slate-600';
             return (<>
               <div className="flex flex-wrap items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-xl font-bold text-slate-900">
                     Nhập kho {laNam ? namLabel : `T${thangTD}/${nam}`} (tỷ)
-                    <span className="ml-2 text-base font-semibold text-slate-500">tới {toiNgay}</span>
                   </h3>
                 </div>
                 <span className="flex items-center gap-1.5">
@@ -597,38 +711,48 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </div>
 
               {/* 4 thẻ số */}
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <button type="button" onClick={() => p.onThucHienNam?.(nam)} disabled={!p.onThucHienNam} title="Bấm để xem chi tiết nhập kho theo tháng / xưởng"
                   className={`${the} border-t-emerald-600 transition enabled:hover:shadow-md`}>
                   <span className={nhanThe}>Đã nhập kho {p.onThucHienNam && <span className="normal-case tracking-normal text-blue-600">Chi tiết ›</span>}</span>
-                  <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-emerald-700">{formatTy(td.th)} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
-                  <span className="mt-0.5 text-base text-slate-700">{td.kh > 0 && <><b className={mauTyLe(phanTram).chu}>{Math.round(phanTram)}%</b> NK / {tienDo === 'nam' ? 'KH năm' : 'KH tháng'} · </>}{td.daQua} ngày</span>
+                  <span className="text-[1.875rem] font-extrabold leading-tight tabular-nums text-emerald-700">{formatTy(td.th)} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
+                  <span className="mt-0.5 text-base text-slate-700">{td.kh > 0 && <>Đạt <b className={mauTyLe(phanTram).chu}>{Math.round(phanTram)}%</b> {tienDo === 'nam' ? 'KH năm' : 'KH tháng'} · </>}{td.daQua} ngày đã qua</span>
                 </button>
                 <button type="button" onClick={() => p.onKeHoachNam?.(nam)} disabled={!p.onKeHoachNam} title="Bấm để xem nhập kho so với kế hoạch theo tháng / xưởng"
                   className={`${the} border-t-slate-700 transition enabled:hover:shadow-md`}>
                   <span className={nhanThe}>{tenKh} {p.onKeHoachNam && <span className="normal-case tracking-normal text-blue-600">So KH ›</span>}</span>
-                  <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-slate-900">{td.kh > 0 ? formatTy(td.kh) : '—'} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
+                  <span className="text-[1.875rem] font-extrabold leading-tight tabular-nums text-slate-900">{td.kh > 0 ? formatTy(td.kh) : '—'} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
                   <span className="mt-0.5 text-base text-slate-700" title={td.kh > 0 && con > 0 ? `${LAM_CHU_NHAT ? 'Tính cả CN' : 'T2–T7'}, tới ${ngayNgan(td.cuoiKy)}` : undefined}>
-                    {!coKhKy ? 'Không có KH theo công trình' : td.kh <= 0 ? 'Chưa có KH' : con > 0 ? <>Thiếu <b>{formatTy(con)}</b> · {td.conNgay} ngày</> : <b className="text-emerald-700">Đã đạt KH</b>}
+                    {!coKhKy ? 'Không có KH theo công trình' : td.kh <= 0 ? 'Chưa có KH' : con > 0 ? <>Còn thiếu <b>{formatTy(con)}</b> tỷ · còn {td.conNgay} ngày</> : <b className="text-emerald-700">Đã đạt KH</b>}
                   </span>
                 </button>
-                <div className={`${the} border-t-red-600`}>
-                  <span className={nhanThe}>Cần mỗi ngày</span>
-                  <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-red-600">{can > 0 ? formatTy(can) : '—'} <span className="text-base font-semibold text-slate-500">tỷ/ngày</span></span>
+                {/* Gọn (người dùng 20/11/2026): số cần + "gấp N lần" nổi bật cùng dòng, dòng dưới chỉ ghi mức đang nhập để so;
+                    cách tính để ở tooltip */}
+                <div className={`${the} border-t-red-600`}
+                  title={can > 0 ? `= còn thiếu ${formatTy(con)} tỷ ÷ ${td.conNgay} ngày còn lại${bq > 0 ? `. Bình quân đã nhập = ${formatTy(td.th)} tỷ đã nhập ÷ ${td.daQua} ngày đã qua = ${formatTy(bq)} tỷ/ngày` : ''}` : undefined}>
+                  <span className={nhanThe}>Cần nhập mỗi ngày để đạt {tenKh}</span>
+                  <span className="flex flex-wrap items-baseline gap-x-3">
+                    <span className="text-[1.875rem] font-extrabold leading-tight tabular-nums text-red-600">{can > 0 ? formatTy(can) : '—'} <span className="text-base font-semibold text-slate-500">tỷ/ngày</span></span>
+                    {can > 0 && bq > 0 && (
+                      <span className={`rounded-lg px-2.5 py-0.5 text-lg font-extrabold tabular-nums ${can > bq ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {can > bq ? `gấp ${(can / bq).toFixed(1)} lần bình quân` : 'thấp hơn bình quân'}
+                      </span>
+                    )}
+                  </span>
                   <span className="mt-0.5 text-base text-slate-700">
-                    {can > 0 && bq > 0 ? <><b className="text-red-600">×{(can / bq).toFixed(1)}</b> BQ ({formatTy(bq)})</> : td.kh > 0 && con <= 0 ? 'Đã đạt KH' : '—'}
+                    {can > 0 && bq > 0 ? <>Bình quân đã nhập: <b>{formatTy(bq)}</b> tỷ/ngày</> : td.kh > 0 && con <= 0 ? 'Đã đạt KH' : '—'}
                   </span>
                 </div>
               </div>
 
               {/* Thanh tiến độ */}
               {td.kh > 0 && (
-                <div className="mt-4 rounded-xl border border-slate-200 px-4 pb-2 pt-3 sm:px-5">
-                  <p className="text-base font-semibold text-slate-900">Tiến độ {tenKy}</p>
+                <div className="mt-3 rounded-xl border border-slate-200 px-4 pb-1.5 pt-2 sm:px-5">
+                  <p className="text-sm font-semibold text-slate-900">Tiến độ {tenKy}</p>
                   <button type="button" onClick={() => p.onThucHienNam?.(nam)} disabled={!p.onThucHienNam} title="Bấm để xem nhập kho theo tháng / xưởng"
-                    className="relative mt-[4.5rem] block h-11 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
+                    className="relative mt-[3.25rem] block h-8 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
                     <span className="absolute inset-0 rounded-lg bg-slate-200 ring-1 ring-inset ring-slate-300" />
-                    <span className={`absolute inset-y-0 left-0 flex items-center justify-end ${mauTyLe(phanTram).thanh} pr-3 text-xl font-extrabold tabular-nums text-white ${xTh >= 99.5 ? 'rounded-lg' : 'rounded-l-lg'}`}
+                    <span className={`absolute inset-y-0 left-0 flex items-center justify-end ${mauTyLe(phanTram).thanh} pr-3 text-base font-extrabold tabular-nums text-white ${xTh >= 99.5 ? 'rounded-lg' : 'rounded-l-lg'}`}
                       style={{ width: `${xTh}%` }}>
                       {xTh > 8 ? `${Math.round(phanTram)}%` : ''}
                     </span>
@@ -637,15 +761,15 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                       const vach = [xTh, ...moc.map(m => pt(m.v)).filter(x => x > xTh + 0.5 && x < 99.5), 100].sort((a, b) => a - b);
                       let tu = vach[0], den = vach[0];
                       for (let i = 1; i < vach.length; i++) if (vach[i] - vach[i - 1] > den - tu) { tu = vach[i - 1]; den = vach[i]; }
-                      return den - tu > 10 ? (
-                        <span className="absolute inset-y-0 flex items-center justify-center text-xl font-bold tabular-nums text-slate-700" style={{ left: `${tu}%`, width: `${den - tu}%` }}>
-                          Còn {formatTy(con)}
+                      return den - tu > (dangMayTinhBang() ? 22 : 10) ? (   // màn hẹp: khoảng nhỏ thì bỏ chữ (thẻ KH đã ghi số)
+                        <span className="absolute inset-y-0 flex items-center justify-center text-base font-bold tabular-nums text-slate-700" style={{ left: `${tu}%`, width: `${den - tu}%` }}>
+                          Còn thiếu {formatTy(con)}
                         </span>
                       ) : null;
                     })()}
                     {dangChayKy && (
-                      <span className={`absolute -top-[4.25rem] whitespace-nowrap text-sm font-bold text-emerald-700 ${xTh > 15 ? '-translate-x-full' : ''}`} style={{ left: `${xTh}%` }}>
-                        ▼ Tới {toiNgay}
+                      <span className={`absolute -top-[3.1rem] whitespace-nowrap text-xs font-bold text-emerald-700 ${xTh > 15 ? '-translate-x-full' : ''}`} style={{ left: `${xTh}%` }}>
+                        ▼ Số liệu tới {toiNgay}
                       </span>
                     )}
                     {moc.map(m => {
@@ -657,20 +781,21 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                       return (
                         <span key={m.ten}>
                           {/* cờ: mọi mốc cùng 1 kiểu (cán trái, cờ bay sang phải), cán trùng vạch mốc */}
-                          <svg className="absolute -top-[2.1rem] h-[1.9rem] w-[1.4rem]" style={{ left: x >= 99.9 ? 'calc(100% - 3px)' : `calc(${x}% - 1px)` }} viewBox="0 0 12 16" aria-hidden>
+                          <svg className="absolute -top-[1.6rem] h-[1.45rem] w-[1.1rem]" style={{ left: x >= 99.9 ? 'calc(100% - 3px)' : `calc(${x}% - 1px)` }} viewBox="0 0 12 16" aria-hidden>
                             <path d="M1 0v16" stroke={mau} strokeWidth="1.5" /><path d="M1 1h10l-3 4 3 4H1z" fill={mau} />
                           </svg>
                           <span className="absolute -bottom-1.5 -top-1.5 border-l-2" style={{ left: x >= 99.9 ? 'calc(100% - 2px)' : `${x}%`, borderColor: mau }} />
-                          <span className={`absolute top-[3.4rem] flex flex-col whitespace-nowrap text-sm leading-snug tabular-nums ${sat ? '-translate-x-full items-end' : x < 5 ? 'items-start' : '-translate-x-1/2 items-center'}`}
+                          <span className={`absolute top-[2.45rem] flex flex-col whitespace-nowrap text-xs leading-tight tabular-nums ${sat ? '-translate-x-full items-end' : x < 5 ? 'items-start' : '-translate-x-1/2 items-center'}`}
                             style={{ left: `${x}%`, color: mau }}>
-                            <b>{m.ten}</b>
-                            <b className="text-base">{formatTy(m.v)}</b>
+                            {/* Mốc = KH lũy kế tới hết quý / tuần (cờ xanh: đã đạt, đỏ: chưa đạt, cam: đang chạy, xám: chưa tới) */}
+                            <b><span className="mtb:portrait:hidden">KH hết </span>{m.ten}</b>
+                            <b className="text-sm">{formatTy(m.v)}</b>
                           </span>
                         </span>
                       );
                     })}
                   </button>
-                  <span className="block h-[4.25rem]" />
+                  <span className="block h-[2.9rem]" />
 
                   {tienDo === 'thang' && tuanMT.length > 0 && (<>
                   <div className="mt-1 grid gap-3" style={{ gridTemplateColumns: `repeat(${tuanMT.length}, minmax(0, 1fr))` }}>
@@ -977,7 +1102,8 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
               );
               return (<>
                 {canMoiNgay > 0 && dong('#dc2626', '7 4', formatTy(canMoiNgay), 'text-red-600',
-                  tuanChon ? 'Cần nhập để đạt mục tiêu tuần' : 'Cần nhập để đạt KH tháng',
+                  // Mức "Cần" = phần còn thiếu của kỳ đang xem (nút Năm / Tháng) ÷ ngày còn lại => ghi đúng KH năm / tháng (20/11/2026)
+                  tuanChon ? 'Cần nhập để đạt mục tiêu tuần' : `Cần nhập để đạt ${tenKh}`,
                   'Phần còn thiếu ÷ số ngày còn lại')}
                 {binhQuan > 0 && dong('#2563eb', '2 3', formatTy(binhQuan), 'text-blue-600',
                   'Đã nhập trung bình', `${nkCoSo.length} ngày đã có số`)}

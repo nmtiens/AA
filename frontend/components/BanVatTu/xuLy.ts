@@ -1,7 +1,7 @@
-import type { AnhNoiBo, ItemBanVatTu, ThongTinBan, TrangThaiAnh, TrangThaiBan, TrangThaiYeuCau } from '../../services/banVatTuApi';
+import type { AnhNoiBo, ItemBanVatTu, TrangThaiAnh } from '../../services/banVatTuApi';
 
 // ============================================================================
-// HÀM THUẦN CỦA TRANG "BÁN VẬT TƯ TỒN KHO": chuẩn bị dòng, lọc, sắp xếp, tuổi tồn, tên đơn vị tính, tên kho,
+// HÀM THUẦN CỦA TRANG "DANH MỤC VẬT TƯ" (tra tồn kho nội bộ): chuẩn bị dòng, lọc, sắp xếp, tuổi tồn, tên đơn vị tính, tên kho,
 // định dạng tiền / số. Không đụng React / DOM => test bằng vitest (xuLy.test.ts).
 // ============================================================================
 
@@ -71,28 +71,6 @@ export const thuTuLoai = (ten: string): number => {
 export const laGanCongTrinh = (tenCongTrinh: string | null | undefined): boolean => {
   const s = boDau(String(tenCongTrinh ?? ''));
   return s !== '' && !/^dung chung(\b|$)/.test(s);
-};
-
-/**
- * Tên vật tư có mang mã công trình ((CT|PO)NN-NNN) hoặc tên / mã công trình đang gán (đứng riêng, không phân biệt hoa
- * thường)? Trang khách TỰ CHE phần đó khi chưa đặt tên hiển thị (backend banVatTuCongKhai.ts cheCongTrinh — cùng quy tắc:
- * bỏ 'DÙNG CHUNG', cụm < 3 ký tự, phần trong ngoặc). Dùng để nhắc admin đặt "Tên hiển thị cho khách".
- */
-export const tenCoCongTrinh = (d: { ten?: string | null; tenCongTrinh?: string | null; maCongTrinh?: string | null }): boolean => {
-  const ten = String(d.ten ?? '');
-  if (!ten.trim()) return false;
-  if (/(?<![\p{L}\p{N}])(?:CT|PO)\s*\d{2}\s*[-–]\s*\d{3,4}(?![\p{N}])/iu.test(ten)) return true;
-  const tenBo = ` ${boDau(ten).replace(/[^\p{L}\p{N}]+/gu, ' ')} `;
-  for (const v of [d.tenCongTrinh, d.maCongTrinh]) {
-    for (const phan of String(v ?? '').split(/[\r\n+,;]+/)) {
-      let p = boDau(phan);
-      if (/^dung chung(\s|$)/.test(p)) p = p.split(' ').slice(2).join(' ');
-      if (!p || p.startsWith('(') || p.length < 3) continue;
-      const cum = p.replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-      if (cum.length >= 3 && tenBo.includes(` ${cum} `)) return true;
-    }
-  }
-  return false;
 };
 
 /** Chữ tắt cho ô ảnh trống: 2 chữ cái đầu của 2 từ đầu có chữ */
@@ -186,25 +164,6 @@ export const dinhDangSoLuong = (n: number, dvt: string | null | undefined): stri
 /** Đồng: "1.250.000 đ" */
 export const dinhDangDong = (dong: number): string => `${soVi(Math.round(dong))} đ`;
 
-/** Giá chào bán: chưa có / 0 => "Liên hệ" (không ghi 0 đ) */
-export const giaChao = (giaBanVnd: number | null | undefined): string =>
-  giaBanVnd !== null && giaBanVnd !== undefined && Number.isFinite(giaBanVnd) && giaBanVnd > 0 ? dinhDangDong(giaBanVnd) : 'Liên hệ';
-
-/**
- * Giá hiện trên thẻ / bảng (người dùng 14/11/2026: "giá đâu" — chưa ai nhập giá bán nên toàn "Liên hệ"):
- *   có giá bán => giá bán; chưa có mà người xem có quyền giá vốn và đơn giá vốn > 0 => đơn giá vốn (ghi rõ "giá vốn");
- *   còn lại => "Liên hệ". Người không có quyền giá vốn không bao giờ thấy giá vốn (API cũng không trả).
- */
-export const giaHien = (
-  d: { donGiaVon: number | null; ban: { giaBanVnd: number | null } }, coGiaVon: boolean,
-): { chu: string; loai: 'ban' | 'von' | 'lien_he' } => {
-  const b = d.ban.giaBanVnd;
-  if (b !== null && Number.isFinite(b) && b > 0) return { chu: dinhDangDong(b), loai: 'ban' };
-  const v = d.donGiaVon;
-  if (coGiaVon && v !== null && Number.isFinite(v) && v > 0) return { chu: dinhDangDong(v), loai: 'von' };
-  return { chu: 'Liên hệ', loai: 'lien_he' };
-};
-
 /** Triệu đồng => chữ gọn: ≥ 1.000 triệu ghi tỷ, < 1 triệu ghi nghìn */
 export const dinhDangTrieu = (trieu: number | null | undefined): string => {
   if (trieu === null || trieu === undefined || !Number.isFinite(trieu)) return '—';
@@ -233,7 +192,7 @@ export type ThuocTinhGop = Partial<Record<KhoaThuocTinh, GiaTriThuocTinh>>;
 export const NHAN_NGUON: Record<Exclude<NguonThuocTinh, 'master'>, { chu: string; giaiThich: string }> = {
   ten: {
     chu: 'suy từ tên',
-    giaiThich: 'MASTER DATA chưa có thuộc tính này — máy tách từ tên vật tư, có thể chưa đúng, kiểm tra trước khi chào bán',
+    giaiThich: 'MASTER DATA chưa có thuộc tính này — máy tách từ tên vật tư, có thể chưa đúng, kiểm tra lại trước khi dùng',
   },
   ncc: {
     chu: 'theo NCC',
@@ -282,16 +241,16 @@ export const nguonThuocTinhExcel = (tt: ThuocTinhGop): string => {
 };
 
 // ---------------------------------------------------------------------------
-// Ảnh: link người dùng dán (ban.anhUrls) trước, rồi ảnh nội bộ (ảnh mẫu duyệt ở sheet 03 công trình)
+// Ảnh: link người dùng đã dán trước đây (anhLink, chỉ đọc) trước, rồi ảnh nội bộ (ảnh mẫu duyệt ở sheet 03 công trình)
 // ---------------------------------------------------------------------------
 export type AnhHien = { loai: 'link'; url: string } | { loai: 'noi_bo'; anh: AnhNoiBo };
 
-export const dsAnhHien = (d: Pick<ItemBanVatTu, 'ban' | 'anh'>): AnhHien[] => [
-  ...d.ban.anhUrls.map(url => ({ loai: 'link' as const, url })),
+export const dsAnhHien = (d: Pick<ItemBanVatTu, 'anhLink' | 'anh'>): AnhHien[] => [
+  ...(d.anhLink ?? []).map(url => ({ loai: 'link' as const, url })),
   ...(d.anh ?? []).map(anh => ({ loai: 'noi_bo' as const, anh })),
 ];
 
-export const coAnh = (d: Pick<ItemBanVatTu, 'ban' | 'anh'>): boolean => d.ban.anhUrls.length > 0 || (d.anh?.length ?? 0) > 0;
+export const coAnh = (d: Pick<ItemBanVatTu, 'anhLink' | 'anh'>): boolean => (d.anhLink?.length ?? 0) > 0 || (d.anh?.length ?? 0) > 0;
 
 /** Ảnh máy tự ghép từ dòng 03 có nhiều mã SAP, chưa ai duyệt => có thể là ảnh của mã khác */
 export const anhCanDuyet = (a: AnhNoiBo): boolean => !a.chacChan && a.trangThai === 'tu_dong';
@@ -301,8 +260,8 @@ export const chuThichAnh = (a: AnhNoiBo): string =>
   `Ảnh mẫu duyệt ${a.congTrinh ?? 'công trình'}${a.codeVatLieu ? ` (${a.codeVatLieu})` : ''}`;
 
 /** Cột "Có ảnh" của Excel */
-export const nhanCoAnh = (d: Pick<ItemBanVatTu, 'ban' | 'anh'>): string | null => {
-  if (d.ban.anhUrls.length) return 'Có (link)';
+export const nhanCoAnh = (d: Pick<ItemBanVatTu, 'anhLink' | 'anh'>): string | null => {
+  if (d.anhLink?.length) return 'Có (link)';
   const ds = d.anh ?? [];
   if (!ds.length) return null;
   return ds.some(a => !anhCanDuyet(a)) ? 'Có (ảnh mẫu CT)' : 'Có (ảnh mẫu CT — cần duyệt)';
@@ -359,7 +318,7 @@ export const tenNhom = (it: ItemBanVatTu): string =>
 
 /** Chuỗi tìm: tên, mã, thuộc tính đã gộp (cả giá trị suy luận), công trình, kho, code vật liệu của ảnh sheet 03 */
 export const chuoiTimCua = (it: ItemBanVatTu, tt: ThuocTinhGop = gopThuocTinh(it)): string => boDau([
-  it.ma, it.ten, it.master?.ten, it.ban.tenHienThi, ...DS_THUOC_TINH.map(k => tt[k]?.giaTri),
+  it.ma, it.ten, it.master?.ten, ...DS_THUOC_TINH.map(k => tt[k]?.giaTri),
   it.master?.tenNhomSap, it.tenCongTrinh, it.maCongTrinh, it.kho,
   ...(it.anh ?? []).map(a => a.codeVatLieu),
 ].filter(Boolean).join(' | '));
@@ -387,64 +346,6 @@ export const chuanBiDong = (items: ItemBanVatTu[], homNay: string): DongBan[] =>
   });
 };
 
-/** Gắn thông tin bán mới cho mọi dòng của 1 mã (sau khi lưu); tính lại chuỗi tìm (tên hiển thị cho khách có thể đổi) */
-export const ganThongTinBan = (ds: DongBan[], ma: string, ban: DongBan['ban']): DongBan[] =>
-  ds.map(d => {
-    if (d.ma !== ma) return d;
-    const moi = { ...d, ban };
-    return { ...moi, chuoiTim: chuoiTimCua(moi, d.tt) };
-  });
-
-// ---------------------------------------------------------------------------
-// Trang khách (công khai /#/cua-hang)
-// ---------------------------------------------------------------------------
-/** Link trang khách gửi qua Zalo / email (app dùng HashRouter) */
-export const linkCuaHang = (origin: string): string => `${origin.replace(/\/+$/, '')}/#/cua-hang`;
-
-/** Mã thật sự hiện trên trang khách: đã đăng VÀ đang bán (đã giữ / đã bán / ngừng bán => trang khách ẩn) */
-export const hienTrenTrangKhach = (ban: Pick<ThongTinBan, 'dangCongKhai' | 'trangThai'>): boolean =>
-  ban.dangCongKhai && ban.trangThai === 'dang_ban';
-
-/** Các mã (không trùng) trong danh sách cần đổi để thành `bat` — nút "Đăng N mã" / "Gỡ N mã" đang lọc */
-export const maCanDoiCongKhai = (ds: Array<Pick<ItemBanVatTu, 'ma' | 'ban'>>, bat: boolean): string[] => {
-  const kq = new Set<string>();
-  for (const d of ds) if (d.ban.dangCongKhai !== bat) kq.add(d.ma);
-  return [...kq];
-};
-
-/** Gắn cờ đăng trang khách cho mọi dòng thuộc các mã (sau khi đăng / gỡ hàng loạt) */
-export const ganCongKhai = <T extends Pick<ItemBanVatTu, 'ma' | 'ban'>>(ds: T[], mas: Iterable<string>, bat: boolean): T[] => {
-  const tap = new Set(mas);
-  return ds.map(d => (tap.has(d.ma) && d.ban.dangCongKhai !== bat ? { ...d, ban: { ...d.ban, dangCongKhai: bat } } : d));
-};
-
-/** Bật / tắt "Hiện cho khách" của 1 ảnh nội bộ cho mọi dòng của mã */
-export const ganCongKhaiAnh = <T extends Pick<ItemBanVatTu, 'ma' | 'anh'>>(ds: T[], ma: string, id: number, congKhai: boolean): T[] =>
-  ds.map(d => (d.ma === ma && d.anh.some(a => a.id === id && a.congKhai !== congKhai)
-    ? { ...d, anh: d.anh.map(a => (a.id === id ? { ...a, congKhai } : a)) }
-    : d));
-
-export const NHAN_TRANG_THAI_YEU_CAU: Record<TrangThaiYeuCau, string> = {
-  moi: 'Mới', dang_xu_ly: 'Đang xử lý', da_xong: 'Đã xong', huy: 'Huỷ',
-};
-
-/** Link gọi điện: chỉ giữ chữ số và dấu + đầu */
-export const linkGoi = (sdt: string): string => {
-  const t = sdt.replace(/[^\d+]/g, '');
-  return `tel:${t.startsWith('+') ? `+${t.slice(1).replace(/\+/g, '')}` : t.replace(/\+/g, '')}`;
-};
-
-/** Giờ gửi theo giờ Việt Nam "15/11/2026 09:05"; sai dạng => '' */
-export const nhanGio = (iso: string | null | undefined): string => {
-  if (!iso) return '';
-  const t = new Date(iso);
-  if (Number.isNaN(t.getTime())) return '';
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).formatToParts(t).map(x => [x.type, x.value]));
-  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
-};
-
 // ---------------------------------------------------------------------------
 // Lọc
 // ---------------------------------------------------------------------------
@@ -453,25 +354,22 @@ export interface LocBan {
   nhom: string;
   chungLoai: string;
   kho: string;
-  trangThai: '' | TrangThaiBan;
   ganCT: '' | 'dung_chung' | 'gan_ct';
   cham: '' | 'cham' | 'khong';
   tuoi: '' | NhomTuoi;
   anh: '' | 'co' | 'chua';
-  /** Trang khách: đã đăng / chưa đăng (theo cờ dangCongKhai) */
-  congKhai: '' | 'da_dang' | 'chua_dang';
   /** Khoảng giá trị tồn (triệu đồng) — chỉ dùng khi có quyền giá vốn; null = không chặn */
   giaTriTu: number | null;
   giaTriDen: number | null;
 }
 
 export const LOC_TRONG: LocBan = {
-  tim: '', nhom: '', chungLoai: '', kho: '', trangThai: '', ganCT: '', cham: '', tuoi: '', anh: '', congKhai: '', giaTriTu: null, giaTriDen: null,
+  tim: '', nhom: '', chungLoai: '', kho: '', ganCT: '', cham: '', tuoi: '', anh: '', giaTriTu: null, giaTriDen: null,
 };
 
 export const soLocDangBat = (l: LocBan): number =>
-  (l.tim.trim() ? 1 : 0) + (l.nhom ? 1 : 0) + (l.chungLoai ? 1 : 0) + (l.kho ? 1 : 0) + (l.trangThai ? 1 : 0)
-  + (l.ganCT ? 1 : 0) + (l.cham ? 1 : 0) + (l.tuoi ? 1 : 0) + (l.anh ? 1 : 0) + (l.congKhai ? 1 : 0)
+  (l.tim.trim() ? 1 : 0) + (l.nhom ? 1 : 0) + (l.chungLoai ? 1 : 0) + (l.kho ? 1 : 0)
+  + (l.ganCT ? 1 : 0) + (l.cham ? 1 : 0) + (l.tuoi ? 1 : 0) + (l.anh ? 1 : 0)
   + (l.giaTriTu !== null || l.giaTriDen !== null ? 1 : 0);
 
 /** Lọc dòng. `boQua` = bỏ qua 1 điều kiện (đếm số dòng cho từng lựa chọn của chính bộ lọc đó) */
@@ -483,12 +381,10 @@ export const locDong = (ds: DongBan[], l: LocBan, coGiaVon: boolean, boQua?: key
     if (l.nhom && boQua !== 'nhom' && d.nhom !== l.nhom) return false;
     if (l.chungLoai && boQua !== 'chungLoai' && d.chungLoaiHien !== l.chungLoai) return false;
     if (l.kho && boQua !== 'kho' && d.khoTen !== l.kho) return false;
-    if (l.trangThai && boQua !== 'trangThai' && d.ban.trangThai !== l.trangThai) return false;
     if (l.ganCT && boQua !== 'ganCT' && (l.ganCT === 'gan_ct') !== d.ganCT) return false;
     if (l.cham && boQua !== 'cham' && (l.cham === 'cham') !== d.chamLuanChuyen) return false;
     if (l.tuoi && boQua !== 'tuoi' && d.nhomTuoi !== l.tuoi) return false;
     if (l.anh && boQua !== 'anh' && (l.anh === 'co') !== coAnh(d)) return false;
-    if (l.congKhai && boQua !== 'congKhai' && (l.congKhai === 'da_dang') !== d.ban.dangCongKhai) return false;
     if (gt) {
       const v = d.giaTri ?? 0;
       if (l.giaTriTu !== null && v < l.giaTriTu) return false;
@@ -513,10 +409,10 @@ export const dsLuaChon = (ds: DongBan[], lay: (d: DongBan) => string): Array<{ g
 // ---------------------------------------------------------------------------
 // Sắp xếp
 // ---------------------------------------------------------------------------
-export type CachXep = 'giaTri' | 'soLuong' | 'tuoi' | 'ten' | 'giaBan';
+export type CachXep = 'giaTri' | 'soLuong' | 'tuoi' | 'ten';
 export interface Xep { cot: CachXep; giam: boolean }
 export const NHAN_XEP: Record<CachXep, string> = {
-  giaTri: 'Giá trị tồn', soLuong: 'Số lượng', tuoi: 'Tuổi tồn', ten: 'Tên', giaBan: 'Giá chào',
+  giaTri: 'Giá trị tồn', soLuong: 'Số lượng', tuoi: 'Tuổi tồn', ten: 'Tên',
 };
 
 /** Tuổi để xếp: hàng trước 10/2024 coi là cũ nhất; không rõ ngày => -1 (cuối khi xếp giảm) */
@@ -527,8 +423,7 @@ export const xepDong = (ds: DongBan[], x: Xep): DongBan[] => {
   const lay: (d: DongBan) => number = x.cot === 'giaTri' ? d => d.giaTri ?? -1
     : x.cot === 'soLuong' ? d => d.soLuong
       : x.cot === 'tuoi' ? tuoiXep
-        : x.cot === 'giaBan' ? d => d.ban.giaBanVnd ?? -1
-          : () => 0;
+        : () => 0;
   return ds.slice().sort((a, b) => {
     if (x.cot === 'ten') return dau * a.tenHien.localeCompare(b.tenHien, 'vi') || a.ma.localeCompare(b.ma);
     return dau * (lay(a) - lay(b)) || a.tenHien.localeCompare(b.tenHien, 'vi') || a.ma.localeCompare(b.ma);
@@ -539,26 +434,21 @@ export const xepDong = (ds: DongBan[], x: Xep): DongBan[] => {
 // Tóm tắt + xuất Excel
 // ---------------------------------------------------------------------------
 export interface TomTat {
-  soMa: number; soDong: number; tongGiaTri: number; dangBan: number; ganCT: number; coAnh: number;
-  /** Số mã đã đăng trang khách (gồm cả mã đang ẩn vì trạng thái khác "Đang bán") */
-  daDang: number;
+  soMa: number; soDong: number; tongGiaTri: number; ganCT: number; coAnh: number;
+  /** Số mã có ít nhất 1 dòng chậm luân chuyển */
+  cham: number;
 }
 export const tomTat = (ds: DongBan[]): TomTat => {
-  const ma = new Set<string>(), maDangBan = new Set<string>(), maAnh = new Set<string>(), maDang = new Set<string>();
+  const ma = new Set<string>(), maAnh = new Set<string>(), maCham = new Set<string>();
   let tong = 0, gan = 0;
   for (const d of ds) {
     ma.add(d.ma);
-    if (d.ban.trangThai === 'dang_ban') maDangBan.add(d.ma);
     if (coAnh(d)) maAnh.add(d.ma);
-    if (d.ban.dangCongKhai) maDang.add(d.ma);
+    if (d.chamLuanChuyen) maCham.add(d.ma);
     if (d.ganCT) gan++;
     tong += d.giaTri ?? 0;
   }
-  return { soMa: ma.size, soDong: ds.length, tongGiaTri: tong, dangBan: maDangBan.size, ganCT: gan, coAnh: maAnh.size, daDang: maDang.size };
-};
-
-export const NHAN_TRANG_THAI: Record<TrangThaiBan, string> = {
-  dang_ban: 'Đang bán', da_giu: 'Đã giữ hàng', da_ban: 'Đã bán', ngung_ban: 'Ngừng bán',
+  return { soMa: ma.size, soDong: ds.length, tongGiaTri: tong, ganCT: gan, coAnh: maAnh.size, cham: maCham.size };
 };
 
 /** Bảng (mảng 2 chiều) để ghi Excel: số để dạng số, giá vốn chỉ có khi có quyền */
@@ -567,7 +457,7 @@ export const bangExcel = (ds: DongBan[], coGiaVon: boolean, homNay: string): Arr
     'Nguồn thuộc tính', 'Xuất xứ',
     'Số lượng', 'ĐVT', 'Kho', 'Ngày nhập gần nhất', 'Tuổi tồn', 'Chậm luân chuyển', 'Công trình', 'Mã CT',
     ...(coGiaVon ? ['Giá trị tồn (triệu)', 'Đơn giá vốn (đ)'] : []),
-    'Giá chào (đ/đvt)', 'Trạng thái', 'Trên trang khách', 'Tên cho khách', 'Liên hệ', 'Ghi chú', 'Có ảnh', 'Link ảnh'];
+    'Có ảnh', 'Link ảnh'];
   const dong = ds.map(d => [
     d.ma, d.tenHien, d.nhom, d.tt.chungLoai?.giaTri ?? null, d.tt.quyCach?.giaTri ?? null, d.tt.mau?.giaTri ?? null,
     d.tt.maMau?.giaTri ?? null, d.tt.thuongHieu?.giaTri ?? null, d.tt.chatLieu?.giaTri ?? null, nguonThuocTinhExcel(d.tt) || null,
@@ -575,34 +465,14 @@ export const bangExcel = (ds: DongBan[], coGiaVon: boolean, homNay: string): Arr
     d.soLuong, tenDvt(d.dvt) || null, d.khoTen, nhanNgayNhap(d.ngayNhap), nhanTuoi(d.ngayNhap, homNay), d.chamLuanChuyen ? 'Có' : null,
     d.tenCongTrinh, d.maCongTrinh,
     ...(coGiaVon ? [d.giaTri, d.donGiaVon !== null ? Math.round(d.donGiaVon) : null] : []),
-    d.ban.giaBanVnd !== null && d.ban.giaBanVnd > 0 ? d.ban.giaBanVnd : 'Liên hệ', NHAN_TRANG_THAI[d.ban.trangThai],
-    hienTrenTrangKhach(d.ban) ? 'Có' : d.ban.dangCongKhai ? 'Đã đăng — ẩn vì không ở trạng thái Đang bán' : null, d.ban.tenHienThi,
-    d.ban.lienHe, d.ban.ghiChu, nhanCoAnh(d), d.ban.anhUrls.join('\n') || null,
+    nhanCoAnh(d), d.anhLink.join('\n') || null,
   ]);
   return [dau, ...dong];
 };
 
 // ---------------------------------------------------------------------------
-// Kiểm tra form sửa (trùng quy tắc máy chủ để báo sớm)
+// Ô nhập số của bộ lọc
 // ---------------------------------------------------------------------------
-export const TOI_DA_ANH = 10;
-
-/** Tách ô dán link: mỗi dòng / dấu cách / dấu phẩy 1 link; bỏ trùng */
-export const tachLinkAnh = (s: string): string[] => {
-  const ds = s.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
-  return [...new Set(ds)];
-};
-
-export const laLinkHopLe = (u: string): boolean => /^https?:\/\/\S+$/i.test(u) && u.length <= 1000;
-
-/** Giá nhập tay: chấp nhận "1.250.000", "1,250,000", "1250000"; trống => null; sai => NaN */
-export const docGiaNhap = (s: string): number | null => {
-  const t = s.replace(/[\s.,đ₫]/gi, '');
-  if (!t) return null;
-  if (!/^\d+$/.test(t)) return NaN;
-  return Number(t);
-};
-
 /**
  * Số triệu đồng gõ ở ô lọc "Giá trị (triệu)" theo kiểu vi-VN: dấu phẩy là thập phân, dấu chấm phân cách hàng nghìn
  * ('1.000' = 1000, '1.000,5' = 1000,5, '2,5' = 2,5). Chỉ có dấu chấm và không theo nhóm 3 chữ số ('1.5') thì coi dấu
@@ -616,20 +486,4 @@ export const docSoTrieu = (s: string): number | null => {
   if (!/^\d+(\.\d+)?$/.test(t)) return null;
   const n = Number(t);
   return Number.isFinite(n) && n >= 0 ? n : null;
-};
-
-export const TOI_DA_TEN_KHACH = 200;
-export const TOI_DA_MO_TA_KHACH = 2000;
-
-export const kiemTraForm = (f: { gia: string; anh: string[]; lienHe: string; ghiChu: string; tenHienThi?: string; moTaCongKhai?: string }): string | null => {
-  const g = docGiaNhap(f.gia);
-  if (g !== null && (!Number.isFinite(g) || g < 0)) return 'Giá chào phải là số đồng (vd 1.250.000)';
-  if (g !== null && g > 1e13) return 'Giá chào quá lớn';
-  if (f.anh.length > TOI_DA_ANH) return `Tối đa ${TOI_DA_ANH} ảnh`;
-  const sai = f.anh.find(u => !laLinkHopLe(u));
-  if (sai) return `Link ảnh không hợp lệ (phải bắt đầu http:// hoặc https://): ${sai.slice(0, 80)}`;
-  if (f.lienHe.length > 2000 || f.ghiChu.length > 2000) return 'Liên hệ / ghi chú tối đa 2.000 ký tự';
-  if ((f.tenHienThi ?? '').length > TOI_DA_TEN_KHACH) return `Tên cho khách tối đa ${TOI_DA_TEN_KHACH} ký tự`;
-  if ((f.moTaCongKhai ?? '').length > TOI_DA_MO_TA_KHACH) return 'Mô tả cho khách tối đa 2.000 ký tự';
-  return null;
 };

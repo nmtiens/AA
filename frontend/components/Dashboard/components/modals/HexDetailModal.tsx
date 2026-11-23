@@ -386,11 +386,11 @@ export const NoteContent = ({ text }: { text: string }) => {
 };
 
 // 6M: 5M + money (M6 Tiền / đơn giá)
-const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method', 'measurement', 'money'];
+const FIVE_M_ORDER: FiveMCategory[] = ['man', 'material', 'machine', 'method', 'measurement', 'money'];
 const FIVE_M_SHORT: Record<FiveMCategory, string> = {
   man: 'M1',
-  machine: 'M2',
-  material: 'M3',
+  machine: 'M3',
+  material: 'M2',
   method: 'M4',
   measurement: 'M5',
   money: 'M6',
@@ -424,14 +424,14 @@ const VUONG_MAC_TEXT_STYLE: Record<FiveMCategory, string> = {
 const VM_SUB_WIDTH = 108;
 
 const COL_WIDTHS = {
-  stt: 50,
+  stt: 64,
   hex: 150,
   congTrinh: 200,
   hangMuc: 260,
-  xuong: 100,
+  xuong: 120,
   bop: 80,
   tinhTrang: 200,
-  phanLoai: 160,
+  phanLoai: 175,
   triGia: 110,
   thanhTienPhieu: 110,
   thanhTienKho: 110,
@@ -440,7 +440,7 @@ const COL_WIDTHS = {
   daXuat: 110,
   tonKho: 110,
   chenh: 100,
-  xuatVuot: 110,
+  xuatVuot: 150,
   ghiChuNhapKho: 280,
   thongTinQc: 280,
   ghiChuXuatKho: 280,
@@ -538,6 +538,19 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
 const COT_KHO_CSV = ['Còn Lại (Triệu đồng)', 'Đã Xuất (Triệu đồng)', 'Tồn Theo Đơn (Triệu đồng)', 'Chênh (Triệu đồng)', 'Xuất Vượt Nhập (Triệu đồng)'];
 
 const NUMERIC_SORT_KEYS: SortKey[] = ['giaTriKy', 'triGia', 'thanhTienPhieu', 'thanhTienKho', 'conLai', 'daXuat', 'tonKho', 'chenh', 'xuatVuot'];
+
+/** Nhãn cột ngay ngắn (người dùng 19/11/2026): tên + nút sắp cùng 1 dòng, không xuống dòng; đơn vị "(tỷ)" tách xuống dòng
+ *  dưới chữ nhỏ; cột không có đơn vị giữ dòng dưới trống => tên mọi cột thẳng 1 hàng */
+const NhanCot = ({ children, align = 'left', icon }: { children: React.ReactNode; align?: 'left' | 'center'; icon: React.ReactNode }) => {
+  const m = typeof children === 'string' ? /^(.*?)\s*\((tỷ|triệu)\)$/.exec(children) : null;
+  const ten = m ? m[1] : children;
+  return (
+    <span className={`inline-flex flex-col leading-tight align-middle ${align === 'center' ? 'items-center' : 'items-start'}`}>
+      <span className="inline-flex items-center gap-1 whitespace-nowrap">{ten}{icon}</span>
+      <span className={`text-xs font-medium text-slate-600 ${m ? '' : 'invisible'}`} aria-hidden={!m}>{m ? `(${m[2]})` : '·'}</span>
+    </span>
+  );
+};
 
 const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   if (!active) return <ChevronsUpDown size={12} className="shrink-0 text-slate-600" />;
@@ -1071,10 +1084,7 @@ export const HexDetailModal = ({
       style={style}
       className={`${headerCellClass} ${align === 'center' ? 'text-center' : 'text-left'} ${className}`}
     >
-      <span className={`inline-flex items-center gap-1 ${align === 'center' ? 'justify-center' : ''}`}>
-        {children}
-        <SortIcon active={sort?.key === sortKey} dir={sort?.dir} />
-      </span>
+      <NhanCot align={align} icon={<SortIcon active={sort?.key === sortKey} dir={sort?.dir} />}>{children}</NhanCot>
     </th>
   );
 
@@ -1337,10 +1347,7 @@ export const HexDetailModal = ({
                         style={fzStyle(frozen.get('stt'))}
                         className={`${fzClass(frozen.get('stt'))} ${headerCellClass} bg-emerald-300 text-center`}
                       >
-                        <span className="inline-flex items-center justify-center gap-1">
-                          STT
-                          <SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />
-                        </span>
+                        <NhanCot align="center" icon={<SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />}>STT</NhanCot>
                       </th>
                       <th
                         onClick={() => toggleSort('hex')}
@@ -1348,10 +1355,7 @@ export const HexDetailModal = ({
                         style={fzStyle(frozen.get('hex'))}
                         className={`${fzClass(frozen.get('hex'))} ${headerCellClass} min-w-[140px] bg-emerald-300 text-left`}
                       >
-                        <span className="inline-flex items-center gap-1">
-                          Mã Hex
-                          <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
-                        </span>
+                        <NhanCot icon={<SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />}>Mã Hex</NhanCot>
                       </th>
                       {orderedCols.map((key) => {
                         if (key === 'vuongMac') {

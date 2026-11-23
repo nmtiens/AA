@@ -2,6 +2,7 @@ import { parseNameList, expandProjectNames, normNameSql } from './projectAlias.j
 import type { Request } from 'express';
 import { timedQuery } from '../db.js';
 import { runWithLimit } from './common.js';
+import { sqlHeSoGia } from './heSoGiaVatTu.js';
 
 // --- WHITELIST CỘT: CHỈ TRUY XUẤT CÁC CỘT CẦN THIẾT ---
 export const REPORT_COLUMNS: Record<string, string[]> = {
@@ -24,13 +25,11 @@ export const REPORT_COLUMNS: Record<string, string[]> = {
   'nhom_ct', 'tinh_trang_du_an', 'ngay_nhan_tu_pm', 'tinh_trang_trien_khai_ban_ve', 'tinh_trang_phieu',
 ],
   vat_tu: [
-  'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',
-    'ten_cong_trinh', 'so_pr', 'pr_line', 'ma_vat_tu_sap', 'ten_vat_tu',
-    'so_luong_yeu_cau', 'dvt', 'ngay_pr', 'nhom_vt', 'so_po',
-    'item_note_pr', 'ngay_du_kien_giao_hang_pmh_nhap',   'team_pr_note',
-    'so_luong_da_nhan_sap', 'so_luong_con_lai', 'tinh_trang_po',
-    'ghi_chu_tinh_trang_po', 'thanh_tien', 'ngay_ve',
-    'sl_hang_ve_thuc_te',
+    // Thứ tự = thứ tự cột trang Dữ liệu vật tư (rà soát 23/11/2026: công trình / PR / vật tư trước, ghi chú dài cuối)
+    'trackingno', 'ten_cong_trinh', 'so_pr', 'pr_line', 'ma_vat_tu_sap', 'ten_vat_tu', 'nhom_vt', 'dvt',
+    'so_luong_yeu_cau', 'ngay_pr', 'trang_thai', 'trang_thai_sap', 'ngay_du_kien_giao_hang_pmh_nhap',
+    'so_luong_da_nhan_sap', 'so_luong_con_lai', 'sl_hang_ve_thuc_te', 'ngay_ve', 'thanh_tien',
+    'so_po', 'tinh_trang_po', 'ghi_chu_tinh_trang_po', 'item_note_pr', 'team_pr_note', 'nguoi_yeu_cau', 'nguoi_tao',
 ],
   khsx: [
   'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh', 'thanh_tien_ke_hoach',
@@ -247,10 +246,18 @@ export const buildMatchedProductionCTE = (joinKey: string): string => {
 // Helper lấy dữ liệu an toàn cho từng bảng (INCREMENTAL SYNC + CẮT CỘT)
 // [ĐO TIMING] Đây là hàm chạy cho /api/all-data và mọi route trong apiRoutes —
 // đổi sang timedQuery để tách bạch connect-time vs query-time khi DEBUG_DB_TIMING=true.
+// Cột đọc bằng biểu thức thay vì nguyên giá trị (cùng tên cột trả về). vat_tu.thanh_tien: chia 1.000 cho bê tông 117 M3
+// đơn giá gấp 1.000 lần — cùng hệ số với trang Đặt – Mua (rà soát 23/11/2026: không chia thì tổng Thành tiền trang Dữ liệu
+// vật tư ~12.486 tỷ, 82% là 49 dòng bê tông này)
+const COT_BIEU_THUC: Record<string, Record<string, string>> = {
+  vat_tu: { thanh_tien: `vat_tu.thanh_tien / ${sqlHeSoGia('vat_tu')}` },
+};
+
 export const fetchTableData = async (tableName: string, updatedAfter?: string, strict = false) => {
   try {
     const cols = REPORT_COLUMNS[tableName];
-    const selectClause = cols ? cols.map(c => `"${c}"`).join(', ') : '*';
+    const bieuThuc = COT_BIEU_THUC[tableName] ?? {};
+    const selectClause = cols ? cols.map(c => (bieuThuc[c] ? `${bieuThuc[c]} AS "${c}"` : `"${c}"`)).join(', ') : '*';
 
     let query = `SELECT ${selectClause} FROM ${tableName}`;
     const values: any[] = [];

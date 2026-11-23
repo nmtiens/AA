@@ -4,6 +4,8 @@ import { DataRow, ColumnDefinition, COMMON_DATE_HEADERS } from '../types';
 import type { DashboardFiltersState, TuyChonTongQuan, TongQuanSanXuat } from '../components/Dashboard/core/tongQuanSanXuat';
 import type { BanGhiNen } from '../components/Construction/core/banGhiCongTrinh';
 import { getToken } from './userService';
+import { goiNho } from './nhoApi';
+import { urlOverviewSummary, urlStockDates, urlRevenue, urlTuyChonThoiGian, themLoc } from './urlTongQuan';
 
 // Bảng ánh xạ tên cột kỹ thuật (snake_case từ DB) sang tên hiển thị tiếng Việt.
 // Bổ sung thêm khi phát hiện cột nào chưa có label đẹp.
@@ -76,6 +78,26 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   so_luong_don_hang_tong: 'SỐ LƯỢNG ĐƠN HÀNG TỔNG',
   don_gia_co_oh: 'ĐƠN GIÁ CÓ OH',
   phan_loai_nhom_san_pham: 'NHÓM SẢN PHẨM',
+  // Bảng vật tư (vat_tu — trang Dữ liệu vật tư): trước đây 16/24 cột rơi xuống nhánh dự phòng ra tiêu đề không dấu
+  nguoi_tao: 'NGƯỜI TẠO',
+  nguoi_yeu_cau: 'NGƯỜI YÊU CẦU',
+  trackingno: 'MÃ CT',
+  so_pr: 'SỐ PR',
+  pr_line: 'PR LINE',
+  ma_vat_tu_sap: 'MÃ VẬT TƯ (SAP)',
+  ten_vat_tu: 'TÊN VẬT TƯ',
+  ngay_pr: 'NGÀY PR',
+  so_po: 'SỐ PO',
+  item_note_pr: 'GHI CHÚ DÒNG PR',
+  team_pr_note: 'GHI CHÚ TEAM PR',
+  so_luong_con_lai: 'SỐ LƯỢNG CÒN LẠI',
+  tinh_trang_po: 'TÌNH TRẠNG PO',
+  ghi_chu_tinh_trang_po: 'GHI CHÚ TÌNH TRẠNG PO',
+  don_gia: 'ĐƠN GIÁ',
+  thanh_tien: 'THÀNH TIỀN',
+  ngay_ve: 'NGÀY VỀ (KHO BÁO)',
+  ngay_thuc_te_ve: 'NGÀY THỰC TẾ VỀ (SAP)',
+  sl_hang_ve_thuc_te: 'SL HÀNG VỀ THỰC TẾ (KHO BÁO)',
 };
 
 export const resolveColumnLabel = (header: string): string => {
@@ -98,8 +120,9 @@ export const API_BASE_URL = '/api';
 // V11: thêm so_luong_don_hang_tong / so_luong_nhap_kho_luy_ke (nhập đủ số lượng = đã nhập kho khi đếm).
 // V12: thêm phan_tich_kh_th.nam.
 // V13 (2026-10-10): thêm cột nhom_ct / tinh_trang_du_an / ngay_nhan_tu_pm / tinh_trang_trien_khai_ban_ve / tinh_trang_phieu vào bảng sản xuất
-const CACHE_DB_NAME = 'OpsHub_Database_V13';
-const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7', 'OpsHub_Database_V8', 'OpsHub_Database_V9', 'OpsHub_Database_V10', 'OpsHub_Database_V11', 'OpsHub_Database_V12'];
+// V14 (2026-11-23): thêm vat_tu.trackingno (Mã CT) + nhãn cột vật tư có dấu (nhãn lưu kèm cột trong bộ nhớ).
+const CACHE_DB_NAME = 'OpsHub_Database_V14';
+const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7', 'OpsHub_Database_V8', 'OpsHub_Database_V9', 'OpsHub_Database_V10', 'OpsHub_Database_V11', 'OpsHub_Database_V12', 'OpsHub_Database_V13'];
 let oldCachesCleared = false;
 
 const initDB = (): Promise<IDBDatabase> => {
@@ -220,6 +243,93 @@ export const clearDataCache = async (): Promise<void> => {
     });
   } catch (e) {
     console.error('Lỗi xoá Cache:', e);
+  }
+};
+
+// ---- Bản ghi nhỏ khác trong cùng kho ops_cache (bản lưu số tổng hợp của services/nhoApi.ts…) ----
+// Dùng chung kho với bảng lớn nên clearDataCache xoá luôn; khoá tự đặt, tránh tiền tố data_ / version_.
+// Mỗi lần gọi mở 1 kết nối, 1 transaction, xong thì đóng kết nối.
+
+/** Việc không gấp (lưu bộ nhớ trình duyệt): chạy lúc luồng chính rảnh, chậm nhất 2 giây */
+export const luuKhiRanh = (f: () => void): void => {
+  const w = (typeof window === 'undefined' ? undefined : window) as
+    (Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }) | undefined;
+  if (w?.requestIdleCallback) w.requestIdleCallback(f, { timeout: 2000 }); else setTimeout(f, 300);
+};
+
+/** Đọc 1 bản ghi theo khoá; không có / lỗi trả undefined */
+export const docKho = async <T = unknown>(khoa: string): Promise<T | undefined> => {
+  try {
+    const db = await initDB();
+    return await new Promise<T | undefined>((resolve) => {
+      const xong = (v: T | undefined) => { try { db.close(); } catch { /* bỏ qua */ } resolve(v); };
+      try {
+        const tx = db.transaction('ops_cache', 'readonly');
+        const req = tx.objectStore('ops_cache').get(khoa);
+        req.onsuccess = () => xong((req.result ?? undefined) as T | undefined);
+        req.onerror = () => xong(undefined);
+      } catch { xong(undefined); }
+    });
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Ghi 1 bản ghi theo khoá. `generation` = getCacheGeneration() lúc bắt đầu việc: kho bị xoá từ đó tới giờ thì bỏ
+ * (kiểm 2 lần như saveToCache, thêm 1 lần ngay trong transaction).
+ * Có `gop`: trong CÙNG transaction đọc bản đang có rồi ghi gop(bản cũ, giaTri) — hai tab không đè nhau; gop trả
+ * null thì không ghi.
+ */
+export const ghiKho = async <T>(
+  khoa: string, giaTri: T, generation: number, gop?: (cu: T | undefined, moi: T) => T | null,
+): Promise<void> => {
+  if (generation !== cacheGeneration) return;
+  try {
+    const db = await initDB();
+    if (generation !== cacheGeneration) { try { db.close(); } catch { /* bỏ qua */ } return; }
+    await new Promise<void>((resolve) => {
+      const xong = () => { try { db.close(); } catch { /* bỏ qua */ } resolve(); };
+      try {
+        const tx = db.transaction('ops_cache', 'readwrite');
+        const store = tx.objectStore('ops_cache');
+        if (gop) {
+          const req = store.get(khoa);
+          req.onsuccess = () => {
+            if (generation !== cacheGeneration) return;
+            let v: T | null = null;
+            try { v = gop((req.result ?? undefined) as T | undefined, giaTri); } catch { v = null; }
+            if (v !== null && v !== undefined) store.put(v, khoa);
+          };
+        } else {
+          store.put(giaTri, khoa);
+        }
+        tx.oncomplete = xong;
+        tx.onerror = xong;
+        tx.onabort = xong;
+      } catch { xong(); }
+    });
+  } catch (e) {
+    console.error(`Lỗi lưu Cache [${khoa}]:`, e);
+  }
+};
+
+/** Xoá 1 bản ghi theo khoá */
+export const xoaKho = async (khoa: string): Promise<void> => {
+  try {
+    const db = await initDB();
+    await new Promise<void>((resolve) => {
+      const xong = () => { try { db.close(); } catch { /* bỏ qua */ } resolve(); };
+      try {
+        const tx = db.transaction('ops_cache', 'readwrite');
+        tx.objectStore('ops_cache').delete(khoa);
+        tx.oncomplete = xong;
+        tx.onerror = xong;
+        tx.onabort = xong;
+      } catch { xong(); }
+    });
+  } catch {
+    /* bỏ qua */
   }
 };
 
@@ -477,14 +587,8 @@ interface OverviewFilterOpts {
   tinhTrangIpo?: string[];
 }
 
-const appendFilterParams = (params: URLSearchParams, opts?: OverviewFilterOpts) => {
-  // Mở rộng thành mọi cách viết của cùng công trình (các bảng nhập/xuất/tồn kho có thể ghi tên khác)
-  // Ngăn bằng "|" vì tên công trình có thể chứa dấu phẩy (server đọc được cả 2 kiểu)
-  if (opts?.congTrinh?.length) params.set('congTrinh', expandProjectNames(opts.congTrinh).join('|') + '|');
-  if (opts?.xuong?.length) params.set('xuong', opts.xuong.join(','));
-  if (opts?.tinhTrang?.length) params.set('tinhTrang', opts.tinhTrang.join(','));
-  if (opts?.tinhTrangIpo?.length) params.set('tinhTrangIpo', opts.tinhTrangIpo.join(','));
-};
+// Cùng 1 hàm với urlTongQuan.ts để chuỗi URL ở mọi nơi trùng khít (khoá bản lưu = chuỗi URL)
+const appendFilterParams = (params: URLSearchParams, opts?: OverviewFilterOpts) => themLoc(params, opts);
 
 export const fetchOverviewSummary = async (
   dateFromISO?: string,
@@ -493,16 +597,8 @@ export const fetchOverviewSummary = async (
   opts?: OverviewFilterOpts
 ): Promise<OverviewSummary | null> => {
   try {
-    const params = new URLSearchParams();
-    if (dateFromISO) params.set('dateFrom', dateFromISO);
-    if (dateToISO) params.set('dateTo', dateToISO);
-    if (datesISO?.length) params.set('dates', datesISO.join(','));
-    appendFilterParams(params, opts);
-    const qs = params.toString();
-    const url = qs ? `${API_BASE_URL}/overview/summary?${qs}` : `${API_BASE_URL}/overview/summary`;
-    const r = await fetch(url, { signal: opts?.signal });
-    if (!r.ok) throw new Error('fetch failed');
-    return await r.json();
+    // Qua bản lưu (nhoApi): gộp lời gọi trùng URL, số giống lần trước thì trả đúng object cũ; lỗi mạng trả null
+    return await goiNho<OverviewSummary>(urlOverviewSummary(dateFromISO, dateToISO, datesISO, opts), { signal: opts?.signal });
   } catch (e: any) {
     if (e.name === 'AbortError') return null;
     console.error('fetchOverviewSummary error:', e);
@@ -536,13 +632,7 @@ export const fetchOverviewByGroup = async (
 
 export const fetchStockDates = async (opts?: OverviewFilterOpts): Promise<StockDateEntry[] | null> => {
   try {
-    const params = new URLSearchParams();
-    appendFilterParams(params, opts);
-    const qs = params.toString();
-    const url = qs ? `${API_BASE_URL}/stock/dates?${qs}` : `${API_BASE_URL}/stock/dates`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('fetch failed');
-    return await r.json();
+    return await goiNho<StockDateEntry[]>(urlStockDates(opts));
   } catch (e) {
     console.error('fetchStockDates error:', e);
     return null; // null thay vì [] để phân biệt "lỗi" với "thực sự rỗng"
@@ -688,12 +778,8 @@ export const fetchStockItems = async (
 
 export const fetchRevenue2026 = async (year?: string | number): Promise<Revenue2026Data | null> => {
   try {
-    const url = year
-      ? `${API_BASE_URL}/revenue/${year}`
-      : `${API_BASE_URL}/revenue`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('fetch failed');
-    return await r.json();
+    // Chỉ URL có năm được lưu; '/api/revenue' (máy chủ tự chọn năm) vẫn gọi mạng như cũ
+    return await goiNho<Revenue2026Data>(urlRevenue(year));
   } catch (e) {
     console.error('fetchRevenue2026 error:', e);
     return null;
@@ -752,6 +838,8 @@ export async function fetchKhsxNhapKhoSummary(params: {
   nam: string; thang?: string; mode?: 'month' | 'week'; tuan?: string; ngay?: string;
   congTrinh?: string[]; xuong?: string[];
   signal?: AbortSignal;
+  /** Không lưu phản hồi xuống máy (mặc định: mode=week không lưu — mỗi tuần 1 URL, không thuộc màn đầu) */
+  khongLuu?: boolean;
 }): Promise<KhsxNhapKhoSummary | null> {
   const q = new URLSearchParams({ nam: params.nam, mode: params.mode ?? 'month' });
   if (params.thang) q.set('thang', params.thang);
@@ -761,11 +849,10 @@ export async function fetchKhsxNhapKhoSummary(params: {
   if (params.xuong?.length) q.set('xuong', params.xuong.join(','));
 
   try {
-    const res = await fetch(`${API_BASE_URL}/khsx-nhapkho/summary?${q.toString()}`, {
+    return await goiNho<KhsxNhapKhoSummary>(`${API_BASE_URL}/khsx-nhapkho/summary?${q.toString()}`, {
       signal: params.signal,
+      khongLuu: params.khongLuu ?? params.mode === 'week',
     });
-    if (!res.ok) return null;
-    return res.json();
   } catch (e: any) {
     if (e.name === 'AbortError') return null;
     console.error('fetchKhsxNhapKhoSummary error:', e);
@@ -886,9 +973,7 @@ export interface TuyChonThoiGian {
 /** Danh sách ngày, năm-tháng-tuần cho bộ lọc Tổng quan. Lỗi trả null: nơi gọi tải bảng như cũ. */
 export const fetchTuyChonThoiGian = (): Promise<TuyChonThoiGian | null> => chanTrung('tuy-chon-thoi-gian', async () => {
   try {
-    const r = await fetch(`${API_BASE_URL}/overview/tuy-chon-thoi-gian`);
-    if (!r.ok) throw new Error('fetch failed');
-    return await r.json();
+    return await goiNho<TuyChonThoiGian>(urlTuyChonThoiGian());
   } catch (e) {
     console.error('fetchTuyChonThoiGian error:', e);
     return null;

@@ -8,6 +8,7 @@ import { fmtInt } from '../utils/format';
 import { tachHuy } from '../utils/tachHuyTong';
 import { findColumnKey } from './Dashboard/utils/columnKeyResolver';
 import * as bang from './shared/bangBaoCao';
+import { hienNgay, laCotSoLuongTien, SO_CHU } from '../utils/hienO';
 
 interface DataGridProps {
   data: DataRow[];
@@ -30,10 +31,25 @@ type AggregationType = 'NONE' | 'SUM' | 'COUNT' | 'DISTINCT_COUNT' | 'AVERAGE';
 
 // Ô số lẻ: tối đa 2 chữ số thập phân (trước hiện nguyên "4.493795899999999"). Số nguyên (mã HEX, năm…) giữ nguyên.
 const fmtSoLe = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
-const hienO = (v: unknown): { text: React.ReactNode; so: boolean } => {
-  if (typeof v === 'number') return Number.isInteger(v) ? { text: v, so: true } : { text: fmtSoLe.format(v), so: true };
-  if (typeof v === 'string' && /^-?\d+\.\d{3,}$/.test(v.trim())) return { text: fmtSoLe.format(Number(v)), so: true };
-  return { text: v as React.ReactNode, so: typeof v === 'string' && /^-?[\d,]+(\.\d+)?$/.test(v.trim()) };
+const hienO = (v: unknown, soLuongTien = false): { text: React.ReactNode; so: boolean } => {
+  if (typeof v === 'number') return Number.isInteger(v) && !soLuongTien ? { text: v, so: true } : { text: fmtSoLe.format(v), so: true };
+  if (typeof v === 'string') {
+    const t = v.trim();
+    const ngay = hienNgay(t);
+    if (ngay) return { text: ngay, so: true };
+    // Số lưu dạng chữ ("2927.0" — cột kiểu text) ở cột số lượng / tiền: hiện như số
+    if (soLuongTien && SO_CHU.test(t)) return { text: fmtSoLe.format(Number(t)), so: true };
+    if (/^-?\d+\.\d{3,}$/.test(t)) return { text: fmtSoLe.format(Number(t)), so: true };
+    return { text: v, so: /^-?[\d,]+(\.\d+)?$/.test(t) };
+  }
+  return { text: v as React.ReactNode, so: false };
+};
+/** Sắp xếp: 2 giá trị đều là số (kể cả số lưu dạng chữ) thì so theo số — trước so chuỗi nên "10" < "9" */
+const soSanh = (a: unknown, b: unknown): number => {
+  const na = typeof a === 'number' ? a : typeof a === 'string' && SO_CHU.test(a.trim()) ? Number(a) : NaN;
+  const nb = typeof b === 'number' ? b : typeof b === 'string' && SO_CHU.test(b.trim()) ? Number(b) : NaN;
+  if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+  return (a as string) < (b as string) ? -1 : (a as string) > (b as string) ? 1 : 0;
 };
 
 // Tên cột dữ liệu gốc viết HOA hết ("TRỊ GIÁ ĐƠN HÀNG TỔNG") => viết thường, hoa chữ đầu cho dễ đọc
@@ -329,9 +345,11 @@ const DataGrid: React.FC<DataGridProps> = ({
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
       result = result.filter(row =>
-        visibleColumns.some(col =>
-          String(row[col.key] || '').toLowerCase().includes(lowerTerm)
-        )
+        visibleColumns.some(col => {
+          const v = String(row[col.key] || '');
+          // Ô ngày hiện dd/mm/yyyy => gõ "21/11/2026" cũng tìm được (dữ liệu gốc dạng 2026-11-21)
+          return v.toLowerCase().includes(lowerTerm) || (hienNgay(v) ?? '').includes(lowerTerm);
+        })
       );
     }
 
@@ -381,7 +399,7 @@ const DataGrid: React.FC<DataGridProps> = ({
         if (valA === valB) return 0;
         if (valA === null || valA === undefined) return 1;
         if (valB === null || valB === undefined) return -1;
-        const comparison = valA < valB ? -1 : 1;
+        const comparison = soSanh(valA, valB);
         return sortConfig.direction === 'asc' ? comparison : -comparison;
       });
     }
@@ -389,8 +407,10 @@ const DataGrid: React.FC<DataGridProps> = ({
     return result;
   }, [data, visibleColumns, searchTerm, primaryFilterValue, additionalSearchValues, advancedFilters, sortConfig, primaryKey, additionalSearchColumns]);
 
-  // Tổng tiền bỏ dòng HỦY, hiện riêng 1 dòng; bảng không có cột Tình trạng IPO thì không đổi
-  const ipoKey = useMemo(() => findColumnKey(columns, 'tinh_trang_ipo'), [columns]);
+  const cotSoLuongTien = useMemo(() => new Set(columns.filter(c => laCotSoLuongTien(c.key, c.label)).map(c => c.key)), [columns]);
+  // Tổng tiền bỏ dòng HỦY, hiện riêng 1 dòng; bảng không có cột Tình trạng IPO thì xét cột Trạng thái (bảng vật tư: '4.HỦY'
+  // — rà soát 23/11/2026: 2.437 dòng HỦY từng bị cộng vào tổng Thành tiền), không có cả hai thì không đổi
+  const ipoKey = useMemo(() => findColumnKey(columns, 'tinh_trang_ipo') || findColumnKey(columns, 'trang_thai'), [columns]);
   const tongHuy = (col: ColumnDefinition, type: AggregationType) => {
     if (type !== 'SUM') return 0;
     return tachHuy(processedData, ipoKey, col.key, col.label).huy.reduce((a, r) => a + parseNumber(r[col.key]), 0);
@@ -482,10 +502,10 @@ const DataGrid: React.FC<DataGridProps> = ({
     </div>
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
       {/* Toolbar */}
-      <div className="p-3 border-b border-slate-200 flex flex-col md:flex-row gap-3 justify-between items-center">
+      <div className="p-3 border-b border-slate-200 flex flex-col md:flex-row mtb:flex-wrap gap-3 justify-between items-center">
 
         {/* Left: Search & Filters */}
-        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
+        <div className="flex flex-col md:flex-row mtb:flex-wrap gap-2 w-full md:w-auto items-center">
           {/* Primary Search */}
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -537,7 +557,7 @@ const DataGrid: React.FC<DataGridProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 mtb:ml-auto mtb:flex-wrap mtb:justify-end">
           {/* Dynamic Column Filters (Excel-style) */}
           {filterHeaders.map(header => {
             // Ensure unique key for dropdown, fallback to header name
@@ -653,7 +673,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                     {(currentPage - 1) * ROWS_PER_PAGE + index + 1}
                   </td>
                   {visibleColumns.map(col => {
-                    const o = hienO(row[col.key]);
+                    const o = hienO(row[col.key], cotSoLuongTien.has(col.key));
                     return (
                       <td key={col.key} className={o.so ? bang.tdSo : `${bang.tdB} whitespace-nowrap`}>
                         {o.text}
@@ -704,7 +724,7 @@ const DataGrid: React.FC<DataGridProps> = ({
       </div>
 
       {/* Footer / Pagination */}
-      <div className="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="mtb:pr-20 px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="text-xs text-slate-500">
           Hiển thị <span className="font-bold text-slate-700">{processedData.length > 0 ? (currentPage - 1) * ROWS_PER_PAGE + 1 : 0}</span> đến <span className="font-bold text-slate-700">{Math.min(currentPage * ROWS_PER_PAGE, processedData.length)}</span> trong tổng số <span className="font-bold text-slate-700">{processedData.length}</span> dòng
         </div>

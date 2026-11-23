@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { docDanhSachYeuCau, docDsAnh, docItem, docLyLichMua, docYeuCau, type AnhNoiBo, type ItemBanVatTu, type MasterVatTu } from '../../services/banVatTuApi';
+import { docDsAnh, docItem, docLyLichMua, type AnhNoiBo, type ItemBanVatTu, type MasterVatTu } from '../../services/banVatTuApi';
 import {
-  bangExcel, boDau, chuanBiDong, chuTat, docSoTrieu, dinhDangSoLuong, dinhDangTrieu, docGiaNhap, dsLuaChon, ganThongTinBan, giaChao,
-  kiemTraForm, laGanCongTrinh, locDong, LOC_TRONG, nhanNgayNhap, nhanTuoi, nhomTuoi, soLocDangBat, soThangTuoi, tachLinkAnh,
-  tenDvt, tenKhoGon, tomTat, xepDong, DS_LOAI_CHINH, thuTuLoai, giaHien,
+  bangExcel, boDau, chuanBiDong, chuTat, docSoTrieu, dinhDangSoLuong, dinhDangTrieu, dsLuaChon,
+  laGanCongTrinh, locDong, LOC_TRONG, nhanNgayNhap, nhanTuoi, nhomTuoi, soLocDangBat, soThangTuoi,
+  tenDvt, tenKhoGon, tomTat, xepDong, DS_LOAI_CHINH, thuTuLoai,
   anhCanDuyet, chuThichAnh, coAnh, dsAnhHien, ganTrangThaiAnh, gopThuocTinh, nguonThuocTinhExcel, nhanCoAnh,
-  tenCoCongTrinh, laTrong, ganCongKhai, ganCongKhaiAnh, hienTrenTrangKhach, linkCuaHang, linkGoi, maCanDoiCongKhai, nhanGio,
+  laTrong,
 } from './xuLy';
 
 const HOM_NAY = '2026-11-14';
@@ -13,7 +13,7 @@ const HOM_NAY = '2026-11-14';
 const item = (p: Partial<ItemBanVatTu> & { ma: string }): ItemBanVatTu => ({
   ten: `Vật tư ${p.ma}`, dvt: 'PCS', soLuong: 1, kho: 'KVT Phụ kiện', ngayNhap: '2026-10-01', chamLuanChuyen: false,
   tenCongTrinh: 'DÙNG CHUNG', maCongTrinh: null, giaTri: 1, donGiaVon: 1e6, master: null,
-  ban: { giaBanVnd: null, anhUrls: [], trangThai: 'dang_ban', lienHe: null, ghiChu: null, updatedBy: null, updatedAt: null, dangCongKhai: false, tenHienThi: null, moTaCongKhai: null },
+  anhLink: [],
   anh: [],
   ...p,
 });
@@ -24,7 +24,7 @@ const master = (p: Partial<MasterVatTu> = {}): MasterVatTu => ({
 });
 
 const anh = (id: number, p: Partial<AnhNoiBo> = {}): AnhNoiBo => ({
-  id, chacChan: true, trangThai: 'tu_dong', congTrinh: 'CT25-070', codeVatLieu: 'ST-05', congKhai: false, ...p,
+  id, chacChan: true, trangThai: 'tu_dong', congTrinh: 'CT25-070', codeVatLieu: 'ST-05', ...p,
 });
 
 describe('đơn vị tính / kho / chữ', () => {
@@ -89,11 +89,6 @@ describe('tuổi tồn', () => {
 });
 
 describe('định dạng tiền / số', () => {
-  it('giá chào: chưa có hoặc 0 => Liên hệ (không ghi 0 đ)', () => {
-    expect(giaChao(null)).toBe('Liên hệ');
-    expect(giaChao(0)).toBe('Liên hệ');
-    expect(giaChao(1250000)).toBe('1.250.000 đ');
-  });
   it('triệu đồng gọn', () => {
     expect(dinhDangTrieu(150110)).toBe('150,11 tỷ');
     expect(dinhDangTrieu(12.34)).toBe('12,3 tr');
@@ -113,7 +108,7 @@ describe('chuẩn bị, lọc, xếp', () => {
     item({ ma: '80000000001', ten: 'Đá marble trắng', soLuong: 3, giaTri: 0, kho: 'KVT Đá', tenCongTrinh: 'RIVERSIDE', ngayNhap: '2025-01-10',
       master: master({ nhomSap: 'D01', tenNhomSap: 'Đá tự nhiên', chungLoai: 'Marble', quyCach: '20MM', mau: 'Trắng', xuatXu: 'Ý' }) }),
     item({ ma: '400000000001', ten: 'Máy khoan', soLuong: 1, giaTri: 5, kho: 'KVT CCDC', ngayNhap: null,
-      ban: { giaBanVnd: 900000, anhUrls: ['https://x.vn/a.jpg'], trangThai: 'da_giu', lienHe: null, ghiChu: null, updatedBy: null, updatedAt: null, dangCongKhai: false, tenHienThi: null, moTaCongKhai: null } }),
+      anhLink: ['https://x.vn/a.jpg'] }),
   ], HOM_NAY);
 
   it('khoá ma+kho duy nhất, giữ mã 11 số nguyên dạng chuỗi', () => {
@@ -128,9 +123,8 @@ describe('chuẩn bị, lọc, xếp', () => {
     expect(locDong(ds, { ...LOC_TRONG, tim: '20mm' }, true)).toHaveLength(1);
     expect(locDong(ds, { ...LOC_TRONG, tim: '100000000024' }, true)).toHaveLength(2);
   });
-  it('lọc kho / trạng thái / gán CT / chậm / tuổi / ảnh / giá trị', () => {
+  it('lọc kho / gán CT / chậm / tuổi / ảnh / giá trị', () => {
     expect(locDong(ds, { ...LOC_TRONG, kho: 'KVT Hóa chất' }, true)).toHaveLength(1);
-    expect(locDong(ds, { ...LOC_TRONG, trangThai: 'da_giu' }, true).map(d => d.ma)).toEqual(['400000000001']);
     expect(locDong(ds, { ...LOC_TRONG, ganCT: 'gan_ct' }, true)).toHaveLength(1);
     expect(locDong(ds, { ...LOC_TRONG, ganCT: 'dung_chung' }, true)).toHaveLength(3);
     expect(locDong(ds, { ...LOC_TRONG, cham: 'cham' }, true)).toHaveLength(1);
@@ -151,16 +145,14 @@ describe('chuẩn bị, lọc, xếp', () => {
     expect(xepDong(ds, { cot: 'giaTri', giam: true })[0].giaTri).toBe(94.5);
     expect(xepDong(ds, { cot: 'tuoi', giam: true })[0].ngayNhap).toBe('2024-09-30');
     expect(xepDong(ds, { cot: 'ten', giam: false })[0].tenHien).toBe('Đá marble trắng');
-    expect(xepDong(ds, { cot: 'giaBan', giam: true })[0].ma).toBe('400000000001');
   });
-  it('tóm tắt + gắn thông tin bán cho mọi dòng cùng mã', () => {
+  it('tóm tắt: số mã, dòng, giá trị, gán CT, chậm luân chuyển (theo mã)', () => {
     const t = tomTat(ds);
     expect(t.soMa).toBe(3);
     expect(t.soDong).toBe(4);
     expect(t.tongGiaTri).toBeCloseTo(101.1);
-    const moi = ganThongTinBan(ds, '100000000024', { ...ds[0].ban, trangThai: 'da_ban' });
-    expect(moi.filter(d => d.ban.trangThai === 'da_ban')).toHaveLength(2);
-    expect(ds[0].ban.trangThai).toBe('dang_ban');
+    expect(t.ganCT).toBe(1);
+    expect(t.cham).toBe(1);
   });
   it('bảng Excel: có / không cột giá vốn', () => {
     const co = bangExcel(ds, true, HOM_NAY);
@@ -168,36 +160,18 @@ describe('chuẩn bị, lọc, xếp', () => {
     expect(co[0]).toContain('Giá trị tồn (triệu)');
     expect(khong[0]).not.toContain('Giá trị tồn (triệu)');
     expect(co).toHaveLength(5);
-    expect(khong[1][khong[0].indexOf('Giá chào (đ/đvt)')]).toBe('Liên hệ');
-  });
-});
-
-describe('form sửa', () => {
-  it('đọc giá nhập tay', () => {
-    expect(docGiaNhap('1.250.000')).toBe(1250000);
-    expect(docGiaNhap('1,250,000 đ')).toBe(1250000);
-    expect(docGiaNhap('')).toBeNull();
-    expect(docGiaNhap('abc')).toBeNaN();
-  });
-  it('tách link ảnh, bỏ trùng', () => {
-    expect(tachLinkAnh('https://a.vn/1.jpg\nhttps://a.vn/2.jpg, https://a.vn/1.jpg')).toEqual(['https://a.vn/1.jpg', 'https://a.vn/2.jpg']);
-  });
-  it('kiểm tra hợp lệ', () => {
-    const ok = { gia: '100.000', anh: ['https://a.vn/1.jpg'], lienHe: '', ghiChu: '' };
-    expect(kiemTraForm(ok)).toBeNull();
-    expect(kiemTraForm({ ...ok, gia: 'x' })).toMatch(/Giá chào/);
-    expect(kiemTraForm({ ...ok, anh: ['ftp://a'] })).toMatch(/Link ảnh/);
-    expect(kiemTraForm({ ...ok, anh: Array.from({ length: 11 }, (_, i) => `https://a.vn/${i}.jpg`) })).toMatch(/Tối đa/);
-    expect(kiemTraForm({ ...ok, ghiChu: 'x'.repeat(2001) })).toMatch(/2.000/);
+    // Không còn cột bán
+    for (const cot of ['Giá chào (đ/đvt)', 'Trạng thái', 'Trên trang khách', 'Tên cho khách', 'Liên hệ']) expect(co[0]).not.toContain(cot);
+    expect(khong[4][khong[0].indexOf('Link ảnh')]).toBe('https://x.vn/a.jpg');
   });
 });
 
 describe('đọc dữ liệu API', () => {
-  it('số dạng chuỗi, ẩn giá vốn khi không có quyền, trạng thái lạ => đang bán', () => {
+  it('số dạng chuỗi, ẩn giá vốn khi không có quyền, link ảnh bỏ rỗng / trùng', () => {
     const raw = {
       ma: '80000000001', ten: 'Đá', soLuong: '3.5', giaTri: '12.5', donGiaVon: '100', ngayNhap: '2024-09-30T00:00:00Z',
       chamLuanChuyen: true, master: { ten: 'X', thuocTinh: { 'MP01 Chủng loại': 'Đá', 'MP02': '' }, giaBinhQuan: '5' },
-      ban: { giaBanVnd: '200000', anhUrls: ['https://a', ''], trangThai: 'lạ' },
+      anhLink: ['https://a', '', ' https://a '], ban: { giaBanVnd: '200000' },
     };
     const a = docItem(raw, true);
     expect(a.ma).toBe('80000000001');
@@ -206,9 +180,9 @@ describe('đọc dữ liệu API', () => {
     expect(a.ngayNhap).toBe('2024-09-30');
     expect(a.master?.thuocTinh).toEqual({ 'MP01 Chủng loại': 'Đá' });
     expect(a.master?.giaBinhQuan).toBe(5);
-    expect(a.ban.giaBanVnd).toBe(200000);
-    expect(a.ban.anhUrls).toEqual(['https://a']);
-    expect(a.ban.trangThai).toBe('dang_ban');
+    expect(a.anhLink).toEqual(['https://a']);
+    // trường bán cũ máy chủ còn trả (nếu có) bị bỏ qua
+    expect('ban' in a).toBe(false);
     const b = docItem(raw, false);
     expect(b.giaTri).toBeNull();
     expect(b.donGiaVon).toBeNull();
@@ -229,15 +203,6 @@ describe('docSoTrieu (ô lọc giá trị, kiểu vi-VN)', () => {
     expect(docSoTrieu('')).toBeNull();
     expect(docSoTrieu('abc')).toBeNull();
     expect(docSoTrieu('-5')).toBeNull();
-  });
-});
-
-describe('giá hiện trên thẻ', () => {
-  it('giá bán > giá vốn (chỉ khi có quyền) > Liên hệ', () => {
-    expect(giaHien({ donGiaVon: 94000, ban: { giaBanVnd: 85000 } }, true)).toEqual({ chu: '85.000 đ', loai: 'ban' });
-    expect(giaHien({ donGiaVon: 94000, ban: { giaBanVnd: null } }, true)).toEqual({ chu: '94.000 đ', loai: 'von' });
-    expect(giaHien({ donGiaVon: 94000, ban: { giaBanVnd: null } }, false).loai).toBe('lien_he');
-    expect(giaHien({ donGiaVon: 0, ban: { giaBanVnd: 0 } }, true).loai).toBe('lien_he');
   });
 });
 
@@ -292,7 +257,7 @@ describe('ảnh nội bộ (sheet 03)', () => {
   const ds = chuanBiDong([
     item({ ma: '1', anh: [anh(1), anh(2, { chacChan: false })] }),
     item({ ma: '1', kho: 'KVT Gỗ', anh: [anh(1), anh(2, { chacChan: false })] }),
-    item({ ma: '2', ban: { giaBanVnd: null, anhUrls: ['https://a.vn/x.jpg'], trangThai: 'dang_ban', lienHe: null, ghiChu: null, updatedBy: null, updatedAt: null, dangCongKhai: false, tenHienThi: null, moTaCongKhai: null } }),
+    item({ ma: '2', anhLink: ['https://a.vn/x.jpg'] }),
     item({ ma: '3' }),
   ], HOM_NAY);
   it('có ảnh tính cả ảnh nội bộ: lọc, tóm tắt, cột Excel', () => {
@@ -307,10 +272,10 @@ describe('ảnh nội bộ (sheet 03)', () => {
     expect(b[0]).toContain('Nguồn thuộc tính');
     expect(b[0]).toContain('Mã màu');
     expect(b.slice(1).map(r => r[c])).toEqual(['Có (ảnh mẫu CT)', 'Có (ảnh mẫu CT)', 'Có (link)', null]);
-    expect(nhanCoAnh({ ban: ds[3].ban, anh: [anh(9, { chacChan: false })] })).toBe('Có (ảnh mẫu CT — cần duyệt)');
+    expect(nhanCoAnh({ anhLink: ds[3].anhLink, anh: [anh(9, { chacChan: false })] })).toBe('Có (ảnh mẫu CT — cần duyệt)');
   });
   it('thứ tự ảnh hiện: link trước, ảnh nội bộ sau; nhãn cần duyệt, chú thích', () => {
-    const d = { ban: { ...ds[2].ban }, anh: [anh(7)] };
+    const d = { anhLink: [...ds[2].anhLink], anh: [anh(7)] };
     expect(dsAnhHien(d).map(a => a.loai)).toEqual(['link', 'noi_bo']);
     expect(anhCanDuyet(anh(1, { chacChan: false }))).toBe(true);
     expect(anhCanDuyet(anh(1, { chacChan: false, trangThai: 'da_duyet' }))).toBe(false);
@@ -357,8 +322,8 @@ describe('đọc dữ liệu API mới (chịu thiếu trường)', () => {
     expect(a.master?.suyTuTen).toEqual({ mau: 'Đen' });
     expect(a.master?.thuongHieuNcc).toBe('BLUM');
     expect(a.anh).toEqual([
-      { id: 3, chacChan: true, trangThai: 'da_duyet', congTrinh: 'CT26-001', codeVatLieu: null, congKhai: false },
-      { id: 5, chacChan: false, trangThai: 'tu_dong', congTrinh: null, codeVatLieu: null, congKhai: false },
+      { id: 3, chacChan: true, trangThai: 'da_duyet', congTrinh: 'CT26-001', codeVatLieu: null },
+      { id: 5, chacChan: false, trangThai: 'tu_dong', congTrinh: null, codeVatLieu: null },
     ]);
     expect(docDsAnh(undefined)).toEqual([]);
   });
@@ -379,102 +344,5 @@ describe('đọc dữ liệu API mới (chịu thiếu trường)', () => {
     expect(khong.donGiaGanNhat).toBeNull();
     expect(khong.lanMua).toEqual([]);
     expect(docLyLichMua(null).soDongPr).toBe(0);
-  });
-});
-
-describe('trang khách (đăng / gỡ, ảnh công khai, yêu cầu mua)', () => {
-  const banDang = { giaBanVnd: null, anhUrls: [], trangThai: 'dang_ban' as const, lienHe: null, ghiChu: null, updatedBy: null, updatedAt: null,
-    dangCongKhai: true, tenHienThi: 'Keo dán gỗ PUR', moTaCongKhai: null };
-  const ds = chuanBiDong([
-    item({ ma: '1', ban: banDang, anh: [anh(7)] }),
-    item({ ma: '1', kho: 'KVT Gỗ', ban: banDang, anh: [anh(7)] }),
-    item({ ma: '2' }),
-    item({ ma: '3', ban: { ...banDang, trangThai: 'da_giu', tenHienThi: null } }),
-  ], HOM_NAY);
-
-  it('đọc API: thiếu trường => chưa đăng, ảnh không công khai', () => {
-    const a = docItem({ ma: '1', ban: {}, anh: [{ id: 3 }] }, false);
-    expect(a.ban.dangCongKhai).toBe(false);
-    expect(a.ban.tenHienThi).toBeNull();
-    expect(a.anh[0].congKhai).toBe(false);
-    const b = docItem({ ma: '1', ban: { dangCongKhai: true, tenHienThi: ' Keo ', moTaCongKhai: '' }, anh: [{ id: 3, congKhai: true }] }, false);
-    expect(b.ban.dangCongKhai).toBe(true);
-    expect(b.ban.tenHienThi).toBe('Keo');
-    expect(b.ban.moTaCongKhai).toBeNull();
-    expect(b.anh[0].congKhai).toBe(true);
-  });
-  it('lọc đã đăng / chưa đăng, đếm bộ lọc, tóm tắt số mã đã đăng', () => {
-    expect(locDong(ds, { ...LOC_TRONG, congKhai: 'da_dang' }, false)).toHaveLength(3);
-    expect(locDong(ds, { ...LOC_TRONG, congKhai: 'chua_dang' }, false).map(d => d.ma)).toEqual(['2']);
-    expect(soLocDangBat({ ...LOC_TRONG, congKhai: 'da_dang' })).toBe(1);
-    expect(tomTat(ds).daDang).toBe(2);
-    // tìm theo tên hiển thị cho khách
-    expect(locDong(ds, { ...LOC_TRONG, tim: 'keo dan go' }, false)).toHaveLength(2);
-  });
-  it('chỉ hiện trên trang khách khi đã đăng VÀ đang bán', () => {
-    expect(hienTrenTrangKhach(ds[0].ban)).toBe(true);
-    expect(hienTrenTrangKhach(ds[2].ban)).toBe(false);
-    expect(hienTrenTrangKhach(ds[3].ban)).toBe(false);
-    const x = bangExcel(ds, false, HOM_NAY);
-    const c = x[0].indexOf('Trên trang khách');
-    expect(x[1][c]).toBe('Có');
-    expect(x[3][c]).toBeNull();
-    expect(String(x[4][c])).toContain('ẩn');
-  });
-  it('mã cần đăng / gỡ không trùng; gắn cờ cho mọi dòng cùng mã, không đổi mảng cũ', () => {
-    expect(maCanDoiCongKhai(ds, true)).toEqual(['2']);
-    expect(maCanDoiCongKhai(ds, false)).toEqual(['1', '3']);
-    const moi = ganCongKhai(ds, ['1'], false);
-    expect(moi.filter(d => d.ma === '1').every(d => !d.ban.dangCongKhai)).toBe(true);
-    expect(ds[0].ban.dangCongKhai).toBe(true);
-    expect(moi[2]).toBe(ds[2]);
-  });
-  it('bật ảnh công khai cho mọi dòng cùng mã', () => {
-    const moi = ganCongKhaiAnh(ds, '1', 7, true);
-    expect(moi[0].anh[0].congKhai).toBe(true);
-    expect(moi[1].anh[0].congKhai).toBe(true);
-    expect(ds[0].anh[0].congKhai).toBe(false);
-    expect(ganCongKhaiAnh(ds, '1', 99, true)[0]).toBe(ds[0]);
-  });
-  it('link trang khách, link gọi, giờ Việt Nam', () => {
-    expect(linkCuaHang('https://app.vn/')).toBe('https://app.vn/#/cua-hang');
-    expect(linkGoi('090 123.4567')).toBe('tel:0901234567');
-    expect(linkGoi('+84 90-123-4567')).toBe('tel:+84901234567');
-    expect(nhanGio('2026-11-15T02:05:00Z')).toBe('15/11/2026 09:05');
-    expect(nhanGio('sai')).toBe('');
-  });
-  it('kiểm tra form: tên / mô tả cho khách quá dài', () => {
-    const f = { gia: '', anh: [], lienHe: '', ghiChu: '' };
-    expect(kiemTraForm({ ...f, tenHienThi: 'a'.repeat(201) })).toMatch(/Tên cho khách/);
-    expect(kiemTraForm({ ...f, moTaCongKhai: 'a'.repeat(2001) })).toMatch(/Mô tả/);
-    expect(kiemTraForm({ ...f, tenHienThi: 'Keo', moTaCongKhai: 'Hàng mới' })).toBeNull();
-  });
-  it('đọc yêu cầu mua: camelCase / snake_case, trạng thái lạ => mới, đếm mới', () => {
-    const j = { items: [
-      { id: 5, maYeuCau: 'YC-20261115-AB12', items: [{ ma: '1', ten: 'Keo', soLuong: '2.5', dvt: 'KG' }, { ma: '' }], tenKhach: 'An', sdt: '0901',
-        trangThai: 'dang_xu_ly', createdAt: '2026-11-15T02:05:00Z' },
-      { id: '6', ma_yeu_cau: 'YC-2', ten_khach: 'Bình', sdt: '0902', trang_thai: 'lạ', ghi_chu_noi_bo: 'đã gọi' },
-      { khong: 'id' },
-    ], soMoi: 3 };
-    const ds2 = docDanhSachYeuCau(j);
-    expect(ds2.items).toHaveLength(2);
-    expect(ds2.soMoi).toBe(3);
-    expect(ds2.items[0].items).toEqual([{ ma: '1', ten: 'Keo', soLuong: 2.5, dvt: 'KG' }]);
-    expect(ds2.items[1].trangThai).toBe('moi');
-    expect(ds2.items[1].ghiChuNoiBo).toBe('đã gọi');
-    expect(docDanhSachYeuCau({ items: [{ id: 1, trangThai: 'moi' }] }).soMoi).toBe(1);
-    expect(docYeuCau({ ok: true })).toBeNull();
-  });
-});
-
-describe('tenCoCongTrinh (nhắc đặt tên hiển thị cho khách)', () => {
-  it('mã CT/PO hoặc tên / mã công trình đang gán đứng riêng', () => {
-    expect(tenCoCongTrinh({ ten: 'BAN KHAM TRAI 40X40 CT24-017' })).toBe(true);
-    expect(tenCoCongTrinh({ ten: 'THẺ TREO_ARTICLE_A1_127X76', tenCongTrinh: 'ARTICLE' })).toBe(true);
-    expect(tenCoCongTrinh({ ten: 'ĐINH NHỰA_BURROW-20.5x22MM', tenCongTrinh: 'burrow' })).toBe(true);
-    expect(tenCoCongTrinh({ ten: 'ARTICLES X', tenCongTrinh: 'ARTICLE' })).toBe(false);
-    expect(tenCoCongTrinh({ ten: 'VẢI DÙNG CHUNG', tenCongTrinh: 'DÙNG CHUNG' })).toBe(false);
-    expect(tenCoCongTrinh({ ten: 'TEM ARHAUS', tenCongTrinh: 'DÙNG CHUNG ARHAUS' })).toBe(true);
-    expect(tenCoCongTrinh({ ten: '', tenCongTrinh: 'X' })).toBe(false);
   });
 });

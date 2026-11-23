@@ -482,7 +482,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
       if ((b?.byLine.late ?? 0) > 0) flags.push('VT đang mua – trễ hẹn');
       if ((b?.byLine.outsourced ?? 0) + (b?.byLine.gcNotOrdered ?? 0) > 0) flags.push('Gia công ngoài chưa về');
     }
-    // Vướng mắc đang mở, ghi rõ loại (vd. "Vướng mắc M3 Vật tư ×2")
+    // Vướng mắc đang mở, ghi rõ loại (vd. "Vướng mắc M2 Vật tư ×2"; số M theo thứ tự FIVE_M_CATEGORIES)
     if (openIssues && (openIssues[i.hex] || 0) > 0) {
       const cats = issueCats[i.hex] ?? {};
       FIVE_M_CATEGORIES.forEach((c, idx) => {

@@ -41,6 +41,8 @@ export default {
     // "Trang web cho máy tính" (Chrome bỏ qua meta viewport, ép rộng 980px). App Xưởng gắn class đó và phóng to trang
     // về bề rộng màn thật (components/Mobile/xuong/cheDoDienThoai.ts) nên phải dùng bố cục điện thoại.
     plugin(({ addVariant }) => {
+      // mtb: = máy tính bảng (services/mayTinhBang.ts gắn <html class="may-tinh-bang">)
+      addVariant('mtb', 'html.may-tinh-bang &');
       for (const [ten, px] of [['sm', 640], ['md', 768], ['lg', 1024], ['xl', 1280], ['2xl', 1536]]) {
         addVariant(`r${ten}`, `@media (min-width: ${px}px) { html:not(.dien-thoai) & }`);
       }

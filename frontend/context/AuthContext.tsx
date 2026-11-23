@@ -3,6 +3,7 @@ import { User } from '../types';
 import { userService, getToken } from '../services/userService';
 import { AUTH_EXPIRED_EVENT } from '../services/authFetch';
 import { claimDataCache, clearDataCache, cacheCoGia } from '../services/dataService';
+import { boNho } from '../services/nhoApi';
 import { useToast } from './ToastContext';
 import { donXuongKhiDoiNguoi, nhoNguoiCuoiXuong } from '../services/xuongClock';
 
@@ -81,6 +82,9 @@ useEffect(() => {
         // Token hết hạn / tài khoản bị khoá / không hợp lệ -> đăng xuất
         setUser(null);
         clearAllStorage();
+        // index.tsx đã nạp bản lưu số tổng hợp của tài khoản này vào RAM trước khi biết phiên bị từ chối: bỏ, để
+        // người đăng nhập ngay sau (không tải lại trang) không thấy số của người trước
+        boNho();
       }
     } catch (e) {
       console.error('Lỗi xác thực phiên đăng nhập', e);
@@ -99,6 +103,8 @@ useEffect(() => {
     const onExpired = () => {
       if (!getToken()) return;
       clearAllStorage();
+      // Bản lưu số tổng hợp mang tên tài khoản: hết phiên thì bỏ, người đăng nhập sau không thấy số của người trước
+      boNho();
       setUser(null);
       showToast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại', 'error');
     };
@@ -163,6 +169,8 @@ useEffect(() => {
     try { localStorage.removeItem('xuong_token'); localStorage.removeItem('xuong_phien'); } catch { /* bỏ qua */ }
     // Cache không có cột giá: giữ lại (dữ liệu chung của mọi tài khoản) để lần đăng nhập sau khỏi tải lại
     if (cacheCoGia()) void clearDataCache();
+    // Bản lưu số tổng hợp (services/nhoApi): LUÔN bỏ khi đăng xuất, kể cả khi cache bảng được giữ lại
+    boNho();
     showToast('Đã đăng xuất', 'info');
   };
 

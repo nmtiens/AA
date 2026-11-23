@@ -55655,10 +55655,10 @@ var lenhMoGiaoDich = ({ timeoutMs, workMemMb } = {}) => {
   if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
   return lenh.join("; ");
 };
-async function chayCoGioiHan(client, text, params, gioiHan2) {
+async function chayCoGioiHan(client, text, params, gioiHan) {
   try {
     if (GOP_LENH && typeof text === "string" && (params == null || Array.isArray(params) && params.length === 0)) {
-      const mo = lenhMoGiaoDich(gioiHan2);
+      const mo = lenhMoGiaoDich(gioiHan);
       const soMo = mo.split("; ").length;
       const ds2 = await client.query(`${mo};
 ${text.replace(/[;\s]+$/, "")}
@@ -55667,7 +55667,7 @@ ${text.replace(/[;\s]+$/, "")}
       const giua = ds2.slice(soMo, ds2.length - 1);
       return giua.length === 1 ? giua[0] : giua;
     }
-    await client.query(lenhMoGiaoDich(gioiHan2));
+    await client.query(lenhMoGiaoDich(gioiHan));
     const result = await client.query(text, params);
     await client.query("COMMIT");
     return result;
@@ -56396,6 +56396,9 @@ var isoWeekRangeInYear = (year, week) => {
   return { start: isoDateStr(new Date(start)), end: isoDateStr(new Date(end)) };
 };
 
+// src/server/heSoGiaVatTu.ts
+var sqlHeSoGia = (v = "v") => `(CASE WHEN split_part(btrim(${v}.nhom_vt), ' - ', 1) = '117' AND upper(btrim(${v}.dvt)) = 'M3' AND ${v}.don_gia > 1e7 THEN 1000 ELSE 1 END)`;
+
 // src/server/data.ts
 var REPORT_COLUMNS = {
   production_status_app: [
@@ -56441,30 +56444,32 @@ var REPORT_COLUMNS = {
     "tinh_trang_phieu"
   ],
   vat_tu: [
-    "trang_thai",
-    "trang_thai_sap",
-    "nguoi_tao",
-    "nguoi_yeu_cau",
+    // Thứ tự = thứ tự cột trang Dữ liệu vật tư (rà soát 23/11/2026: công trình / PR / vật tư trước, ghi chú dài cuối)
+    "trackingno",
     "ten_cong_trinh",
     "so_pr",
     "pr_line",
     "ma_vat_tu_sap",
     "ten_vat_tu",
-    "so_luong_yeu_cau",
-    "dvt",
-    "ngay_pr",
     "nhom_vt",
-    "so_po",
-    "item_note_pr",
+    "dvt",
+    "so_luong_yeu_cau",
+    "ngay_pr",
+    "trang_thai",
+    "trang_thai_sap",
     "ngay_du_kien_giao_hang_pmh_nhap",
-    "team_pr_note",
     "so_luong_da_nhan_sap",
     "so_luong_con_lai",
+    "sl_hang_ve_thuc_te",
+    "ngay_ve",
+    "thanh_tien",
+    "so_po",
     "tinh_trang_po",
     "ghi_chu_tinh_trang_po",
-    "thanh_tien",
-    "ngay_ve",
-    "sl_hang_ve_thuc_te"
+    "item_note_pr",
+    "team_pr_note",
+    "nguoi_yeu_cau",
+    "nguoi_tao"
   ],
   khsx: [
     "xuong_chinh",
@@ -56653,10 +56658,14 @@ var buildMatchedProductionCTE = (joinKey) => {
   )
 `;
 };
+var COT_BIEU_THUC = {
+  vat_tu: { thanh_tien: `vat_tu.thanh_tien / ${sqlHeSoGia("vat_tu")}` }
+};
 var fetchTableData = async (tableName, updatedAfter, strict = false) => {
   try {
     const cols = REPORT_COLUMNS[tableName];
-    const selectClause = cols ? cols.map((c) => `"${c}"`).join(", ") : "*";
+    const bieuThuc = COT_BIEU_THUC[tableName] ?? {};
+    const selectClause = cols ? cols.map((c) => bieuThuc[c] ? `${bieuThuc[c]} AS "${c}"` : `"${c}"`).join(", ") : "*";
     let query = `SELECT ${selectClause} FROM ${tableName}`;
     const values = [];
     const validDate = parseSafeDate(updatedAfter);
@@ -56914,7 +56923,6 @@ app.use((0, import_cors.default)((req, callback) => {
   return callback(Object.assign(new Error("CORS: origin kh\xF4ng \u0111\u01B0\u1EE3c ph\xE9p"), { status: 403 }));
 }));
 app.use((0, import_compression.default)());
-app.use("/api/cong-khai", import_express.default.json({ limit: "20kb" }));
 app.use(import_express.default.json({ limit: "2mb" }));
 var globalLimiter = rate_limit_default({
   windowMs: 60 * 1e3,
@@ -56959,7 +56967,7 @@ var PUBLIC_API_PATHS = /* @__PURE__ */ new Set([
   "/api/auth/verify-otp",
   "/api/warmup"
 ]);
-var PUBLIC_API_PREFIXES = ["/api/cron/", "/api/cong-khai/"];
+var PUBLIC_API_PREFIXES = ["/api/cron/"];
 var xacThucChung = authenticateActiveUserKichSom((path) => kichNapSom(path));
 app.use((req, res, next) => {
   const path = req.path.toLowerCase();
@@ -56970,9 +56978,9 @@ app.use((req, res, next) => {
   return xacThucChung(req, res, next);
 });
 var PROJECT_ALIAS_WAIT_MS = 0;
-var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong|cong-khai)(\/|$)/i;
-var NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push|cong-khai)(\/|$)/i;
-var DUNG_PHIEN_BAN = /^\/api\/(all-data|check-versions|material|production|overview|trend(-by-[a-z]+)?|filters|detail|revenue|khsx(-nam|-nhapkho)?|stock|ton-kho-vt|tong-quan|cong-trinh|bot-tong-hop)(\/|$)/i;
+var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong)(\/|$)/i;
+var NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram|all-data|check-versions|table-column-config|view-project-mapping|data-update-log|project-aliases|auth|notifications|push)(\/|$)/i;
+var DUNG_PHIEN_BAN = /^\/api\/(all-data|check-versions|material|production|overview|trend(-by-[a-z]+)?|filters|detail|revenue|khsx(-nam|-nhapkho)?|stock|ton-kho-vt|vat-tu|tong-quan|cong-trinh|bot-tong-hop)(\/|$)/i;
 var napSomCho = (path) => ({
   gopXuong: path.startsWith("/api/") && !NO_WORKSHOP_GROUPS.test(path),
   phienBan: DUNG_PHIEN_BAN.test(path)
@@ -76501,7 +76509,9 @@ var gzip = promisify(gzipCb);
 var gunzip = promisify(gunzipCb);
 var brotli = promisify(brCb);
 var nenBr = (s) => brotli(s, { params: { [Z.BROTLI_PARAM_QUALITY]: 5, [Z.BROTLI_PARAM_SIZE_HINT]: Buffer.byteLength(s) } });
-var khoaBang = (key, gia, cot) => `${cot ? "bangc" : "bang"}:${key}|${key === "material" && !gia ? 0 : 1}`;
+var PHIEN_BAN_COT = { material: 2 };
+var tenKhoaBang = (key) => `${key}${PHIEN_BAN_COT[key] ? `#${PHIEN_BAN_COT[key]}` : ""}`;
+var khoaBang = (key, gia, cot) => `${cot ? "bangc" : "bang"}:${tenKhoaBang(key)}|${key === "material" && !gia ? 0 : 1}`;
 var verBang = (v) => v instanceof Date ? v.toISOString() : String(v ?? "");
 function sangCot(rows) {
   const idx = /* @__PURE__ */ new Map();
@@ -76623,13 +76633,13 @@ async function lamNong(versions) {
   const kq = [];
   const coSan = /* @__PURE__ */ new Map();
   try {
-    const r = await pool.query("SELECT khoa, ver FROM all_data_snapshot WHERE khoa = ANY($1::text[])", [BANG.map((k) => `bangc:${k}|1`)]);
+    const r = await pool.query("SELECT khoa, ver FROM all_data_snapshot WHERE khoa = ANY($1::text[])", [BANG.map((k) => khoaBang(k, true, true))]);
     for (const row of r.rows) coSan.set(String(row.khoa), String(row.ver));
   } catch {
   }
   for (const key of BANG) {
     if (!(key in versions)) continue;
-    if (coSan.get(`bangc:${key}|1`) === verBang(versions[key])) continue;
+    if (coSan.get(khoaBang(key, true, true)) === verBang(versions[key])) continue;
     const n = { v: "" };
     try {
       await manhBang(key, true, versions[key], n, true);
@@ -77519,7 +77529,8 @@ var PERMISSION_GROUPS = [
     id: "g_ban_vat_tu",
     label: "Danh m\u1EE5c v\u1EADt t\u01B0",
     items: [
-      { id: "ban_vat_tu", label: "Danh m\u1EE5c v\u1EADt t\u01B0 (xem danh s\xE1ch)" }
+      { id: "ban_vat_tu", label: "Danh m\u1EE5c v\u1EADt t\u01B0 (xem danh s\xE1ch)" },
+      { id: "vt_tieu_hao", label: "Xu\u1EA5t ti\xEAu hao v\u1EADt t\u01B0" }
     ]
   },
   {
@@ -77578,9 +77589,9 @@ var ITEM_ACTIONS = {
   analysis: [
     { id: "analysis_export", label: "Xu\u1EA5t b\xE1o c\xE1o KH-TH" }
   ],
-  // Trang Bán vật tư tồn kho: sửa giá chào / ảnh / trạng thái / liên hệ (giá vốn theo quyền materials_view_price)
+  // Trang Danh mục vật tư (tra tồn kho nội bộ): duyệt / ẩn ảnh mẫu (giá vốn theo quyền materials_view_price)
   ban_vat_tu: [
-    { id: "ban_vat_tu_sua", label: "S\u1EEDa th\xF4ng tin b\xE1n (gi\xE1 ch\xE0o, \u1EA3nh, tr\u1EA1ng th\xE1i)" }
+    { id: "ban_vat_tu_sua", label: "Duy\u1EC7t / \u1EA9n \u1EA3nh v\u1EADt t\u01B0" }
   ]
 };
 var ALL_ITEM_IDS = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.id));
@@ -78860,12 +78871,12 @@ function nenBanGhi(recs) {
     return i;
   };
   const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
-  const so9 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  const so10 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
   return {
     n: recs.length,
     tu,
     chu,
-    so: so9,
+    so: so10,
     open: recs.map((r) => r.open ? 1 : 0),
     qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
     planMet: recs.map((r) => r.planMet ? 1 : 0),
@@ -79111,7 +79122,7 @@ app.get("/api/all-data", async (req, res) => {
     if (requested.length && (br || req.acceptsEncodings("gzip"))) {
       const all = await getVersions(VERSIONS_MOI_MS);
       const gia = !requested.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
-      snap = { khoa: `${requested.join(",")}|${gia ? 1 : 0}${cot ? "|cot" : ""}${br ? "|br" : ""}`, ver: JSON.stringify(requested.map((k) => all[k] ?? "")) };
+      snap = { khoa: `${requested.map(tenKhoaBang).join(",")}|${gia ? 1 : 0}${cot ? "|cot" : ""}${br ? "|br" : ""}`, ver: JSON.stringify(requested.map((k) => all[k] ?? "")) };
       const t1 = Date.now();
       const buf2 = await docSnapshot(snap.khoa, snap.ver, nguon);
       tDoc = Date.now() - t1;
@@ -81243,16 +81254,16 @@ var LOAI_CHI_TIET = [
 var LoiChiTiet = class extends Error {
 };
 var ghepDocThem = (ngay3, tonNgay, nhap, xuat, don) => {
-  const so9 = (x) => Number(x) || 0;
+  const so10 = (x) => Number(x) || 0;
   const them = {};
   if (tonNgay) {
     const m = Object.fromEntries(ngay3.map((d) => [d, []]));
     for (const r of tonNgay) m[r.d]?.push(ghepDongTon(r));
     them.tonNgay = m;
   }
-  if (nhap) them.nhap = nhap.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, sl: r.sl === null ? null : so9(r.sl), tt: so9(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
-  if (xuat) them.xuat = xuat.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, tn: r.tn, ipo: r.ipo, co: r.co, sl: so9(r.sl), tt: so9(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
-  if (don) them.don = don.map((r) => ({ hex: r.hex, ct: r.ct, ten: r.ten, hm: r.hm, pm: r.pm, ipo: r.ipo, ttda: r.ttda, tn: r.tn, gtd: so9(r.gtd), nhapCap: so9(r.nhap_cap), con: so9(r.con) }));
+  if (nhap) them.nhap = nhap.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, sl: r.sl === null ? null : so10(r.sl), tt: so10(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
+  if (xuat) them.xuat = xuat.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, tn: r.tn, ipo: r.ipo, co: r.co, sl: so10(r.sl), tt: so10(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
+  if (don) them.don = don.map((r) => ({ hex: r.hex, ct: r.ct, ten: r.ten, hm: r.hm, pm: r.pm, ipo: r.ipo, ttda: r.ttda, tn: r.tn, gtd: so10(r.gtd), nhapCap: so10(r.nhap_cap), con: so10(r.con) }));
   return them;
 };
 var SO_DONG_TOI_DA = 5e3;
@@ -82527,20 +82538,11 @@ app.post("/api/ton-kho-vt/chi-tiet", (req, res) => xuLyChiTiet(req, res, req.bod
 var TEN_PHIEN_BAN = "ban_vt";
 var QUYEN_XEM2 = "ban_vat_tu";
 var QUYEN_SUA = "ban_vat_tu_sua";
-var LOI_QUYEN_XEM = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem trang b\xE1n v\u1EADt t\u01B0 t\u1ED3n kho" };
-var LOI_QUYEN_SUA = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n s\u1EEDa th\xF4ng tin b\xE1n v\u1EADt t\u01B0" };
+var LOI_QUYEN_XEM = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem Danh m\u1EE5c v\u1EADt t\u01B0" };
+var LOI_QUYEN_SUA = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n duy\u1EC7t / \u1EA9n \u1EA3nh v\u1EADt t\u01B0" };
 var CANH_BAO_THIEU_BANG = "Ch\u01B0a t\u1EA1o b\u1EA3ng \u2014 ch\u1EA1y backend/sql/2026-11-14_ban_vat_tu_ton.sql";
 var TIMEOUT_MS2 = 15e3;
-var TRANG_THAI_BAN = ["dang_ban", "da_giu", "da_ban", "ngung_ban"];
-var GIA_BAN_TOI_DA = 1e13;
-var SO_ANH_TOI_DA = 10;
-var URL_TOI_DA_KY_TU = 1e3;
-var CHUOI_TOI_DA_KY_TU = 2e3;
 var MA_TOI_DA_KY_TU = 100;
-var TEN_HIEN_THI_TOI_DA_KY_TU = 200;
-var SO_MA_HANG_LOAT_TOI_DA = 6e3;
-var SQL_CONG_KHAI = "backend/sql/2026-11-15_ban_vat_tu_cong_khai.sql";
-var LOI_THIEU_COT_CONG_KHAI = { error: `Ch\u01B0a t\u1EA1o c\u1ED9t / b\u1EA3ng trang kh\xE1ch \u2014 ch\u1EA1y ${SQL_CONG_KHAI}` };
 var TRANG_THAI_ANH = ["tu_dong", "da_duyet", "an"];
 var SO_ANH_NOI_BO_TOI_DA = 12;
 var so4 = (v) => {
@@ -82553,130 +82555,12 @@ var soHoacNull2 = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 var chuoiHoacNull = (v) => v === null || v === void 0 ? null : String(v);
-var laTrangThaiBan = (v) => typeof v === "string" && TRANG_THAI_BAN.includes(v);
-var laUrlAnhHopLe = (v) => {
-  if (typeof v !== "string" || v.length === 0 || v.length > URL_TOI_DA_KY_TU) return false;
-  if (/[\s\u0000-\u001f\u007f]/.test(v)) return false;
-  try {
-    const u = new URL(v);
-    return (u.protocol === "http:" || u.protocol === "https:") && !!u.hostname;
-  } catch {
-    return false;
-  }
-};
 var docMaVatTu = (v) => {
   if (typeof v !== "string") return null;
   const ma = v.trim();
   return ma && ma.length <= MA_TOI_DA_KY_TU ? ma : null;
 };
-var docChuoiTuyChon = (v, toiDa = CHUOI_TOI_DA_KY_TU) => {
-  if (v === null) return { hopLe: true, giaTri: null };
-  if (typeof v !== "string" || v.length > toiDa) return { hopLe: false };
-  const s = v.trim();
-  return { hopLe: true, giaTri: s === "" ? null : s };
-};
-var kiemTraThanPut = (body) => {
-  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
-  const b = body;
-  const thayDoi = {};
-  if (b.giaBanVnd !== void 0) {
-    if (b.giaBanVnd === null) thayDoi.giaBanVnd = null;
-    else if (typeof b.giaBanVnd !== "number" || !Number.isFinite(b.giaBanVnd) || b.giaBanVnd < 0 || b.giaBanVnd > GIA_BAN_TOI_DA) {
-      return { hopLe: false, loi: "Gi\xE1 b\xE1n ph\u1EA3i l\xE0 s\u1ED1 t\u1EEB 0 \u0111\u1EBFn 10.000 t\u1EF7 \u0111\u1ED3ng" };
-    } else thayDoi.giaBanVnd = b.giaBanVnd;
-  }
-  if (b.anhUrls !== void 0) {
-    if (!Array.isArray(b.anhUrls)) return { hopLe: false, loi: "Danh s\xE1ch \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7" };
-    const urls = [];
-    for (const x of b.anhUrls) {
-      const u = typeof x === "string" ? x.trim() : x;
-      if (!laUrlAnhHopLe(u)) return { hopLe: false, loi: `Link \u1EA3nh ph\u1EA3i b\u1EAFt \u0111\u1EA7u b\u1EB1ng http:// ho\u1EB7c https:// v\xE0 d\xE0i t\u1ED1i \u0111a ${URL_TOI_DA_KY_TU} k\xFD t\u1EF1` };
-      if (!urls.includes(u)) urls.push(u);
-    }
-    if (urls.length > SO_ANH_TOI_DA) return { hopLe: false, loi: `T\u1ED1i \u0111a ${SO_ANH_TOI_DA} \u1EA3nh cho 1 m\xE3 v\u1EADt t\u01B0` };
-    thayDoi.anhUrls = urls;
-  }
-  if (b.trangThai !== void 0) {
-    if (!laTrangThaiBan(b.trangThai)) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i b\xE1n kh\xF4ng h\u1EE3p l\u1EC7" };
-    thayDoi.trangThai = b.trangThai;
-  }
-  for (const truong of ["lienHe", "ghiChu"]) {
-    if (b[truong] === void 0) continue;
-    const r = docChuoiTuyChon(b[truong]);
-    if (!r.hopLe) return { hopLe: false, loi: `${truong === "lienHe" ? "Li\xEAn h\u1EC7" : "Ghi ch\xFA"} t\u1ED1i \u0111a ${CHUOI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
-    thayDoi[truong] = r.giaTri;
-  }
-  if (b.dangCongKhai !== void 0) {
-    if (typeof b.dangCongKhai !== "boolean") return { hopLe: false, loi: "\u0110\u0103ng l\xEAn trang kh\xE1ch ph\u1EA3i l\xE0 true / false" };
-    thayDoi.dangCongKhai = b.dangCongKhai;
-  }
-  if (b.tenHienThi !== void 0) {
-    const r = docChuoiTuyChon(b.tenHienThi, TEN_HIEN_THI_TOI_DA_KY_TU);
-    if (!r.hopLe) return { hopLe: false, loi: `T\xEAn hi\u1EC3n th\u1ECB cho kh\xE1ch t\u1ED1i \u0111a ${TEN_HIEN_THI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
-    thayDoi.tenHienThi = r.giaTri;
-  }
-  if (b.moTaCongKhai !== void 0) {
-    const r = docChuoiTuyChon(b.moTaCongKhai);
-    if (!r.hopLe) return { hopLe: false, loi: `M\xF4 t\u1EA3 cho kh\xE1ch t\u1ED1i \u0111a ${CHUOI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
-    thayDoi.moTaCongKhai = r.giaTri;
-  }
-  if (Object.keys(thayDoi).length === 0) return { hopLe: false, loi: "Kh\xF4ng c\xF3 th\xF4ng tin n\xE0o \u0111\u1EC3 l\u01B0u" };
-  return { hopLe: true, thayDoi };
-};
-var SQL_COT_BAN = (b, coCongKhai = true) => `
-  ${b}.gia_ban_vnd AS ban_gia, ${b}.anh_urls AS ban_anh, ${b}.trang_thai AS ban_trang_thai,
-  ${b}.lien_he AS ban_lien_he, ${b}.ghi_chu AS ban_ghi_chu, ${b}.updated_by AS ban_updated_by,
-  to_char(${b}.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ban_updated_at${coCongKhai ? `,
-  ${b}.dang_cong_khai AS ban_dang_cong_khai, ${b}.ten_hien_thi AS ban_ten_hien_thi, ${b}.mo_ta_cong_khai AS ban_mo_ta_cong_khai` : ""}`;
-var coTruongCongKhai = (t) => t.dangCongKhai !== void 0 || t.tenHienThi !== void 0 || t.moTaCongKhai !== void 0;
-var COT_THAY_DOI = [
-  ["giaBanVnd", "gia_ban_vnd", "numeric"],
-  ["anhUrls", "anh_urls", "text[]"],
-  ["trangThai", "trang_thai", "text"],
-  ["lienHe", "lien_he", "text"],
-  ["ghiChu", "ghi_chu", "text"],
-  ["dangCongKhai", "dang_cong_khai", "boolean"],
-  ["tenHienThi", "ten_hien_thi", "text"],
-  ["moTaCongKhai", "mo_ta_cong_khai", "text"]
-];
-var SQL_CAP_NHAT_MOC_DANG = "dang_cong_khai_luc = CASE WHEN EXCLUDED.dang_cong_khai AND NOT ban_vt_thong_tin.dang_cong_khai THEN now() ELSE ban_vt_thong_tin.dang_cong_khai_luc END";
-var dungSqlUpsert = (ma, nguoiSua, thayDoi, docCotCongKhai = true) => {
-  const cot = [];
-  const giuCho = [];
-  const giaTri = [];
-  for (const [truong, tenCot, kieu] of COT_THAY_DOI) {
-    if (thayDoi[truong] === void 0) continue;
-    cot.push(tenCot);
-    giaTri.push(thayDoi[truong]);
-    giuCho.push(`$${giaTri.length + 2}::${kieu}`);
-  }
-  const capNhat = [...cot.map((c) => `${c} = EXCLUDED.${c}`), "updated_by = EXCLUDED.updated_by", "updated_at = now()"];
-  if (thayDoi.dangCongKhai !== void 0) {
-    const giuChoDang = giuCho[cot.indexOf("dang_cong_khai")];
-    cot.push("dang_cong_khai_luc");
-    giuCho.push(`CASE WHEN ${giuChoDang} THEN now() END`);
-    capNhat.push(SQL_CAP_NHAT_MOC_DANG);
-  }
-  const sql = `
-    INSERT INTO ban_vt_thong_tin (ma_vat_tu, ${[...cot, "updated_by", "updated_at"].join(", ")})
-    SELECT $1::text, ${[...giuCho, "$2::text", "now()"].join(", ")}
-    WHERE EXISTS (SELECT 1 FROM ban_vt_ton WHERE ma_vat_tu = $1::text)
-    ON CONFLICT (ma_vat_tu) DO UPDATE SET ${capNhat.join(", ")}
-    RETURNING ${SQL_COT_BAN("ban_vt_thong_tin", docCotCongKhai || coTruongCongKhai(thayDoi))}`;
-  return { sql, thamSo: [ma, nguoiSua, ...giaTri] };
-};
-var dungThongTinBan = (row) => ({
-  giaBanVnd: soHoacNull2(row.ban_gia),
-  anhUrls: Array.isArray(row.ban_anh) ? row.ban_anh.filter((x) => typeof x === "string" && x !== "") : [],
-  trangThai: laTrangThaiBan(row.ban_trang_thai) ? row.ban_trang_thai : "dang_ban",
-  lienHe: chuoiHoacNull(row.ban_lien_he),
-  ghiChu: chuoiHoacNull(row.ban_ghi_chu),
-  updatedBy: chuoiHoacNull(row.ban_updated_by),
-  updatedAt: chuoiHoacNull(row.ban_updated_at),
-  dangCongKhai: row.ban_dang_cong_khai === true,
-  tenHienThi: chuoiHoacNull(row.ban_ten_hien_thi),
-  moTaCongKhai: chuoiHoacNull(row.ban_mo_ta_cong_khai)
-});
+var docAnhLink = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string" && x !== "") : [];
 var chuanHoaThuocTinh = (v) => {
   let o = v;
   if (typeof o === "string") {
@@ -82767,88 +82651,9 @@ var docIdAnh = (v) => {
 var kiemTraThanPutAnh = (body) => {
   if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
   const b = body;
-  const kq = { hopLe: true };
-  if (b.trangThai !== void 0) {
-    if (!laTrangThaiAnh(b.trangThai)) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i \u1EA3nh ph\u1EA3i l\xE0 da_duyet, an ho\u1EB7c tu_dong" };
-    kq.trangThai = b.trangThai;
-  }
-  if (b.congKhai !== void 0) {
-    if (typeof b.congKhai !== "boolean") return { hopLe: false, loi: "Hi\u1EC7n cho kh\xE1ch ph\u1EA3i l\xE0 true / false" };
-    kq.congKhai = b.congKhai;
-  }
-  if (kq.trangThai === void 0 && kq.congKhai === void 0) {
-    return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i \u1EA3nh ph\u1EA3i l\xE0 da_duyet, an ho\u1EB7c tu_dong" };
-  }
-  return kq;
+  if (!laTrangThaiAnh(b.trangThai)) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i \u1EA3nh ph\u1EA3i l\xE0 da_duyet, an ho\u1EB7c tu_dong" };
+  return { hopLe: true, trangThai: b.trangThai };
 };
-var kiemTraThanHangLoat = (body) => {
-  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
-  const b = body;
-  if (typeof b.bat !== "boolean") return { hopLe: false, loi: "Thi\u1EBFu bat (true = \u0111\u0103ng, false = g\u1EE1)" };
-  if (!Array.isArray(b.mas) || b.mas.length === 0) return { hopLe: false, loi: "Ch\u01B0a ch\u1ECDn m\xE3 n\xE0o" };
-  if (b.mas.length > SO_MA_HANG_LOAT_TOI_DA) return { hopLe: false, loi: `T\u1ED1i \u0111a ${SO_MA_HANG_LOAT_TOI_DA} m\xE3 m\u1ED7i l\u1EA7n` };
-  const mas = /* @__PURE__ */ new Set();
-  for (const x of b.mas) {
-    const ma = docMaVatTu(x);
-    if (!ma) return { hopLe: false, loi: "C\xF3 m\xE3 v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" };
-    mas.add(ma);
-  }
-  return { hopLe: true, mas: [...mas], bat: b.bat };
-};
-var TRANG_THAI_YEU_CAU = ["moi", "dang_xu_ly", "da_xong", "huy"];
-var laTrangThaiYeuCau = (v) => typeof v === "string" && TRANG_THAI_YEU_CAU.includes(v);
-var kiemTraThanPutYeuCau = (body) => {
-  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
-  const b = body;
-  const kq = { hopLe: true };
-  if (b.trangThai !== void 0) {
-    if (!laTrangThaiYeuCau(b.trangThai)) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i y\xEAu c\u1EA7u kh\xF4ng h\u1EE3p l\u1EC7" };
-    kq.trangThai = b.trangThai;
-  }
-  if (b.ghiChuNoiBo !== void 0) {
-    const r = docChuoiTuyChon(b.ghiChuNoiBo);
-    if (!r.hopLe) return { hopLe: false, loi: `Ghi ch\xFA n\u1ED9i b\u1ED9 t\u1ED1i \u0111a ${CHUOI_TOI_DA_KY_TU} k\xFD t\u1EF1` };
-    kq.ghiChuNoiBo = r.giaTri;
-  }
-  if (kq.trangThai === void 0 && kq.ghiChuNoiBo === void 0) return { hopLe: false, loi: "Kh\xF4ng c\xF3 th\xF4ng tin n\xE0o \u0111\u1EC3 l\u01B0u" };
-  return kq;
-};
-var docDongYeuCau = (v) => {
-  let o = v;
-  if (typeof o === "string") {
-    try {
-      o = JSON.parse(o);
-    } catch {
-      return [];
-    }
-  }
-  if (!Array.isArray(o)) return [];
-  const kq = [];
-  for (const x of o) {
-    if (x === null || typeof x !== "object") continue;
-    const r = x;
-    const ma = chuoiHoacNull(r.ma);
-    const soLuong = soHoacNull2(r.soLuong);
-    if (!ma || soLuong === null) continue;
-    kq.push({ ma, ten: chuoiHoacNull(r.ten) ?? ma, soLuong, dvt: chuoiHoacNull(r.dvt) });
-  }
-  return kq;
-};
-var dungYeuCau = (row) => ({
-  id: Number(row.id),
-  maYeuCau: chuoiHoacNull(row.ma_yeu_cau),
-  items: docDongYeuCau(row.items),
-  tenKhach: String(row.ten_khach ?? ""),
-  sdt: String(row.sdt ?? ""),
-  email: chuoiHoacNull(row.email),
-  congTy: chuoiHoacNull(row.cong_ty),
-  ghiChu: chuoiHoacNull(row.ghi_chu),
-  trangThai: laTrangThaiYeuCau(row.trang_thai) ? row.trang_thai : "moi",
-  ghiChuNoiBo: chuoiHoacNull(row.ghi_chu_noi_bo),
-  xuLyBoi: chuoiHoacNull(row.xu_ly_boi),
-  xuLyLuc: chuoiHoacNull(row.xu_ly_luc),
-  createdAt: chuoiHoacNull(row.created_at)
-});
 var mimeAnhAnToan = (v) => {
   const m = typeof v === "string" ? v.trim().toLowerCase() : "";
   return ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(m) ? m : "image/jpeg";
@@ -82862,8 +82667,7 @@ var dungAnh = (row) => {
     chacChan: row.chac_chan === true,
     trangThai: row.trang_thai,
     congTrinh: chuoiHoacNull(row.cong_trinh)?.trim() || null,
-    codeVatLieu: chuoiHoacNull(row.code_vat_lieu)?.trim() || null,
-    congKhai: row.cong_khai === true
+    codeVatLieu: chuoiHoacNull(row.code_vat_lieu)?.trim() || null
   };
 };
 var gomAnhTheoMa = (rows) => {
@@ -82969,7 +82773,7 @@ var dungDong = (row, coGiaVon, phu2 = {}) => {
     giaTri,
     donGiaVon,
     master,
-    ban: dungThongTinBan(row),
+    anhLink: docAnhLink(row.anh_link),
     anh: phu2.anh ?? []
   };
 };
@@ -82999,18 +82803,16 @@ var phienBanAnh = async () => {
 var tinhPhienBanChinh = async () => {
   try {
     const r = await timedQuery(
-      `SELECT (SELECT to_char(MAX(last_updated) AT TIME ZONE 'UTC', ${DINH_DANG_GIO})
-                 FROM table_versions WHERE table_name = $1) AS tv,
-              (SELECT to_char(MAX(updated_at) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) FROM ban_vt_thong_tin) AS tt`,
+      `SELECT to_char(MAX(last_updated) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS tv
+       FROM table_versions WHERE table_name = $1`,
       [TEN_PHIEN_BAN]
     );
     const tv = r.rows[0]?.tv;
-    const tt = r.rows[0]?.tt ?? "";
-    if (tv) return `tv:${tv}|tt:${tt}`;
+    if (tv) return `tv:${tv}`;
     const r2 = await timedQuery(
       `SELECT to_char(MAX(updated_at) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS v FROM ban_vt_ton`
     );
-    return `ua:${r2.rows[0]?.v ?? "rong"}|tt:${tt}`;
+    return `ua:${r2.rows[0]?.v ?? "rong"}`;
   } catch (e) {
     if (!laThieuBang2(e)) throw e;
     return "thieu-bang";
@@ -83041,7 +82843,7 @@ var docPhienBan2 = async () => {
   return phienBanDangDoc2;
 };
 var cacheDanhSach = createCache(2);
-var sqlDanhSach = (coCongKhai) => `
+var SQL_DANH_SACH = `
   WITH moc AS (
     SELECT t.ngay_chot, t.nguon_file FROM ban_vt_ton t
     ORDER BY t.ngay_chot DESC NULLS LAST, t.updated_at DESC NULLS LAST LIMIT 1
@@ -83058,9 +82860,10 @@ var sqlDanhSach = (coCongKhai) => `
          m.chung_loai AS m_chung_loai, m.chat_lieu AS m_chat_lieu, m.quy_cach AS m_quy_cach, m.mau AS m_mau,
          m.thuong_hieu AS m_thuong_hieu, m.xuat_xu AS m_xuat_xu, m.thuoc_tinh AS m_thuoc_tinh,
          m.nguon AS m_nguon,
-         ${SQL_COT_BAN("b", coCongKhai)}
+         b.anh_urls AS anh_link
   FROM ban_vt_ton t
   LEFT JOIN ban_vt_master m ON m.ma_vat_tu = t.ma_vat_tu
+  -- ch\u1EC9 \u0111\u1ECDc link \u1EA3nh \u0111\xE3 d\xE1n tr\u01B0\u1EDBc (b\u1EA3ng th\xF4ng tin c\u0169, kh\xF4ng c\xF2n ghi)
   LEFT JOIN ban_vt_thong_tin b ON b.ma_vat_tu = t.ma_vat_tu
   -- B\u1EA3ng n\u1EA1p l\u1EA1i nguy\xEAn \u1EA3nh ch\u1EE5p m\u1ED7i l\u1EA7n; ph\xF2ng c\xF2n s\xF3t l\u1EA7n ch\u1ED1t c\u0169 th\xEC ch\u1EC9 l\u1EA5y l\u1EA7n ch\u1ED1t m\u1EDBi nh\u1EA5t
   WHERE t.ngay_chot IS NOT DISTINCT FROM (SELECT ngay_chot FROM moc)`;
@@ -83084,28 +82887,12 @@ var docNccGanNhat = async () => new Map((await docBoSung(
     AND (v.ma_vat_tu_sap::bigint)::text IN (SELECT ma_vat_tu FROM ban_vt_ton)
   ORDER BY v.ma_vat_tu_sap, v.ngay_pr DESC NULLS LAST, v.id DESC`
 )).map((r) => [String(r.ma), r.nha_cung_cap]));
-var sqlAnhTheoMa = (coCongKhai) => `
+var docAnhTheoMa = async () => gomAnhTheoMa(await docBoSung(`
   SELECT a.id, a.ma_vat_tu, a.chac_chan, a.trang_thai, a.cong_trinh, a.code_vat_lieu,
-         ${coCongKhai ? "a.cong_khai" : "FALSE AS cong_khai"},
          to_char(a.created_at AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS tao_luc
   FROM ban_vt_anh a
-  WHERE a.trang_thai <> 'an' AND a.ma_vat_tu IN (SELECT ma_vat_tu FROM ban_vt_ton)`;
-var docAnhTheoMa = async () => {
-  try {
-    return gomAnhTheoMa((await timedQuery(sqlAnhTheoMa(true), [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows);
-  } catch (e) {
-    if (!laThieuBangHoacCot(e)) throw e;
-    return gomAnhTheoMa(await docBoSung(sqlAnhTheoMa(false)));
-  }
-};
-var docDongDanhSach = async () => {
-  try {
-    return (await timedQuery(sqlDanhSach(true), [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows;
-  } catch (e) {
-    if (e?.code !== "42703") throw e;
-    return (await timedQuery(sqlDanhSach(false), [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows;
-  }
-};
+  WHERE a.trang_thai <> 'an' AND a.ma_vat_tu IN (SELECT ma_vat_tu FROM ban_vt_ton)`));
+var docDongDanhSach = async () => (await timedQuery(SQL_DANH_SACH, [], { timeoutMs: TIMEOUT_MS2, workMemMb: 16 })).rows;
 var tinhDanhSach = async (coGiaVon) => {
   let rows;
   try {
@@ -83148,108 +82935,6 @@ app.get("/api/ban-vat-tu/danh-sach", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-var SQL_DANG_HANG_LOAT = `
-  INSERT INTO ban_vt_thong_tin (ma_vat_tu, dang_cong_khai, dang_cong_khai_luc, updated_by, updated_at)
-  SELECT DISTINCT t.ma_vat_tu, TRUE, now(), $2::text, now()
-  FROM ban_vt_ton t WHERE t.ma_vat_tu = ANY($1::text[])
-  ON CONFLICT (ma_vat_tu) DO UPDATE SET dang_cong_khai = TRUE, dang_cong_khai_luc = now(),
-    updated_by = EXCLUDED.updated_by, updated_at = now()
-  WHERE NOT ban_vt_thong_tin.dang_cong_khai
-  RETURNING ma_vat_tu`;
-var SQL_GO_HANG_LOAT = `
-  UPDATE ban_vt_thong_tin SET dang_cong_khai = FALSE, updated_by = $2::text, updated_at = now()
-  WHERE ma_vat_tu = ANY($1::text[]) AND dang_cong_khai
-  RETURNING ma_vat_tu`;
-app.put("/api/ban-vat-tu/cong-khai-hang-loat", async (req, res) => {
-  try {
-    if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
-    const kt = kiemTraThanHangLoat(req.body);
-    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    let soDoi;
-    try {
-      soDoi = (await timedQuery(
-        kt.bat ? SQL_DANG_HANG_LOAT : SQL_GO_HANG_LOAT,
-        [kt.mas, req.user?.username ?? null],
-        { timeoutMs: TIMEOUT_MS2 }
-      )).rows.length;
-    } catch (e) {
-      if (laThieuBangHoacCot(e)) return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
-      throw e;
-    }
-    if (soDoi > 0) boPhienBanNho();
-    res.json({ soDoi });
-  } catch (error61) {
-    console.error("L\u1ED7i ban-vat-tu cong-khai-hang-loat:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-var SO_YEU_CAU_TOI_DA = 500;
-var DINH_DANG_GIO_GIAY = `'YYYY-MM-DD"T"HH24:MI:SS"Z"'`;
-var SQL_COT_YEU_CAU = `id, ma_yeu_cau, items, ten_khach, sdt, email, cong_ty, ghi_chu, trang_thai, ghi_chu_noi_bo, xu_ly_boi,
-  to_char(xu_ly_luc AT TIME ZONE 'UTC', ${DINH_DANG_GIO_GIAY}) AS xu_ly_luc,
-  to_char(created_at AT TIME ZONE 'UTC', ${DINH_DANG_GIO_GIAY}) AS created_at`;
-app.get("/api/ban-vat-tu/yeu-cau", async (req, res) => {
-  try {
-    if (!await userHasPermission(req, QUYEN_XEM2)) return res.status(403).json(LOI_QUYEN_XEM);
-    const loc = req.query.trangThai;
-    if (loc !== void 0 && loc !== "" && !laTrangThaiYeuCau(loc)) return res.status(400).json({ error: "Tr\u1EA1ng th\xE1i l\u1ECDc kh\xF4ng h\u1EE3p l\u1EC7" });
-    const trangThai = laTrangThaiYeuCau(loc) ? loc : null;
-    let rows;
-    let soMoi;
-    try {
-      const [ds2, dem2] = await Promise.all([
-        timedQuery(
-          `SELECT ${SQL_COT_YEU_CAU} FROM ban_vt_yeu_cau
-           WHERE ($1::text IS NULL OR trang_thai = $1::text)
-           ORDER BY created_at DESC NULLS LAST, id DESC LIMIT ${SO_YEU_CAU_TOI_DA}`,
-          [trangThai]
-        ),
-        timedQuery(`SELECT COUNT(*)::int AS n FROM ban_vt_yeu_cau WHERE trang_thai = 'moi'`)
-      ]);
-      rows = ds2.rows;
-      soMoi = Number(dem2.rows[0]?.n ?? 0);
-    } catch (e) {
-      if (!laThieuBangHoacCot(e)) throw e;
-      return res.json({ items: [], soMoi: 0, canhBao: LOI_THIEU_COT_CONG_KHAI.error });
-    }
-    res.setHeader("Cache-Control", "no-store");
-    res.json({ items: rows.map(dungYeuCau), soMoi });
-  } catch (error61) {
-    console.error("L\u1ED7i ban-vat-tu yeu-cau:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-app.put("/api/ban-vat-tu/yeu-cau/:id", async (req, res) => {
-  try {
-    if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
-    const id = docIdAnh(req.params.id);
-    if (id === null) return res.status(400).json({ error: "M\xE3 y\xEAu c\u1EA7u kh\xF4ng h\u1EE3p l\u1EC7" });
-    const kt = kiemTraThanPutYeuCau(req.body);
-    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    const sets = ["xu_ly_boi = $2::text", "xu_ly_luc = now()"];
-    const thamSo = [id, req.user?.username ?? null];
-    if (kt.trangThai !== void 0) {
-      thamSo.push(kt.trangThai);
-      sets.push(`trang_thai = $${thamSo.length}::text`);
-    }
-    if (kt.ghiChuNoiBo !== void 0) {
-      thamSo.push(kt.ghiChuNoiBo);
-      sets.push(`ghi_chu_noi_bo = $${thamSo.length}::text`);
-    }
-    let dong2;
-    try {
-      dong2 = (await timedQuery(`UPDATE ban_vt_yeu_cau SET ${sets.join(", ")} WHERE id = $1 RETURNING ${SQL_COT_YEU_CAU}`, thamSo)).rows[0];
-    } catch (e) {
-      if (laThieuBangHoacCot(e)) return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
-      throw e;
-    }
-    if (!dong2) return res.status(404).json({ error: "Kh\xF4ng t\xECm th\u1EA5y y\xEAu c\u1EA7u" });
-    res.json({ yeuCau: dungYeuCau(dong2) });
-  } catch (error61) {
-    console.error("L\u1ED7i ban-vat-tu PUT yeu-cau:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
 app.get("/api/ban-vat-tu/anh/:id", async (req, res) => {
   try {
     if (!await userHasPermission(req, QUYEN_XEM2)) return res.status(403).json(LOI_QUYEN_XEM);
@@ -83275,11 +82960,10 @@ app.get("/api/ban-vat-tu/anh/:id", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-var sqlPutAnh = (coCongKhai) => `
-  UPDATE ban_vt_anh SET trang_thai = COALESCE($2::text, trang_thai), duyet_boi = $3, duyet_luc = now()
-    ${coCongKhai ? ", cong_khai = COALESCE($4::boolean, cong_khai)" : ""}
+var SQL_PUT_ANH = `
+  UPDATE ban_vt_anh SET trang_thai = $2::text, duyet_boi = $3, duyet_luc = now()
   WHERE id = $1
-  RETURNING id, ma_vat_tu, chac_chan, trang_thai, cong_trinh, code_vat_lieu, ${coCongKhai ? "cong_khai" : "FALSE AS cong_khai"}`;
+  RETURNING id, ma_vat_tu, chac_chan, trang_thai, cong_trinh, code_vat_lieu`;
 app.put("/api/ban-vat-tu/anh/:id", async (req, res) => {
   try {
     if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
@@ -83287,19 +82971,11 @@ app.put("/api/ban-vat-tu/anh/:id", async (req, res) => {
     if (id === null) return res.status(400).json({ error: "M\xE3 \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7" });
     const kt = kiemTraThanPutAnh(req.body);
     if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    const nguoi = req.user?.username ?? null;
     let dong2;
     try {
-      try {
-        dong2 = (await timedQuery(sqlPutAnh(true), [id, kt.trangThai ?? null, nguoi, kt.congKhai ?? null])).rows[0];
-      } catch (e) {
-        if (e?.code !== "42703" || kt.congKhai !== void 0) throw e;
-        dong2 = (await timedQuery(sqlPutAnh(false), [id, kt.trangThai ?? null, nguoi])).rows[0];
-      }
+      dong2 = (await timedQuery(SQL_PUT_ANH, [id, kt.trangThai, req.user?.username ?? null])).rows[0];
     } catch (e) {
-      if (laThieuBangHoacCot(e)) {
-        return res.status(503).json({ error: kt.congKhai !== void 0 ? LOI_THIEU_COT_CONG_KHAI.error : "Ch\u01B0a t\u1EA1o b\u1EA3ng \u1EA3nh \u2014 ch\u1EA1y backend/sql/2026-11-15_ban_vat_tu_bo_sung.sql" });
-      }
+      if (laThieuBangHoacCot(e)) return res.status(503).json({ error: "Ch\u01B0a t\u1EA1o b\u1EA3ng \u1EA3nh \u2014 ch\u1EA1y backend/sql/2026-11-15_ban_vat_tu_bo_sung.sql" });
       throw e;
     }
     if (!dong2) return res.status(404).json({ error: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
@@ -83311,45 +82987,11 @@ app.put("/api/ban-vat-tu/anh/:id", async (req, res) => {
         chacChan: dong2.chac_chan === true,
         trangThai: laTrangThaiAnh(dong2.trang_thai) ? dong2.trang_thai : "tu_dong",
         congTrinh: chuoiGon(dong2.cong_trinh),
-        codeVatLieu: chuoiGon(dong2.code_vat_lieu),
-        congKhai: dong2.cong_khai === true
+        codeVatLieu: chuoiGon(dong2.code_vat_lieu)
       }
     });
   } catch (error61) {
     console.error("L\u1ED7i ban-vat-tu PUT \u1EA3nh:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-app.put("/api/ban-vat-tu/:ma", async (req, res) => {
-  try {
-    if (!await userHasPermission(req, QUYEN_SUA)) return res.status(403).json(LOI_QUYEN_SUA);
-    const ma = docMaVatTu(req.params.ma);
-    if (!ma) return res.status(400).json({ error: "M\xE3 v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
-    const kt = kiemTraThanPut(req.body);
-    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    const nguoiSua = req.user?.username ?? null;
-    let dong2;
-    try {
-      const chay2 = async (docCotCongKhai) => {
-        const { sql, thamSo } = dungSqlUpsert(ma, nguoiSua, kt.thayDoi, docCotCongKhai);
-        return (await timedQuery(sql, thamSo)).rows[0];
-      };
-      try {
-        dong2 = await chay2(true);
-      } catch (e) {
-        if (e?.code !== "42703" || coTruongCongKhai(kt.thayDoi)) throw e;
-        dong2 = await chay2(false);
-      }
-    } catch (e) {
-      if (laThieuBang2(e)) return res.status(503).json({ error: CANH_BAO_THIEU_BANG });
-      if (e?.code === "42703") return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
-      throw e;
-    }
-    if (!dong2) return res.status(404).json({ error: `Kh\xF4ng c\xF3 m\xE3 ${ma} trong t\u1ED3n kho v\u1EADt t\u01B0 \u0111ang b\xE1n` });
-    boPhienBanNho();
-    res.json({ ban: dungThongTinBan(dong2) });
-  } catch (error61) {
-    console.error("L\u1ED7i ban-vat-tu PUT:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -83395,573 +83037,1341 @@ app.get("/api/ban-vat-tu/:ma/mua-hang", async (req, res) => {
   }
 });
 
-// src/routes/banVatTuCongKhai.ts
-import { createHash as createHash4, randomInt } from "node:crypto";
+// src/routes/vatTu.ts
+var QUYEN_XEM3 = "materials";
+var LOI_QUYEN2 = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem v\u1EADt t\u01B0 (\u0110\u1EB7t \u2013 Mua)" };
 var TIMEOUT_MS3 = 15e3;
-var chuoiGon2 = (v) => {
-  if (v === null || v === void 0 || typeof v === "object") return null;
-  const s = String(v).trim();
-  return s ? s : null;
+var NHOM_TRONG_MA = "-";
+var NHOM_TRONG_TEN = "Ch\u01B0a ph\xE2n nh\xF3m";
+var TRANG_MAC_DINH = 200;
+var TRANG_TOI_DA = 3e4;
+var SO_MA_TOI_DA = 3e3;
+var SO_TU_TOI_DA = 300;
+var TRANG_THAI = [
+  "chuaMua",
+  "dungHen",
+  "tre",
+  "motPhan",
+  "theoNhuCau",
+  "giaCong",
+  "du",
+  "dongThieu",
+  "dongKhongPo",
+  "tamDung",
+  "huy"
+];
+var TT_DANG_VE = ["dungHen", "tre", "motPhan", "theoNhuCau", "giaCong"];
+var TT_CON_CHO = ["chuaMua", ...TT_DANG_VE];
+var TT_KHONG_HUY = TRANG_THAI.filter((t) => t !== "huy");
+var KHO_BAO_TOI_DA = 1.5;
+var RE_HUY = "[Hh]([\u1EE6\u1EE7][Yy]|[Uu][\u1EF6\u1EF7])";
+var RE_DONG = "[\u0110\u0111][\xD3\xF3][Nn][Gg]";
+var RE_HOAN_THANH = "[Hh][Oo][\xC0\xE0][Nn] [Tt][Hh][\xC0\xE0][Nn][Hh]";
+var RE_NHAP_KHO = "[Nn][Hh][\u1EAC\u1EAD][Pp] [Kk][Hh][Oo]";
+var RE_CHUA_MUA = "[Cc][Hh][\u01AF\u01B0][Aa] [Mm][Uu][Aa]";
+var khongPhanBietHoa = (re) => {
+  let ra = "", trongLop = false;
+  const kt = [...re];
+  for (let i = 0; i < kt.length; i++) {
+    const ch = kt[i];
+    if (ch === "\\") {
+      ra += ch + (kt[++i] ?? "");
+      continue;
+    }
+    if (ch === "[") {
+      trongLop = true;
+      ra += ch;
+      continue;
+    }
+    if (ch === "]") {
+      trongLop = false;
+      ra += ch;
+      continue;
+    }
+    const t = ch.toLowerCase(), h = ch.toUpperCase();
+    if (t === h || [...t].length !== 1 || [...h].length !== 1) {
+      ra += ch;
+      continue;
+    }
+    ra += trongLop ? h + t : `[${h}${t}]`;
+  }
+  return ra;
 };
+var ci = khongPhanBietHoa;
+var RANH_TU = "($|[^0-9A-Za-z_])";
+var RE_DUNG_PO = ci("H(\u1EE6Y|U\u1EF6)|T\u1EA0M NG[\u01AF\u1EEAU]NG|T\u1EA0M D[\u1EEAU]NG|TH\u1EA6U PH\u1EE4|C\xD4NG TR\xCCNH \u0110\xC3 HO\xC0N TH\xC0NH");
+var RE_DUNG_GHI_CHU = ci("H(\u1EE6Y|U\u1EF6)|T\u1EA0M NG[\u01AF\u1EEAU]NG|T\u1EA0M D[\u1EEAU]NG|PENDING");
+var RE_DUNG_GHI_CHU_PO = ci("H(\u1EE6Y|U\u1EF6) Y\xCAU C\u1EA6U|H(\u1EE6Y|U\u1EF6) PH\u1EA6N C\xD2N L\u1EA0I|KH\xD4NG MUA N\u1EEEA|T\u1EA0M NG[\u01AF\u1EEAU]NG|T\u1EA0M D[\u1EEAU]NG");
+var RE_CCLD = ci("CCLD");
+var RE_CCLD_PO = ci("CUNG C\u1EA4P L\u1EAEP \u0110\u1EB6T");
+var RE_THEO_NHU_CAU = ci("NHU C[\u1EA6A]U (SX|S[\u1EA2A]N XU[\u1EA4A]T)|D[\xD9U]NG TR[\u01AFU][\u1EDAO]C T[\u1ED2O]N KHO");
+var RE_NHOM_GIA_CONG = `^806${RANH_TU}`;
+var RE_GHI_CHU_GIA_CONG = `^${ci("GC")}${RANH_TU}|${ci("#GIA C\xD4NG")}`;
+var RE_GHI_CHU_XONG = `^${ci("HO\xC0N TH\xC0NH")}$`;
+var RE_SO = "^-?[0-9]+([.][0-9]+)?$";
+var RE_NGAY_GHI_CHU = String.raw`^\d{4}-((0[1-9]|1[0-2])-(0[1-9]|1\d|2[0-8])|(0[13-9]|1[0-2])-(29|30)|(0[13578]|1[02])-31)([ T]00:00(:00(\.0+)?)?)?$`;
+var sqlHan = (b = "v") => `GREATEST(${b}.ngay_du_kien_giao_hang_pmh_nhap, CASE WHEN btrim(${b}.team_pr_note) ~ '${RE_NGAY_GHI_CHU}' THEN to_date(left(btrim(${b}.team_pr_note), 10), 'YYYY-MM-DD') END)`;
+var sqlTrangThai = (homNay, b = "v") => {
+  const yc = `COALESCE(${b}.so_luong_yeu_cau, 0)`;
+  const nhan = `COALESCE(${b}.so_luong_da_nhan_sap, 0)`;
+  const st = `COALESCE(${b}.trang_thai, '')`;
+  const sap = `COALESCE(${b}.trang_thai_sap, '')`;
+  const note = `btrim(normalize(COALESCE(${b}.team_pr_note, ''), NFC))`;
+  const po = `normalize(COALESCE(${b}.tinh_trang_po, ''), NFC)`;
+  const gpo = `normalize(COALESCE(${b}.ghi_chu_tinh_trang_po, ''), NFC)`;
+  const kho = `CASE WHEN btrim(${b}.sl_hang_ve_thuc_te) ~ '${RE_SO}' THEN btrim(${b}.sl_hang_ve_thuc_te)::float8 ELSE 0 END`;
+  return `CASE
+    WHEN ${st} ~ '${RE_HUY}' OR ${sap} ~ '${RE_HUY}' THEN 'huy'
+    WHEN ${sap} ~ '${RE_HOAN_THANH}' THEN 'du'
+    WHEN ${nhan} > 0 AND ${nhan} >= ${yc} THEN 'du'
+    WHEN ${b}.so_luong_con_lai IS NOT NULL AND ${b}.so_luong_con_lai <= 0 AND ${yc} > 0 THEN 'du'
+    WHEN ${sap} ~ '${RE_DONG}' OR ${st} ~ '${RE_NHAP_KHO}' THEN CASE WHEN ${b}.so_po IS NULL THEN 'dongKhongPo' ELSE 'dongThieu' END
+    WHEN ${po} ~ '${RE_DUNG_PO}' OR ${note} ~ '${RE_DUNG_GHI_CHU}' OR ${gpo} ~ '${RE_DUNG_GHI_CHU_PO}' THEN 'tamDung'
+    WHEN ${st} ~ '${RE_CHUA_MUA}' OR ${b}.so_po IS NULL THEN 'chuaMua'
+    WHEN ${note} ~ '${RE_CCLD}' OR ${po} ~ '${RE_CCLD_PO}' THEN 'tamDung'
+    WHEN ${yc} > 0 AND ${kho} >= ${yc} AND ${kho} <= ${yc} * ${KHO_BAO_TOI_DA} THEN 'du'
+    WHEN ${note} ~ '${RE_GHI_CHU_XONG}' THEN 'du'
+    WHEN btrim(normalize(COALESCE(${b}.nhom_vt, ''), NFC)) ~ '${RE_NHOM_GIA_CONG}' OR ${note} ~ '${RE_GHI_CHU_GIA_CONG}' THEN 'giaCong'
+    WHEN ${sqlHan(b)} < ${homNay} THEN CASE WHEN (${note} || ' ' || ${gpo}) ~ '${RE_THEO_NHU_CAU}' THEN 'theoNhuCau' ELSE 'tre' END
+    WHEN ${nhan} > 0 THEN 'motPhan'
+    ELSE 'dungHen'
+  END`;
+};
+var reJs = (s) => new RegExp(s);
+var RE_JS = {
+  huy: reJs(RE_HUY),
+  dong: reJs(RE_DONG),
+  hoanThanh: reJs(RE_HOAN_THANH),
+  nhapKho: reJs(RE_NHAP_KHO),
+  chuaMua: reJs(RE_CHUA_MUA),
+  ngayGhiChu: reJs(RE_NGAY_GHI_CHU),
+  dungPo: reJs(RE_DUNG_PO),
+  dungGhiChu: reJs(RE_DUNG_GHI_CHU),
+  dungGhiChuPo: reJs(RE_DUNG_GHI_CHU_PO),
+  ccld: reJs(RE_CCLD),
+  ccldPo: reJs(RE_CCLD_PO),
+  theoNhuCau: reJs(RE_THEO_NHU_CAU),
+  nhomGiaCong: reJs(RE_NHOM_GIA_CONG),
+  ghiChuGiaCong: reJs(RE_GHI_CHU_GIA_CONG),
+  ghiChuXong: reJs(RE_GHI_CHU_XONG),
+  so: reJs(RE_SO)
+};
+var phanTramDungHen = (x) => {
+  const mau = x.dungHen + x.tre + x.motPhan;
+  return mau > 0 ? (x.dungHen + x.motPhan) / mau * 100 : null;
+};
+var docDanhSach = (v, toiDa = 200, kyTu = 100, tachPhay = true) => {
+  if (v === void 0 || v === null || v === "") return [];
+  const ds2 = Array.isArray(v) ? v : [v];
+  const ra = /* @__PURE__ */ new Set();
+  for (const x of ds2) {
+    if (typeof x !== "string") return null;
+    for (const p of tachPhay ? x.split(",") : [x]) {
+      const t = p.trim();
+      if (!t) continue;
+      if (t.length > kyTu) return null;
+      ra.add(t);
+    }
+  }
+  if (ra.size > toiDa) return null;
+  return [...ra].sort();
+};
+var docCo = (v, macDinh) => {
+  if (v === void 0 || v === null || v === "") return macDinh;
+  const s = String(v).toLowerCase();
+  return !(s === "0" || s === "false");
+};
+var tachTimKiem = (q) => {
+  const tu = q.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+  if (tu.length > SO_TU_TOI_DA) return null;
+  const so10 = /* @__PURE__ */ new Set(), chu = /* @__PURE__ */ new Set();
+  for (const t of tu) {
+    const m = /^0*(\d{1,15})(?:\.0+)?$/.exec(t);
+    if (m) so10.add(m[1]);
+    else chu.add(t.normalize("NFC"));
+  }
+  return { so: [...so10].sort(), chu: [...chu].sort() };
+};
+var docBoLoc = (q) => {
+  const tu = q.tu === void 0 || q.tu === "" ? null : q.tu;
+  const den = q.den === void 0 || q.den === "" ? null : q.den;
+  if (tu !== null && !laNgayHopLe(tu)) return { hopLe: false, loi: 'Ng\xE0y "t\u1EEB" kh\xF4ng h\u1EE3p l\u1EC7' };
+  if (den !== null && !laNgayHopLe(den)) return { hopLe: false, loi: 'Ng\xE0y "\u0111\u1EBFn" kh\xF4ng h\u1EE3p l\u1EC7' };
+  const ct = docDanhSach(q.ct);
+  const nhom = docDanhSach(q.nhom, 100, 10);
+  const tt = docDanhSach(q.trangThai, 20, 20);
+  if (!ct) return { hopLe: false, loi: "Danh s\xE1ch c\xF4ng tr\xECnh kh\xF4ng h\u1EE3p l\u1EC7" };
+  if (!nhom || nhom.some((n) => n !== NHOM_TRONG_MA && !/^\d{1,5}$/.test(n))) return { hopLe: false, loi: "Danh s\xE1ch nh\xF3m kh\xF4ng h\u1EE3p l\u1EC7" };
+  if (!tt || tt.some((t) => !TRANG_THAI.includes(t))) return { hopLe: false, loi: "Tr\u1EA1ng th\xE1i kh\xF4ng h\u1EE3p l\u1EC7" };
+  let so10 = [], chu = [];
+  if (q.q !== void 0 && q.q !== "") {
+    if (typeof q.q !== "string" || q.q.length > 4e3) return { hopLe: false, loi: "\xD4 t\xECm qu\xE1 d\xE0i" };
+    const t = tachTimKiem(q.q);
+    if (!t) return { hopLe: false, loi: "\xD4 t\xECm c\xF3 qu\xE1 nhi\u1EC1u m\u1EE5c" };
+    ({ so: so10, chu } = t);
+  }
+  return {
+    hopLe: true,
+    loc: {
+      tu,
+      den,
+      ct,
+      nhom,
+      trangThai: tt,
+      so: so10,
+      chu,
+      an806: docCo(q.an806, true),
+      an401: docCo(q.an401, true),
+      an800: docCo(q.an800, true),
+      anHuy: docCo(q.anHuy, true)
+    }
+  };
+};
+var sqlNguon = (homNay) => `
+  SELECT v.*,
+         ${sqlTrangThai(homNay)} AS tt,
+         ${sqlHan()} AS han,
+         COALESCE(NULLIF(split_part(btrim(v.nhom_vt), ' - ', 1), ''), '${NHOM_TRONG_MA}') AS ma_nhom,
+         CASE WHEN v.ma_vat_tu_sap IS NULL THEN NULL ELSE (v.ma_vat_tu_sap::bigint)::text END AS ma,
+         CASE WHEN v.so_pr IS NULL THEN NULL ELSE (v.so_pr::bigint)::text END AS so_pr_txt,
+         CASE WHEN v.so_po IS NULL THEN NULL ELSE (v.so_po::bigint)::text END AS so_po_txt,
+         v.don_gia / ${sqlHeSoGia()} AS don_gia_dc,
+         v.thanh_tien / ${sqlHeSoGia()} AS thanh_tien_dc
+  FROM vat_tu v`;
+var sqlDieuKien = (loc, params, boNgay = false) => {
+  const p = (v) => {
+    params.push(v);
+    return `$${params.length}`;
+  };
+  const dk = [];
+  if (!boNgay && loc.tu) dk.push(`b.ngay_pr >= ${p(loc.tu)}::date`);
+  if (!boNgay && loc.den) dk.push(`b.ngay_pr <= ${p(loc.den)}::date`);
+  if (loc.ct.length) dk.push(`btrim(b.trackingno) = ANY(${p(loc.ct)}::text[])`);
+  if (loc.nhom.length) dk.push(`b.ma_nhom = ANY(${p(loc.nhom)}::text[])`);
+  if (loc.trangThai.length) dk.push(`b.tt = ANY(${p(loc.trangThai)}::text[])`);
+  if (loc.anHuy && !loc.trangThai.includes("huy")) dk.push(`b.tt <> 'huy'`);
+  if (loc.an806 && !loc.nhom.includes("806")) dk.push(`b.ma_nhom <> '806'`);
+  if (loc.an401 && !loc.nhom.includes("401")) dk.push(`b.ma_nhom <> '401'`);
+  if (loc.an800) dk.push(`COALESCE(b.ma, '') NOT LIKE '800%'`);
+  const tim = [];
+  if (loc.so.length) {
+    const ps = p(loc.so);
+    tim.push(`b.so_pr_txt = ANY(${ps}::text[]) OR b.so_po_txt = ANY(${ps}::text[]) OR b.ma = ANY(${ps}::text[])`);
+  }
+  if (loc.chu.length) {
+    tim.push(loc.chu.map((c) => {
+      const pc = p(`%${c.replace(/[\\%_]/g, (m) => `\\${m}`)}%`);
+      return `(b.ten_vat_tu ILIKE ${pc} OR b.code_vat_lieu ILIKE ${pc} OR b.ma_nha_may ILIKE ${pc})`;
+    }).join(" AND "));
+  }
+  if (tim.length) dk.push(`(${tim.map((t) => `(${t})`).join(" OR ")})`);
+  return dk.length ? `WHERE ${dk.join(" AND ")}` : "";
+};
+var DS_SQL = (xs) => xs.map((x) => `'${x}'`).join(",");
+var SQL_GOP = `
+  COUNT(*) FILTER (WHERE b.tt <> 'huy') AS so_dong,
+  ${TRANG_THAI.map((t) => `COUNT(*) FILTER (WHERE b.tt = '${t}') AS "${t}"`).join(",\n  ")},
+  COALESCE(SUM(b.thanh_tien_dc) FILTER (WHERE b.tt <> 'huy'), 0) / 1e6 AS gia_tri_pr,
+  COALESCE(SUM(GREATEST(COALESCE(b.so_luong_con_lai, 0), 0) * COALESCE(b.don_gia_dc, 0)) FILTER (WHERE b.tt IN (${DS_SQL(TT_DANG_VE)})), 0) / 1e6 AS gia_tri_cho,
+  COUNT(*) FILTER (WHERE b.tt = 'chuaMua' AND b.ngay_pr < $1::date - 14) AS pr_chua_po_14,
+  COUNT(*) FILTER (WHERE b.tt IN (${DS_SQL(TT_CON_CHO)}) AND b.ngay_can_vat_tu <= $1::date + 14) AS can_14,
+  COUNT(*) FILTER (WHERE b.tt IN ('dungHen','motPhan') AND b.han BETWEEN $1::date AND $1::date + 7) AS ve_7`;
 var so5 = (v) => {
-  if (v === null || v === void 0 || v === "") return 0;
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-var boDau = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/\s+/g, " ").trim();
-var DS_LOAI_CHINH = [
-  "KVT V\u1EA3i Da Mouss",
-  "KVT G\u1ED7",
-  "KVT T\u1EA5m-V\xE1n",
-  "KVT ph\u1EE5 ki\u1EC7n",
-  "KVT \u0110\xE1",
-  "KVT H\xF3a ch\u1EA5t",
-  "Kho G.C\xF4ng Ngo\xE0i",
-  "KVT Bao B\xEC",
-  "KVT Kim Lo\u1EA1i",
-  "KVT CCDC"
-];
-var LOAI_KHAC = "Kh\xE1c";
-var TEN_KHO_RIENG = {
-  "vai,da,sf": "KVT V\u1EA3i Da Mouss",
-  "go": "KVT G\u1ED7",
-  "tam \u2013 van": "KVT T\u1EA5m-V\xE1n",
-  "tam - van": "KVT T\u1EA5m-V\xE1n",
-  "tam-van": "KVT T\u1EA5m-V\xE1n",
-  "phu kien": "KVT ph\u1EE5 ki\u1EC7n",
-  "da": "KVT \u0110\xE1",
-  "hoa chat": "KVT H\xF3a ch\u1EA5t",
-  "gc ngoai": "Kho G.C\xF4ng Ngo\xE0i",
-  "bao bi": "KVT Bao B\xEC",
-  "kim loai": "KVT Kim Lo\u1EA1i",
-  "ccdc": "KVT CCDC"
-};
-var loaiTuKho = (kho) => {
-  const s = String(kho ?? "").replace(/\s+/g, " ").trim();
-  if (!s) return LOAI_KHAC;
-  if (DS_LOAI_CHINH.includes(s)) return s;
-  const bo = s.replace(/^(kho\s+vt|kvt|kho)\s+/i, "").trim() || s;
-  return TEN_KHO_RIENG[boDau(bo).replace(/\s*,\s*/g, ",")] ?? LOAI_KHAC;
-};
-var TEN_DVT = {
-  PCS: "c\xE1i",
-  EA: "c\xE1i",
-  M: "m",
-  TAM: "t\u1EA5m",
-  SET: "b\u1ED9",
-  KG: "kg",
-  G: "g",
-  M2: "m\xB2",
-  M3: "m\xB3",
-  CD3: "dm\xB3",
-  L: "l\xEDt",
-  FT2: "ft\xB2",
-  YRD: "yard",
-  YD: "yard",
-  CUO: "cu\u1ED9n",
-  ROL: "cu\u1ED9n",
-  VI: "v\u1EC9",
-  THA: "thanh",
-  HOP: "h\u1ED9p",
-  CAP: "c\u1EB7p",
-  BIN: "b\xECnh",
-  CHA: "chai",
-  BIC: "b\u1ECBch",
-  XAP: "x\u1EA5p",
-  CAY: "c\xE2y",
-  SOI: "s\u1EE3i",
-  TUY: "tu\xFDp",
-  GOI: "g\xF3i",
-  TEP: "t\xE9p",
-  THU: "th\xF9ng",
-  BO: "b\u1ED9",
-  CAI: "c\xE1i",
-  CHI: "chi\u1EBFc",
-  DOI: "\u0111\xF4i",
-  LON: "lon",
-  BAO: "bao",
-  KIT: "b\u1ED9"
-};
-var tenDvt = (dvt) => {
-  const s = chuoiGon2(dvt);
-  if (!s) return null;
-  return TEN_DVT[s.toUpperCase()] ?? s.toLowerCase();
-};
-var COT_THUOC_TINH = [
-  ["chungLoai", "m_chung_loai"],
-  ["quyCach", "m_quy_cach"],
-  ["mau", "m_mau"],
-  ["maMau", null],
-  ["thuongHieu", "m_thuong_hieu"],
-  ["chatLieu", "m_chat_lieu"],
-  ["xuatXu", "m_xuat_xu"]
-];
-var TRUONG_GOP = [
-  ["chungLoai", "Ch\u1EE7ng lo\u1EA1i", 1, [1]],
-  ["thuongHieu", "Th\u01B0\u01A1ng hi\u1EC7u", 12, [12]],
-  ["mau", "M\xE0u s\u1EAFc", 15, [15]],
-  ["maMau", "M\xE3 m\xE0u", 16, [16]],
-  ["quyCach", "Quy c\xE1ch", 20, [20, 21, 22, 23, 24]],
-  ["xuatXu", "Xu\u1EA5t x\u1EE9", 26, [26]],
-  ["chatLieu", "Ch\u1EA5t li\u1EC7u", 35, [35]]
-];
-var NHAN_MP_CONG_KHAI = {
-  MP01: "Ch\u1EE7ng lo\u1EA1i",
-  MP02: "T\xEAn g\u1ED7",
-  MP03: "T\xEAn t\u1EA5m / v\xE1n",
-  MP04: "Lo\u1EA1i 1 m\u1EB7t / 2 m\u1EB7t",
-  MP05: "T\xEAn v\u1EA3i / da / m\xE2y",
-  MP06: "T\xEAn \u0111\xE1 / k\xEDnh",
-  MP07: "T\xEAn ph\u1EE5 ki\u1EC7n",
-  MP08: "T\xEAn kim lo\u1EA1i",
-  MP09: "T\xEAn keo",
-  MP10: "T\xEAn h\xF3a ch\u1EA5t",
-  MP12: "Th\u01B0\u01A1ng hi\u1EC7u",
-  MP13: "B\u1ED9 s\u01B0u t\u1EADp",
-  MP14: "V\u1EADt li\u1EC7u d\xE1n b\u1EC1 m\u1EB7t",
-  MP15: "M\xE0u s\u1EAFc",
-  MP16: "M\xE3 m\xE0u",
-  MP17: "M\xE3 h\u1ECDa ti\u1EBFt",
-  MP19: "Ti\xEAu chu\u1EA9n ch\u1EA5t l\u01B0\u1EE3ng",
-  MP20: "Quy c\xE1ch ph\xE1ch",
-  MP21: "Quy c\xE1ch d\xE0y",
-  MP22: "Quy c\xE1ch r\u1ED9ng",
-  MP23: "Quy c\xE1ch d\xE0i",
-  MP24: "Quy c\xE1ch \u0111\u01B0\u1EDDng k\xEDnh",
-  MP25: "Tr\u1ECDng l\u01B0\u1EE3ng",
-  MP26: "Xu\u1EA5t x\u1EE9",
-  MP27: "H\xECnh d\u1EA1ng",
-  MP28: "X\u1EBB g\u1ED7",
-  MP29: "\u0110\u1ED9 \u1EA9m / \u01B0\u1EDBt",
-  MP30: "Ch\u1ED1ng ch\xE1y / ch\u1EADm ch\xE1y",
-  MP31: "\u0110\u1EB7c t\xEDnh \u0111\u1EB7c th\xF9",
-  MP32: "Bi\u1EBFn t\xEDnh",
-  MP33: "Gh\xE9p g\u1ED7",
-  MP34: "Ph\u01B0\u01A1ng ph\xE1p gia c\xF4ng",
-  MP35: "Ch\u1EA5t li\u1EC7u"
-};
-var suaQuyCachDayRong = (qc) => {
-  const m = /^\s*Dày\s+(\d+(?:[.,]\d+)?)\s*×\s*Rộng\s+(\d+(?:[.,]\d+)?)\s*$/u.exec(qc);
-  if (!m) return qc;
-  const day = Number(m[1].replace(",", "."));
-  const rong = Number(m[2].replace(",", "."));
-  return day >= 600 && rong >= day ? `R\u1ED9ng ${m[1]} \xD7 D\xE0i ${m[2]}` : qc;
-};
-var laGiaTriRac = (s) => /^(?:[-–.\s]+|n\s*\/?\s*a|\(?blank\)?|none|null|0+(?:[.,]0+)?)$/i.test(s.trim());
-var khoaSo = (s) => boDau(s).replace(/[\s_\-–/.,]+/g, "");
-var dungThuocTinhDayDu = (thuocTinh, thuocTinhMp, che) => {
-  const dong2 = [];
-  const daBao = /* @__PURE__ */ new Set();
-  const daCo = /* @__PURE__ */ new Set();
-  for (const [khoa, nhan, viTri, bao] of TRUONG_GOP) {
-    const gt = thuocTinh[khoa];
-    if (!gt || laGiaTriRac(gt)) continue;
-    for (const so9 of bao) daBao.add(so9);
-    daCo.add(khoaSo(gt));
-    dong2.push({ viTri, nhan, giaTri: gt });
-  }
-  const mp = chuanHoaThuocTinh(thuocTinhMp);
-  const cacMa = Object.keys(mp).map((k) => ({ k, so: /^\s*MP(\d{2})(?!\d)/i.exec(k)?.[1] })).filter((x) => x.so !== void 0).sort((a, b) => Number(a.so) - Number(b.so) || a.k.localeCompare(b.k));
-  for (const { k, so: soMp } of cacMa) {
-    const nhan = NHAN_MP_CONG_KHAI[`MP${soMp}`];
-    const viTri = Number(soMp);
-    if (!nhan || laThuocTinhNcc(k) || daBao.has(viTri)) continue;
-    const tho = mp[k];
-    if (laGiaTriRac(tho)) continue;
-    const gt = che(tho);
-    if (!gt || laGiaTriRac(gt)) continue;
-    const ks = khoaSo(gt);
-    if (!ks || daCo.has(ks)) continue;
-    daCo.add(ks);
-    dong2.push({ viTri, nhan, giaTri: gt });
-  }
-  return dong2.sort((a, b) => a.viTri - b.viTri).map(({ nhan, giaTri }) => ({ nhan, giaTri }));
-};
-var tenNhomVatTu = (tenNhomSap, thuocTinhMp) => {
-  const ten = chuoiGon2(tenNhomSap);
-  if (ten && !/^\d+$/.test(ten)) return ten;
-  const mp = chuanHoaThuocTinh(thuocTinhMp);
-  const k = Object.keys(mp).find((x) => /^\s*MP00(?!\d)/i.test(x));
-  const t = k ? mp[k].replace(/^\s*\d+\s*[-–:]?\s*/, "").trim() : "";
-  return t && !laGiaTriRac(t) ? t : null;
-};
-var MAU_MA_CONG_TRINH = /(?<![\p{L}\p{N}])(?:CT|PO)\s*\d{2}\s*[-–]\s*\d{3,4}(?![\p{N}])/giu;
-var DAU_CHE = "\uE000";
-var MAU_QUANH_CHE = /[\s_\-–/,;:|\uE000]*\uE000[\s_\-–/,;:|\uE000]*/gu;
-var MAU_DAU_NOI_HAI_DAU = /^[\s_\-–/,;:|]+|[\s_\-–/,;:|]+$/gu;
-var thoatRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-var cumCongTrinh = (ds2) => {
-  const kq = /* @__PURE__ */ new Set();
-  for (const v of ds2) {
-    const s = chuoiGon2(v);
-    if (!s) continue;
-    for (const phan of s.split(/[\r\n+,;]+/)) {
-      let p = phan.replace(/\s+/g, " ").trim();
-      if (/^dung chung(\s|$)/.test(boDau(p))) p = p.split(" ").slice(2).join(" ").trim();
-      if (!p || p.startsWith("(") || p.length < 3) continue;
-      kq.add(p);
-    }
-  }
-  return [...kq].sort((a, b) => b.length - a.length);
-};
-var cheCongTrinh = (s, cum = []) => {
-  let t = s.replace(MAU_MA_CONG_TRINH, DAU_CHE);
-  for (const c of cum) {
-    const mau = new RegExp(`(?<![\\p{L}\\p{N}])${thoatRegex(c).replace(/ /g, "\\s+")}(?![\\p{L}\\p{N}])`, "giu");
-    t = t.replace(mau, DAU_CHE);
-  }
-  if (!t.includes(DAU_CHE)) return s.trim();
-  t = t.replace(MAU_QUANH_CHE, (khop, viTri, toanBo) => {
-    if (viTri === 0 || viTri + khop.length === toanBo.length) return "";
-    if (/\s/.test(khop)) return " ";
-    return khop.replace(/\uE000/g, "")[0] ?? " ";
-  });
-  return t.replace(/\(\s*\)|\[\s*\]/g, " ").replace(/\s+/g, " ").replace(MAU_DAU_NOI_HAI_DAU, "").trim();
-};
-var dungItemCongKhai = (rows, phu2 = {}) => {
-  if (!rows.length) return null;
-  const r0 = rows[0];
-  const ma = String(r0.ma ?? "");
-  const soLuong = Math.round(rows.reduce((t, r) => t + so5(r.so_luong), 0) * 1e6) / 1e6;
-  if (!ma || !(soLuong > 0)) return null;
-  const dongLon = rows.reduce((a, b) => so5(b.so_luong) > so5(a.so_luong) ? b : a);
-  const suy = chuanHoaSuyTuTen(phu2.suyTuTen);
-  const cum = cumCongTrinh(rows.flatMap((r) => [r.ten_cong_trinh, r.ma_cong_trinh]));
-  const che = (v) => v ? cheCongTrinh(v, cum) || null : null;
-  const thuocTinh = {};
-  for (const [khoa, cot] of COT_THUOC_TINH) {
-    const gt = che((cot ? chuoiGon2(r0[cot]) : null) ?? (khoa === "xuatXu" ? null : chuoiGon2(suy[khoa])));
-    if (gt) thuocTinh[khoa] = khoa === "quyCach" ? suaQuyCachDayRong(gt) : gt;
-  }
-  const thuocTinhDayDu = dungThuocTinhDayDu(thuocTinh, r0.m_thuoc_tinh, che);
-  const gia = Number(r0.gia_ban_vnd);
-  const anhNgoai = [];
-  if (Array.isArray(r0.anh_urls)) {
-    for (const u of r0.anh_urls) {
-      const s = typeof u === "string" ? u.trim() : "";
-      if (laUrlAnhHopLe(s) && !anhNgoai.includes(s) && anhNgoai.length < SO_ANH_TOI_DA) anhNgoai.push(s);
-    }
-  }
-  const dvt = rows.map((r) => chuoiGon2(r.dvt)).find(Boolean) ?? chuoiGon2(r0.m_dvt);
-  return {
-    ma,
-    // Tên admin đặt cho khách giữ nguyên; tên tồn / master che mã + tên công trình (hết chữ => chủng loại / 'Vật tư <mã>')
-    ten: chuoiGon2(r0.ten_hien_thi) ?? che(rows.map((r) => chuoiGon2(r.ten)).find(Boolean) ?? null) ?? che(chuoiGon2(r0.m_ten)) ?? thuocTinh.chungLoai ?? `V\u1EADt t\u01B0 ${ma}`,
-    loai: loaiTuKho(dongLon.kho),
-    thuocTinh,
-    thuocTinhDayDu,
-    nhomVatTu: che(tenNhomVatTu(r0.m_ten_nhom_sap, r0.m_thuoc_tinh)),
-    soLuong,
-    dvt: tenDvt(dvt),
-    giaBanVnd: r0.gia_ban_vnd !== null && r0.gia_ban_vnd !== void 0 && r0.gia_ban_vnd !== "" && Number.isFinite(gia) && gia > 0 ? gia : null,
-    moTa: chuoiGon2(r0.mo_ta_cong_khai),
-    anh: (phu2.anh ?? []).filter((id) => Number.isSafeInteger(id) && id > 0),
-    anhNgoai,
-    dangLuc: /^\d{4}-\d{2}-\d{2}$/.test(String(r0.dang_luc ?? "")) ? String(r0.dang_luc) : null
+var chuoiHoacNull2 = (v) => v === null || v === void 0 || v === "" ? null : String(v);
+var docGop = (r) => {
+  const x = {
+    soDong: so5(r.so_dong),
+    chuaMua: so5(r.chuaMua),
+    dungHen: so5(r.dungHen),
+    tre: so5(r.tre),
+    motPhan: so5(r.motPhan),
+    theoNhuCau: so5(r.theoNhuCau),
+    giaCong: so5(r.giaCong),
+    du: so5(r.du),
+    dongThieu: so5(r.dongThieu),
+    dongKhongPo: so5(r.dongKhongPo),
+    tamDung: so5(r.tamDung),
+    huy: so5(r.huy),
+    giaTriPr: so5(r.gia_tri_pr),
+    giaTriCho: so5(r.gia_tri_cho),
+    prChuaPoQua14: so5(r.pr_chua_po_14),
+    canTrong14: so5(r.can_14),
+    ve7Ngay: so5(r.ve_7)
   };
+  return { ...x, ptDungHen: phanTramDungHen(x) };
 };
-var gopDanhSachCongKhai = (rows, suyTuTen, anh) => {
-  const theoMa = /* @__PURE__ */ new Map();
-  for (const r of rows) {
-    const ma = String(r.ma ?? "");
-    if (!ma) continue;
-    const ds2 = theoMa.get(ma);
-    if (ds2) ds2.push(r);
-    else theoMa.set(ma, [r]);
-  }
-  const items = [];
-  for (const [ma, ds2] of theoMa) {
-    const it = dungItemCongKhai(ds2, { suyTuTen: suyTuTen.get(ma), anh: anh.get(ma) });
-    if (it) items.push(it);
-  }
-  return items.sort((a, b) => (b.dangLuc ?? "").localeCompare(a.dangLuc ?? "") || a.ten.localeCompare(b.ten, "vi") || (a.ma < b.ma ? -1 : a.ma > b.ma ? 1 : 0));
-};
-var SO_DONG_YEU_CAU_TOI_DA = 30;
-var THAN_YEU_CAU_TOI_DA_BYTE = 20 * 1024;
-var YEU_CAU_MOI_GIO_TOI_DA = 5;
-var YEU_CAU_MOI_NGAY_TOI_DA = 50;
-var chuanHoaSdt = (v) => {
-  if (typeof v !== "string" || v.length > 40) return null;
-  let s = v.replace(/[\s.\-()]/g, "");
-  if (s.startsWith("+84")) s = "0" + s.slice(3);
-  return /^\d{9,12}$/.test(s) ? s : null;
-};
-var vanBanThuan = (s, nhieuDong = false) => {
-  let t = nhieuDong ? s.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ") : s.replace(/[\u0000-\u001f\u007f]/g, " ");
-  t = nhieuDong ? t.split("\n").map((d) => d.replace(/[ \t]+/g, " ").trim()).join("\n").replace(/\n{3,}/g, "\n\n") : t.replace(/\s+/g, " ");
-  return t.trim();
-};
-var laEmailHopLe = (s) => s.length <= 200 && /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/.test(s);
-var kiemTraThanYeuCau = (body) => {
-  if (body === null || typeof body !== "object" || Array.isArray(body)) return { hopLe: false, loi: "D\u1EEF li\u1EC7u g\u1EEDi l\xEAn kh\xF4ng h\u1EE3p l\u1EC7" };
-  const b = body;
-  if (b.web !== void 0 && b.web !== null && String(b.web).trim() !== "") return { hopLe: true, laBot: true };
-  if (!Array.isArray(b.items) || b.items.length === 0) return { hopLe: false, loi: "Ch\u01B0a ch\u1ECDn v\u1EADt t\u01B0 n\xE0o" };
-  if (b.items.length > SO_DONG_YEU_CAU_TOI_DA) return { hopLe: false, loi: `T\u1ED1i \u0111a ${SO_DONG_YEU_CAU_TOI_DA} m\xE3 m\u1ED7i y\xEAu c\u1EA7u` };
-  const gop = /* @__PURE__ */ new Map();
-  for (const x of b.items) {
-    if (x === null || typeof x !== "object") return { hopLe: false, loi: "Danh s\xE1ch v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" };
-    const d = x;
-    const ma = docMaVatTu(d.ma);
-    if (!ma) return { hopLe: false, loi: "C\xF3 m\xE3 v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" };
-    if (typeof d.soLuong !== "number" || !Number.isFinite(d.soLuong) || d.soLuong <= 0) {
-      return { hopLe: false, loi: `S\u1ED1 l\u01B0\u1EE3ng c\u1EE7a m\xE3 ${ma} ph\u1EA3i l\u1EDBn h\u01A1n 0` };
+var boGia = (x) => ({ ...x, giaTriPr: null, giaTriCho: null });
+var chayMacDinh = (text, params) => timedQuery(text, params, { timeoutMs: TIMEOUT_MS3, workMemMb: 32 });
+var tinhTheoNhom = async (loc, homNay, capNhat, chay2 = chayMacDinh) => {
+  const params = [homNay];
+  const where = sqlDieuKien(loc, params);
+  const r = await chay2(
+    `WITH b AS (${sqlNguon("$1::date")})
+     SELECT b.ma_nhom, MIN(btrim(b.nhom_vt)) AS ten, COUNT(DISTINCT b.ma) AS so_ma, GROUPING(b.ma_nhom) AS la_tong, ${SQL_GOP}
+     FROM b ${where}
+     GROUP BY GROUPING SETS ((b.ma_nhom), ())`,
+    params
+  );
+  let tong2 = null;
+  const nhom = [];
+  for (const row of r.rows) {
+    const g = docGop(row);
+    if (so5(row.la_tong) === 1) {
+      tong2 = { ...g, soMa: so5(row.so_ma) };
+      continue;
     }
-    gop.set(ma, (gop.get(ma) ?? 0) + d.soLuong);
+    const ma = String(row.ma_nhom ?? NHOM_TRONG_MA);
+    nhom.push({ ...g, ma, ten: ma === NHOM_TRONG_MA ? NHOM_TRONG_TEN : chuoiHoacNull2(row.ten) ?? ma, soMa: so5(row.so_ma) });
   }
-  if (typeof b.ten !== "string") return { hopLe: false, loi: "Vui l\xF2ng nh\u1EADp h\u1ECD t\xEAn" };
-  const ten = vanBanThuan(b.ten);
-  if (ten.length < 2 || ten.length > 100) return { hopLe: false, loi: "H\u1ECD t\xEAn t\u1EEB 2 \u0111\u1EBFn 100 k\xFD t\u1EF1" };
-  const sdt = chuanHoaSdt(b.sdt);
-  if (!sdt) return { hopLe: false, loi: "S\u1ED1 \u0111i\u1EC7n tho\u1EA1i kh\xF4ng h\u1EE3p l\u1EC7 (9\u201312 ch\u1EEF s\u1ED1)" };
-  const tuyChon = (v, toiDa, nhieuDong = false) => {
-    if (v === void 0 || v === null) return { ok: true, gt: null };
-    if (typeof v !== "string" || v.length > toiDa * 2) return { ok: false };
-    const s = vanBanThuan(v, nhieuDong);
-    return s.length > toiDa ? { ok: false } : { ok: true, gt: s || null };
+  nhom.sort((a, b) => b.soDong - a.soDong || a.ma.localeCompare(b.ma));
+  const rong = {
+    soDong: 0,
+    chuaMua: 0,
+    dungHen: 0,
+    tre: 0,
+    motPhan: 0,
+    theoNhuCau: 0,
+    giaCong: 0,
+    du: 0,
+    dongThieu: 0,
+    dongKhongPo: 0,
+    tamDung: 0,
+    huy: 0,
+    ptDungHen: null,
+    giaTriPr: 0,
+    giaTriCho: 0,
+    prChuaPoQua14: 0,
+    canTrong14: 0,
+    ve7Ngay: 0,
+    soMa: 0
   };
-  const email3 = tuyChon(b.email, 200);
-  if (!email3.ok || email3.gt !== null && !laEmailHopLe(email3.gt)) return { hopLe: false, loi: "Email kh\xF4ng h\u1EE3p l\u1EC7" };
-  const congTy = tuyChon(b.congTy, 200);
-  if (!congTy.ok) return { hopLe: false, loi: "T\xEAn c\xF4ng ty t\u1ED1i \u0111a 200 k\xFD t\u1EF1" };
-  const ghiChu = tuyChon(b.ghiChu, 1e3, true);
-  if (!ghiChu.ok) return { hopLe: false, loi: "Ghi ch\xFA t\u1ED1i \u0111a 1000 k\xFD t\u1EF1" };
+  return { capNhat, homNay, coGia: true, nhom, tong: tong2 ?? rong };
+};
+var tinhTheoMa = async (loc, homNay, capNhat, chay2 = chayMacDinh) => {
+  const params = [homNay];
+  const where = sqlDieuKien(loc, params);
+  const r = await chay2(
+    `WITH b AS (${sqlNguon("$1::date")})
+     SELECT b.ma, NULLIF(btrim(b.dvt), '') AS dvt,
+            (ARRAY_AGG(b.ten_vat_tu ORDER BY b.ngay_pr DESC NULLS LAST, b.id DESC))[1] AS ten,
+            MIN(b.ma_nhom) AS nhom,
+            COALESCE(SUM(GREATEST(COALESCE(b.so_luong_con_lai, 0), 0)) FILTER (WHERE b.tt IN (${DS_SQL(TT_DANG_VE)})), 0) AS sl_cho,
+            to_char(MIN(b.han) FILTER (WHERE b.tt IN ('dungHen','motPhan') AND b.han >= $1::date), 'YYYY-MM-DD') AS ve_gan_nhat,
+            ${SQL_GOP}
+     FROM b ${where}
+     GROUP BY b.ma, 2
+     ORDER BY COUNT(*) FILTER (WHERE b.tt IN (${DS_SQL(TT_CON_CHO)})) DESC, COUNT(*) DESC, b.ma NULLS LAST
+     LIMIT ${SO_MA_TOI_DA + 1}`,
+    params
+  );
+  const rows = r.rows;
+  const ma = rows.slice(0, SO_MA_TOI_DA).map((row) => ({
+    ...docGop(row),
+    ma: chuoiHoacNull2(row.ma),
+    ten: chuoiHoacNull2(row.ten),
+    dvt: chuoiHoacNull2(row.dvt),
+    nhom: String(row.nhom ?? NHOM_TRONG_MA),
+    slCho: so5(row.sl_cho),
+    veGanNhat: chuoiHoacNull2(row.ve_gan_nhat)
+  }));
+  return { capNhat, homNay, coGia: true, ma, catBot: rows.length > SO_MA_TOI_DA };
+};
+var LOAI_O = {
+  prChuaPoQua14: `b.tt = 'chuaMua' AND b.ngay_pr < $1::date - 14`,
+  canTrong14: `b.tt IN (${DS_SQL(TT_CON_CHO)}) AND b.ngay_can_vat_tu <= $1::date + 14`,
+  ve7Ngay: `b.tt IN ('dungHen','motPhan') AND b.han BETWEEN $1::date AND $1::date + 7`,
+  conCho: `b.tt IN (${DS_SQL(TT_CON_CHO)})`,
+  dangVe: `b.tt IN (${DS_SQL(TT_DANG_VE)})`
+};
+var dieuKienDong = (loc, chon, params) => {
+  const where = sqlDieuKien(loc, params);
+  const them = [];
+  const { ma, dvt, loai } = chon;
+  if (ma !== null) {
+    if (ma === "") them.push("b.ma IS NULL");
+    else {
+      params.push(ma);
+      them.push(`b.ma = $${params.length}`);
+    }
+  }
+  if (dvt !== null) {
+    params.push(dvt === "" ? null : dvt);
+    them.push(`NULLIF(btrim(b.dvt), '') IS NOT DISTINCT FROM $${params.length}::text`);
+  }
+  if (loai) them.push(LOAI_O[loai]);
+  if (!them.length) return where;
+  return where ? `${where} AND ${them.join(" AND ")}` : `WHERE ${them.join(" AND ")}`;
+};
+var tinhDong = async (loc, chon, trang, co2, homNay, capNhat, chay2 = chayMacDinh) => {
+  const params = [homNay];
+  const where = dieuKienDong(loc, chon, params);
+  params.push(co2, (trang - 1) * co2);
+  const r = await chay2(
+    `WITH b AS (${sqlNguon("$1::date")})
+     SELECT b.id, b.so_pr_txt, b.pr_line, to_char(b.ngay_pr, 'YYYY-MM-DD') AS ngay_pr, b.trackingno, b.ten_cong_trinh,
+            b.ma, b.ten_vat_tu, b.nhom_vt, b.dvt, b.so_luong_yeu_cau, b.so_luong_da_nhan_sap, b.so_luong_con_lai,
+            b.so_po_txt, b.nha_cung_cap, b.tinh_trang_po,
+            to_char(b.ngay_can_vat_tu, 'YYYY-MM-DD') AS ngay_can, to_char(b.han, 'YYYY-MM-DD') AS han,
+            to_char(b.ngay_du_kien_giao_hang_pmh_nhap, 'YYYY-MM-DD') AS ngay_du_kien, to_char(b.ngay_thuc_te_ve, 'YYYY-MM-DD') AS ngay_ve,
+            b.don_gia_dc AS don_gia, b.thanh_tien_dc / 1e6 AS thanh_tien, b.trang_thai, b.trang_thai_sap, b.tt,
+            b.team_pr_note, b.ghi_chu_tinh_trang_po, b.nguoi_yeu_cau, b.ma_nha_may, b.code_vat_lieu, b.item_note_pr,
+            COUNT(*) OVER () AS tong
+     FROM b ${where}
+     ORDER BY b.ngay_pr DESC NULLS LAST, b.so_pr DESC NULLS LAST, b.pr_line NULLS LAST, b.id DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const rows = r.rows;
+  let tong2 = rows.length ? so5(rows[0].tong) : 0;
+  if (!rows.length && trang > 1) {
+    const p2 = [homNay];
+    const c = await chay2(`WITH b AS (${sqlNguon("$1::date")}) SELECT COUNT(*) AS n FROM b ${dieuKienDong(loc, chon, p2)}`, p2);
+    tong2 = so5(c.rows[0]?.n);
+  }
+  const soHoacNull3 = (v) => {
+    if (v === null || v === void 0) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const dong2 = rows.map((x) => ({
+    id: so5(x.id),
+    soPr: chuoiHoacNull2(x.so_pr_txt),
+    prLine: soHoacNull3(x.pr_line),
+    ngayPr: chuoiHoacNull2(x.ngay_pr),
+    trackingno: chuoiHoacNull2(x.trackingno),
+    tenCongTrinh: chuoiHoacNull2(x.ten_cong_trinh),
+    ma: chuoiHoacNull2(x.ma),
+    tenVatTu: chuoiHoacNull2(x.ten_vat_tu),
+    nhomVt: chuoiHoacNull2(x.nhom_vt),
+    dvt: chuoiHoacNull2(x.dvt),
+    slYeuCau: soHoacNull3(x.so_luong_yeu_cau),
+    slDaNhan: soHoacNull3(x.so_luong_da_nhan_sap),
+    slConLai: soHoacNull3(x.so_luong_con_lai),
+    soPo: chuoiHoacNull2(x.so_po_txt),
+    nhaCungCap: chuoiHoacNull2(x.nha_cung_cap),
+    tinhTrangPo: chuoiHoacNull2(x.tinh_trang_po),
+    ngayCan: chuoiHoacNull2(x.ngay_can),
+    han: chuoiHoacNull2(x.han),
+    ngayDuKien: chuoiHoacNull2(x.ngay_du_kien),
+    ngayThucTeVe: chuoiHoacNull2(x.ngay_ve),
+    donGia: soHoacNull3(x.don_gia),
+    thanhTien: soHoacNull3(x.thanh_tien),
+    trangThai: chuoiHoacNull2(x.trang_thai),
+    trangThaiSap: chuoiHoacNull2(x.trang_thai_sap),
+    tt: String(x.tt),
+    teamPrNote: chuoiHoacNull2(x.team_pr_note),
+    ghiChuPo: chuoiHoacNull2(x.ghi_chu_tinh_trang_po),
+    nguoiYeuCau: chuoiHoacNull2(x.nguoi_yeu_cau),
+    maNhaMay: chuoiHoacNull2(x.ma_nha_may),
+    codeVatLieu: chuoiHoacNull2(x.code_vat_lieu),
+    itemNote: chuoiHoacNull2(x.item_note_pr)
+  }));
+  return { capNhat, homNay, coGia: true, tong: tong2, trang, co: co2, dong: dong2 };
+};
+var tinhTheoThang = async (loc, homNay, capNhat, chay2 = chayMacDinh) => {
+  const params = [homNay];
+  const where = sqlDieuKien(loc, params, true);
+  const khoang = (cot) => {
+    const d = [];
+    if (loc.tu) {
+      params.push(loc.tu);
+      d.push(`${cot} >= $${params.length}::date`);
+    }
+    if (loc.den) {
+      params.push(loc.den);
+      d.push(`${cot} <= $${params.length}::date`);
+    }
+    return d.length ? `AND ${d.join(" AND ")}` : "";
+  };
+  const kPr = khoang("l.ngay_pr");
+  const kVe = khoang("l.ngay_thuc_te_ve");
+  const r = await chay2(
+    `WITH b AS (${sqlNguon("$1::date")}),
+          l AS (SELECT * FROM b ${where})
+     SELECT thang, SUM(pr_dong) AS pr_dong, SUM(pr_gt) AS pr_gt, SUM(ve_dong) AS ve_dong, SUM(ve_gt) AS ve_gt
+     FROM (
+       SELECT to_char(l.ngay_pr, 'YYYY-MM') AS thang, COUNT(*) AS pr_dong, COALESCE(SUM(l.thanh_tien_dc), 0) / 1e6 AS pr_gt, 0 AS ve_dong, 0 AS ve_gt
+       FROM l WHERE l.tt <> 'huy' AND l.ngay_pr IS NOT NULL ${kPr} GROUP BY 1
+       UNION ALL
+       SELECT to_char(l.ngay_thuc_te_ve, 'YYYY-MM'), 0, 0, COUNT(*),
+              COALESCE(SUM(COALESCE(l.so_luong_da_nhan_sap, 0) * COALESCE(l.don_gia_dc, 0)), 0) / 1e6
+       FROM l WHERE l.tt <> 'huy' AND l.ngay_thuc_te_ve IS NOT NULL AND COALESCE(l.so_luong_da_nhan_sap, 0) > 0 ${kVe} GROUP BY 1
+     ) x
+     GROUP BY thang ORDER BY thang`,
+    params
+  );
+  const thang2 = r.rows.map((x) => ({
+    thang: String(x.thang),
+    prDong: so5(x.pr_dong),
+    prGiaTri: so5(x.pr_gt),
+    veDong: so5(x.ve_dong),
+    veGiaTri: so5(x.ve_gt)
+  }));
+  return { capNhat, homNay, coGia: true, thang: thang2 };
+};
+var QUYEN_TIEU_HAO = "vt_tieu_hao";
+var LOI_QUYEN_TH = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem xu\u1EA5t ti\xEAu hao v\u1EADt t\u01B0" };
+var BANG_TIEU_HAO = "xuat_tieu_hao_vt";
+var THEO_TIEU_HAO = ["thang", "nhom", "ct", "hex", "ma", "xuong"];
+var MVT_TIEU_HAO = ["", "tieuHao", "z14"];
+var KHOA_TRONG = "-";
+var NHOM_BTP = ["BTP", "TP"];
+var TEN_NHOM_BTP = { BTP: "BTP - B\xE1n th\xE0nh ph\u1EA9m xu\u1EA5t l\u1EA1i v\xE0o l\u1EC7nh", TP: "TP - Th\xE0nh ph\u1EA9m xu\u1EA5t l\u1EA1i v\xE0o l\u1EC7nh" };
+var SO_DONG_TH_TOI_DA = 2e3;
+var laThang = (v) => typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
+var congThang = (thang2, n) => {
+  const y = Number(thang2.slice(0, 4)), m = Number(thang2.slice(5, 7)) - 1 + n;
+  const yy = y + Math.floor(m / 12), mm = (m % 12 + 12) % 12;
+  return `${yy}-${String(mm + 1).padStart(2, "0")}`;
+};
+var thangDuCuoi = (maxNgay) => {
+  if (!maxNgay || !/^\d{4}-\d{2}-\d{2}/.test(maxNgay)) return null;
+  const y = Number(maxNgay.slice(0, 4)), m = Number(maxNgay.slice(5, 7)), d = Number(maxNgay.slice(8, 10));
+  const cuoi = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const thang2 = maxNgay.slice(0, 7);
+  return d >= cuoi ? thang2 : congThang(thang2, -1);
+};
+var thangTb3 = (maxNgay) => {
+  const c = thangDuCuoi(maxNgay);
+  return c ? [congThang(c, -2), congThang(c, -1), c] : [];
+};
+var dvtChuan = (v) => String(v ?? "").trim().toUpperCase();
+var soThangDuDung = (ton, dvtTon, slTb3, dvtXuat) => {
+  if (ton === null || slTb3 === null || !Number.isFinite(ton) || !Number.isFinite(slTb3) || slTb3 <= 0) return null;
+  const a = dvtChuan(dvtTon), b = dvtChuan(dvtXuat);
+  if (a && b && a !== b) return null;
+  return ton <= 0 ? 0 : ton / slTb3;
+};
+var phanTramHaoHut = (tieuHao, haoHut) => {
+  if (tieuHao === null || haoHut === null) return null;
+  const mau = tieuHao + haoHut;
+  return mau > 0 ? haoHut / mau * 100 : null;
+};
+var docBoLocTieuHao = (q) => {
+  const tu = q.tu === void 0 || q.tu === "" ? null : q.tu;
+  const den = q.den === void 0 || q.den === "" ? null : q.den;
+  if (tu !== null && !laThang(tu)) return { hopLe: false, loi: 'Th\xE1ng "t\u1EEB" kh\xF4ng h\u1EE3p l\u1EC7 (YYYY-MM)' };
+  if (den !== null && !laThang(den)) return { hopLe: false, loi: 'Th\xE1ng "\u0111\u1EBFn" kh\xF4ng h\u1EE3p l\u1EC7 (YYYY-MM)' };
+  const nhom = docDanhSach(q.nhom, 100, 10);
+  if (!nhom || nhom.some((n) => n !== KHOA_TRONG && !NHOM_BTP.includes(n) && !/^\d{1,5}$/.test(n))) return { hopLe: false, loi: "Danh s\xE1ch nh\xF3m kh\xF4ng h\u1EE3p l\u1EC7" };
+  const hoa = (xs) => xs ? [...new Set(xs.map((x) => x.toUpperCase()))].sort() : null;
+  const ct = hoa(docDanhSach(q.ct, 500, 50));
+  if (!ct) return { hopLe: false, loi: "Danh s\xE1ch c\xF4ng tr\xECnh kh\xF4ng h\u1EE3p l\u1EC7" };
+  const hex3 = hoa(docDanhSach(q.hex, 2e3, 400, false));
+  if (!hex3) return { hopLe: false, loi: "Danh s\xE1ch HEX kh\xF4ng h\u1EE3p l\u1EC7" };
+  const xuong = docDanhSach(q.xuong, 100, 100, false);
+  if (!xuong) return { hopLe: false, loi: "Danh s\xE1ch x\u01B0\u1EDFng kh\xF4ng h\u1EE3p l\u1EC7" };
+  const mvt = q.mvt === void 0 ? "" : q.mvt;
+  if (typeof mvt !== "string" || !MVT_TIEU_HAO.includes(mvt)) return { hopLe: false, loi: "Lo\u1EA1i xu\u1EA5t (mvt) kh\xF4ng h\u1EE3p l\u1EC7" };
+  let so10 = [], chu = [];
+  if (q.q !== void 0 && q.q !== "") {
+    if (typeof q.q !== "string" || q.q.length > 4e3) return { hopLe: false, loi: "\xD4 t\xECm qu\xE1 d\xE0i" };
+    const t = tachTimKiem(q.q);
+    if (!t) return { hopLe: false, loi: "\xD4 t\xECm c\xF3 qu\xE1 nhi\u1EC1u m\u1EE5c" };
+    ({ so: so10, chu } = t);
+  }
   return {
     hopLe: true,
-    laBot: false,
-    than: {
-      items: [...gop].map(([ma, soLuong]) => ({ ma, soLuong })),
-      ten,
-      sdt,
-      email: email3.gt,
-      congTy: congTy.gt,
-      ghiChu: ghiChu.gt
+    loc: {
+      tu,
+      den,
+      nhom,
+      ct,
+      hex: hex3,
+      xuong,
+      mvt,
+      so: so10,
+      chu,
+      an806: docCo(q.an806, true),
+      an401: docCo(q.an401, true),
+      anBtp: docCo(q.anBtp, true),
+      chuaGhep: docCo(q.chuaGhep, false)
     }
   };
 };
-var ghepYeuCau = (items, theoMa) => {
-  const dong2 = [];
-  for (const { ma, soLuong } of items) {
-    const it = theoMa.get(ma);
-    if (!it) return { hopLe: false, loi: `M\xE3 ${ma} hi\u1EC7n kh\xF4ng c\xF2n ch\xE0o b\xE1n \u2014 vui l\xF2ng b\u1ECF kh\u1ECFi y\xEAu c\u1EA7u` };
-    if (soLuong > it.soLuong + 1e-9) {
-      return { hopLe: false, loi: `M\xE3 ${ma} ch\u1EC9 c\xF2n ${it.soLuong.toLocaleString("vi-VN")}${it.dvt ? " " + it.dvt : ""}` };
-    }
-    dong2.push({ ma, ten: it.ten, soLuong, dvt: it.dvt });
+var sqlNguonTieuHao = () => `
+  SELECT x.*,
+         upper(btrim(x.mvt::text)) AS k_mvt,
+         CASE WHEN btrim(x.nguon_nhom) IN ('BTP','TP') THEN btrim(x.nguon_nhom)
+              ELSE COALESCE(NULLIF(split_part(btrim(x.nhom_sap), ' - ', 1), ''), '${KHOA_TRONG}') END AS k_nhom,
+         upper(NULLIF(btrim(x.ma_ct), '')) AS k_ct,
+         upper(NULLIF(btrim(x.hex), '')) AS k_hex,
+         COALESCE(NULLIF(btrim(x.xuong), ''), NULLIF(btrim(x.plant::text), ''), '${KHOA_TRONG}') AS k_xuong,
+         NULLIF(ltrim(btrim(x.ma_vat_tu::text), '0'), '') AS k_ma,
+         NULLIF(upper(btrim(x.dvt)), '') AS k_dvt,
+         CASE WHEN upper(btrim(x.mvt::text)) IN ('261','262') THEN -COALESCE(x.gia_tri, 0) ELSE 0 END AS th_gt,
+         CASE WHEN upper(btrim(x.mvt::text)) IN ('Z14','Z15') THEN -COALESCE(x.gia_tri, 0) ELSE 0 END AS hh_gt,
+         CASE WHEN upper(btrim(x.mvt::text)) IN ('261','262') THEN -COALESCE(x.so_luong, 0) ELSE 0 END AS th_sl,
+         CASE WHEN upper(btrim(x.mvt::text)) IN ('Z14','Z15') THEN -COALESCE(x.so_luong, 0) ELSE 0 END AS hh_sl
+  FROM ${BANG_TIEU_HAO} x
+  WHERE upper(btrim(x.mvt::text)) IN ('261','262','Z14','Z15')`;
+var sqlDieuKienTieuHao = (loc, params, boThang = false) => {
+  const p = (v) => {
+    params.push(v);
+    return `$${params.length}`;
+  };
+  const dk = [];
+  if (!boThang && loc.tu) dk.push(`b.thang >= ${p(loc.tu)}`);
+  if (!boThang && loc.den) dk.push(`b.thang <= ${p(loc.den)}`);
+  if (loc.nhom.length) dk.push(`b.k_nhom = ANY(${p(loc.nhom)}::text[])`);
+  if (loc.an806 && !loc.nhom.includes("806")) dk.push(`b.k_nhom <> '806'`);
+  if (loc.an401 && !loc.nhom.includes("401")) dk.push(`b.k_nhom <> '401'`);
+  if (loc.anBtp) {
+    const an = NHOM_BTP.filter((n) => !loc.nhom.includes(n));
+    if (an.length) dk.push(`b.k_nhom NOT IN (${an.map((n) => `'${n}'`).join(", ")})`);
   }
-  return { hopLe: true, dong: dong2 };
-};
-var KY_TU_MA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-var taoMaYeuCau = (luc = /* @__PURE__ */ new Date(), ngauNhien = randomInt) => {
-  const ngay3 = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(luc).replace(/-/g, "");
-  let duoi = "";
-  for (let i = 0; i < 4; i++) duoi += KY_TU_MA[ngauNhien(KY_TU_MA.length)];
-  return `YC-${ngay3}-${duoi}`;
-};
-var ipKhach = (req) => req.ip || String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim() || "khong-ro";
-var khoaIp = (ip) => {
-  try {
-    return ipKeyGenerator(ip, 56);
-  } catch {
-    return ip;
+  if (loc.ct.length) dk.push(`COALESCE(b.k_ct, '${KHOA_TRONG}') = ANY(${p(loc.ct)}::text[])`);
+  if (loc.hex.length) dk.push(`COALESCE(b.k_hex, '${KHOA_TRONG}') = ANY(${p(loc.hex)}::text[])`);
+  if (loc.xuong.length) dk.push(`b.k_xuong = ANY(${p(loc.xuong)}::text[])`);
+  if (loc.mvt === "tieuHao") dk.push(`b.k_mvt IN ('261','262')`);
+  if (loc.mvt === "z14") dk.push(`b.k_mvt IN ('Z14','Z15')`);
+  if (loc.chuaGhep) dk.push(`b.k_ct IS NULL AND b.k_hex IS NULL`);
+  const tim = [];
+  if (loc.so.length) {
+    const ps = p(loc.so);
+    tim.push(`b.k_ma = ANY(${ps}::text[]) OR ltrim(b.so_ct::text, '0') = ANY(${ps}::text[]) OR ltrim(b.order_sx::text, '0') = ANY(${ps}::text[]) OR ltrim(b.sales_order::text, '0') = ANY(${ps}::text[])`);
   }
+  if (loc.chu.length) {
+    tim.push(loc.chu.map((c) => {
+      const pc = p(`%${c.replace(/[\\%_]/g, (m) => `\\${m}`)}%`);
+      return `(b.ten_vat_tu ILIKE ${pc} OR b.hex ILIKE ${pc} OR b.ma_ct ILIKE ${pc})`;
+    }).join(" AND "));
+  }
+  if (tim.length) dk.push(`(${tim.map((t) => `(${t})`).join(" OR ")})`);
+  return dk.length ? `WHERE ${dk.join(" AND ")}` : "";
 };
-var bamIp = (ip, biMat = JWT_SECRET_SAFE) => createHash4("sha256").update(`${khoaIp(ip)}|${biMat}`).digest("hex");
-var laThieuBangHoacCot2 = (e) => ["42P01", "42703"].includes(String(e?.code));
-var SQL_CONG_KHAI_DANH_SACH = `
-  WITH moc AS (
-    SELECT t.ngay_chot FROM ban_vt_ton t
-    ORDER BY t.ngay_chot DESC NULLS LAST, t.updated_at DESC NULLS LAST LIMIT 1
-  )
-  SELECT t.ma_vat_tu AS ma, t.ten_vat_tu AS ten, t.dvt, t.so_luong, t.kho,
-         t.ten_cong_trinh, t.ma_cong_trinh, -- CH\u1EC8 \u0111\u1EC3 che kh\u1ECFi t\xEAn / thu\u1ED9c t\xEDnh (dungItemCongKhai), kh\xF4ng ra item
-         to_char((SELECT ngay_chot FROM moc), 'YYYY-MM-DD') AS ngay_chot,
-         b.ten_hien_thi, b.mo_ta_cong_khai, b.gia_ban_vnd, b.anh_urls,
-         to_char(b.dang_cong_khai_luc AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') AS dang_luc,
-         m.ten_master AS m_ten, m.dvt AS m_dvt, m.chung_loai AS m_chung_loai, m.chat_lieu AS m_chat_lieu,
-         m.quy_cach AS m_quy_cach, m.mau AS m_mau, m.thuong_hieu AS m_thuong_hieu, m.xuat_xu AS m_xuat_xu,
-         m.ten_nhom_sap AS m_ten_nhom_sap,
-         m.thuoc_tinh AS m_thuoc_tinh -- CH\u1EC8 qua danh s\xE1ch tr\u1EAFng NHAN_MP_CONG_KHAI (dungThuocTinhDayDu), kh\xF4ng ra item th\xF4
-  FROM ban_vt_ton t
-  JOIN ban_vt_thong_tin b ON b.ma_vat_tu = t.ma_vat_tu AND b.dang_cong_khai AND b.trang_thai = 'dang_ban'
-  LEFT JOIN ban_vt_master m ON m.ma_vat_tu = t.ma_vat_tu
-  WHERE t.ngay_chot IS NOT DISTINCT FROM (SELECT ngay_chot FROM moc)`;
-var SQL_MA_DANG_CONG_KHAI = `
-  EXISTS (SELECT 1 FROM ban_vt_thong_tin b
-          WHERE b.ma_vat_tu = a.ma_vat_tu AND b.dang_cong_khai AND b.trang_thai = 'dang_ban')
-  AND EXISTS (SELECT 1 FROM ban_vt_ton t
-              WHERE t.ma_vat_tu = a.ma_vat_tu
-                AND t.ngay_chot IS NOT DISTINCT FROM (SELECT ngay_chot FROM ban_vt_ton
-                                                      ORDER BY ngay_chot DESC NULLS LAST, updated_at DESC NULLS LAST LIMIT 1))`;
-var docPhu = async (sql) => {
+var BANG_GOP_TIEU_HAO = "xuat_tieu_hao_vt_gop";
+var sqlGopTieuHao = (o = {}) => `SELECT x.thang,
+       CASE WHEN btrim(x.nguon_nhom) IN ('BTP','TP') THEN btrim(x.nguon_nhom)
+            ELSE COALESCE(NULLIF(split_part(btrim(x.nhom_sap), ' - ', 1), ''), '${KHOA_TRONG}') END AS k_nhom,
+       CASE WHEN upper(btrim(x.mvt::text)) IN ('261','262') THEN 'TH' ELSE 'HH' END AS k_loai,
+       upper(NULLIF(btrim(x.ma_ct), '')) AS k_ct,
+       COALESCE(NULLIF(btrim(x.xuong), ''), NULLIF(btrim(x.plant::text), ''), '${KHOA_TRONG}') AS k_xuong,
+       NULLIF(ltrim(btrim(x.ma_vat_tu::text), '0'), '') AS k_ma,
+       NULLIF(upper(btrim(x.dvt)), '') AS k_dvt,
+       (NULLIF(btrim(x.ma_ct), '') IS NULL AND NULLIF(btrim(x.hex), '') IS NULL) AS chua_ghep,${o.theoHex ? `
+       upper(NULLIF(btrim(x.hex), '')) AS k_hex,` : ""}
+       MAX(btrim(x.ma_vat_tu::text)) AS ma_goc,
+       ${o.coTen === false ? "NULL::text" : "(ARRAY_AGG(x.ten_vat_tu ORDER BY x.ngay DESC NULLS LAST, x.ten_vat_tu DESC NULLS LAST))[1]"} AS ten_vat_tu,
+       ${o.coTen === false ? "NULL::date" : "MAX(x.ngay)"} AS ngay_ten,
+       MAX(NULLIF(btrim(x.phan_loai_nhom_sp), '')) AS phan_loai,
+       SUM(CASE WHEN upper(btrim(x.mvt::text)) IN ('261','262') THEN -COALESCE(x.gia_tri, 0) ELSE 0 END) AS th_gt,
+       SUM(CASE WHEN upper(btrim(x.mvt::text)) IN ('Z14','Z15') THEN -COALESCE(x.gia_tri, 0) ELSE 0 END) AS hh_gt,
+       SUM(CASE WHEN upper(btrim(x.mvt::text)) IN ('261','262') THEN -COALESCE(x.so_luong, 0) ELSE 0 END) AS th_sl,
+       SUM(CASE WHEN upper(btrim(x.mvt::text)) IN ('Z14','Z15') THEN -COALESCE(x.so_luong, 0) ELSE 0 END) AS hh_sl,
+       COUNT(*)::int AS sd,
+       (COUNT(*) FILTER (WHERE upper(btrim(x.mvt::text)) IN ('261','262')))::int AS sd_th,
+       (COUNT(*) FILTER (WHERE upper(btrim(x.mvt::text)) = '262'))::int AS sd_262
+FROM ${BANG_TIEU_HAO} x
+WHERE upper(btrim(x.mvt::text)) IN ('261','262','Z14','Z15')${o.where ? ` AND (${o.where})` : ""}
+GROUP BY 1, 2, 3, 4, 5, 6, 7, 8${o.theoHex ? ", 9" : ""}`;
+var dungDuocGop = (loc, theo) => theo !== "hex" && !loc.hex.length && !loc.so.length && !loc.chu.length;
+var sqlDieuKienTho = (loc, params) => {
+  const p = (v) => {
+    params.push(v);
+    return `$${params.length}`;
+  };
+  const dk = [];
+  if (loc.hex.length) dk.push(`COALESCE(upper(NULLIF(btrim(x.hex), '')), '${KHOA_TRONG}') = ANY(${p(loc.hex)}::text[])`);
+  const tim = [];
+  if (loc.so.length) {
+    const ps = p(loc.so);
+    tim.push(`NULLIF(ltrim(btrim(x.ma_vat_tu::text), '0'), '') = ANY(${ps}::text[]) OR ltrim(x.so_ct::text, '0') = ANY(${ps}::text[]) OR ltrim(x.order_sx::text, '0') = ANY(${ps}::text[]) OR ltrim(x.sales_order::text, '0') = ANY(${ps}::text[])`);
+  }
+  if (loc.chu.length) {
+    tim.push(loc.chu.map((c) => {
+      const pc = p(`%${c.replace(/[\\%_]/g, (m) => `\\${m}`)}%`);
+      return `(x.ten_vat_tu ILIKE ${pc} OR x.hex ILIKE ${pc} OR x.ma_ct ILIKE ${pc})`;
+    }).join(" AND "));
+  }
+  if (tim.length) dk.push(`(${tim.map((t) => `(${t})`).join(" OR ")})`);
+  return dk.join(" AND ");
+};
+var sqlDieuKienGop = (loc, params, boThang = false) => {
+  const p = (v) => {
+    params.push(v);
+    return `$${params.length}`;
+  };
+  const dk = [];
+  if (!boThang && loc.tu) dk.push(`b.thang >= ${p(loc.tu)}`);
+  if (!boThang && loc.den) dk.push(`b.thang <= ${p(loc.den)}`);
+  if (loc.nhom.length) dk.push(`b.k_nhom = ANY(${p(loc.nhom)}::text[])`);
+  if (loc.an806 && !loc.nhom.includes("806")) dk.push(`b.k_nhom <> '806'`);
+  if (loc.an401 && !loc.nhom.includes("401")) dk.push(`b.k_nhom <> '401'`);
+  if (loc.anBtp) {
+    const an = NHOM_BTP.filter((n) => !loc.nhom.includes(n));
+    if (an.length) dk.push(`b.k_nhom NOT IN (${an.map((n) => `'${n}'`).join(", ")})`);
+  }
+  if (loc.ct.length) dk.push(`COALESCE(b.k_ct, '${KHOA_TRONG}') = ANY(${p(loc.ct)}::text[])`);
+  if (loc.xuong.length) dk.push(`b.k_xuong = ANY(${p(loc.xuong)}::text[])`);
+  if (loc.mvt === "tieuHao") dk.push(`b.k_loai = 'TH'`);
+  if (loc.mvt === "z14") dk.push(`b.k_loai = 'HH'`);
+  if (loc.chuaGhep) dk.push("b.chua_ghep");
+  return dk.length ? `WHERE ${dk.join(" AND ")}` : "";
+};
+var nguonGop = (loc, coGop, params, theoHex = false, coTen = false) => {
+  if (coGop) return BANG_GOP_TIEU_HAO;
+  const where = loc ? sqlDieuKienTho(loc, params) : "";
+  return `(${sqlGopTieuHao({ where, theoHex, coTen })})`;
+};
+var chayTungDot = async (viec, n = 2) => {
+  const ra = new Array(viec.length);
+  for (let i = 0; i < viec.length; i += n) {
+    const dot = await Promise.all(viec.slice(i, i + n).map((f) => f()));
+    dot.forEach((v, j) => {
+      ra[i + j] = v;
+    });
+  }
+  return ra;
+};
+var KHOA_THEO = {
+  thang: "b.thang",
+  nhom: "b.k_nhom",
+  ct: `COALESCE(b.k_ct, '${KHOA_TRONG}')`,
+  hex: `COALESCE(b.k_hex, '${KHOA_TRONG}')`,
+  xuong: "b.k_xuong"
+};
+var PHU_THEO = {
+  ct: "MAX(b.phan_loai)",
+  hex: "MAX(b.k_ct)"
+};
+var soHoacNullTH = (v) => {
+  if (v === null || v === void 0) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+var oTH = (r) => ({
+  th: so5(r.th),
+  hh: so5(r.hh),
+  sl: so5(r.sl),
+  slHh: so5(r.sl_hh),
+  sd: so5(r.sd),
+  sdTh: so5(r.sd_th),
+  sdHh: so5(r.sd) - so5(r.sd_th)
+});
+var O_RONG = { th: 0, hh: 0, sl: 0, slHh: 0, sd: 0, sdTh: 0, sdHh: 0 };
+var SQL_COT_M = `SUM(b.th_gt) AS th, SUM(b.hh_gt) AS hh, SUM(b.th_sl) AS sl, SUM(b.hh_sl) AS sl_hh, SUM(b.sd) AS sd,
+  SUM(b.sd_th) AS sd_th`;
+var SQL_O = `COALESCE(SUM(th), 0) AS th, COALESCE(SUM(hh), 0) AS hh, COALESCE(SUM(sl), 0) AS sl,
+  COALESCE(SUM(sl_hh), 0) AS sl_hh, COALESCE(SUM(sd), 0) AS sd, COALESCE(SUM(sd_th), 0) AS sd_th`;
+var tenMoi = (b, ten = "ten_vat_tu") => `(ARRAY_AGG(${b}.${ten} ORDER BY ${b}.ngay_ten DESC NULLS LAST, ${b}.${ten} DESC NULLS LAST))[1]`;
+var SQL_TEN_NHOM = `
+  SELECT ma, COALESCE(MIN(ten) FILTER (WHERE uu_tien = 0), MIN(ten)) AS ten FROM (
+    SELECT split_part(btrim(nhom_vt), ' - ', 1) AS ma, btrim(nhom_vt) AS ten, 0 AS uu_tien FROM vat_tu WHERE btrim(nhom_vt) LIKE '% - %'
+    UNION ALL
+    SELECT btrim(nhom_sap), btrim(nhom_sap) || ' - ' || btrim(ten_nhom_sap), 1 FROM ban_vt_master
+    WHERE NULLIF(btrim(nhom_sap), '') IS NOT NULL AND NULLIF(btrim(ten_nhom_sap), '') IS NOT NULL
+  ) t
+  GROUP BY ma`;
+var docTenNhom = async (chay2) => {
   try {
-    return (await timedQuery(sql, [], { timeoutMs: TIMEOUT_MS3, workMemMb: 16 })).rows;
+    const r = await chay2(SQL_TEN_NHOM, []);
+    const ra = {};
+    for (const x of r.rows) if (x.ma) ra[String(x.ma)] = String(x.ten);
+    return ra;
   } catch (e) {
-    if (!laThieuBangHoacCot2(e)) throw e;
-    return [];
+    if (laThieuBangHoacCot2(e)) return {};
+    throw e;
   }
 };
-var tinhDanhSachCongKhai = async () => {
-  let rows;
-  try {
-    rows = (await timedQuery(SQL_CONG_KHAI_DANH_SACH, [], { timeoutMs: TIMEOUT_MS3, workMemMb: 16 })).rows;
-  } catch (e) {
-    if (!laThieuBangHoacCot2(e)) throw e;
-    return { capNhat: null, items: [] };
-  }
-  if (!rows.length) return { capNhat: null, items: [] };
-  const [suyRows, anhRows] = await Promise.all([
-    docPhu(`SELECT m.ma_vat_tu, m.suy_tu_ten FROM ban_vt_master m
-            WHERE m.suy_tu_ten IS NOT NULL AND m.suy_tu_ten <> '{}'::jsonb
-              AND EXISTS (SELECT 1 FROM ban_vt_thong_tin b WHERE b.ma_vat_tu = m.ma_vat_tu AND b.dang_cong_khai AND b.trang_thai = 'dang_ban')`),
-    // Đã duyệt trước, rồi chắc chắn, rồi mới nhất (như trang admin)
-    docPhu(`SELECT a.id, a.ma_vat_tu FROM ban_vt_anh a
-            WHERE a.cong_khai AND a.trang_thai <> 'an' AND ${SQL_MA_DANG_CONG_KHAI}
-            ORDER BY a.ma_vat_tu, (a.trang_thai = 'da_duyet') DESC, a.chac_chan DESC, a.created_at DESC NULLS LAST, a.id`)
-  ]);
-  const suy = new Map(suyRows.map((r) => [String(r.ma_vat_tu), r.suy_tu_ten]));
-  const anh = /* @__PURE__ */ new Map();
-  for (const r of anhRows) {
-    const ma = String(r.ma_vat_tu);
-    const id = Number(r.id);
-    if (!Number.isSafeInteger(id)) continue;
-    const ds2 = anh.get(ma) ?? [];
-    if (ds2.length < 12) ds2.push(id);
-    anh.set(ma, ds2);
-  }
-  return { capNhat: chuoiGon2(rows[0]?.ngay_chot), items: gopDanhSachCongKhai(rows, suy, anh) };
+var laThieuBangTH = (e) => e?.code === "42P01";
+var laThieuBangHoacCot2 = (e) => laThieuBangTH(e) || e?.code === "42703";
+var docMaxNgay = async (chay2) => {
+  const r = await chay2(
+    // Bỏ chứng từ ghi ngày tương lai (vd 1 dòng Posting Date 30/11 trong file T11 lấy ngày 21/11) — không thì "Dữ liệu tới" sai
+    `SELECT to_char(MAX(ngay), 'YYYY-MM-DD') AS d FROM ${BANG_TIEU_HAO}
+      WHERE thang = (SELECT MAX(thang) FROM ${BANG_TIEU_HAO}) AND ngay <= (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`,
+    []
+  );
+  return chuoiHoacNull2(r.rows[0]?.d);
 };
-var cacheCongKhai = createCache(1);
-var docDanhSachCongKhai = async () => cachedByVersions(cacheCongKhai, "cong-khai", [], tinhDanhSachCongKhai, await docPhienBan2());
-var gioiHan = (windowMs, max, loi) => rate_limit_default({
-  windowMs,
-  max,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: loi }
-});
-var gioiHanDanhSach = gioiHan(6e4, 60, "Truy c\u1EADp qu\xE1 nhi\u1EC1u, vui l\xF2ng th\u1EED l\u1EA1i sau \xEDt ph\xFAt");
-var gioiHanAnh = gioiHan(6e4, 600, "T\u1EA3i \u1EA3nh qu\xE1 nhi\u1EC1u, vui l\xF2ng th\u1EED l\u1EA1i sau \xEDt ph\xFAt");
-var gioiHanGui = gioiHan(15 * 6e4, 10, "B\u1EA1n \u0111\xE3 g\u1EEDi qu\xE1 nhi\u1EC1u y\xEAu c\u1EA7u, vui l\xF2ng th\u1EED l\u1EA1i sau");
-app.get("/api/cong-khai/vat-tu", gioiHanDanhSach, async (_req, res) => {
+var docTon = async (ma, chay2) => {
+  const ra = /* @__PURE__ */ new Map();
+  if (!ma.length) return ra;
   try {
-    const ketQua = await docDanhSachCongKhai();
-    res.setHeader("Cache-Control", "public, max-age=30");
-    res.json(ketQua);
-  } catch (error61) {
-    console.error("L\u1ED7i cong-khai/vat-tu:", error61);
-    res.status(500).json({ error: "H\u1EC7 th\u1ED1ng \u0111ang b\u1EADn, vui l\xF2ng th\u1EED l\u1EA1i sau" });
-  }
-});
-var KHONG_THAY_ANH = { error: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" };
-app.get("/api/cong-khai/anh/:id", gioiHanAnh, async (req, res) => {
-  try {
-    const id = docIdAnh(req.params.id);
-    if (id === null) return res.status(404).json(KHONG_THAY_ANH);
-    let dong2;
-    try {
-      dong2 = (await timedQuery(
-        `SELECT a.data, a.mime FROM ban_vt_anh a
-         WHERE a.id = $1 AND a.cong_khai AND a.trang_thai <> 'an' AND ${SQL_MA_DANG_CONG_KHAI}`,
-        [id]
-      )).rows[0];
-    } catch (e) {
-      if (laThieuBangHoacCot2(e)) return res.status(404).json(KHONG_THAY_ANH);
-      throw e;
-    }
-    if (!dong2 || !Buffer.isBuffer(dong2.data)) return res.status(404).json(KHONG_THAY_ANH);
-    res.setHeader("Content-Type", mimeAnhAnToan(dong2.mime));
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Cache-Control", "public, max-age=300");
-    res.send(dong2.data);
-  } catch (error61) {
-    console.error("L\u1ED7i cong-khai/anh:", error61);
-    res.status(500).json({ error: "H\u1EC7 th\u1ED1ng \u0111ang b\u1EADn, vui l\xF2ng th\u1EED l\u1EA1i sau" });
-  }
-});
-var LOI_THIEU_BANG_YEU_CAU = { error: "Ch\u1EE9c n\u0103ng g\u1EEDi y\xEAu c\u1EA7u \u0111ang t\u1EA1m d\u1EEBng, vui l\xF2ng g\u1ECDi \u0111i\u1EC7n cho ch\xFAng t\xF4i" };
-var THONG_BAO_MOI_GIO_TOI_DA = 30;
-var kieuThongBao = (demTruocTrongGio) => demTruocTrongGio < THONG_BAO_MOI_GIO_TOI_DA ? "tung_cai" : demTruocTrongGio === THONG_BAO_MOI_GIO_TOI_DA ? "gop" : "khong";
-var baoYeuCauMoi = async (maYeuCau, soMa, kieu) => {
-  try {
-    const r = await timedQuery(
-      `SELECT id::text AS id FROM users WHERE is_active AND (role = 'ADMIN' OR $1::text = ANY(permissions))`,
-      [QUYEN_SUA]
+    const r = await chay2(
+      `SELECT ltrim(btrim(t.ma_vat_tu), '0') AS ma, COALESCE(SUM(t.so_luong), 0) AS ton, MAX(NULLIF(upper(btrim(t.dvt)), '')) AS dvt
+       FROM ton_kho_vt t
+       WHERE t."date" = (SELECT MAX(x."date") FROM ton_kho_vt x) AND ltrim(btrim(t.ma_vat_tu), '0') = ANY($1::text[])
+       GROUP BY 1`,
+      [ma]
     );
-    const ids = r.rows.map((x) => String(x.id));
-    if (!ids.length) return;
-    const title = kieu === "gop" ? "C\xF3 nhi\u1EC1u y\xEAu c\u1EA7u mua v\u1EADt t\u01B0 m\u1EDBi" : "C\xF3 y\xEAu c\u1EA7u mua v\u1EADt t\u01B0 m\u1EDBi";
-    const body = kieu === "gop" ? `\u0110\xE3 c\xF3 ${THONG_BAO_MOI_GIO_TOI_DA + 1} y\xEAu c\u1EA7u trong 1 gi\u1EDD qua \u2014 t\u1EA1m ng\u1EEBng b\xE1o t\u1EEBng y\xEAu c\u1EA7u, xem \u1EDF trang B\xE1n v\u1EADt t\u01B0` : `${maYeuCau} \xB7 ${soMa} m\xE3`;
-    try {
-      await timedQuery(
-        `INSERT INTO notifications (user_id, kind, title, body, vuong_mac_id, hex, actor)
-         SELECT u, 'ban_vt_yeu_cau', $2, $3, NULL, NULL, NULL FROM unnest($1::text[]) u`,
-        [ids, title, body]
-      );
-    } catch (e) {
-      if (!laThieuBangHoacCot2(e)) throw e;
-    }
-    await sendToUsers(ids, { title, body, tag: kieu === "gop" ? "ban-vt-nhieu-yeu-cau" : `ban-vt-${maYeuCau}`, target: { hex: "", category: "ban_vat_tu", id: 0, url: "/#/ban-vat-tu" } });
+    for (const x of r.rows) ra.set(String(x.ma), { ton: so5(x.ton), dvt: chuoiHoacNull2(x.dvt) });
   } catch (e) {
-    console.error("[ban-vat-tu] l\u1ED7i g\u1EEDi th\xF4ng b\xE1o y\xEAu c\u1EA7u mua", e);
+    if (!laThieuBangHoacCot2(e)) throw e;
+  }
+  return ra;
+};
+var tinhTongHopTieuHao = async (loc, theo, homNay, capNhat, chay2 = chayMacDinh, coGop = false) => {
+  const maxNgay = await docMaxNgay(chay2);
+  const tb3 = thangTb3(maxNgay);
+  const thangMoi = maxNgay ? maxNgay.slice(0, 7) : null;
+  const gop = coGop && dungDuocGop(loc, theo);
+  const theoHex = theo === "hex";
+  const pThe = [];
+  const nguonThe = nguonGop(loc, gop, pThe);
+  const whereThe = sqlDieuKienGop(loc, pThe, true);
+  const kTu = loc.tu ? (pThe.push(loc.tu), `$${pThe.length}`) : null;
+  const kDen = loc.den ? (pThe.push(loc.den), `$${pThe.length}`) : null;
+  const trongKhoang = [kTu ? `b.thang >= ${kTu}` : "", kDen ? `b.thang <= ${kDen}` : ""].filter(Boolean).join(" AND ") || "TRUE";
+  pThe.push(thangMoi ?? "", thangMoi ? congThang(thangMoi, -1) : "", tb3);
+  const [iMoi, iTruoc, iTb3] = [pThe.length - 2, pThe.length - 1, pThe.length];
+  const pheThe = () => chay2(
+    `WITH m AS (SELECT b.k_ma, b.thang, SUM(b.th_gt) AS th, SUM(b.hh_gt) AS hh, SUM(b.sd) AS sd,
+                       SUM(b.sd) FILTER (WHERE b.chua_ghep) AS cg
+                FROM ${nguonThe} b ${whereThe} GROUP BY 1, 2)
+     SELECT COALESCE(SUM(b.th) FILTER (WHERE b.thang = $${iMoi}), 0) AS th_moi,
+            COALESCE(SUM(b.th) FILTER (WHERE b.thang = $${iTruoc}), 0) AS th_truoc,
+            COALESCE(SUM(b.th) FILTER (WHERE b.thang = ANY($${iTb3}::text[])), 0) / 3 AS th_tb3,
+            COALESCE(SUM(b.th) FILTER (WHERE ${trongKhoang}), 0) AS th,
+            COALESCE(SUM(b.hh) FILTER (WHERE ${trongKhoang}), 0) AS hh,
+            (SELECT COUNT(*) FROM (SELECT b.k_ma FROM m b WHERE ${trongKhoang} AND b.k_ma IS NOT NULL GROUP BY 1) z) AS so_ma,
+            COALESCE(SUM(b.sd) FILTER (WHERE ${trongKhoang}), 0) AS so_dong,
+            COALESCE(SUM(b.cg) FILTER (WHERE ${trongKhoang}), 0) AS chua_ghep
+     FROM m b`,
+    pThe
+  );
+  const pTong = [];
+  const nguonTong = nguonGop(loc, gop, pTong);
+  const whereTong = sqlDieuKienGop(loc, pTong);
+  const pheTong = () => chay2(
+    `WITH m AS (SELECT b.thang, b.k_ma, ${SQL_COT_M} FROM ${nguonTong} b ${whereTong} GROUP BY 1, 2)
+     SELECT thang, 0 AS la_tong, ${SQL_O}, COUNT(k_ma) AS so_ma FROM m GROUP BY thang
+     UNION ALL
+     SELECT NULL, 1, ${SQL_O}, (SELECT COUNT(*) FROM (SELECT k_ma FROM m WHERE k_ma IS NOT NULL GROUP BY 1) z) FROM m`,
+    pTong
+  );
+  const laMa = theo === "ma";
+  const khoaSql = laMa ? `COALESCE(b.k_ma, '${KHOA_TRONG}') || '|' || COALESCE(b.k_dvt, '')` : KHOA_THEO[theo];
+  const phuSql = laMa ? "NULL" : PHU_THEO[theo] ?? "NULL";
+  const pDong = [];
+  const nguonDong = nguonGop(loc, gop, pDong, theoHex, laMa);
+  const whereDong = sqlDieuKienGop(loc, pDong);
+  const pheDong = () => chay2(
+    `WITH l AS (SELECT ${khoaSql} AS khoa, b.thang, b.k_ma, ${SQL_COT_M}, ${phuSql} AS phu, MAX(b.k_nhom) AS nhom,
+                       MAX(b.ma_goc) AS ma, MAX(b.k_dvt) AS dvt${laMa ? `, ${tenMoi("b")} AS ten, MAX(b.ngay_ten) AS ngay_ten` : ""}
+                FROM ${nguonDong} b ${whereDong} GROUP BY 1, 2, 3),
+          k AS (SELECT khoa FROM l GROUP BY khoa ORDER BY SUM(th + hh) DESC, SUM(sd) DESC, khoa LIMIT ${SO_DONG_TH_TOI_DA}),
+          n AS (SELECT COUNT(*) AS so_khoa FROM (SELECT khoa FROM l GROUP BY 1) z),
+          lk AS (SELECT * FROM l WHERE khoa IN (SELECT khoa FROM k)),
+          km AS (SELECT khoa, COUNT(k_ma) AS so_ma FROM (SELECT khoa, k_ma FROM lk GROUP BY 1, 2) z GROUP BY 1)
+     SELECT khoa, thang, 0 AS la_tong, ${SQL_O}, COUNT(k_ma) AS so_ma, NULL AS phu, NULL AS nhom, NULL AS ma, NULL AS ten,
+            NULL AS dvt, (SELECT so_khoa FROM n) AS so_khoa
+     FROM lk GROUP BY khoa, thang
+     UNION ALL
+     SELECT lk.khoa, NULL, 1, ${SQL_O}, MAX(km.so_ma), MAX(lk.phu), MAX(lk.nhom), MAX(lk.ma),
+            ${laMa ? tenMoi("lk", "ten") : "NULL"}, MAX(lk.dvt), (SELECT so_khoa FROM n)
+     FROM lk JOIN km ON km.khoa = lk.khoa GROUP BY lk.khoa`,
+    pDong
+  );
+  const pTb3 = [];
+  const nguonTb3 = nguonGop(loc, gop, pTb3, theoHex);
+  const whereTb3 = sqlDieuKienGop(loc, pTb3, true);
+  pTb3.push(tb3);
+  const pheTb3 = () => tb3.length ? chay2(
+    `SELECT ${khoaSql} AS khoa, COALESCE(SUM(b.th_gt), 0) / 3 AS gt, COALESCE(SUM(b.th_sl), 0) / 3 AS sl
+     FROM ${nguonTb3} b ${whereTb3 ? `${whereTb3} AND` : "WHERE"} b.thang = ANY($${pTb3.length}::text[])
+     GROUP BY 1`,
+    pTb3
+  ) : Promise.resolve({ rows: [] });
+  const phe262 = () => chay2(coGop ? `SELECT MIN(thang) AS t FROM ${BANG_GOP_TIEU_HAO} WHERE sd_262 > 0` : `SELECT MIN(thang) AS t FROM ${BANG_TIEU_HAO} WHERE upper(btrim(mvt::text)) = '262'`, []);
+  const pheTenNhom = async () => ({ rows: [theo === "nhom" ? await docTenNhom(chay2) : {}] });
+  const [rThe, rTong, rDong, rTb3, r262, rTenNhom] = await chayTungDot([pheThe, pheTong, pheDong, pheTb3, phe262, pheTenNhom]);
+  const tenNhom = rTenNhom.rows[0];
+  const x = rThe.rows[0] ?? {};
+  const th = so5(x.th), hh = so5(x.hh), soDong = so5(x.so_dong), chuaGhep = so5(x.chua_ghep);
+  const the = {
+    thangMoi,
+    thMoi: so5(x.th_moi),
+    thTruoc: so5(x.th_truoc),
+    thTb3: tb3.length ? so5(x.th_tb3) : null,
+    th,
+    hh,
+    ptHaoHut: phanTramHaoHut(th, hh),
+    soMa: so5(x.so_ma),
+    soDong,
+    soDongChuaGhep: chuaGhep,
+    ptChuaGhep: soDong > 0 ? chuaGhep / soDong * 100 : null
+  };
+  const tong2 = { thang: {}, tong: { ...O_RONG }, soMa: 0 };
+  for (const r of rTong.rows) {
+    if (so5(r.la_tong) === 1) {
+      tong2.tong = oTH(r);
+      tong2.soMa = so5(r.so_ma);
+    } else if (r.thang) tong2.thang[String(r.thang)] = oTH(r);
+  }
+  const thang2 = Object.keys(tong2.thang).sort();
+  const tb3Map = /* @__PURE__ */ new Map();
+  for (const r of rTb3.rows) tb3Map.set(String(r.khoa), { gt: so5(r.gt), sl: so5(r.sl) });
+  const theoKhoa = /* @__PURE__ */ new Map();
+  let soKhoa = 0;
+  for (const r of rDong.rows) {
+    const khoa = String(r.khoa ?? KHOA_TRONG);
+    soKhoa = so5(r.so_khoa);
+    let d = theoKhoa.get(khoa);
+    if (!d) {
+      d = { khoa, ten: khoa, phu: null, thang: {}, tong: { ...O_RONG }, soMa: 0, gtTb3: null, slTb3: null };
+      theoKhoa.set(khoa, d);
+    }
+    if (so5(r.la_tong) === 1) {
+      d.tong = oTH(r);
+      d.soMa = so5(r.so_ma);
+      d.phu = chuoiHoacNull2(r.phu);
+      if (laMa) {
+        d.ma = chuoiHoacNull2(r.ma);
+        d.ten = chuoiHoacNull2(r.ten) ?? d.ma ?? "(kh\xF4ng m\xE3)";
+        d.dvt = chuoiHoacNull2(r.dvt);
+        d.nhom = String(r.nhom ?? KHOA_TRONG);
+      }
+    } else if (r.thang) d.thang[String(r.thang)] = oTH(r);
+  }
+  const dong2 = [...theoKhoa.values()];
+  for (const d of dong2) {
+    const t = tb3Map.get(d.khoa);
+    d.gtTb3 = tb3.length ? t?.gt ?? 0 : null;
+    if (laMa) d.slTb3 = tb3.length ? t?.sl ?? 0 : null;
+    if (theo === "nhom") d.ten = d.khoa === KHOA_TRONG ? NHOM_TRONG_TEN : TEN_NHOM_BTP[d.khoa] ?? tenNhom[d.khoa] ?? d.khoa;
+    else if (theo === "ct" || theo === "hex") {
+      if (d.khoa === KHOA_TRONG) d.ten = "Ch\u01B0a gh\xE9p \u0111\u01B0\u1EE3c";
+    } else if (theo === "xuong") {
+      if (d.khoa === KHOA_TRONG) d.ten = "(kh\xF4ng ghi x\u01B0\u1EDFng)";
+    }
+  }
+  if (laMa) {
+    const ton = await docTon([...new Set(dong2.map((d) => d.khoa.split("|")[0]).filter((m) => m && m !== KHOA_TRONG))], chay2);
+    for (const d of dong2) {
+      const t = ton.get(d.khoa.split("|")[0]);
+      d.ton = t ? t.ton : null;
+      d.dvtTon = t ? t.dvt : null;
+      d.soThangDuDung = soThangDuDung(d.ton, d.dvtTon ?? null, d.slTb3, d.dvt ?? null);
+    }
+  }
+  const gtXep = (d) => Math.round(((d.tong.th ?? 0) + (d.tong.hh ?? 0)) * 1e6);
+  dong2.sort(theo === "thang" ? (a, b) => a.khoa.localeCompare(b.khoa) : (a, b) => gtXep(b) - gtXep(a) || b.tong.sd - a.tong.sd || a.khoa.localeCompare(b.khoa));
+  return {
+    chuaCo: false,
+    capNhat,
+    homNay,
+    coGia: true,
+    theo,
+    duLieuToi: maxNgay,
+    thang262Tu: chuoiHoacNull2(r262.rows[0]?.t),
+    thangTb3: tb3,
+    thang: thang2,
+    dong: dong2,
+    catBot: soKhoa > dong2.length,
+    soKhoa,
+    tong: tong2,
+    the
+  };
+};
+var boGiaO = (o) => ({ ...o, th: null, hh: null });
+var boGiaThang = (t) => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, boGiaO(v)]));
+var boGiaTongHopTieuHao = (x) => ({
+  ...x,
+  coGia: false,
+  dong: x.dong.map((d) => ({ ...d, thang: boGiaThang(d.thang), tong: boGiaO(d.tong), gtTb3: null })).sort(x.theo === "thang" ? (a, b) => a.khoa.localeCompare(b.khoa) : (a, b) => b.tong.sd - a.tong.sd || a.khoa.localeCompare(b.khoa)),
+  tong: { ...x.tong, thang: boGiaThang(x.tong.thang), tong: boGiaO(x.tong.tong) },
+  the: { ...x.the, thMoi: null, thTruoc: null, thTb3: null, th: null, hh: null, ptHaoHut: null }
+});
+var docThamSoChiTietTH = (q) => {
+  let ma = null;
+  if (q.ma !== void 0 && q.ma !== "") {
+    if (typeof q.ma !== "string") return null;
+    if (q.ma === KHOA_TRONG) ma = "";
+    else if (/^\d{1,18}$/.test(q.ma)) ma = q.ma.replace(/^0+(?=\d)/, "");
+    else return null;
+  }
+  let dvt = null;
+  if (q.dvt !== void 0 && q.dvt !== "") {
+    if (typeof q.dvt !== "string" || q.dvt.length > 50) return null;
+    dvt = q.dvt === KHOA_TRONG ? "" : q.dvt.trim().toUpperCase();
+  }
+  const trang = q.trang === void 0 || q.trang === "" ? 1 : Number(q.trang);
+  const co2 = q.co === void 0 || q.co === "" ? TRANG_MAC_DINH : Number(q.co);
+  if (!Number.isInteger(trang) || trang < 1 || trang > 1e5) return null;
+  if (!Number.isInteger(co2) || co2 < 1 || co2 > TRANG_TOI_DA) return null;
+  return { ma, dvt, trang, co: co2 };
+};
+var tinhChiTietTieuHao = async (loc, t, homNay, capNhat, chay2 = chayMacDinh) => {
+  const params = [];
+  let where = sqlDieuKienTieuHao(loc, params);
+  const them = [];
+  if (t.ma !== null) {
+    if (t.ma === "") them.push("b.k_ma IS NULL");
+    else {
+      params.push(t.ma);
+      them.push(`b.k_ma = $${params.length}`);
+    }
+  }
+  if (t.dvt !== null) {
+    params.push(t.dvt === "" ? null : t.dvt);
+    them.push(`b.k_dvt IS NOT DISTINCT FROM $${params.length}::text`);
+  }
+  if (them.length) where = where ? `${where} AND ${them.join(" AND ")}` : `WHERE ${them.join(" AND ")}`;
+  params.push(t.co, (t.trang - 1) * t.co);
+  const r = await chay2(
+    `WITH b AS (${sqlNguonTieuHao()})
+     SELECT b.nam, b.so_ct::text AS so_ct, b.dong, to_char(b.ngay, 'YYYY-MM-DD') AS ngay, b.thang, b.k_mvt AS mvt,
+            btrim(b.ma_vat_tu::text) AS ma, b.ten_vat_tu, b.k_nhom, b.dvt, -b.so_luong AS sl, -b.gia_tri AS gia_tri,
+            b.order_sx::text AS order_sx, b.sales_order::text AS sales_order, b.wbs::text AS wbs, b.hex, b.ma_ct,
+            b.phan_loai_nhom_sp, b.xuong, b.plant::text AS plant, b.sloc::text AS sloc, b.nguoi, b.nguon_nhom, b.nguon_file,
+            COUNT(*) OVER () AS tong
+     FROM b ${where}
+     ORDER BY b.ngay DESC NULLS LAST, b.so_ct DESC NULLS LAST, b.dong NULLS LAST
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+  const rows = r.rows;
+  let tong2 = rows.length ? so5(rows[0].tong) : 0;
+  if (!rows.length && t.trang > 1) {
+    const c = await chay2(`WITH b AS (${sqlNguonTieuHao()}) SELECT COUNT(*) AS n FROM b ${where}`, params.slice(0, -2));
+    tong2 = so5(c.rows[0]?.n);
+  }
+  const dong2 = rows.map((x) => ({
+    nam: soHoacNullTH(x.nam),
+    soCt: chuoiHoacNull2(x.so_ct),
+    dong: soHoacNullTH(x.dong),
+    ngay: chuoiHoacNull2(x.ngay),
+    thang: chuoiHoacNull2(x.thang),
+    mvt: chuoiHoacNull2(x.mvt),
+    ma: chuoiHoacNull2(x.ma),
+    tenVatTu: chuoiHoacNull2(x.ten_vat_tu),
+    nhom: String(x.k_nhom ?? KHOA_TRONG),
+    dvt: chuoiHoacNull2(x.dvt),
+    sl: soHoacNullTH(x.sl),
+    giaTri: soHoacNullTH(x.gia_tri),
+    orderSx: chuoiHoacNull2(x.order_sx),
+    salesOrder: chuoiHoacNull2(x.sales_order),
+    wbs: chuoiHoacNull2(x.wbs),
+    hex: chuoiHoacNull2(x.hex),
+    maCt: chuoiHoacNull2(x.ma_ct),
+    phanLoai: chuoiHoacNull2(x.phan_loai_nhom_sp),
+    xuong: chuoiHoacNull2(x.xuong),
+    plant: chuoiHoacNull2(x.plant),
+    sloc: chuoiHoacNull2(x.sloc),
+    nguoi: chuoiHoacNull2(x.nguoi),
+    nguonNhom: chuoiHoacNull2(x.nguon_nhom),
+    nguonFile: chuoiHoacNull2(x.nguon_file)
+  }));
+  return { chuaCo: false, capNhat, homNay, coGia: true, tong: tong2, trang: t.trang, co: t.co, dong: dong2 };
+};
+var tinhTieuHaoNhom = async (ct, chay2 = chayMacDinh, coGop = false) => {
+  const tb3 = thangTb3(await docMaxNgay(chay2));
+  const gt = /* @__PURE__ */ new Map();
+  if (!tb3.length) return { thangTb3: tb3, gt };
+  const params = [tb3];
+  const dkCt = ct.length ? (params.push(ct.map((c) => c.toUpperCase())), `AND b.k_ct = ANY($2::text[])`) : "";
+  const r = await chay2(
+    `SELECT b.k_nhom, COALESCE(SUM(b.th_gt), 0) / 3 AS gt FROM ${nguonGop(null, coGop, params)} b
+     WHERE b.thang = ANY($1::text[]) AND b.k_nhom NOT IN ('BTP','TP') ${dkCt} GROUP BY 1`,
+    params
+  );
+  for (const x of r.rows) gt.set(String(x.k_nhom), so5(x.gt));
+  return { thangTb3: tb3, gt };
+};
+var tinhTieuHaoMa = async (ma, ct, chay2 = chayMacDinh, coGop = false) => {
+  const tb3 = thangTb3(await docMaxNgay(chay2));
+  const ra = /* @__PURE__ */ new Map();
+  const ds2 = [...new Set(ma.map((m) => m.replace(/^0+(?=\d)/, "")).filter(Boolean))];
+  if (!ds2.length) return { thangTb3: tb3, ma: ra };
+  const [r, ton] = await Promise.all([
+    tb3.length ? (() => {
+      const params = [tb3, ds2];
+      const dkCt = ct.length ? (params.push(ct.map((c) => c.toUpperCase())), `AND b.k_ct = ANY($3::text[])`) : "";
+      return chay2(
+        `SELECT b.k_ma, COALESCE(SUM(b.th_gt), 0) / 3 AS gt, COALESCE(SUM(b.th_sl), 0) / 3 AS sl,
+                MAX(b.k_dvt) AS dvt, COUNT(DISTINCT b.k_dvt) AS so_dvt
+         FROM ${nguonGop(null, coGop, params)} b WHERE b.thang = ANY($1::text[]) AND b.k_ma = ANY($2::text[]) ${dkCt} GROUP BY 1`,
+        params
+      );
+    })() : Promise.resolve({ rows: [] }),
+    docTon(ds2, chay2)
+  ]);
+  const tieuHao = /* @__PURE__ */ new Map();
+  for (const x of r.rows) tieuHao.set(String(x.k_ma), x);
+  for (const m of ds2) {
+    const x = tieuHao.get(m), t = ton.get(m);
+    ra.set(m, {
+      gt: x ? so5(x.gt) : 0,
+      sl: x ? so5(x.sl) : 0,
+      dvt: x ? chuoiHoacNull2(x.dvt) : null,
+      soDvt: x ? so5(x.so_dvt) : 0,
+      ton: t ? t.ton : null,
+      dvtTon: t ? t.dvt : null
+    });
+  }
+  return { thangTb3: tb3, ma: ra };
+};
+var pbThNho = null;
+var pbThDangDoc = null;
+var PB_TH_TTL_MS = 3e4;
+var chuoiLuc = (v) => {
+  if (v === null || v === void 0) return null;
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.toISOString();
+  return String(v);
+};
+var docPhienBanTH = async () => {
+  if (pbThNho && Date.now() - pbThNho.luc < PB_TH_TTL_MS) return pbThNho.giaTri;
+  if (pbThDangDoc) return pbThDangDoc;
+  pbThDangDoc = (async () => {
+    try {
+      const r = await timedQuery(
+        `SELECT to_regclass('${BANG_TIEU_HAO}') IS NOT NULL AS co_bang,
+                (SELECT last_updated FROM table_versions WHERE table_name = '${BANG_TIEU_HAO}') AS tv,
+                (SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho_vt') AS tv_ton,
+                (SELECT n_tup_ins + n_tup_upd + n_tup_del FROM pg_stat_user_tables WHERE relname = '${BANG_TIEU_HAO}' LIMIT 1) AS so_ghi,
+                to_regclass('${BANG_GOP_TIEU_HAO}') IS NOT NULL
+                  AND COALESCE((SELECT last_updated FROM table_versions WHERE table_name = '${BANG_GOP_TIEU_HAO}')
+                               >= COALESCE((SELECT last_updated FROM table_versions WHERE table_name = '${BANG_TIEU_HAO}'), '-infinity'),
+                               FALSE) AS co_gop,
+                (SELECT last_updated FROM table_versions WHERE table_name = '${BANG_GOP_TIEU_HAO}') AS tv_gop`
+      );
+      const x = r.rows[0] ?? {};
+      const tv = chuoiLuc(x.tv);
+      const coGop = x.co_bang === true && x.co_gop === true;
+      const giaTri = {
+        coBang: x.co_bang === true,
+        coGop,
+        // Khoá cache gồm đường đọc (gộp / gốc) + phiên bản bảng gộp
+        khoa: `${x.co_bang === true ? 1 : 0}|${tv ?? `st:${String(x.so_ghi ?? "")}`}|${chuoiLuc(x.tv_ton) ?? ""}|${coGop ? `g:${chuoiLuc(x.tv_gop) ?? ""}` : "tho"}`,
+        capNhat: tv
+      };
+      pbThNho = { luc: Date.now(), giaTri };
+      return giaTri;
+    } finally {
+      pbThDangDoc = null;
+    }
+  })();
+  return pbThDangDoc;
+};
+var quenPhienBanTH = () => {
+  pbThNho = null;
+};
+var cacheNhom = createCache(40);
+var cacheMa = createCache(40);
+var cacheDong = createCache(30);
+var cacheThang = createCache(20);
+var khoaLoc = (loc) => hashKey(loc);
+var docCapNhat = async () => {
+  const v = await getRelevantVersions(["material"]);
+  const x = v.material;
+  if (x === null || x === void 0) return null;
+  return x instanceof Date ? x.toISOString() : String(x);
+};
+var dangKy = (duong, xuLy) => {
+  app.get(`/api/vat-tu/dat-mua/${duong}`, async (req, res) => {
+    try {
+      if (!await userHasPermission(req, QUYEN_XEM3)) return res.status(403).json(LOI_QUYEN2);
+      const kq = docBoLoc(req.query);
+      if (!kq.hopLe) return res.status(400).json({ error: kq.loi });
+      const coGia = await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+      const homNay = vnDayKey(/* @__PURE__ */ new Date());
+      const ra = await xuLy(req, kq.loc, homNay, coGia);
+      if (ra === null) return res.status(400).json({ error: "Tham s\u1ED1 kh\xF4ng h\u1EE3p l\u1EC7" });
+      res.json(ra);
+    } catch (error61) {
+      console.error(`L\u1ED7i vat-tu/dat-mua/${duong}:`, error61);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+};
+var ganTieuHaoNhom = (x, th) => {
+  if (!th) return { ...x, tieuHao: null };
+  let tong2 = 0;
+  const nhom = x.nhom.map((n) => {
+    const v = th.gt.get(n.ma) ?? 0;
+    tong2 += v;
+    return { ...n, tieuHaoTb3: v };
+  });
+  return { ...x, nhom, tong: { ...x.tong, tieuHaoTb3: tong2 }, tieuHao: { thangTb3: th.thangTb3 } };
+};
+var ganTieuHaoMa = (x, th) => {
+  if (!th) return { ...x, tieuHao: null };
+  const ma = x.ma.map((m) => {
+    const t = m.ma ? th.ma.get(m.ma.replace(/^0+(?=\d)/, "")) : void 0;
+    if (!t) return { ...m, tieuHaoTb3: null, slTieuHaoTb3: null, dvtTieuHao: null, tonHienTai: null, dvtTon: null, soThangDuDung: null };
+    const sl = t.soDvt > 1 ? null : t.sl;
+    return {
+      ...m,
+      tieuHaoTb3: t.gt,
+      slTieuHaoTb3: sl,
+      dvtTieuHao: t.dvt,
+      tonHienTai: t.ton,
+      dvtTon: t.dvtTon,
+      soThangDuDung: soThangDuDung(t.ton, t.dvtTon, sl, t.dvt)
+    };
+  });
+  return { ...x, ma, tieuHao: { thangTb3: th.thangTb3 } };
+};
+var thuTieuHao = async (pb, f) => {
+  if (!pb.coBang) return null;
+  try {
+    return await f();
+  } catch (e) {
+    if (!laThieuBangHoacCot2(e)) throw e;
+    if (laThieuBangTH(e)) quenPhienBanTH();
+    return null;
   }
 };
-app.post("/api/cong-khai/yeu-cau", gioiHanGui, async (req, res) => {
-  try {
-    const doDai = Number(req.headers["content-length"] ?? 0);
-    if (doDai > THAN_YEU_CAU_TOI_DA_BYTE || Buffer.byteLength(JSON.stringify(req.body ?? null)) > THAN_YEU_CAU_TOI_DA_BYTE) {
-      return res.status(413).json({ error: "Y\xEAu c\u1EA7u qu\xE1 d\xE0i" });
-    }
-    const kt = kiemTraThanYeuCau(req.body);
-    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    if (kt.laBot) return res.status(201).json({ maYeuCau: taoMaYeuCau() });
-    const ds2 = await docDanhSachCongKhai();
-    const ghep = ghepYeuCau(kt.than.items, new Map(ds2.items.map((it) => [it.ma, it])));
-    if (!ghep.hopLe) return res.status(400).json({ error: ghep.loi });
-    const ipHash = bamIp(ipKhach(req));
-    const ua = String(req.headers["user-agent"] ?? "").slice(0, 300) || null;
-    let kq;
-    try {
-      kq = await withTransaction(async (client) => {
-        await client.query(`SET LOCAL statement_timeout = ${TIMEOUT_MS3}`);
-        await client.query(`SELECT pg_advisory_xact_lock(hashtext('ban_vt_yeu_cau|' || $1::text))`, [ipHash]);
-        const r = await client.query(
-          `SELECT COUNT(*) FILTER (WHERE ip_hash = $1 AND created_at > now() - interval '1 hour')::int AS gio,
-                  COUNT(*) FILTER (WHERE ip_hash = $1)::int AS ngay,
-                  COUNT(*) FILTER (WHERE created_at > now() - interval '1 hour')::int AS toan_bo
-           FROM ban_vt_yeu_cau WHERE created_at > now() - interval '1 day'`,
-          [ipHash]
-        );
-        const gio = Number(r.rows[0]?.gio ?? 0);
-        const ngay3 = Number(r.rows[0]?.ngay ?? 0);
-        if (gio >= YEU_CAU_MOI_GIO_TOI_DA || ngay3 >= YEU_CAU_MOI_NGAY_TOI_DA) return { quaGioiHan: true };
-        for (let lan = 0; lan < 5; lan++) {
-          const ma = taoMaYeuCau();
-          const ins = await client.query(
-            `INSERT INTO ban_vt_yeu_cau (ma_yeu_cau, items, ten_khach, sdt, email, cong_ty, ghi_chu, ip_hash, user_agent)
-             VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (ma_yeu_cau) DO NOTHING RETURNING id`,
-            [ma, JSON.stringify(ghep.dong), kt.than.ten, kt.than.sdt, kt.than.email, kt.than.congTy, kt.than.ghiChu, ipHash, ua]
-          );
-          if (ins.rows.length) return { quaGioiHan: false, maYeuCau: ma, demToanBo: Number(r.rows[0]?.toan_bo ?? 0) };
-        }
-        throw new Error("Kh\xF4ng sinh \u0111\u01B0\u1EE3c m\xE3 y\xEAu c\u1EA7u kh\xF4ng tr\xF9ng sau 5 l\u1EA7n");
-      });
-    } catch (e) {
-      if (laThieuBangHoacCot2(e)) {
-        console.error(`[cong-khai] ch\u01B0a t\u1EA1o b\u1EA3ng ban_vt_yeu_cau \u2014 ch\u1EA1y ${SQL_CONG_KHAI}`);
-        return res.status(503).json(LOI_THIEU_BANG_YEU_CAU);
-      }
-      throw e;
-    }
-    if (kq.quaGioiHan) return res.status(429).json({ error: "B\u1EA1n \u0111\xE3 g\u1EEDi qu\xE1 nhi\u1EC1u y\xEAu c\u1EA7u, vui l\xF2ng th\u1EED l\u1EA1i sau" });
-    const kieu = kieuThongBao(kq.demToanBo);
-    if (kieu !== "khong") await baoYeuCauMoi(kq.maYeuCau, ghep.dong.length, kieu);
-    res.status(201).json({ maYeuCau: kq.maYeuCau });
-  } catch (error61) {
-    console.error("L\u1ED7i cong-khai/yeu-cau:", error61);
-    res.status(500).json({ error: "H\u1EC7 th\u1ED1ng \u0111ang b\u1EADn, vui l\xF2ng th\u1EED l\u1EA1i sau" });
+var coQuyenTH = (req) => userHasPermission(req, QUYEN_TIEU_HAO);
+dangKy("theo-nhom", async (req, loc, homNay, coGia) => {
+  const capNhat = await docCapNhat();
+  const [pb, coTH] = await Promise.all([docPhienBanTH(), coQuyenTH(req)]);
+  const tho = await cachedByVersions(
+    cacheNhom,
+    `nhom|${coGia ? 1 : 0}|${khoaLoc(loc)}`,
+    ["material"],
+    async () => ganTieuHaoNhom(await tinhTheoNhom(loc, homNay, capNhat), await thuTieuHao(pb, () => tinhTieuHaoNhom(loc.ct, chayMacDinh, pb.coGop))),
+    `${homNay}|${pb.khoa}`,
+    "",
+    false
+  );
+  const x = coTH ? tho : { ...tho, tieuHao: null, nhom: tho.nhom.map((n) => ({ ...n, tieuHaoTb3: null })), tong: { ...tho.tong, tieuHaoTb3: null } };
+  if (coGia) return x;
+  return { ...x, coGia: false, nhom: x.nhom.map((n) => ({ ...boGia(n), tieuHaoTb3: null })), tong: { ...boGia(x.tong), tieuHaoTb3: null } };
+});
+dangKy("theo-ma", async (req, loc, homNay, coGia) => {
+  const capNhat = await docCapNhat();
+  const [pb, coTH] = await Promise.all([docPhienBanTH(), coQuyenTH(req)]);
+  const tho = await cachedByVersions(
+    cacheMa,
+    `ma|${coGia ? 1 : 0}|${khoaLoc(loc)}`,
+    ["material"],
+    async () => {
+      const x2 = await tinhTheoMa(loc, homNay, capNhat);
+      const ma = x2.ma.map((m) => m.ma).filter((m) => !!m);
+      return ganTieuHaoMa(x2, await thuTieuHao(pb, () => tinhTieuHaoMa(ma, loc.ct, chayMacDinh, pb.coGop)));
+    },
+    `${homNay}|${pb.khoa}`,
+    "",
+    false
+  );
+  const x = coTH ? tho : {
+    ...tho,
+    tieuHao: null,
+    ma: tho.ma.map((m) => ({ ...m, tieuHaoTb3: null, slTieuHaoTb3: null, dvtTieuHao: null, tonHienTai: null, dvtTon: null, soThangDuDung: null }))
+  };
+  if (coGia) return x;
+  return { ...x, coGia: false, ma: x.ma.map((m) => ({ ...boGia(m), tieuHaoTb3: null })) };
+});
+var docThamSoDong = (q) => {
+  let ma = null;
+  if (q.ma !== void 0 && q.ma !== "") {
+    if (typeof q.ma !== "string") return null;
+    if (q.ma === NHOM_TRONG_MA) ma = "";
+    else if (/^\d{1,15}$/.test(q.ma)) ma = q.ma.replace(/^0+(?=\d)/, "");
+    else return null;
   }
+  let dvt = null;
+  if (q.dvt !== void 0 && q.dvt !== "") {
+    if (typeof q.dvt !== "string" || q.dvt.length > 50) return null;
+    dvt = q.dvt === NHOM_TRONG_MA ? "" : q.dvt.trim();
+  }
+  let loai = null;
+  if (q.loai !== void 0 && q.loai !== "") {
+    if (typeof q.loai !== "string" || !(q.loai in LOAI_O)) return null;
+    loai = q.loai;
+  }
+  const trang = q.trang === void 0 || q.trang === "" ? 1 : Number(q.trang);
+  const co2 = q.co === void 0 || q.co === "" ? TRANG_MAC_DINH : Number(q.co);
+  if (!Number.isInteger(trang) || trang < 1 || trang > 1e5) return null;
+  if (!Number.isInteger(co2) || co2 < 1 || co2 > TRANG_TOI_DA) return null;
+  return { ma, dvt, loai, trang, co: co2 };
+};
+var CO_CACHE_TOI_DA = 500;
+dangKy("dong", async (req, loc, homNay, coGia) => {
+  const t = docThamSoDong(req.query);
+  if (!t) return null;
+  const capNhat = await docCapNhat();
+  const chon = { ma: t.ma, dvt: t.dvt, loai: t.loai };
+  const tho = t.co > CO_CACHE_TOI_DA ? await tinhDong(loc, chon, t.trang, t.co, homNay, capNhat) : await cachedByVersions(
+    cacheDong,
+    `dong|${coGia ? 1 : 0}|${khoaLoc(loc)}|${t.ma ?? "*"}|${t.dvt ?? "*"}|${t.loai ?? ""}|${t.trang}|${t.co}`,
+    ["material"],
+    () => tinhDong(loc, chon, t.trang, t.co, homNay, capNhat),
+    homNay,
+    "",
+    false
+  );
+  if (coGia) return tho;
+  return { ...tho, coGia: false, dong: tho.dong.map((d) => ({ ...d, donGia: null, thanhTien: null, nhaCungCap: null })) };
+});
+dangKy("theo-thang", async (_req, loc, homNay, coGia) => {
+  const capNhat = await docCapNhat();
+  const tho = await cachedByVersions(
+    cacheThang,
+    `thang|${coGia ? 1 : 0}|${khoaLoc(loc)}`,
+    ["material"],
+    () => tinhTheoThang(loc, homNay, capNhat),
+    homNay,
+    "",
+    false
+  );
+  if (coGia) return tho;
+  return { ...tho, coGia: false, thang: tho.thang.map((x) => ({ ...x, prGiaTri: null, veGiaTri: null })) };
+});
+var cacheThTongHop = createCache(40);
+var cacheThChiTiet = createCache(30);
+var dangKyTH = (duong, xuLy) => {
+  app.get(`/api/vat-tu/tieu-hao/${duong}`, async (req, res) => {
+    try {
+      if (!await userHasPermission(req, QUYEN_TIEU_HAO)) return res.status(403).json(LOI_QUYEN_TH);
+      const kq = docBoLocTieuHao(req.query);
+      if (!kq.hopLe) return res.status(400).json({ error: kq.loi });
+      const coGia = await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+      const homNay = vnDayKey(/* @__PURE__ */ new Date());
+      const pb = await docPhienBanTH();
+      const chuaCo = { chuaCo: true, homNay };
+      if (!pb.coBang) return res.json(chuaCo);
+      let ra;
+      try {
+        ra = await xuLy(req, kq.loc, homNay, coGia, pb);
+      } catch (e) {
+        if (!laThieuBangTH(e)) throw e;
+        quenPhienBanTH();
+        return res.json(chuaCo);
+      }
+      if (ra === null) return res.status(400).json({ error: "Tham s\u1ED1 kh\xF4ng h\u1EE3p l\u1EC7" });
+      res.json(ra);
+    } catch (error61) {
+      console.error(`L\u1ED7i vat-tu/tieu-hao/${duong}:`, error61);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+};
+dangKyTH("tong-hop", async (req, loc, homNay, coGia, pb) => {
+  const theo = req.query.theo === void 0 || req.query.theo === "" ? "nhom" : req.query.theo;
+  if (typeof theo !== "string" || !THEO_TIEU_HAO.includes(theo)) return null;
+  const gop = pb.coGop && dungDuocGop(loc, theo);
+  const tinh = (g) => tinhTongHopTieuHao(loc, theo, homNay, pb.capNhat, chayMacDinh, g);
+  let tho;
+  try {
+    tho = await cachedByVersions(cacheThTongHop, `th|${theo}|${gop ? "gop" : "tho"}|${hashKey(loc)}`, [], () => tinh(gop), pb.khoa, "", false);
+  } catch (e) {
+    if (!gop || !laThieuBangTH(e)) throw e;
+    quenPhienBanTH();
+    tho = await tinh(false);
+  }
+  return coGia ? { ...tho, homNay } : { ...boGiaTongHopTieuHao(tho), homNay };
+});
+dangKyTH("chi-tiet", async (req, loc, homNay, coGia, pb) => {
+  const t = docThamSoChiTietTH(req.query);
+  if (!t) return null;
+  const tho = t.co > CO_CACHE_TOI_DA ? await tinhChiTietTieuHao(loc, t, homNay, pb.capNhat) : await cachedByVersions(
+    cacheThChiTiet,
+    `ct|${hashKey(loc)}|${t.ma ?? "*"}|${t.dvt ?? "*"}|${t.trang}|${t.co}`,
+    [],
+    () => tinhChiTietTieuHao(loc, t, homNay, pb.capNhat),
+    pb.khoa,
+    "",
+    false
+  );
+  if (coGia) return { ...tho, homNay };
+  return { ...tho, homNay, coGia: false, dong: tho.dong.map((d) => ({ ...d, giaTri: null })) };
 });
 
 // src/routes/bopM2.ts
@@ -84261,8 +84671,10 @@ app.get("/api/khnk-sheet", async (_req, res) => {
 var khoCache = createCache(2);
 app.get("/api/khnk-sheet/kho", async (_req, res) => {
   try {
-    const payload = await cachedByVersions(khoCache, "kho", ["export", "stock"], async () => {
-      const [xuat, ton] = await Promise.all([
+    const payload = await cachedByVersions(khoCache, "kho", ["inventory", "export", "stock"], async () => {
+      const [nhap, xuat, ton] = await Promise.all([
+        timedQuery(`SELECT UPPER(TRIM(ma_cong_trinh)) AS ma, COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0)::float8 AS v
+          FROM nhap_kho WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' GROUP BY 1`),
         timedQuery(`SELECT UPPER(TRIM(ma_cong_trinh)) AS ma, COALESCE(SUM(${numericCol("xuat_kho", "thanh_tien_xuat_kho")}), 0)::float8 AS v
           FROM xuat_kho WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' GROUP BY 1`),
         timedQuery(`WITH m AS (SELECT max(date_parsed) AS d FROM ton_kho)
@@ -84270,7 +84682,8 @@ app.get("/api/khnk-sheet/kho", async (_req, res) => {
             FROM ton_kho t, m WHERE t.date_parsed = m.d AND COALESCE(TRIM(t.ma_cong_trinh), '') <> '' GROUP BY 1`)
       ]);
       const kho = {};
-      const o = (ma) => kho[ma] ??= { xuat: 0, ton: 0 };
+      const o = (ma) => kho[ma] ??= { nhap: 0, xuat: 0, ton: 0 };
+      for (const x of nhap.rows) o(x.ma).nhap = Number(x.v) || 0;
       for (const x of xuat.rows) o(x.ma).xuat = Number(x.v) || 0;
       for (const x of ton.rows) o(x.ma).ton = Number(x.v) || 0;
       return { kho, ngayTon: ton.rows[0]?.ngay ?? null };
@@ -84279,6 +84692,89 @@ app.get("/api/khnk-sheet/kho", async (_req, res) => {
   } catch (e) {
     console.error("[khnk-sheet/kho]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c xu\u1EA5t / t\u1ED3n kho" });
+  }
+});
+var KHO_DONG = {
+  nhap: { bang: "nhap_kho", ngay: "date_parsed" },
+  xuat: { bang: "xuat_kho", ngay: "date_parsed" },
+  ton: { bang: "ton_kho", ngay: "date_parsed" }
+};
+app.get("/api/khnk-sheet/kho-dong", async (req, res) => {
+  const cfg = KHO_DONG[String(req.query.loai ?? "")];
+  const ma = String(req.query.ma ?? "").trim().toUpperCase();
+  if (!cfg || !/^[A-Z]{2}\d{2}-\d{3}$/.test(ma)) {
+    res.status(400).json({ error: "Sai lo\u1EA1i ho\u1EB7c m\xE3 c\xF4ng tr\xECnh" });
+    return;
+  }
+  try {
+    const cols = REPORT_COLUMNS[cfg.bang] ?? [];
+    if (!cols.length) {
+      res.status(400).json({ error: "B\u1EA3ng kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3" });
+      return;
+    }
+    const GIOI_HAN = 1e4;
+    const dkNgay = cfg.bang === "ton_kho" ? ` AND ${cfg.ngay} = (SELECT max(${cfg.ngay}) FROM ton_kho)` : "";
+    const q = await timedQuery(`SELECT ${cols.map((c) => `"${c}"`).join(", ")} FROM ${cfg.bang}
+       WHERE UPPER(TRIM(ma_cong_trinh)) = $1${dkNgay}
+       ORDER BY ${cfg.ngay} DESC NULLS LAST LIMIT ${GIOI_HAN + 1}`, [ma]);
+    const cat = q.rows.length > GIOI_HAN;
+    res.json({ rows: cat ? q.rows.slice(0, GIOI_HAN) : q.rows, columns: cols, truncated: cat });
+  } catch (e) {
+    console.error("[khnk-sheet/kho-dong]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c d\xF2ng nh\u1EADp / xu\u1EA5t / t\u1ED3n kho" });
+  }
+});
+var KHO_CHUAN = {
+  nhap: { bang: "nhap_kho", sl: "so_luong_nhap_kho", gt: numericCol("nhap_kho", "thanh_tien_nhap_kho"), hm: "ten_hang_muc" },
+  xuat: { bang: "xuat_kho", sl: "so_luong_xuat_kho", gt: numericCol("xuat_kho", "thanh_tien_xuat_kho"), hm: "ten_hang_muc" },
+  ton: { bang: "ton_kho", sl: "so_luong", gt: "gia_tri_num", hm: "ten_san_pham" }
+};
+app.get("/api/khnk-sheet/kho-dong-chuan", async (req, res) => {
+  const cfg = KHO_CHUAN[String(req.query.loai ?? "")];
+  const ma = String(req.query.ma ?? "").trim().toUpperCase();
+  if (!cfg || !/^[A-Z]{2,3}\d{2}-[0-9A-Z]{1,12}$/.test(ma)) {
+    res.status(400).json({ error: "Sai lo\u1EA1i ho\u1EB7c m\xE3 c\xF4ng tr\xECnh" });
+    return;
+  }
+  try {
+    const dk = cfg.bang === "ton_kho" ? " AND date_parsed = (SELECT max(date_parsed) FROM ton_kho)" : "";
+    const q = await timedQuery(`SELECT to_char(date_parsed, 'YYYY-MM-DD') AS ngay, (hex)::bigint::text AS hex, ${cfg.hm} AS hang_muc,
+                                       ten_cong_trinh AS cong_trinh, (${cfg.sl})::float8 AS so_luong, dvt, (${cfg.gt})::float8 AS gia_tri
+                                  FROM ${cfg.bang} WHERE UPPER(TRIM(ma_cong_trinh)) = $1${dk}
+                                 ORDER BY date_parsed DESC NULLS LAST, hex LIMIT 20001`, [ma]);
+    const cat = q.rows.length > 2e4;
+    const rows = cat ? q.rows.slice(0, 2e4) : q.rows;
+    res.json({ rows, cat, ngayTon: cfg.bang === "ton_kho" ? rows[0]?.ngay ?? null : null });
+  } catch (e) {
+    console.error("[khnk-sheet/kho-dong-chuan]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c d\xF2ng nh\u1EADp / xu\u1EA5t / t\u1ED3n" });
+  }
+});
+app.get("/api/khnk-sheet/kho-chenh", async (req, res) => {
+  const ma = String(req.query.ma ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2,3}\d{2}-[0-9A-Z]{1,12}$/.test(ma)) {
+    res.status(400).json({ error: "Sai m\xE3 c\xF4ng tr\xECnh" });
+    return;
+  }
+  try {
+    const W = "UPPER(TRIM(ma_cong_trinh)) = $1";
+    const hx = (c) => `COALESCE((${c})::bigint::text, '(kh\xF4ng HEX)')`;
+    const q = await timedQuery(`
+      WITH n AS (SELECT ${hx("hex")} AS hex, SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}) AS v, MAX(ten_hang_muc) AS hm FROM nhap_kho WHERE ${W} GROUP BY 1),
+           x AS (SELECT ${hx("hex")} AS hex, SUM(${numericCol("xuat_kho", "thanh_tien_xuat_kho")}) AS v, MAX(ten_hang_muc) AS hm FROM xuat_kho WHERE ${W} GROUP BY 1),
+           m AS (SELECT max(date_parsed) AS d FROM ton_kho),
+           t AS (SELECT ${hx("hex")} AS hex, SUM(gia_tri_num) AS v, MAX(ten_san_pham) AS hm FROM ton_kho, m WHERE ${W} AND date_parsed = m.d GROUP BY 1),
+           k AS (SELECT hex FROM n UNION SELECT hex FROM x UNION SELECT hex FROM t)
+      SELECT k.hex, COALESCE(p.hm, n.hm, x.hm, t.hm) AS hang_muc, p.ipo,
+             COALESCE(n.v, 0)::float8 AS nhap, COALESCE(x.v, 0)::float8 AS xuat, COALESCE(t.v, 0)::float8 AS ton,
+             (COALESCE(n.v, 0) - COALESCE(x.v, 0) - COALESCE(t.v, 0))::float8 AS chenh, (SELECT d FROM m)::text AS ngay_ton
+        FROM k LEFT JOIN n ON n.hex = k.hex LEFT JOIN x ON x.hex = k.hex LEFT JOIN t ON t.hex = k.hex
+        LEFT JOIN LATERAL (SELECT ten_hang_muc AS hm, tinh_trang_ipo AS ipo FROM production_status_app WHERE hex::text = k.hex LIMIT 1) p ON true
+       ORDER BY abs(COALESCE(n.v, 0) - COALESCE(x.v, 0) - COALESCE(t.v, 0)) DESC`, [ma]);
+    res.json({ rows: q.rows.map((r) => ({ hex: r.hex, hangMuc: r.hang_muc, ipo: r.ipo, nhap: r.nhap, xuat: r.xuat, ton: r.ton, chenh: r.chenh })), ngayTon: q.rows[0]?.ngay_ton ?? null });
+  } catch (e) {
+    console.error("[khnk-sheet/kho-chenh]", e);
+    res.status(500).json({ error: "Kh\xF4ng t\xEDnh \u0111\u01B0\u1EE3c ch\xEAnh nh\u1EADp / xu\u1EA5t / t\u1ED3n" });
   }
 });
 var ttCache = createCache(2);
@@ -84294,7 +84790,8 @@ app.get("/api/khnk-sheet/thong-tin", async (_req, res) => {
         timedQuery(modeSql("khach_hang")),
         timedQuery(`SELECT UPPER(TRIM(ma_cong_trinh)) AS ma,
                COALESCE(SUM(${numericCol("production_status_app", "thanh_tien_tinh_phieu")}), 0)::float8 AS v,
-               COALESCE(SUM(LEAST(GREATEST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), 0), GREATEST(COALESCE(tri_gia_don_hang_tong, 0), 0))), 0)::float8 AS nk
+               COALESCE(SUM(LEAST(GREATEST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), 0), GREATEST(COALESCE(tri_gia_don_hang_tong, 0), 0))), 0)::float8 AS nk,
+               COALESCE(SUM(COALESCE(tri_gia_don_hang_tong, 0)), 0)::float8 AS dh, count(*)::int AS n
           FROM production_status_app
          WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''
            AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%' AND UPPER(COALESCE(tinh_trang_ipo, '')) NOT LIKE '%HU\u1EF6%'
@@ -84305,8 +84802,11 @@ app.get("/api/khnk-sheet/thong-tin", async (_req, res) => {
       for (const x of kv.rows) o(x.ma).kv = x.v ?? null;
       for (const x of kh.rows) o(x.ma).kh = x.v ?? null;
       for (const x of tk.rows) {
-        o(x.ma).tksx = Number(x.v) || 0;
-        o(x.ma).nk = Number(x.nk) || 0;
+        const y = o(x.ma);
+        y.tksx = Number(x.v) || 0;
+        y.nk = Number(x.nk) || 0;
+        y.dh = Number(x.dh) || 0;
+        y.n = Number(x.n) || 0;
       }
       return { ct };
     }, "", "", false);
@@ -84314,6 +84814,330 @@ app.get("/api/khnk-sheet/thong-tin", async (_req, res) => {
   } catch (e) {
     console.error("[khnk-sheet/thong-tin]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c khu v\u1EF1c / kh\xE1ch h\xE0ng" });
+  }
+});
+
+// src/routes/hoSoCongTrinh.ts
+var MA = /^[A-Z]{2,3}\d{2}-[0-9A-Z]{1,12}$/;
+var HUY = `(UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%H\u1EE6Y%' OR UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%HU\u1EF6%')`;
+var so6 = (v) => v == null ? 0 : Number(v) || 0;
+app.get("/api/ho-so-cong-trinh/danh-sach", async (_req, res) => {
+  try {
+    const r = await timedQuery(`
+      SELECT x.ma, (array_agg(ten ORDER BY n DESC))[1] AS ten, MAX(pc.pcs) AS pcs, (array_agg(pm ORDER BY npm DESC) FILTER (WHERE pm IS NOT NULL))[1] AS pm,
+             SUM(n)::int AS so_hex, SUM(gt)::float8 AS gia_tri, MAX(bot)::text AS bot
+        FROM (
+          SELECT UPPER(TRIM(ma_cong_trinh)) AS ma, ten_cong_trinh AS ten, NULLIF(TRIM(ten_pm), '') AS pm,
+                 count(*) AS n, count(*) AS npm,
+                 SUM(CASE WHEN ${HUY} THEN 0 ELSE COALESCE(tri_gia_don_hang_tong, 0) END) AS gt, MAX(bot_du_an) AS bot
+            FROM production_status_app
+           WHERE UPPER(TRIM(ma_cong_trinh)) ~ '^[A-Z]{2,3}[0-9]{2}-[0-9A-Z]{1,12}$'
+           GROUP BY 1, 2, 3) x
+        LEFT JOIN (SELECT UPPER(TRIM(ma_cong_trinh)) AS ma, string_agg(DISTINCT TRIM(ten_pc), '|') AS pcs
+                     FROM production_status_app WHERE COALESCE(TRIM(ten_pc), '') <> '' GROUP BY 1) pc ON pc.ma = x.ma
+       GROUP BY x.ma ORDER BY x.ma DESC`);
+    res.json({ ds: r.rows.map((x) => ({ ma: x.ma, ten: x.ten, pm: x.pm, pcs: x.pcs ? String(x.pcs).split("|") : [], soHex: x.so_hex, giaTri: so6(x.gia_tri), bot: x.bot })) });
+  } catch (e) {
+    console.error("[ho-so-cong-trinh/danh-sach]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c danh s\xE1ch c\xF4ng tr\xECnh" });
+  }
+});
+app.get("/api/ho-so-cong-trinh/anh-vl/:hash", async (req, res) => {
+  const h = String(req.params.hash ?? "");
+  if (!/^[0-9a-f]{40}$/.test(h)) {
+    res.status(400).json({ error: "Sai m\xE3 \u1EA3nh" });
+    return;
+  }
+  try {
+    const r = await timedQuery(`SELECT data FROM ct_vl_anh WHERE hash = $1`, [h]);
+    const d = r.rows[0]?.data;
+    if (!Buffer.isBuffer(d)) {
+      res.status(404).json({ error: "Kh\xF4ng c\xF3 \u1EA3nh" });
+      return;
+    }
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.send(d);
+  } catch (e) {
+    if (e.code === "42P01") {
+      res.status(404).json({ error: "Kh\xF4ng c\xF3 \u1EA3nh" });
+      return;
+    }
+    console.error("[ho-so-cong-trinh/anh-vl]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c \u1EA3nh" });
+  }
+});
+app.get("/api/ho-so-cong-trinh/:ma", async (req, res) => {
+  const ma = String(req.params.ma ?? "").trim().toUpperCase();
+  if (!MA.test(ma)) {
+    res.status(400).json({ error: "Sai m\xE3 c\xF4ng tr\xECnh (vd CT26-116)" });
+    return;
+  }
+  try {
+    const coGia = await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+    const W = `UPPER(TRIM(ma_cong_trinh)) = $1`;
+    const [dau, nguoi, ipo, bop, kho, khsx, nhapThang, tkbv, botTh, botCd, khnk, pr, prDong, tonVt, bopM2, nvl, vm, khsxDong] = await Promise.all([
+      // 1. Thông tin chung (mode các cột lặp theo HEX)
+      timedQuery(`SELECT
+          (SELECT ten_cong_trinh FROM production_status_app WHERE ${W} GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS ten,
+          (SELECT khach_hang FROM production_status_app WHERE ${W} AND COALESCE(TRIM(khach_hang), '') <> '' GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS khach_hang,
+          (SELECT khu_vuc_du_an FROM production_status_app WHERE ${W} AND COALESCE(TRIM(khu_vuc_du_an), '') <> '' GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS khu_vuc,
+          (SELECT nhom_ct FROM production_status_app WHERE ${W} AND COALESCE(TRIM(nhom_ct), '') <> '' GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS nhom_ct,
+          (SELECT tinh_trang_du_an FROM production_status_app WHERE ${W} AND COALESCE(TRIM(tinh_trang_du_an), '') <> '' GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS tinh_trang_du_an,
+          (SELECT to_char(MAX(bot_du_an), 'YYYY-MM-DD') FROM production_status_app WHERE ${W}) AS bot_du_an,
+          (SELECT to_char(MIN(ngay_nhan_tu_pm), 'YYYY-MM-DD') FROM production_status_app WHERE ${W}) AS nhan_tu_pm,
+          (SELECT to_char(MAX(ngay_nhan_tu_pm), 'YYYY-MM-DD') FROM production_status_app WHERE ${W}) AS nhan_tu_pm_cuoi,
+          (SELECT count(*) FROM production_status_app WHERE ${W})::int AS so_hex,
+          (SELECT COALESCE(SUM(CASE WHEN ${HUY} THEN 0 ELSE tri_gia_don_hang_tong END), 0) FROM production_status_app WHERE ${W})::float8 AS gia_tri,
+          (SELECT COALESCE(SUM(CASE WHEN ${HUY} THEN 0 ELSE LEAST(GREATEST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), 0), GREATEST(COALESCE(tri_gia_don_hang_tong, 0), 0)) END), 0)
+             FROM production_status_app WHERE ${W})::float8 AS da_nhap_hm,
+          (SELECT COALESCE(SUM(CASE WHEN ${HUY} THEN 0 ELSE thanh_tien_tinh_phieu END), 0) FROM production_status_app WHERE ${W})::float8 AS tinh_phieu`, [ma]),
+      // PM / PC (mọi cách ghi + số hạng mục)
+      timedQuery(`SELECT 'pm' AS vai, TRIM(ten_pm) AS ten, count(*)::int AS n FROM production_status_app WHERE ${W} AND COALESCE(TRIM(ten_pm), '') <> '' GROUP BY 2
+                  UNION ALL
+                  SELECT 'pc', TRIM(ten_pc), count(*)::int FROM production_status_app WHERE ${W} AND COALESCE(TRIM(ten_pc), '') <> '' GROUP BY 2
+                  ORDER BY 1, 3 DESC`, [ma]),
+      // Theo tình trạng IPO: số HEX, giá trị, số lượng (đơn vị khác nhau => chỉ để tham khảo theo ĐVT)
+      timedQuery(`SELECT COALESCE(NULLIF(TRIM(tinh_trang_ipo), ''), '(tr\u1ED1ng)') AS ipo, count(*)::int AS so_hex,
+                         COALESCE(SUM(tri_gia_don_hang_tong), 0)::float8 AS gia_tri
+                    FROM production_status_app WHERE ${W} GROUP BY 1 ORDER BY 1`, [ma]),
+      // 5. BOP: công đoạn hiện tại của hạng mục (bỏ HỦY), giá trị còn lại
+      timedQuery(`SELECT COALESCE(NULLIF(TRIM(bop), ''), '(tr\u1ED1ng)') AS bop, count(*)::int AS so_hex,
+                         COALESCE(SUM(tri_gia_don_hang_tong), 0)::float8 AS gia_tri,
+                         COALESCE(SUM(GREATEST(COALESCE(tri_gia_don_hang_tong, 0) - LEAST(GREATEST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), 0), GREATEST(COALESCE(tri_gia_don_hang_tong, 0), 0)), 0)), 0)::float8 AS con_lai
+                    FROM production_status_app WHERE ${W} AND NOT ${HUY} GROUP BY 1 ORDER BY 1`, [ma]),
+      // Nhập / xuất / tồn theo 3 bảng kho (như Bảng KHNK)
+      timedQuery(`SELECT
+          (SELECT COALESCE(SUM(thanh_tien_nhap_kho), 0) FROM nhap_kho WHERE ${W})::float8 AS nhap,
+          (SELECT COALESCE(SUM(thanh_tien_xuat_kho), 0) FROM xuat_kho WHERE ${W})::float8 AS xuat,
+          (SELECT COALESCE(SUM(gia_tri_num), 0) FROM ton_kho WHERE ${W} AND date_parsed = (SELECT max(date_parsed) FROM ton_kho))::float8 AS ton,
+          (SELECT max(date_parsed)::text FROM ton_kho) AS ngay_ton`, [ma]),
+      // 4. Masterplan: KH sản xuất tháng / tuần
+      timedQuery(`SELECT UPPER(TRIM(phan_loai_kh)) AS loai, nam::int AS nam, thang::int AS thang, tuan::int AS tuan,
+                         count(DISTINCT hex)::int AS so_hex, COALESCE(SUM(thanh_tien_ke_hoach_num), 0)::float8 AS gia_tri
+                    FROM khsx k WHERE UPPER(TRIM(k.ma_cong_trinh)) = $1
+                     AND NOT EXISTS (SELECT 1 FROM production_status_app p WHERE p.hex = k.hex AND ${HUY.replace(/tinh_trang_ipo/g, "p.tinh_trang_ipo")})
+                   GROUP BY 1, 2, 3, 4 ORDER BY 2, 3, 4`, [ma]),
+      timedQuery(`SELECT to_char(date_parsed, 'YYYY-MM') AS thang, COALESCE(SUM(thanh_tien_nhap_kho), 0)::float8 AS gia_tri, count(DISTINCT hex)::int AS so_hex
+                    FROM nhap_kho WHERE ${W} AND date_parsed IS NOT NULL GROUP BY 1 ORDER BY 1`, [ma]),
+      // 2/4. Triển khai bản vẽ
+      timedQuery(`SELECT COALESCE(NULLIF(TRIM(tinh_trang_trien_khai_ban_ve), ''), '(tr\u1ED1ng)') AS tt, count(*)::int AS so_hex,
+                         to_char(MIN(ngay_trien_khai_ban_ve), 'YYYY-MM-DD') AS tu, to_char(MAX(ngay_trien_khai_ban_ve), 'YYYY-MM-DD') AS den
+                    FROM production_status_app WHERE ${W} AND NOT ${HUY} GROUP BY 1 ORDER BY 2 DESC`, [ma]),
+      // 5. BOT: ngày cần giao (file tổng hợp BOT)
+      timedQuery(`SELECT to_char(MIN(ngay_can_giao), 'YYYY-MM-DD') AS tu, to_char(MAX(ngay_can_giao), 'YYYY-MM-DD') AS den, count(*)::int AS so_hex,
+                         COALESCE(SUM(tt_con_lai), 0)::float8 AS con_lai
+                    FROM bot_tong_hop WHERE UPPER(TRIM(ma_ct)) = $1
+                     AND UPPER(COALESCE(ipo, '')) NOT LIKE '%H\u1EE6Y%' AND UPPER(COALESCE(ipo, '')) NOT LIKE '%HU\u1EF6%'`, [ma]),
+      // BOT công đoạn (BOT nhập theo công đoạn)
+      timedQuery(`SELECT b.cong_doan, count(DISTINCT b.hex)::int AS so_hex, to_char(MIN(b.ngay), 'YYYY-MM-DD') AS tu, to_char(MAX(b.ngay), 'YYYY-MM-DD') AS den
+                    FROM bot_cong_doan b JOIN (SELECT DISTINCT hex::text AS hex FROM production_status_app WHERE ${W} AND NOT ${HUY}) p ON p.hex = b.hex::text
+                   GROUP BY 1 ORDER BY 1`, [ma]),
+      // KHNK theo tháng (sheet năm của PRODUCTION STATUS.xlsx)
+      timedQuery(`SELECT sheet, tieu_de, dong FROM khnk_sheet ORDER BY nap_luc DESC LIMIT 1`),
+      // 3. Danh mục vật liệu: PR / PO (vat_tu, khớp trackingno = mã CT)
+      timedQuery(`SELECT COALESCE(NULLIF(TRIM(trang_thai), ''), '(tr\u1ED1ng)') AS tt, count(*)::int AS so_dong, count(DISTINCT so_pr)::int AS so_pr,
+                         COALESCE(SUM(thanh_tien), 0)::float8 AS thanh_tien, count(*) FILTER (WHERE COALESCE(thanh_tien, 0) > 0)::int AS co_gia
+                    FROM vat_tu WHERE UPPER(TRIM(trackingno)) = $1 GROUP BY 1 ORDER BY 1`, [ma]),
+      timedQuery(`SELECT trang_thai, so_pr, pr_line, ma_vat_tu_sap, ten_vat_tu, nhom_vt, dvt, so_luong_yeu_cau, so_luong_con_lai, so_po, nha_cung_cap,
+                         to_char(ngay_pr, 'YYYY-MM-DD') AS ngay_pr, to_char(ngay_can_vat_tu, 'YYYY-MM-DD') AS ngay_can,
+                         to_char(ngay_du_kien_giao_hang_pmh_nhap, 'YYYY-MM-DD') AS ngay_du_kien, to_char(ngay_thuc_te_ve, 'YYYY-MM-DD') AS ngay_ve,
+                         code_vat_lieu, team_pr_note, thanh_tien
+                    FROM vat_tu WHERE UPPER(TRIM(trackingno)) = $1 ORDER BY trang_thai, ngay_pr DESC NULLS LAST LIMIT 500`, [ma]),
+      timedQuery(`SELECT to_char(date, 'YYYY-MM-DD') AS ngay, ma_vat_tu, ten_vat_tu, nhom_vat_tu, so_luong::float8 AS so_luong, dvt, gia_tri::float8 AS gia_tri
+                    FROM ton_kho_vt WHERE ${W} AND date = (SELECT max(date) FROM ton_kho_vt)
+                   ORDER BY ${coGia ? "gia_tri" : "so_luong"} DESC NULLS LAST LIMIT 300`, [ma]),
+      timedQuery(`SELECT (SELECT count(*) FROM bop_m2_vat_lieu WHERE UPPER(TRIM(ma_ct)) = $1)::int AS vat_lieu,
+                         (SELECT count(*) FROM bop_m2_hex WHERE UPPER(TRIM(ma_ct)) = $1)::int AS hex`, [ma]),
+      // 7. Rủi ro: tình trạng NVL theo hạng mục (giao diện tách dòng bằng nvlParse)
+      timedQuery(`SELECT hex::text AS hex, ten_hang_muc, bop, tinh_trang_nvl_khac_item_by_item, tinh_trang_nvl_kinh_da_item_by_item,
+                         tinh_trang_nvl_sofa_item_by_item, tinh_trang_gcn_chua_ve
+                    FROM production_status_app WHERE ${W} AND NOT ${HUY}
+                     AND (COALESCE(tinh_trang_nvl_khac_item_by_item, '') <> '' OR COALESCE(tinh_trang_nvl_kinh_da_item_by_item, '') <> ''
+                       OR COALESCE(tinh_trang_nvl_sofa_item_by_item, '') <> '' OR COALESCE(tinh_trang_gcn_chua_ve, '') <> '')`, [ma]),
+      timedQuery(`SELECT v.id, v.hex, v.category, v.content, v.status, v.priority, v.stage, v.handler, v.bot, v.ten_hang_muc,
+                         to_char(v.created_at, 'YYYY-MM-DD') AS ngay, v.is_resolved
+                    FROM vuong_mac v
+                   WHERE UPPER(TRIM(v.ma_cong_trinh)) = $1
+                      OR v.hex IN (SELECT hex::text FROM production_status_app WHERE ${W})
+                   ORDER BY v.is_resolved, v.created_at DESC LIMIT 200`, [ma]),
+      // 4. Chi tiết KH sản xuất (tháng + tuần) — bấm số ở Masterplan
+      timedQuery(`SELECT UPPER(TRIM(phan_loai_kh)) AS loai, nam::int AS nam, thang::int AS thang, tuan::int AS tuan, ngay::text AS ngay,
+                         hex::text AS hex, ten_hang_muc, NULLIF(TRIM(xuong_chinh), '') AS xuong, dvt, so_luong_kh::text AS sl,
+                         COALESCE(thanh_tien_ke_hoach_num, 0)::float8 AS gia_tri
+                    FROM khsx k WHERE UPPER(TRIM(k.ma_cong_trinh)) = $1
+                     AND NOT EXISTS (SELECT 1 FROM production_status_app p WHERE p.hex = k.hex AND ${HUY.replace(/tinh_trang_ipo/g, "p.tinh_trang_ipo")})
+                   ORDER BY nam, thang, tuan NULLS FIRST, ngay, hex LIMIT 5000`, [ma])
+    ]);
+    const d = dau.rows[0] ?? {};
+    if (!d.so_hex) {
+      res.status(404).json({ error: `Kh\xF4ng c\xF3 h\u1EA1ng m\u1EE5c n\xE0o c\u1EE7a ${ma} trong b\u1EA3ng s\u1EA3n xu\u1EA5t` });
+      return;
+    }
+    const ks = khnk.rows[0];
+    let khnkDong = [];
+    let khnkBot = null;
+    if (ks) {
+      const td = typeof ks.tieu_de === "string" ? JSON.parse(ks.tieu_de) : ks.tieu_de;
+      const dong2 = typeof ks.dong === "string" ? JSON.parse(ks.dong) : ks.dong;
+      const iMa = td.findIndex((t) => String(t.nhan).trim().toUpperCase() === "M\xC3 CT");
+      const iBot = td.findIndex((t) => String(t.nhan).trim().toUpperCase() === "BOT D\u1EF0 \xC1N");
+      const row = iMa >= 0 ? dong2.find((x) => String(x.o[iMa] ?? "").trim().toUpperCase() === ma) : void 0;
+      if (row) {
+        khnkBot = iBot >= 0 && typeof row.o[iBot] === "string" ? String(row.o[iBot]).slice(0, 10) : null;
+        khnkDong = td.map((t, i) => ({ t, i })).filter(({ t }) => !t.an && t.kieu === "so" && /^(KHNK\s*T\s*\d{1,2}|\d{2}-\d{2})$/i.test(String(t.nhan).trim())).map(({ t, i }) => ({ nhan: String(t.nhan).trim(), v: so6(row.o[i]) }));
+      }
+    }
+    const k = kho.rows[0] ?? {};
+    let danhMucVl = null;
+    try {
+      const [vl, f] = await Promise.all([
+        timedQuery(`SELECT v.dong, v.nhom, v.code, v.mo_ta, v.tt_mau, v.ngay_duyet, v.nhu_cau, v.vi_tri, v.dvt_qs, v.sl_qs, v.ma_sap, v.ten_vt,
+                           v.tt_pr, v.tt_vat_tu, v.bop_m2,
+                           COALESCE((SELECT array_agg(a.hash ORDER BY a.thu_tu) FROM ct_vl_anh_dong a WHERE a.ma_ct = v.ma_ct AND a.dong = v.dong), '{}') AS anh
+                      FROM ct_vl v WHERE v.ma_ct = $1 ORDER BY v.dong`, [ma]),
+        timedQuery(`SELECT ten_file, to_char(mtime, 'YYYY-MM-DD HH24:MI') AS sua_luc, to_char(nap_luc, 'YYYY-MM-DD HH24:MI') AS nap_luc, loi
+                      FROM ct_vl_file WHERE ma_ct = $1`, [ma])
+      ]);
+      danhMucVl = { rows: vl.rows, file: f.rows[0] ?? null };
+    } catch (e) {
+      if (e.code !== "42P01") throw e;
+    }
+    const anhTheoMa = {}, anhTheoCode = {};
+    try {
+      const dsMa = [...new Set([...prDong.rows.map((x) => x.ma_vat_tu_sap), ...tonVt.rows.map((x) => x.ma_vat_tu)].filter((x) => x != null && String(x).trim() !== "").map((x) => String(x).trim()))];
+      const an = await timedQuery(`
+        SELECT id::text AS id, ma_vat_tu, cong_trinh, code_vat_lieu, chac_chan, trang_thai, (UPPER(TRIM(cong_trinh)) = $1) AS cung_ct
+          FROM ban_vt_anh
+         WHERE trang_thai <> 'an' AND (ma_vat_tu = ANY($2::text[]) OR (UPPER(TRIM(cong_trinh)) = $1 AND COALESCE(TRIM(code_vat_lieu), '') <> ''))
+         ORDER BY (UPPER(TRIM(cong_trinh)) = $1) DESC, (trang_thai = 'da_duyet') DESC, chac_chan DESC, created_at DESC, id DESC`, [ma, dsMa]);
+      for (const a of an.rows) {
+        const anh = {
+          id: Number(a.id),
+          chacChan: !!a.chac_chan,
+          trangThai: a.trang_thai === "da_duyet" ? "da_duyet" : "tu_dong",
+          congTrinh: a.cong_trinh ?? null,
+          codeVatLieu: a.code_vat_lieu ?? null,
+          congKhai: false
+        };
+        if (a.ma_vat_tu && dsMa.includes(a.ma_vat_tu)) {
+          const l = anhTheoMa[a.ma_vat_tu] ??= [];
+          if (l.length < 6) l.push(anh);
+        }
+        if (a.cung_ct && a.code_vat_lieu) {
+          const c = String(a.code_vat_lieu).trim().toUpperCase();
+          const l = anhTheoCode[c] ??= [];
+          if (l.length < 6 && !l.some((z2) => z2.id === anh.id)) l.push(anh);
+        }
+      }
+    } catch (e) {
+      const code = e.code;
+      if (code !== "42P01" && code !== "42703") throw e;
+    }
+    let bienBan = null;
+    try {
+      const bb = await timedQuery(`SELECT loai, to_char(ngay, 'YYYY-MM-DD') AS ngay, ten_file, drive_id, y_id, chu_de, noi_dung, de_xuat, nguoi, han, khop
+                                     FROM bien_ban_hop WHERE ma_ct = $1 ORDER BY ngay DESC NULLS LAST, ten_file, y_id LIMIT 2000`, [ma]);
+      bienBan = bb.rows;
+    } catch (e) {
+      if (e.code !== "42P01") throw e;
+    }
+    const hm = await timedQuery(`
+      SELECT p.hex::text AS hex,
+             COALESCE(NULLIF(TRIM(c.tinh_trang_ipo), ''), NULLIF(TRIM(p.tinh_trang_ipo), ''), '(tr\u1ED1ng)') AS ipo,
+             COALESCE(NULLIF(TRIM(c.bop), ''), NULLIF(TRIM(p.bop), ''), '(tr\u1ED1ng)') AS bop,
+             COALESCE(NULLIF(TRIM(c.phan_loai_nhom_san_pham), ''), NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), '(tr\u1ED1ng)') AS pl,
+             COALESCE(NULLIF(TRIM(c.dvt), ''), NULLIF(TRIM(p.dvt), ''), '(tr\u1ED1ng)') AS dvt,
+             COALESCE(NULLIF(TRIM(p.tinh_trang_phieu), ''), '(tr\u1ED1ng)') AS phieu,
+             COALESCE(NULLIF(TRIM(c.tinh_trang_bop_m2), ''), '(blank)') AS bom,
+             to_char(c.ngay_can_giao_pc, 'YYYY-MM-DD') AS ngay_giao,
+             p.ten_hang_muc AS ten, NULLIF(TRIM(p.ten_pc), '') AS pc, NULLIF(TRIM(p.xuong_chinh), '') AS xuong,
+             COALESCE(p.tri_gia_don_hang_tong, 0)::float8 AS tri_gia, COALESCE(p.thanh_tien_nhap_kho_luy_ke, 0)::float8 AS da_nhap,
+             COALESCE(p.thanh_tien_tinh_phieu, 0)::float8 AS tinh_phieu
+        FROM production_status_app p
+        LEFT JOIN (SELECT DISTINCT ON (hex) hex, tinh_trang_ipo, bop, phan_loai_nhom_san_pham, dvt, tinh_trang_bop_m2, ngay_can_giao_pc
+                     FROM cong_trinh_hang_muc WHERE UPPER(TRIM(ma_cong_trinh)) = $1
+                    ORDER BY hex, (COALESCE(tinh_trang_ipo, '') LIKE '04%'), nguon DESC, stt) c ON c.hex = p.hex::text
+       WHERE UPPER(TRIM(p.ma_cong_trinh)) = $1`, [ma]);
+    let taiLieu = null;
+    try {
+      const tl = await timedQuery(`SELECT thu_muc_ct, duong_dan, nhom, ten, la_thu_muc, drive_id, mime, kich_thuoc,
+                                          to_char(sua_luc, 'YYYY-MM-DD') AS sua, to_char(quet_luc, 'YYYY-MM-DD HH24:MI') AS quet
+                                     FROM cong_trinh_tai_lieu WHERE ma_ct = $1
+                                      AND (duong_dan = '' OR NOT la_thu_muc OR array_length(string_to_array(duong_dan, '/'), 1) <= 3)
+                                    ORDER BY duong_dan`, [ma]);
+      const goc2 = tl.rows.find((x) => x.duong_dan === "");
+      taiLieu = {
+        thuMuc: goc2?.thu_muc_ct ?? null,
+        driveId: goc2?.drive_id ?? null,
+        quetLuc: tl.rows[0]?.quet ?? null,
+        files: tl.rows.filter((x) => x.duong_dan !== "").map((x) => ({
+          duongDan: x.duong_dan,
+          nhom: x.nhom,
+          ten: x.ten,
+          laThuMuc: x.la_thu_muc,
+          driveId: x.drive_id,
+          mime: x.mime,
+          kichThuoc: x.kich_thuoc == null ? null : Number(x.kich_thuoc),
+          sua: x.sua
+        }))
+      };
+    } catch (e) {
+      if (e.code !== "42P01") throw e;
+    }
+    res.json({
+      ma,
+      thongTin: {
+        ten: d.ten,
+        khachHang: d.khach_hang,
+        khuVuc: d.khu_vuc,
+        nhomCt: d.nhom_ct,
+        tinhTrangDuAn: d.tinh_trang_du_an,
+        botDuAn: d.bot_du_an,
+        botDuAnKhnk: khnkBot,
+        nhanTuPm: d.nhan_tu_pm,
+        nhanTuPmCuoi: d.nhan_tu_pm_cuoi,
+        soHex: d.so_hex,
+        giaTri: so6(d.gia_tri),
+        daNhapHm: so6(d.da_nhap_hm),
+        tinhPhieu: so6(d.tinh_phieu),
+        pm: nguoi.rows.filter((x) => x.vai === "pm").map((x) => ({ ten: x.ten, n: x.n })),
+        pc: nguoi.rows.filter((x) => x.vai === "pc").map((x) => ({ ten: x.ten, n: x.n })),
+        ipo: ipo.rows.map((x) => ({ ipo: x.ipo, soHex: x.so_hex, giaTri: so6(x.gia_tri) })),
+        kho: { nhap: so6(k.nhap), xuat: so6(k.xuat), ton: so6(k.ton), ngayTon: k.ngay_ton ?? null }
+      },
+      masterplan: {
+        khsx: khsx.rows.map((x) => ({ loai: x.loai, nam: x.nam, thang: x.thang, tuan: x.tuan, soHex: x.so_hex, giaTri: so6(x.gia_tri) })),
+        khsxDong: khsxDong.rows.map((x) => ({ ...x, gia_tri: so6(x.gia_tri) })),
+        nhapTheoThang: nhapThang.rows.map((x) => ({ thang: x.thang, giaTri: so6(x.gia_tri), soHex: x.so_hex })),
+        khnk: khnkDong,
+        tkbv: tkbv.rows.map((x) => ({ tt: x.tt, soHex: x.so_hex, tu: x.tu, den: x.den }))
+      },
+      bopBomBot: {
+        bop: bop.rows.map((x) => ({ bop: x.bop, soHex: x.so_hex, giaTri: so6(x.gia_tri), conLai: so6(x.con_lai) })),
+        bom: { vatLieu: so6(bopM2.rows[0]?.vat_lieu), hex: so6(bopM2.rows[0]?.hex) },
+        bot: { canGiaoTu: botTh.rows[0]?.tu ?? null, canGiaoDen: botTh.rows[0]?.den ?? null, soHex: so6(botTh.rows[0]?.so_hex), conLai: so6(botTh.rows[0]?.con_lai) },
+        botCongDoan: botCd.rows.map((x) => ({ congDoan: x.cong_doan, soHex: x.so_hex, tu: x.tu, den: x.den }))
+      },
+      vatLieu: {
+        coGia,
+        pr: pr.rows.map((x) => ({ tt: x.tt, soDong: x.so_dong, soPr: x.so_pr, coGia: x.co_gia, thanhTien: coGia ? so6(x.thanh_tien) : null })),
+        prTong: pr.rows.reduce((s, x) => s + Number(x.so_dong || 0), 0),
+        prDong: prDong.rows.map((x) => ({ ...x, thanh_tien: coGia ? so6(x.thanh_tien) : null, nha_cung_cap: coGia ? x.nha_cung_cap : null })),
+        tonKhoVt: tonVt.rows.map((x) => ({ ...x, gia_tri: coGia ? so6(x.gia_tri) : null })),
+        anhTheoMa,
+        anhTheoCode,
+        danhMuc: danhMucVl
+      },
+      ruiRo: { nvl: nvl.rows, vuongMac: vm.rows },
+      taiLieu,
+      hangMuc: hm.rows,
+      bienBanHop: bienBan
+    });
+  } catch (e) {
+    console.error("[ho-so-cong-trinh]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c h\u1ED3 s\u01A1 c\xF4ng tr\xECnh" });
   }
 });
 
@@ -86639,7 +87463,7 @@ var locGoiYVatTu = (dongs, tongVatTuTheoHex, toiDa = 300, tenCt = (t) => t) => {
 var coGiaCongNgoai = (v) => /^(yes|y|có|co|x|true|1)$/i.test(String(v ?? "").trim());
 
 // src/routes/vuongMac.ts
-var FIVE_M_CATEGORIES = ["man", "machine", "material", "method", "measurement", "money"];
+var FIVE_M_CATEGORIES = ["man", "material", "machine", "method", "measurement", "money"];
 var VM_STATUSES = ["open", "doing", "done", "closed"];
 var PRIORITIES = ["normal", "high", "urgent"];
 var vuongMacCreateSchema = external_exports.object({
@@ -88614,7 +89438,7 @@ app.post("/api/notifications/test", async (req, res) => {
 
 // src/routes/xuong.ts
 var import_express4 = __toESM(require_express2(), 1);
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 
 // src/server/xuong/clock.ts
 var NGUONG_LECH_MS = 5 * 6e4;
@@ -89691,7 +90515,7 @@ async function mocCheDoTo(toIds) {
 var sqlDaChotCa = (a, toSql, caSql) => `EXISTS (SELECT 1 FROM xuong_su_kien ${a} WHERE ${a}.to_id = ${toSql} AND ${a}.loai IN ('quan_so','vao_ca') AND ${a}.du_lieu->>'loaiCa' = ${caSql}
              AND (${a}.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
              AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h_${a} WHERE h_${a}.loai = 'huy' AND h_${a}.sua_cho = ${a}.id))`;
-var so6 = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+var so7 = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 async function baoHangChoNhan(ds2, actorId) {
   try {
     if (!ds2.length) return;
@@ -89710,7 +90534,7 @@ async function baoHangChoNhan(ds2, actorId) {
         kind: "xuong_cho_nhan",
         userIds: nguoi.get(Number(x.to_id)) ?? [],
         title: `C\xF3 h\xE0ng giao t\u1EDBi ${x.cd_chi_tiet}`,
-        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so6(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
+        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so7(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
         hex: cua.length === 1 ? cua[0].hex : null
       });
     }
@@ -89732,13 +90556,13 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     for (const it of items) {
       for (const t of it.thanhPhan) {
         if (t.xuong !== xuongChinh && !t.tuyen.length) {
-          them(t.xuong, `${it.hex} \xB7 ${so6(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
+          them(t.xuong, `${it.hex} \xB7 ${so7(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
           continue;
         }
         for (const id of t.tuyen) {
           const c = cdMap.get(id);
           if (!c || c.xuong === xuongChinh) continue;
-          them(c.xuong, `${it.hex} \xB7 ${so6(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
+          them(c.xuong, `${it.hex} \xB7 ${so7(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
         }
       }
     }
@@ -90462,7 +91286,7 @@ app.post("/api/xuong/events", async (req, res) => {
       const toCuaToi = await toCuaNguoi(client, sentBy, msnvToi);
       const SAI_SO2 = 5e-4;
       const capSl = hopLe.filter((e) => ["nhan", "hoan_thanh", "giao"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
-      const gioiHan2 = await gioiHanNhan(client, capSl.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
+      const gioiHan = await gioiHanNhan(client, capSl.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
       const soCap = /* @__PURE__ */ new Map();
       if (capSl.length) {
         const tt = await client.query(
@@ -90555,7 +91379,7 @@ app.post("/api/xuong/events", async (req, res) => {
           const c = soCap.get(k) ?? { nhan: 0, ht: 0, giao: 0 };
           const sl = e.soLuong ?? 0;
           if (e.loai === "nhan") {
-            const gh = gioiHan2.get(k);
+            const gh = gioiHan.get(k);
             if (gh && gh.moc !== null && c.nhan + sl > gh.moc + SAI_SO2) {
               tuChoi.push({ id: e.id, reason: `Nh\u1EADn v\u01B0\u1EE3t s\u1ED1 ${gh.loai === "trien_khai" ? "\u0111\xE3 tri\u1EC3n khai" : "l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng"} ${hienSo(gh.moc)} \u2014 c\xF2n nh\u1EADn \u0111\u01B0\u1EE3c ${hienSo(gh.moc - c.nhan)}` });
               continue;
@@ -90994,7 +91818,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
 var PHIEN_BAN_TINH2 = "pb9";
-var dauLichCa = (lichCa) => createHash5("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
+var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
 async function lichCaCuaXuong(xuong, db = poolMra) {
@@ -91622,14 +92446,14 @@ var gomChoNhan = (cap, gh) => {
   }
   return { theoTo, tong: cacCap.size };
 };
-async function demChoNhan(db, xuong, toIds, gioiHan2) {
+async function demChoNhan(db, xuong, toIds, gioiHan) {
   const cap = (await db.query(
     `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
        JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
      WHERE t.xuong = $1 AND ($2::int[] IS NULL AND t.active OR t.id = ANY($2::int[]))`,
     [xuong, toIds]
   )).rows;
-  return gomChoNhan(cap, await gioiHan2(db, cap.map((x) => [String(x.hex), String(x.cong_doan_id)])));
+  return gomChoNhan(cap, await gioiHan(db, cap.map((x) => [String(x.hex), String(x.cong_doan_id)])));
 }
 
 // src/server/xuong/soKhopTram.ts
@@ -92554,7 +93378,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
 });
 
 // src/server/xuong/huyTrienKhai.ts
-var so7 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var so8 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
 var EPS2 = 5e-4;
 function suKienCuaDot(evts, trienKhaiId) {
   const con = suKienConHieuLuc(evts);
@@ -92585,7 +93409,7 @@ function kiemTraHuyDot(evts, trienKhaiId) {
   const chan = [];
   for (const cd of [...new Set(huy.map((e) => e.congDoanDenId).filter((x) => !!x))]) {
     const nhan = suKienConHieuLuc(evts.filter((e) => e.congDoanId === cd || e.loai === "huy")).filter((e) => e.loai === "nhan" && !e.congDoanNguonId && !e.xuongNguon);
-    const slNhan = nhan.reduce((a, e) => a + so7(e.soLuong), 0);
+    const slNhan = nhan.reduce((a, e) => a + so8(e.soLuong), 0);
     const truoc = giaoDen(evts, cd);
     const conLai = giaoDen(sau, cd);
     if (slNhan > conLai + EPS2 && conLai < truoc - EPS2) {
@@ -94162,13 +94986,13 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
         evs.sort((a, b) => a.ts - b.ts);
         const t = tinhTrangThai(evs, []);
         const trangThai = t.trangThai === "cho_nhan" || t.trangThai === "cho_giao" ? t.slNhan > 0 && t.slHoanThanh >= t.slNhan ? "xong" : t.slNhan > 0 ? "da_nhan" : t.trangThai : t.trangThai;
-        const ci = cdInfo.get(cd);
+        const ci2 = cdInfo.get(cd);
         if (!cdTheoHex.has(hex3)) cdTheoHex.set(hex3, []);
         cdTheoHex.get(hex3).push({
           congDoanId: cd,
-          ten: ci?.cd_chi_tiet ?? cd,
-          xuong: ci?.xuong ?? null,
-          thuTu: ci?.thu_tu === null || ci?.thu_tu === void 0 ? null : Number(ci.thu_tu),
+          ten: ci2?.cd_chi_tiet ?? cd,
+          xuong: ci2?.xuong ?? null,
+          thuTu: ci2?.thu_tu === null || ci2?.thu_tu === void 0 ? null : Number(ci2.thu_tu),
           trangThai,
           slGiaoDen: t.slGiaoDen,
           slNhan: t.slNhan,
@@ -95136,7 +95960,7 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
 });
 
 // src/routes/tongQuan.ts
-import { createHash as createHash6 } from "crypto";
+import { createHash as createHash5 } from "crypto";
 import { gzipSync as gzipSync3, gunzipSync } from "zlib";
 var dsChuoi2 = external_exports.array(external_exports.string().max(300)).max(3e3);
 var BodySchema = external_exports.object({
@@ -95270,7 +96094,7 @@ function layHoacDung(khoa, ver, luuDb, dung2) {
 }
 async function tongQuanSanXuat(filters, tuy) {
   const { verSanXuat, verChuan, ban, verMra, ngayVN } = await phienBanChuan();
-  const khoa = `tongquan|${createHash6("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
+  const khoa = `tongquan|${createHash5("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
   const macDinh = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
   const ver = JSON.stringify([verChuan, verMra, verMra ? ngayVN : ""]);
   return layHoacDung(khoa, ver, macDinh && !verMra, async () => {
@@ -95395,7 +96219,7 @@ app.get("/api/do-db", authenticateJWT, requireRole("ADMIN"), async (_req, res) =
 });
 
 // src/server/hoiDapDanhMuc.ts
-var so8 = (col) => numericExprQualified(`t."${col}"`);
+var so9 = (col) => numericExprQualified(`t."${col}"`);
 var XUONG2 = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
 var CT2 = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
 var MA_CT2 = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
@@ -95641,7 +96465,7 @@ var DANH_MUC = [
       { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", tien: true },
       { id: "thanh_tien_tinh_phieu", ten: "\u0110\xE3 t\xEDnh phi\u1EBFu", dn: ["gi\xE1 tr\u1ECB t\xEDnh phi\u1EBFu"], kieu: "so", tien: true },
       { id: "thanh_tien_nhap_kho_luy_ke", ten: "\u0110\xE3 nh\u1EADp kho", dn: ["nh\u1EADp kho l\u0169y k\u1EBF", "\u0111\xE3 nh\u1EADp"], kieu: "so", tien: true },
-      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so8("thanh_tien_xuat_kho_luy_ke"), tien: true },
+      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so9("thanh_tien_xuat_kho_luy_ke"), tien: true },
       { id: "thanh_tien_ton_kho_hien_tai", ten: "T\u1ED3n kho hi\u1EC7n t\u1EA1i", dn: ["gi\xE1 tr\u1ECB t\u1ED3n"], kieu: "so", tien: true },
       { id: "gia_tri_con_lai", ten: "Gi\xE1 tr\u1ECB c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "ch\u01B0a nh\u1EADp"], kieu: "so", tien: true, sql: CON_LAI },
       { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
@@ -95715,7 +96539,7 @@ var DANH_MUC = [
       HM2,
       HEX2,
       { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true },
-      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so8("so_luong_kh") }
+      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so9("so_luong_kh") }
     ]
   },
   {
@@ -95759,8 +96583,8 @@ var DANH_MUC = [
       HM2,
       HEX2,
       { id: "tinh_trang_thuc_hien_ke_hoach", ten: "T\xECnh tr\u1EA1ng th\u1EF1c hi\u1EC7n", tuDien: true, dn: ["t\xECnh tr\u1EA1ng", "k\u1EBFt qu\u1EA3"], kieu: "chu" },
-      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so8("thanh_tien_ke_hoach"), tien: true },
-      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so8("nhap_kho_tuan"), tien: true },
+      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so9("thanh_tien_ke_hoach"), tien: true },
+      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so9("nhap_kho_tuan"), tien: true },
       { id: "dung_ke_hoach", ten: "\u0110\xFAng k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
       { id: "thuc_hien_dung_ke_hoach_1_phan", ten: "\u0110\xFAng KH 1 ph\u1EA7n", kieu: "so", tien: true },
       { id: "rot_ke_hoach", ten: "R\u1EDBt k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
@@ -96210,8 +97034,8 @@ var MAX_NGAY = () => Number(process.env.HOI_DAP_AI_MAX_NGAY) || 1e3;
 var CO_TEN_RIENG = /* @__PURE__ */ new Set(["ten_pm", "ten_pc", "khach_hang", "handler", "created_by", "nguoi_yeu_cau", "nguoi_tao", "nguoi_trien_khai", "nha_cung_cap", "ten_cong_trinh", "ma_cong_trinh"]);
 var THU = ["Ch\u1EE7 nh\u1EADt", "Th\u1EE9 hai", "Th\u1EE9 ba", "Th\u1EE9 t\u01B0", "Th\u1EE9 n\u0103m", "Th\u1EE9 s\xE1u", "Th\u1EE9 b\u1EA3y"];
 var iso2 = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-var boDau2 = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
-var tuCua = (s) => new Set(boDau2(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 2));
+var boDau = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+var tuCua = (s) => new Set(boDau(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 2));
 function chonViDu(cau, bangs, sx, soVd = 8) {
   const duocXem = new Map(bangs.map((x) => [x.b.id, new Set(x.cot.map((c) => c.id))]));
   const sxXem = new Set(sx.map((c) => `sx:${c.id}`));
@@ -96227,7 +97051,7 @@ function chonViDu(cau, bangs, sx, soVd = 8) {
       if (q.has(x)) chung++;
     });
     const b = bangs.find((x) => x.b.id === String(v.tv.bang))?.b;
-    const cungBang = b && [b.ten, ...b.dn].some((t) => ` ${boDau2(cau)} `.includes(` ${boDau2(t)} `)) ? 1 : 0;
+    const cungBang = b && [b.ten, ...b.dn].some((t) => ` ${boDau(cau)} `.includes(` ${boDau(t)} `)) ? 1 : 0;
     return { v, diem: chung / Math.sqrt(w.size || 1) + cungBang };
   }).filter((x) => x.diem > 0).sort((a, z2) => z2.diem - a.diem);
   const theoBang = /* @__PURE__ */ new Map();
@@ -96401,8 +97225,8 @@ var goc = (ch) => ch === "\u0111" || ch === "\xF0" ? "d" : ch.normalize("NFD").r
 var TU = CO_DAU + CO_DAU.toUpperCase();
 var SANG = [...CO_DAU].map(goc).join("").repeat(2);
 var khongDau = (e) => `translate(lower(COALESCE((${e})::text, '')), '${TU}', '${SANG}')`;
-var boDau3 = (s) => [...String(s).toLowerCase()].map((ch) => TU.includes(ch) ? SANG[TU.indexOf(ch)] : ch).join("").replace(/\s+/g, " ").trim();
-var thich = (s) => `%${boDau3(s).replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+var boDau2 = (s) => [...String(s).toLowerCase()].map((ch) => TU.includes(ch) ? SANG[TU.indexOf(ch)] : ch).join("").replace(/\s+/g, " ").trim();
+var thich = (s) => `%${boDau2(s).replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 var gonTen = (e) => `NULLIF(TRIM(REGEXP_REPLACE(COALESCE((${e})::text, ''), '\\s+', ' ', 'g')), '')`;
 var NGAY_RE4 = /^\d{4}-\d{2}-\d{2}$/;
 var GiaTri = external_exports.union([external_exports.string().max(300), external_exports.number()]);
@@ -96512,7 +97336,7 @@ function dieuKienLoc(b, l, co2, p) {
   const bangChu = () => {
     if (c.kieu === "xuong") return `UPPER(TRIM(COALESCE(${e}, ''))) = ANY(${thamSo(expandWorkshops(ds2))}::text[])`;
     if (c.kieu === "ct") return `${normNameSql(e)} = ANY(${thamSo(expandProjectNames(ds2))}::text[])`;
-    return `${khongDau(e)} = ANY(${thamSo(ds2.map(boDau3))}::text[])`;
+    return `${khongDau(e)} = ANY(${thamSo(ds2.map(boDau2))}::text[])`;
   };
   switch (l.op) {
     case "bang":
@@ -96609,10 +97433,10 @@ async function chay(b, q, co2) {
     });
     const cots = ids.map((id) => timCot(b, id, co2));
     const chon = cots.map((c, i) => `${c.kieu === "ngay" ? MOC.ngay(sqlCot(c)) : sqlCot(c)} AS c${i}`);
-    const gioiHan2 = Math.min(q.gioiHan ?? 100, 200);
+    const gioiHan = Math.min(q.gioiHan ?? 100, 200);
     const sapCot = q.sap && cots[q.sap.cot] ? `c${q.sap.cot} ${q.sap.giam ? "DESC" : "ASC"} NULLS LAST` : `${sqlCot(cotNgay(b))} DESC NULLS LAST`;
     const r2 = await timedQuery(
-      await thayKhDat(`SELECT ${chon.join(", ")}, count(*) OVER () AS so_dong FROM ${tu} ${where} ORDER BY ${sapCot} LIMIT ${gioiHan2}`, p),
+      await thayKhDat(`SELECT ${chon.join(", ")}, count(*) OVER () AS so_dong FROM ${tu} ${where} ORDER BY ${sapCot} LIMIT ${gioiHan}`, p),
       p,
       { timeoutMs: 2e4, heavy: true }
     );
@@ -96833,7 +97657,7 @@ app.get("/api/hoi-dap/gia-tri", limiter, async (req, res) => {
       });
       return [...m.entries()].map(([v, n]) => ({ v, n })).sort((a, b2) => b2.n - a.n).slice(0, 30);
     };
-    const gt = b.phienBan ? await cachedByVersions(cacheGt, `${b.id}|${c.id}|${boDau3(q)}`, phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
+    const gt = b.phienBan ? await cachedByVersions(cacheGt, `${b.id}|${c.id}|${boDau2(q)}`, phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
     res.json({ success: true, gt });
   } catch (e) {
     if (e instanceof LoiHoi) return res.status(400).json({ success: false, message: e.message });

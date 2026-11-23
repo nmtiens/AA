@@ -1,51 +1,19 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Building2, Clock, Globe, Images, Warehouse } from 'lucide-react';
+import { AlertTriangle, Building2, Clock, Images, Warehouse } from 'lucide-react';
 import { linkSources } from '../shared/LinkLightbox';
-import type { ThongTinBan, TrangThaiBan } from '../../services/banVatTuApi';
 import { AnhNoiBoImg, NhanCanDuyet } from './AnhNoiBo';
 import {
-  anhCanDuyet, chuTat, dinhDangSoLuong, dinhDangTrieu, dsAnhHien, giaHien, hienTrenTrangKhach, mauTheoNhom, NHAN_NGUON, NHAN_TRANG_THAI, nhanTuoi, tenDvt,
+  anhCanDuyet, chuTat, dinhDangSoLuong, dinhDangTrieu, dsAnhHien, mauTheoNhom, NHAN_NGUON, nhanTuoi,
   type AnhHien, type DongBan, type GiaTriThuocTinh,
 } from './xuLy';
 
 // ============================================================================
-// Thành phần nhỏ của trang Bán vật tư: ảnh thu nhỏ (chưa có ảnh => ô màu theo nhóm + chữ tắt), nhãn trạng thái,
-// thẻ vật tư (chế độ Lưới) và 1 dòng bảng (chế độ Bảng).
+// Thành phần nhỏ của trang Danh mục vật tư: ảnh thu nhỏ (chưa có ảnh => ô màu theo nhóm + chữ tắt), nhãn gán công
+// trình, thẻ vật tư (chế độ Lưới) và 1 dòng bảng (chế độ Bảng).
 // ============================================================================
 
-export const MAU_TRANG_THAI: Record<TrangThaiBan, string> = {
-  dang_ban: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  da_giu: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-  da_ban: 'bg-slate-100 text-slate-600 ring-slate-500/20',
-  ngung_ban: 'bg-rose-50 text-rose-700 ring-rose-600/20',
-};
-
-export function NhanTrangThai({ tt, nho }: { tt: TrangThaiBan; nho?: boolean }) {
-  return (
-    <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full font-medium ring-1 ring-inset ${nho ? 'px-1.5 py-0.5 text-[0.625rem]' : 'px-2 py-0.5 text-xs'} ${MAU_TRANG_THAI[tt]}`}>
-      {NHAN_TRANG_THAI[tt]}
-    </span>
-  );
-}
-
-/**
- * Nhãn "Trên trang khách" khi mã đã đăng. Đã đăng mà trạng thái không phải "Đang bán" => nhãn xám "Đã đăng · đang ẩn"
- * (trang khách chỉ hiện mã đang bán).
- */
-export function NhanTrangKhach({ ban, nho }: { ban: Pick<ThongTinBan, 'dangCongKhai' | 'trangThai'>; nho?: boolean }) {
-  if (!ban.dangCongKhai) return null;
-  const hien = hienTrenTrangKhach(ban);
-  return (
-    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded font-medium ${nho ? 'px-1.5 py-0.5 text-[0.625rem]' : 'px-2 py-0.5 text-xs'} ${hien ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-500'}`}
-      title={hien ? 'Khách xem được mã này ở trang khách (/#/cua-hang)' : 'Đã đăng nhưng trang khách đang ẩn vì trạng thái không phải "Đang bán"'}>
-      <Globe size={nho ? 10 : 12} className="shrink-0" />
-      {hien ? 'Trên trang khách' : 'Đã đăng · đang ẩn'}
-    </span>
-  );
-}
-
 /** Ảnh thu nhỏ: ảnh đầu tiên của mã; link không phải ảnh / tải lỗi => ô màu theo nhóm + chữ tắt */
-export function AnhVatTu({ url, nhom, ten, className, chuTo }: {
+function AnhVatTu({ url, nhom, ten, className, chuTo }: {
   url: string | undefined; nhom: string; ten: string; className: string; chuTo?: boolean;
 }) {
   const [loi, setLoi] = useState<string | null>(null);
@@ -68,7 +36,7 @@ function OTrong({ nhom, ten, className, chuTo }: { nhom: string; ten: string; cl
   );
 }
 
-/** Ảnh đại diện: link người dùng dán hoặc ảnh nội bộ sheet 03 (tải lười, có token); không có => ô màu + chữ tắt */
+/** Ảnh đại diện: link người dùng đã dán trước đây hoặc ảnh nội bộ sheet 03 (tải lười, có token); không có => ô màu + chữ tắt */
 export function AnhDaiDien({ a, nhom, ten, className, chuTo }: {
   a: AnhHien | undefined; nhom: string; ten: string; className: string; chuTo?: boolean;
 }) {
@@ -112,27 +80,13 @@ function MoTaPhu({ d, className }: { d: DongBan; className: string }) {
   const chu = ds.map(v => v.giaTri).join(' · ');
   const coSuy = ds.some(v => v.nguon !== 'master');
   return (
-    <span className={className} title={coSuy ? `${chu}\nChữ nghiêng: máy suy (từ tên / theo NCC), MASTER DATA chưa có — kiểm tra trước khi chào bán` : chu}>
+    <span className={className} title={coSuy ? `${chu}\nChữ nghiêng: máy suy (từ tên / theo NCC), MASTER DATA chưa có — có thể chưa đúng` : chu}>
       {ds.map((v, i) => (
         <React.Fragment key={i}>
           {i > 0 && ' · '}
           <span className={v.nguon === 'master' ? '' : 'italic text-slate-400'}>{v.giaTri}</span>
         </React.Fragment>
       ))}
-    </span>
-  );
-}
-
-/** Giá trên thẻ / bảng: giá bán (xanh), giá vốn tạm khi chưa nhập giá bán (xám, có chữ "vốn"), hoặc "Liên hệ" */
-function GiaHien({ d, coGiaVon, to }: { d: DongBan; coGiaVon: boolean; to?: boolean }) {
-  const g = giaHien(d, coGiaVon);
-  const dvt = tenDvt(d.dvt);
-  return (
-    <span className={`whitespace-nowrap ${to ? 'text-base' : 'text-sm'} font-semibold tabular-nums ${g.loai === 'ban' ? 'text-emerald-700' : g.loai === 'von' ? 'text-slate-700' : 'text-slate-400'}`}
-      title={g.loai === 'von' ? 'Chưa nhập giá bán — đang hiện đơn giá vốn' : 'Giá bán'}>
-      {g.chu}
-      {g.loai !== 'lien_he' && dvt ? <span className="text-xs font-normal text-slate-400"> / {dvt}</span> : null}
-      {g.loai === 'von' && <span className="ml-1 text-[0.625rem] font-normal text-amber-600">vốn</span>}
     </span>
   );
 }
@@ -147,7 +101,6 @@ export const TheVatTu = React.memo(function TheVatTu({ d, coGiaVon, homNay, onMo
       className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         <AnhDaiDien a={dau} nhom={d.nhom} ten={d.tenHien} className="h-full w-full transition group-hover:scale-[1.02]" chuTo />
-        <div className="absolute left-2 top-2"><NhanTrangThai tt={d.ban.trangThai} nho /></div>
         {dau?.loai === 'noi_bo' && (
           <div className="absolute bottom-2 left-2"><NhanCanDuyet anh={dau.anh} nho /></div>
         )}
@@ -164,10 +117,7 @@ export const TheVatTu = React.memo(function TheVatTu({ d, coGiaVon, homNay, onMo
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-3">
         <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900" title={d.tenHien}>{d.tenHien}</p>
-        <p className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate font-mono text-[0.6875rem] text-slate-400">{d.ma}</span>
-          <NhanTrangKhach ban={d.ban} nho />
-        </p>
+        <p className="truncate font-mono text-[0.6875rem] text-slate-400">{d.ma}</p>
         <MoTaPhu d={d} className="block truncate text-xs text-slate-500" />
         <NhanGanCT d={d} />
         <div className="mt-auto space-y-1 pt-2 text-xs text-slate-600">
@@ -177,12 +127,12 @@ export const TheVatTu = React.memo(function TheVatTu({ d, coGiaVon, homNay, onMo
           </p>
           <p className="flex items-center justify-between gap-2 text-slate-500">
             <span className="inline-flex items-center gap-1"><Clock size={11} />{nhanTuoi(d.ngayNhap, homNay)}</span>
+            {/* Giá trị tồn (giá vốn) chỉ người có quyền xem giá thấy */}
+            {coGiaVon && d.giaTri !== null && (
+              <span className="whitespace-nowrap font-medium tabular-nums text-slate-700" title="Giá trị tồn (giá vốn)">{dinhDangTrieu(d.giaTri)}</span>
+            )}
           </p>
         </div>
-        {/* Giá bán (giá chào) thay giá trị vốn — người dùng chốt 14/11/2026; dòng riêng cho rõ, không chen tuổi tồn */}
-        <p className="flex items-baseline justify-end border-t border-slate-100 pt-2 text-base">
-          <GiaHien d={d} coGiaVon={coGiaVon} to />
-        </p>
       </div>
     </button>
   );
@@ -218,13 +168,6 @@ export const DongBang = React.memo(function DongBang({ d, coGiaVon, homNay, onMo
         {d.chamLuanChuyen && <span className="ml-1 text-amber-600" title="Chậm luân chuyển trên 3 tháng">●</span>}
       </td>
       {coGiaVon && <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-slate-700">{dinhDangTrieu(d.giaTri)}</td>}
-      <td className="whitespace-nowrap px-3 py-1.5 text-right"><GiaHien d={d} coGiaVon={coGiaVon} /></td>
-      <td className="px-3 py-1.5">
-        <div className="flex flex-col items-start gap-1">
-          <NhanTrangThai tt={d.ban.trangThai} nho />
-          <NhanTrangKhach ban={d.ban} nho />
-        </div>
-      </td>
     </tr>
   );
 });

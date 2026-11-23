@@ -33,7 +33,7 @@ export const CONFIGURABLE_TABLES: TableDefinition[] = [
   { id: 'analysis', label: 'Phân tích KH-TH' },
   { id: 'tkbv', label: 'Dữ liệu TKBV' },
   { id: 'pthsp', label: 'Dữ liệu PTHSP' },
-  { id: 'material', label: 'Vật tư' },
+  { id: 'material', label: 'Dữ liệu vật tư' },
   { id: 'yearlyPlan', label: 'Dữ liệu kế hoạch năm' },
 ];
 

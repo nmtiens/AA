@@ -304,7 +304,7 @@ const HoiDapPopup: React.FC = () => {
     <>
       {!mo && (
         <button type="button" onClick={() => setMo(true)} title="Hỏi số liệu" aria-label="Mở cửa sổ hỏi số liệu"
-          className="fixed bottom-5 right-5 z-[70] flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:scale-105 hover:bg-slate-700">
+          className="fixed bottom-5 right-5 z-[70] mtb:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] mtb:right-3 mtb:h-12 mtb:w-12 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:scale-105 hover:bg-slate-700">
           <MessageSquareText size={24} />
         </button>
       )}

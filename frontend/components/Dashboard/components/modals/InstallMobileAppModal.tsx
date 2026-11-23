@@ -1,3 +1,4 @@
+import { useMayTinhBang } from '../../../../services/mayTinhBang';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react'; // npm i qrcode.react
@@ -20,6 +21,7 @@ const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
 
 export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
+  const mtb = useMayTinhBang();
   const [copied, setCopied] = useState(false);
     // __installEvt do index.html bắt sớm, phòng khi sự kiện bắn trước lúc component này được tải
   const [evt, setEvt] = useState<InstallEvent | null>((window as any).__installEvt ?? null);
@@ -118,7 +120,7 @@ export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
             )}
 
                         <div className="rounded-lg border border-slate-200 p-3">
-              <p className="font-semibold text-slate-800">Cài về máy tính này</p>
+              <p className="font-semibold text-slate-800">{mtb ? 'Đưa app này lên màn hình chính iPad' : 'Cài về máy tính này'}</p>
               {installed ? (
                 <p className="mt-1 text-xs text-emerald-700">✅ Ứng dụng đã được cài trên thiết bị này.</p>
               ) : evt ? (
@@ -129,6 +131,11 @@ export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
                 >
                   <Download size={14} /> Tải và cài đặt về máy
                 </button>
+              ) : mtb ? (
+                <p className="mt-1 text-sm text-slate-600">
+                  Mở trang bằng Safari, bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên) → <b>Thêm vào MH chính</b> → <b>Thêm</b>.
+                  App mở toàn màn hình, không còn thanh địa chỉ.
+                </p>
               ) : (
                 <p className="mt-1 text-xs text-slate-500">
                   Trình duyệt chưa cho phép cài trực tiếp. Dùng Chrome/Edge, bấm biểu tượng cài đặt ⊕ ở cuối thanh địa chỉ

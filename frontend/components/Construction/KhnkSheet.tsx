@@ -6,6 +6,7 @@ import * as bang from '../shared/bangBaoCao';
 import { mauLuong, sapXepTheoThuTu, sttHienThi } from './core/thuTuNhom';
 import { useThuTuLuongDo } from './useThuTuLuongDo';
 import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter';
+import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { soSanhKhuVuc } from '../Dashboard/utils/khuVuc';
 
 // ============================================================================
@@ -53,7 +54,14 @@ type Sap = { i: number; giam: boolean } | null;
 
 /** khuVuc: bộ lọc Khu vực của trang (Tổng quan công trình) — bảng không có ô Khu vực riêng nữa (trùng, người dùng 19/11/2026) */
 /** onXemCt: bấm tên công trình => trang mở cửa sổ chi tiết theo hạng mục (khớp theo mã CT) */
-export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; onXemCt?: (ma: string, ten: string) => void; onXemHangMuc?: (ma: string, ten: string) => void } = {}) => {
+/** soApp: GT đơn hàng / đã nhập (hạng mục) / tính phiếu theo mã CT do trang tính từ dòng hạng mục, toàn công trình trừ HỦY
+ *  (ưu tiên hơn số file) */
+export const KhnkSheet = ({ khuVuc, soApp, onXemCt, onXemHangMuc, onXemKho }: {
+  khuVuc?: string; soApp?: Record<string, { dh: number; nk: number; tk?: number; n?: number }>;
+  onXemCt?: (ma: string, ten: string) => void; onXemHangMuc?: (ma: string, ten: string) => void;
+  /** Bấm số NHẬP / XUẤT / TỒN => các dòng của bảng nhập kho / xuất kho / tồn kho của mã CT */
+  onXemKho?: (loai: 'nhap' | 'xuat' | 'ton', ma: string, ten: string) => void;
+} = {}) => {
   const [du, setDu] = useState<DuLieu | null>(() => boNho?.du ?? null);
   const [loi, setLoi] = useState<string | null>(null);
   const [tim, setTim] = useState('');
@@ -61,24 +69,27 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
   const [moNhom, setMoNhom] = useState<Set<number>>(() => new Set());
   // Cột con của NHẬP KHO (P022): Xuất (P025) từ bảng xuất kho, Tồn (P023) từ bảng tồn kho ngày mới nhất, theo mã CT
   const [moKho, setMoKho] = useState(false);
-  const [kho, setKho] = useState<Record<string, { xuat: number; ton: number }> | null>(null);
+  // Cửa sổ riêng cột CHÊNH (nhập − xuất − tồn tách theo HEX, người dùng 20/11/2026)
+  const [xemChenh, setXemChenh] = useState<{ ma: string; ten: string } | null>(null);
+  // NHẬP KHO (P022) cũng lấy từ bảng nhập kho (người dùng 19/11/2026: nhập / xuất / tồn theo 3 bảng nhập, xuất, tồn) => tải ngay
+  const [kho, setKho] = useState<Record<string, { nhap: number; xuat: number; ton: number }> | null>(null);
   const [ngayTon, setNgayTon] = useState<string | null>(null);
   // Bộ lọc Khu vực / Khách hàng (người dùng 19/11/2026): file KHNK không có => lấy theo mã CT từ bảng sản xuất
-  const [ttCt, setTtCt] = useState<Record<string, { kv: string | null; kh: string | null; tksx?: number; nk?: number }>>({});
+  const [ttCt, setTtCt] = useState<Record<string, { kv: string | null; kh: string | null; tksx?: number; nk?: number; dh?: number; n?: number }>>({});
   const [locKh, setLocKh] = useState<string[]>([]);
   // Lọc Khu vực ngay trên bảng (người dùng 19/11/2026) — vẫn theo thêm bộ lọc Khu vực của trang nếu có
   const [locKv, setLocKv] = useState<string[]>([]);
   useEffect(() => {
     fetch(`${API_BASE_URL}/khnk-sheet/thong-tin`).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
-      .then((d: { ct: Record<string, { kv: string | null; kh: string | null; tksx?: number; nk?: number }> }) => setTtCt(d.ct ?? {}))
+      .then((d: { ct: Record<string, { kv: string | null; kh: string | null; tksx?: number; nk?: number; dh?: number; n?: number }> }) => setTtCt(d.ct ?? {}))
       .catch(() => setTtCt({}));
   }, []);
   useEffect(() => {
-    if (!moKho || kho) return;
+    if (kho) return;
     fetch(`${API_BASE_URL}/khnk-sheet/kho`).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
-      .then((d: { kho: Record<string, { xuat: number; ton: number }>; ngayTon?: string | null }) => { setKho(d.kho ?? {}); setNgayTon(d.ngayTon ?? null); })
+      .then((d: { kho: Record<string, { nhap: number; xuat: number; ton: number }>; ngayTon?: string | null }) => { setKho(d.kho ?? {}); setNgayTon(d.ngayTon ?? null); })
       .catch(() => setKho({}));
-  }, [moKho, kho]);
+  }, [kho]);
 
   const tai = useCallback((moi: boolean) => {
     setLoi(null);
@@ -95,8 +106,12 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
     // (GT CÒN LẠI) — trước đây mở ra dưới GT CÒN LẠI nên tổng con lớn hơn cột cha (người dùng 19/11/2026)
     const iDh = td.findIndex(t => !t.an && t.nhan.trim().toUpperCase() === 'GT ĐƠN HÀNG');
     const CON_DH = new Set(['GT ĐÃ TKSX', 'CHƯA TKSX']);
+    // Cột ẩn trùng tên 1 cột đang hiện (file có GT ĐƠN HÀNG / P022 bản cũ ẩn ngay sau BOT DỰ ÁN) => không cho mở: bấm + ở
+    // BOT DỰ ÁN ra 2 cột P022 gây rối (người dùng 20/11/2026); số đúng đã ở cột đang hiện
+    const tenHien = new Set(td.filter(t => !t.an).map(t => t.nhan.trim().toUpperCase()));
     td.forEach((t, i) => {
       if (!t.an) { truoc = i; return; }
+      if (tenHien.has(t.nhan.trim().toUpperCase())) return;
       const goc = iDh >= 0 && CON_DH.has(t.nhan.trim().toUpperCase()) ? iDh : Math.max(truoc, 0);
       nut.set(goc, [...(nut.get(goc) ?? []), i]);
     });
@@ -130,8 +145,12 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
   const coPt = iP022 >= 0 && iGtDh >= 0;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const iMa = useMemo(() => timCot('MÃ CT'), [td]);
-  const khoCua = (d: Dong) => (kho && iMa >= 0 ? kho[String(d.o[iMa] ?? '').trim().toUpperCase()] : undefined);
-  const COT_CON = [['xuat', 'XUẤT KHO', 'P025'], ['ton', 'TỒN KHO', 'P023']] as const;
+  // + chenh = nhập − xuất − tồn: hàng đã nhập mà không thấy trong bảng xuất lẫn tồn (người dùng 20/11/2026: nhập ≠ xuất + tồn)
+  const khoCua = (d: Dong) => {
+    const k = kho && iMa >= 0 ? kho[String(d.o[iMa] ?? '').trim().toUpperCase()] : undefined;
+    return k ? { ...k, chenh: k.nhap - k.xuat - k.ton } : undefined;
+  };
+  const COT_CON = [['xuat', 'XUẤT KHO', 'P025'], ['ton', 'TỒN KHO', 'P023'], ['chenh', 'CHÊNH', 'NHẬP − XUẤT − TỒN']] as const;
   // GT ĐƠN HÀNG gộp như NHẬP KHO (người dùng 19/11/2026): mở => ô GT ĐƠN HÀNG trải các cột con (GT ĐÃ TKSX / CHƯA TKSX),
   // không còn cột số đơn hàng riêng (đã + chưa = đơn hàng)
   const conDh = iGtDh >= 0 && moNhom.has(iGtDh) ? (nutCua.get(iGtDh) ?? []) : [];
@@ -148,27 +167,39 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
     // theo mã CT; chưa TKSX = GT ĐƠN HÀNG − đã TKSX. Số file có chỗ đã TKSX vượt đơn hàng (CT26-116: 4.60 > 3.67).
     const iDa = td.findIndex(t => t.nhan.trim().toUpperCase() === 'GT ĐÃ TKSX');
     const iChua = td.findIndex(t => t.nhan.trim().toUpperCase() === 'CHƯA TKSX');
-    // NHẬP KHO (P022) bỏ hạng mục HỦY (người dùng 19/11/2026): file cộng cả phần đã nhập của hạng mục HỦY => lấy Σ đã nhập
-    // (bảng sản xuất, bỏ HỦY) theo mã CT; GT CÒN LẠI = GT ĐƠN HÀNG − nhập kho đó. Mã chưa có trong bảng sản xuất giữ số file.
+    // NHẬP KHO (P022) = Σ bảng nhập kho theo mã CT (/kho); GT CÒN LẠI = GT ĐƠN HÀNG − nhập kho đó.
     const iP = timCot('P022'), iCl = timCot('GT CÒN LẠI');
-    if (iMa >= 0 && iGtDh >= 0 && Object.keys(ttCt).length) {
+    // Có soApp (trang Tổng quan công trình): GT ĐƠN HÀNG theo dòng hạng mục của trang, toàn công trình trừ HỦY (19/11/2026)
+    const coApp = !!soApp && Object.keys(soApp).length > 0;
+    if (iMa >= 0 && iGtDh >= 0 && (coApp || Object.keys(ttCt).length)) {
       ds = ds.map(d => {
-        const tt = ttCt[String(d.o[iMa] ?? '').trim().toUpperCase()];
-        const dh = typeof d.o[iGtDh] === 'number' ? d.o[iGtDh] as number : 0;
+        const ma = String(d.o[iMa] ?? '').trim().toUpperCase();
+        const tt = ttCt[ma];
+        // Trang thiếu dòng hạng mục của mã (chưa tới nửa số dòng máy chủ — vd. CT24-021 đã đóng, trang chỉ có 1 / 137 HEX)
+        // => dùng số máy chủ. Lệch ít (file công trình HỦY thêm vài HEX) vẫn theo trang để khớp cửa sổ hạng mục.
+        const sa0 = coApp ? soApp![ma] : undefined;
+        const thieu = !!sa0 && laThieu(sa0.n, tt?.n);
+        const sa = sa0 && !thieu ? sa0 : tt?.dh != null && (thieu || !sa0) && coApp ? { dh: tt.dh, nk: tt.nk ?? 0, tk: tt.tksx, n: tt.n } : sa0;
         const o = [...d.o];
-        const tk = tt?.tksx ?? 0;
-        if (iDa >= 0) o[iDa] = tk;
-        if (iChua >= 0) o[iChua] = dh - tk;
-        if (tt?.nk != null && iP >= 0) {
-          o[iP] = tt.nk;
-          if (iCl >= 0) o[iCl] = Math.max(dh - tt.nk, 0);
+        if (sa) o[iGtDh] = sa.dh;
+        const dh = typeof o[iGtDh] === 'number' ? o[iGtDh] as number : 0;
+        // Nhập kho theo bảng nhập kho (mã không có dòng nhập => 0); bảng chưa tải xong thì tạm số hạng mục / máy chủ
+        const nk = kho ? (kho[ma]?.nhap ?? 0) : sa ? sa.nk : tt?.nk;
+        // Đã TKSX cùng phạm vi với đơn hàng (soApp.tk); chưa có thì số máy chủ (mọi IPO trừ HỦY)
+        const coTk = sa?.tk != null || !!tt;
+        const tk = sa?.tk ?? tt?.tksx ?? 0;
+        if (coTk && iDa >= 0) o[iDa] = tk;
+        if (coTk && iChua >= 0) o[iChua] = dh - tk;
+        if (nk != null && iP >= 0) {
+          o[iP] = nk;
+          if (iCl >= 0) o[iCl] = Math.max(dh - nk, 0);
         }
         return { ...d, o };
       });
     }
     return sapXepTheoThuTu(ds, d => d.o[iTen], thuTuNhom);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [du, td, iTen, thuTuNhom, ttCt, iMa, iGtDh]);
+  }, [du, td, iTen, thuTuNhom, ttCt, iMa, iGtDh, soApp, kho]);
   // STT theo thứ tự mặc định (luồng trước) — không đổi khi bấm sắp xếp / tìm
   const sttCua = useMemo(() => {
     const so = sttHienThi(goc.map(d => thuTuNhom(d.o[iTen])));
@@ -195,6 +226,8 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
   }, [goc, tim, td, khuVuc, locKv, locKh, ttCt]);
   // Bấm 1 cột tháng của biểu đồ => bảng chỉ còn công trình có kế hoạch tháng đó
   const [chonThang, setChonThang] = useState<number | null>(null);
+  // Cột tháng: mặc định chỉ hiện tháng hiện tại, bấm + ở cột đó để hiện các tháng còn lại (người dùng 19/11/2026)
+  const [moThang, setMoThang] = useState(false);
   const dong = useMemo(() => {
     let ds = loc;
     if (chonThang != null) ds = ds.filter(d => typeof d.o[chonThang] === 'number' && (d.o[chonThang] as number) > 0);
@@ -257,14 +290,31 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
   }), [thang, loc, thuTuNhom, iTen]);
   // Cần chú ý (người dùng 19/11/2026): quá BOT mà chưa nhập xong; BOT còn ≤ 30 ngày mà %HT < 50%;
   // chưa nhập kho mà kế hoạch còn lớn (≥ 100 tỷ). Tính trên tập đang lọc.
+  // Công trình đã nhập xong chưa: theo hạng mục (soApp: GT đơn hàng − đã nhập của từng hạng mục) — KHÔNG theo % hoàn thành
+  // của bảng vì NHẬP KHO lấy từ bảng nhập kho (cả phần nhập của hạng mục HỦY, nhập vượt) nên có thể ≥ 100% khi còn hạng mục
+  // chưa nhập => vẫn phải báo "Trễ BOT" (19/11/2026).
+  // Không có soApp => theo % của bảng.
+  const conLaiHm = (d: Dong): number | null => {
+    const ma = String(iMa >= 0 ? d.o[iMa] ?? '' : '').trim().toUpperCase();
+    const sa = soApp?.[ma], tt = ttCt[ma];
+    if (sa && !laThieu(sa.n, tt?.n)) return Math.max(sa.dh - sa.nk, 0);
+    if (soApp && tt?.dh != null) return Math.max(tt.dh - (tt.nk ?? 0), 0);
+    return null;
+  };
+  const xongCua = (d: Dong) => {
+    const cl = conLaiHm(d);
+    if (cl != null) return cl < 5;   // < 0.005 tỷ
+    const dh = so(d.o[iGtDh]);
+    return dh > 0 && so(d.o[iP022]) / dh >= 0.9995;
+  };
   const canChuY = useMemo(() => {
     const hn = new Date(); hn.setHours(0, 0, 0, 0);
     const ra: ChuY[] = [];
     for (const d of loc) {
       const dh = so(d.o[iGtDh]), nk = so(d.o[iP022]), p = dh > 0 ? (nk / dh) * 100 : 0;
-      if (dh > 0 && p >= 99.95) continue;
+      if (xongCua(d)) continue;
       const ma = iMa >= 0 ? String(d.o[iMa] ?? '').trim() : '';
-      const chung = { ma, ten: tenGon(d.o[iTen], ma), con: iCon >= 0 ? so(d.o[iCon]) : dh - nk, luong: thuTuNhom(d.o[iTen])?.luong ?? null };
+      const chung = { ma, ten: tenGon(d.o[iTen], ma), con: conLaiHm(d) ?? (iCon >= 0 ? so(d.o[iCon]) : dh - nk), luong: thuTuNhom(d.o[iTen])?.luong ?? null };
       const bot = iBot >= 0 ? d.o[iBot] : null;
       const ngay = typeof bot === 'string' && /^\d{4}-\d{2}-\d{2}/.test(bot) ? new Date(`${bot.slice(0, 10)}T00:00:00`) : null;
       const conNgay = ngay ? Math.round((ngay.getTime() - hn.getTime()) / 86_400_000) : null;
@@ -280,7 +330,8 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
       }
     }
     return ra.sort((a, b) => a.muc - b.muc || a.xep - b.xep);
-  }, [loc, iGtDh, iP022, iMa, iTen, iCon, iBot, thang, thuTuNhom]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loc, iGtDh, iP022, iMa, iTen, iCon, iBot, thang, thuTuNhom, soApp]);
   // Thang màu ô tháng: theo ô lớn nhất của tập đang lọc
   const maxO = useMemo(() => Math.max(1, ...loc.flatMap(d => thang.map(x => so(d.o[x.i])))), [loc, thang]);
 
@@ -298,24 +349,26 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
   const giaTri = (v: number | string | null, t: TieuDe) => (v == null ? '' : t.kieu === 'so' && typeof v === 'number' ? fmtSo(v) : t.kieu === 'ngay' && typeof v === 'string' ? fmtNgay(v) : String(v));
   const pt = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0);
   const thang0 = cotBd[0], thang1 = cotBd[1];
-  const dinh = cotBd.reduce<(typeof cotBd)[number] | null>((m, x) => (!m || x.tong > m.tong ? x : m), null);
   const dangLoc = !!(tim || khuVuc || locKv.length || locKh.length);
   // Cột Mã CT gộp vào ô công trình (mã nhỏ ở trên, tên ở dưới — mẫu A)
-  const cotHien = hien.filter(i => i !== iMa);
+  const anThang = !moThang && iThangNay != null;
+  const cotHien = hien.filter(i => i !== iMa && !(anThang && laCotThang.has(i) && i !== iThangNay && i !== chonThang));
 
   return (
     <div className="space-y-3">
+      {xemChenh && <CuaSoChenh ma={xemChenh.ma} ten={xemChenh.ten} onClose={() => setXemChenh(null)} />}
       {/* Thẻ số (mẫu A) */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <TheSo cham="bg-slate-900" nhan="Tổng GT đơn hàng" so={kpi.dh} phu={`${fmtInt(loc.length)} công trình${dangLoc ? ' (đang lọc)' : ' đang theo dõi'}`} />
-        <TheSo cham="bg-emerald-600" nhan="Đã nhập kho (P022)" so={kpi.nk} thanh={pt(kpi.nk, kpi.dh)} mauThanh="bg-emerald-600"
-          phu={`${pt(kpi.nk, kpi.dh).toFixed(1)}% GT đơn hàng`} />
-        <TheSo cham="bg-amber-500" nhan="Còn lại phải nhập" so={kpi.con} thanh={pt(kpi.con, kpi.dh)} mauThanh="bg-amber-500"
-          phu={`${pt(kpi.con, kpi.dh).toFixed(1)}% GT đơn hàng`} />
-        {thang0 && <TheSo cham="bg-blue-600" nhan={`KH nhập kho ${thang0.ten}`} so={thang0.tong} thanh={pt(thang0.tong, kpi.con)} mauThanh="bg-blue-600"
-          phu={`${pt(thang0.tong, kpi.con).toFixed(1)}% GT còn lại`} />}
-        {thang1 && <TheSo cham="bg-blue-600" nhan={`KH nhập kho ${thang1.ten}`} so={thang1.tong} thanh={pt(thang1.tong, kpi.con)} mauThanh="bg-blue-600"
-          phu={`${pt(thang1.tong, kpi.con).toFixed(1)}% GT còn lại${dinh && dinh.tong > 0 ? ` · đỉnh ${dinh.ngan}: ${fmtSo(dinh.tong)}` : ''}`} />}
+        {/* Dòng phụ dễ hiểu (người dùng 20/11/2026): bỏ thanh mảnh, ghi % đậm + "của …" bằng lời */}
+        <TheSo cham="bg-slate-900" nhan="Tổng GT đơn hàng" so={kpi.dh} phu={<>{fmtInt(loc.length)} công trình{dangLoc ? ' (đang lọc)' : ''}</>} />
+        <TheSo cham="bg-emerald-600" nhan="Đã nhập kho (P022)" so={kpi.nk}
+          phu={<>Đạt <b className="text-emerald-700">{pt(kpi.nk, kpi.dh).toFixed(1)}%</b> tổng đơn hàng</>} />
+        <TheSo cham="bg-amber-500" nhan="Còn lại phải nhập" so={kpi.con}
+          phu={<>Còn <b className="text-amber-700">{pt(kpi.con, kpi.dh).toFixed(1)}%</b> tổng đơn hàng</>} />
+        {thang0 && <TheSo cham="bg-blue-600" nhan={`KH nhập kho ${thang0.ten}`} so={thang0.tong}
+          phu={<>Bằng <b className="text-blue-700">{pt(thang0.tong, kpi.con).toFixed(1)}%</b> phần còn phải nhập</>} />}
+        {thang1 && <TheSo cham="bg-blue-600" nhan={`KH nhập kho ${thang1.ten}`} so={thang1.tong}
+          phu={<>Bằng <b className="text-blue-700">{pt(thang1.tong, kpi.con).toFixed(1)}%</b> phần còn phải nhập</>} />}
       </div>
 
       {/* Biểu đồ nhập kho theo tháng, chồng theo luồng — thay dòng TỔNG */}
@@ -351,6 +404,13 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
             <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm công trình / ghi chú" className="w-44 outline-none" />
             {tim && <button type="button" onClick={() => setTim('')} aria-label="Xoá tìm"><X className="h-4 w-4 text-slate-400" /></button>}
           </label>
+          {/* Bỏ mọi lọc của bảng 1 lần (người dùng 19/11/2026): khu vực, khách hàng, ô tìm, cột tháng đang chọn */}
+          {(locKv.length > 0 || locKh.length > 0 || tim || chonThang != null) && (
+            <button type="button" onClick={() => { setLocKv([]); setLocKh([]); setTim(''); setChonThang(null); }}
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700 hover:bg-red-100">
+              <X className="h-4 w-4" aria-hidden />Xóa lọc
+            </button>
+          )}
         </div>
       </div>
 
@@ -361,7 +421,7 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
                 2 cột con Xuất (P025) / Tồn (P023), không còn cột số nhập riêng */}
             <tr>
               <th rowSpan={coHang2 ? 2 : 1} className={`${bang.thC} sticky left-0 z-30 w-16 min-w-[4rem] max-w-[4rem] bg-emerald-300 align-middle`} title="STT theo danh sách Luồng đỏ (Setup → Nhóm công trình); ngoài luồng đánh tiếp">
-                STT
+                <Nhan2Dong ten="STT" />
               </th>
               {cotHien.map(i => {
                 if (laConDh.has(i)) return null; // cột con của GT ĐƠN HÀNG: tiêu đề ở hàng 2
@@ -383,8 +443,8 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
                 const nhan = i === iP022 ? 'NHẬP KHO' : laTen ? 'CÔNG TRÌNH' : laCotThang.has(i) ? (thang.find(x => x.i === i)?.ngan ?? t.nhan) : t.nhan;
                 return (
                   <React.Fragment key={t.cot}>
-                  <th rowSpan={coHang2 && !moGop ? 2 : 1} colSpan={moP022 ? 2 : moGtDh ? conDh.length : 1}
-                    className={`${bang.thC} whitespace-nowrap align-middle ${laTen ? 'sticky left-16 z-20 bg-emerald-300 text-left' : ''} ${t.an ? 'bg-emerald-200' : ''} ${i === chonThang ? 'bg-blue-200' : ''}`}
+                  <th rowSpan={coHang2 && !moGop ? 2 : 1} colSpan={moP022 ? COT_CON.length : moGtDh ? conDh.length : 1}
+                    className={`${bang.thC} whitespace-nowrap align-middle ${laTen ? 'sticky left-16 z-20 bg-emerald-300 text-left' : ''} ${t.an ? 'bg-emerald-300' : ''} ${i === chonThang ? 'bg-blue-200' : ''}`}
                     title={`${t.nhan}${t.tren ? ` (${t.tren})` : ''} · cột ${t.cot}${t.an ? ' (đang ẩn trong file)' : ''}`}>
                     {/* Nhãn ngay ngắn: tên + nút cùng 1 dòng; mã (P022) dòng dưới */}
                     <span className={`inline-flex flex-col leading-tight align-middle ${laTen ? 'items-start' : 'items-center'}`}>
@@ -398,13 +458,20 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
                             className="ml-1 font-bold text-emerald-800 hover:text-emerald-950">{mo ? '−' : '+'}</button>
                         )}
                         {nutKho}
+                        {i === iThangNay && thang.length > 1 && (
+                          <button type="button" aria-expanded={moThang}
+                            onClick={e => { e.stopPropagation(); setMoThang(m => !m); }}
+                            title={moThang ? 'Chỉ hiện tháng hiện tại' : `Hiện các tháng còn lại (${thang.filter(x => x.i !== iThangNay).map(x => x.ngan).join(', ')})`}
+                            className="ml-1 font-bold text-emerald-800 hover:text-emerald-950">{moThang ? '−' : '+'}</button>
+                        )}
                       </span>
-                      {i === iP022 && <span className="text-[0.6875rem] font-semibold text-slate-600">P022</span>}
+                      {/* Mọi cột cùng 2 dòng (dòng mã ẩn nếu không có) => tên các cột thẳng 1 hàng (19/11/2026) */}
+                      <span className={`text-[0.6875rem] font-semibold text-slate-600 ${i === iP022 ? '' : 'invisible'}`} aria-hidden={i !== iP022}>{i === iP022 ? 'P022' : '·'}</span>
                     </span>
                   </th>
                   {coPt && i === iP022 && (
                     <th rowSpan={coHang2 ? 2 : 1} className={`${bang.thC} whitespace-nowrap align-middle`} title="% hoàn thành = P022 ÷ GT ĐƠN HÀNG">
-                      % HOÀN THÀNH
+                      <Nhan2Dong ten="% HOÀN THÀNH" />
                     </th>
                   )}
                   </React.Fragment>
@@ -414,7 +481,7 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
             {coHang2 && (
               <tr>
                 {conDh.map(j => (
-                  <th key={td[j].cot} className={`${bang.thC} whitespace-nowrap align-middle bg-emerald-200`}
+                  <th key={td[j].cot} className={`${bang.thC} whitespace-nowrap align-middle bg-emerald-300`}
                     title={td[j].nhan.toUpperCase().includes('CHƯA') ? 'GT ĐƠN HÀNG − GT ĐÃ TKSX' : 'Tổng tiền đã tính phiếu theo bảng sản xuất (bỏ hạng mục HỦY)'}>
                     <span className="inline-flex items-center">{td[j].nhan}
                       <button type="button" onClick={() => doiSap(j)} title="Sắp xếp" aria-label="Sắp xếp"
@@ -425,8 +492,9 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
                   </th>
                 ))}
                 {moKho && COT_CON.map(([k, nhan, ma]) => (
-                  <th key={k} className={`${bang.thC} whitespace-nowrap align-middle bg-emerald-200`}
+                  <th key={k} className={`${bang.thC} whitespace-nowrap align-middle bg-emerald-300`}
                     title={k === 'xuat' ? 'Xuất kho lũy kế: tổng thành tiền bảng xuất kho theo mã công trình (triệu đồng)'
+                      : k === 'chenh' ? 'Đã nhập mà không thấy trong xuất kho lẫn tồn kho: xuất trước 01/2025 (bảng xuất kho chỉ có từ 01/2025), giao không qua phiếu xuất, dòng mang mã khác… Bấm số để xem hạng mục'
                       : `Tồn kho ngày ${ngayTon ? ngayTon.split('-').reverse().join('/') : 'mới nhất'}: tổng giá trị bảng tồn kho theo mã công trình (triệu đồng)`}><NhanMa ten={nhan} ma={ma} /></th>
                 ))}
               </tr>
@@ -437,12 +505,12 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
               const luong = thuTuNhom(d.o[iTen])?.luong;
               const mau = mauLuong(thuTuNhom(d.o[iTen]));
               const dh = so(d.o[iGtDh]), nk = so(d.o[iP022]);
-              const ptD = pt(nk, dh), xong = dh > 0 && ptD >= 99.95;
+              const ptD = pt(nk, dh), xong = xongCua(d);
               const ma = iMa >= 0 ? String(d.o[iMa] ?? '').trim() : '';
               return (
               <tr key={`${d.o[iTen] ?? ''}-${r}`} className="group bg-white hover:bg-slate-50" title={mau?.nhan}>
-                <td className={`${bang.tdSo} sticky left-0 z-[1] w-16 min-w-[4rem] max-w-[4rem] bg-white group-hover:bg-slate-50 border-l-4 ${luong === 'do' ? 'border-l-red-600' : luong === 'vang' ? 'border-l-amber-500' : 'border-l-transparent'} text-slate-600`}>
-                  <span className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${luong === 'do' ? 'bg-red-600' : luong === 'vang' ? 'bg-amber-500' : 'bg-slate-300'}`} aria-hidden />
+                <td className={`${bang.tdSo} sticky left-0 z-[1] w-16 min-w-[4rem] max-w-[4rem] bg-white group-hover:bg-slate-50 border-l-4 ${luong === 'do' ? 'border-l-red-600' : luong === 'vang' ? 'border-l-yellow-400' : 'border-l-emerald-400'} text-slate-600`}>
+                  <span className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${luong === 'do' ? 'bg-red-600' : luong === 'vang' ? 'bg-yellow-400' : 'bg-emerald-400'}`} aria-hidden />
                   {sttCua.get(d)}
                 </td>
                 {cotHien.map(i => {
@@ -450,7 +518,14 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
                   if (i === iP022 && moKho) {
                     return COT_CON.map(([k]) => {
                       const x = khoCua(d)?.[k];
-                      return <td key={k} className={`${bang.tdSo} bg-emerald-50/60`}>{kho ? (x != null ? fmtSo(x) : '') : '…'}</td>;
+                      const so = kho ? (x != null ? fmtSo(x) : '') : '…';
+                      if (k === 'chenh') {
+                        // Chênh bấm => danh sách hạng mục (cột Chênh của cửa sổ chỉ ra HEX lệch); âm = xuất + tồn vượt nhập
+                        const lech = x != null && Math.abs(x) >= 5; // ≥ 0.005 tỷ
+                        return <td key={k} className={`${bang.tdSo} bg-emerald-50/60 ${x != null && x < 0 && lech ? 'text-red-600' : lech ? 'font-semibold text-amber-700' : 'text-slate-400'}`}>
+                          {lech && ma ? <NutSo tieuDe="Bấm xem chênh theo từng HEX (nhập − xuất − tồn)" onClick={() => setXemChenh({ ma, ten: tenGon(d.o[iTen], ma) })}>{so}</NutSo> : so}</td>;
+                      }
+                      return <td key={k} className={`${bang.tdSo} bg-emerald-50/60`}>{x != null && onXemKho && ma ? <NutSo tieuDe={`Bấm xem các dòng ${k === 'xuat' ? 'xuất kho' : 'tồn kho'}`} onClick={() => onXemKho(k, ma, tenGon(d.o[iTen], ma))}>{so}</NutSo> : so}</td>;
                     }).concat(coPt ? [<td key="pt" className={bang.tdSo}><OPhanTram p={ptD} /></td>] : []);
                   }
                   if (i === iGtDh && moDh) return null;
@@ -495,8 +570,10 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
                   }
                   if (typeof v === 'number' && v < 0) cls += ' text-red-600';
                   // Bấm số => chi tiết theo hạng mục của công trình (người dùng 19/11/2026)
-                  const bamDuoc = !!onXemHangMuc && !!ma && (i === iGtDh || i === iP022 || i === iCon) && typeof v === 'number';
+                  const bamDuoc = !!onXemHangMuc && !!ma && (i === iGtDh || i === iCon || laConDh.has(i)) && typeof v === 'number';
                   if (bamDuoc) o = <NutSo onClick={() => onXemHangMuc!(ma, tenGon(d.o[iTen], ma))}>{o}</NutSo>;
+                  else if (i === iP022 && onXemKho && ma && typeof v === 'number')
+                    o = <NutSo tieuDe="Bấm xem các dòng nhập kho" onClick={() => onXemKho('nhap', ma, tenGon(d.o[iTen], ma))}>{o}</NutSo>;
                   const oPt = <OPhanTram p={ptD} />;
                   return (
                     <React.Fragment key={t.cot}>
@@ -509,7 +586,7 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
               );
             })}
             {dong.length === 0 && (
-              <tr><td colSpan={cotHien.length + 1 + (coPt && cotHien.includes(iP022) ? 1 : 0) + (moKho ? 1 : 0) - (moDh ? 1 : 0)} className={`${bang.tdB} py-8 text-center text-slate-500`}>Không có công trình nào khớp bộ lọc.</td></tr>
+              <tr><td colSpan={cotHien.length + 1 + (coPt && cotHien.includes(iP022) ? 1 : 0) + (moKho ? COT_CON.length - 1 : 0) - (moDh ? 1 : 0)} className={`${bang.tdB} py-8 text-center text-slate-500`}>Không có công trình nào khớp bộ lọc.</td></tr>
             )}
           </tbody>
         </table>
@@ -521,6 +598,8 @@ export const KhnkSheet = ({ khuVuc, onXemCt, onXemHangMuc }: { khuVuc?: string; 
 // ============================================================================
 // Thành phần hiển thị (mẫu A)
 // ============================================================================
+/** Trang có chưa tới nửa số dòng (bỏ HỦY) máy chủ của 1 mã CT => coi như thiếu dữ liệu */
+const laThieu = (nTrang: number | undefined, nMayChu: number | undefined) => nMayChu != null && (nTrang ?? 0) * 2 < nMayChu;
 const laNhanThang = (n: string) => /^(KHNK\s*T\s*\d{1,2}|\d{2}-\d{2})$/i.test(n.trim());
 /** Tên bỏ đuôi mã ("…_CT26-061") vì mã đã hiện dòng trên */
 const tenGon = (v: unknown, ma: string) => {
@@ -530,22 +609,100 @@ const tenGon = (v: unknown, ma: string) => {
   return bo || s;
 };
 
+/** Nhãn tiêu đề 2 dòng, dòng dưới ẩn — thẳng hàng với cột có mã (NHẬP KHO / P022) */
+const Nhan2Dong = ({ ten }: { ten: string }) => (
+  <span className="inline-flex flex-col items-center leading-tight align-middle">
+    <span>{ten}</span>
+    <span className="invisible text-[0.6875rem] font-semibold" aria-hidden>·</span>
+  </span>
+);
+
+/** Cửa sổ cột CHÊNH: nhập − xuất − tồn của 1 công trình tách theo HEX, cùng 3 bảng kho với cột (tổng = số trên bảng) */
+type DongChenh = { hex: string; hangMuc: string | null; ipo: string | null; nhap: number; xuat: number; ton: number; chenh: number };
+const tr1 = (v: number) => (Math.abs(v) < 0.05 ? '' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+const CuaSoChenh = ({ ma, ten, onClose }: { ma: string; ten: string; onClose: () => void }) => {
+  const [du, setDu] = useState<{ rows: DongChenh[]; ngayTon: string | null } | null>(null);
+  const [loi, setLoi] = useState<string | null>(null);
+  const [chiLech, setChiLech] = useState(true);
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/khnk-sheet/kho-chenh?ma=${encodeURIComponent(ma)}`)
+      .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `Lỗi ${r.status}`); return j; })
+      .then(setDu).catch(e => setLoi(e instanceof Error ? e.message : String(e)));
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [ma, onClose]);
+  const tat = du?.rows ?? [];
+  const ds = chiLech ? tat.filter(x => Math.abs(x.chenh) >= 0.05) : tat;   // ≥ 0.05 triệu
+  const tong = (k: 'nhap' | 'xuat' | 'ton' | 'chenh') => tat.reduce((s0, x) => s0 + x[k], 0);
+  const duong = tat.filter(x => x.chenh >= 0.05), am = tat.filter(x => x.chenh <= -0.05);
+  return (
+    <div className={bang.cuaSoNen} onClick={onClose}>
+      <div className={bang.cuaSoKhung} onClick={e => e.stopPropagation()}>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold text-slate-900">Chênh nhập − xuất − tồn · {ma}</p>
+            <p className="truncate text-sm text-slate-500">{ten}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-xl leading-none text-slate-500 hover:bg-slate-100" aria-label="Đóng">×</button>
+        </div>
+        {loi ? <p className="text-sm text-red-600">{loi}</p> : !du ? <p className="text-sm text-slate-500">Đang tính…</p> : (<>
+          <div className="grid gap-3 sm:grid-cols-4">
+            {([['Nhập kho (P022)', tong('nhap'), 'text-emerald-700'], ['Xuất kho (P025)', tong('xuat'), 'text-slate-900'],
+              [`Tồn kho (P023) ${du.ngayTon ? du.ngayTon.split('-').reverse().join('/') : ''}`, tong('ton'), 'text-slate-900'], ['Chênh', tong('chenh'), 'text-amber-700']] as const).map(([n, v, m]) => (
+              <div key={n} className="rounded-xl border border-slate-200 px-4 py-2">
+                <p className="text-xs font-bold uppercase text-slate-500">{n}</p>
+                <p className={`text-2xl font-extrabold tabular-nums ${m}`}>{fmtSo(v)} <span className="text-sm font-semibold text-slate-500">tỷ</span></p>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <span><b className="text-amber-700">{duong.length}</b> HEX đã nhập mà không thấy trong xuất / tồn ({fmtSo(duong.reduce((s0, x) => s0 + x.chenh, 0))} tỷ)</span>
+            {am.length > 0 && <span>· <b className="text-red-600">{am.length}</b> HEX xuất + tồn vượt nhập ({fmtSo(am.reduce((s0, x) => s0 + x.chenh, 0))} tỷ)</span>}
+            <label className="ml-auto inline-flex items-center gap-1.5"><input type="checkbox" checked={chiLech} onChange={e => setChiLech(e.target.checked)} className="h-3.5 w-3.5" />Chỉ HEX có chênh</label>
+          </div>
+          <div className={`${bang.khung} min-h-0 flex-1`}>
+            <table className={`${bang.table} ${bang.cuaSoBang}`}>
+              <thead className={bang.thead}><tr>
+                {['STT', 'HEX', 'Hạng mục', 'Tình trạng IPO', 'Nhập (triệu)', 'Xuất (triệu)', 'Tồn (triệu)', 'Chênh (triệu)'].map(h => <th key={h} className={`${bang.thC} whitespace-nowrap`}>{h}</th>)}
+              </tr></thead>
+              <tbody>{ds.map((x, i) => (
+                <tr key={x.hex} className="hover:bg-slate-50">
+                  <td className={bang.tdSo}>{i + 1}</td>
+                  <td className={bang.tdSo}>{x.hex}</td>
+                  <td className={`${bang.tdB} min-w-[16rem]`}>{x.hangMuc ?? ''}</td>
+                  <td className={`${bang.tdB} whitespace-nowrap text-sm`}>{x.ipo ?? <span className="text-slate-400">không có trong bảng sản xuất</span>}</td>
+                  <td className={bang.tdSo}>{tr1(x.nhap)}</td>
+                  <td className={bang.tdSo}>{tr1(x.xuat)}</td>
+                  <td className={bang.tdSo}>{tr1(x.ton)}</td>
+                  <td className={`${bang.tdSo} font-semibold ${x.chenh < 0 ? 'text-red-600' : 'text-amber-700'}`}>{tr1(x.chenh)}</td>
+                </tr>))}
+                {!ds.length && <tr><td colSpan={8} className={`${bang.tdB} py-6 text-center text-slate-500`}>Không có HEX nào chênh.</td></tr>}
+              </tbody>
+              <tfoot className={bang.tfoot}><tr>
+                <td colSpan={4} className={`${bang.tdB} text-center`}>TỔNG ({ds.length} HEX)</td>
+                {(['nhap', 'xuat', 'ton', 'chenh'] as const).map(k => <td key={k} className={bang.tdSo}>{tr1(ds.reduce((s0, x) => s0 + x[k], 0))}</td>)}
+              </tr></tfoot>
+            </table>
+          </div>
+          <p className="text-xs text-slate-500">Chênh dương = đã nhập kho mà không thấy dòng xuất lẫn tồn (xuất trước 01/2025, giao không qua phiếu xuất, dòng xuất / tồn mang mã khác…). Chênh âm = xuất + tồn vượt nhập.</p>
+        </>)}
+      </div>
+    </div>
+  );
+};
+
 /** Ô số bấm được: mở chi tiết theo hạng mục */
-const NutSo = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
-  <button type="button" onClick={onClick} title="Bấm xem chi tiết theo hạng mục"
+const NutSo = ({ onClick, children, tieuDe = 'Bấm xem chi tiết theo hạng mục' }: { onClick: () => void; children: React.ReactNode; tieuDe?: string }) => (
+  <button type="button" onClick={onClick} title={tieuDe}
     className={`${bang.soBam} rounded px-1 hover:bg-blue-50 hover:text-blue-700`}>{children}</button>
 );
 
-const TheSo = ({ cham, nhan, so, phu, thanh, mauThanh }: { cham: string; nhan: string; so: number; phu: string; thanh?: number; mauThanh?: string }) => (
+const TheSo = ({ cham, nhan, so, phu }: { cham: string; nhan: string; so: number; phu: React.ReactNode }) => (
   <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-    <p className="flex items-center gap-2 text-sm font-medium text-slate-600"><span className={`h-2 w-2 rounded-full ${cham}`} aria-hidden />{nhan}</p>
+    <p className="flex items-center gap-2 text-sm font-semibold text-slate-700"><span className={`h-2.5 w-2.5 rounded-full ${cham}`} aria-hidden />{nhan}</p>
     <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{fmtSo(so)} <span className="text-sm font-medium text-slate-500">tỷ</span></p>
-    {thanh != null && (
-      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-200">
-        <span className={`block h-full rounded-full ${mauThanh}`} style={{ width: `${Math.min(100, Math.max(0, thanh))}%` }} />
-      </span>
-    )}
-    <p className="mt-1.5 text-xs text-slate-500">{phu}</p>
+    <p className="mt-1 text-sm text-slate-600">{phu}</p>
   </div>
 );
 
@@ -590,11 +747,8 @@ const OThang = ({ v, max }: { v: unknown; max: number }) => {
 
 const ChuGiai = () => (
   <span className="hidden items-center gap-3 text-xs text-slate-600 2xl:inline-flex">
-    <span className="font-semibold">Luồng</span>
-    <span className="inline-flex items-center gap-1"><span className="h-3 w-1 rounded bg-red-600" />Đỏ</span>
-    <span className="inline-flex items-center gap-1"><span className="h-3 w-1 rounded bg-amber-500" />Vàng</span>
-    <span className="inline-flex items-center gap-1"><span className="h-3 w-1 rounded bg-slate-300" />Thường</span>
-    <span className="ml-1 font-semibold">KH tháng</span>
+    {/* Chú thích luồng đã có ở biểu đồ tháng ngay trên — không lặp (người dùng 20/11/2026) */}
+    <span className="font-semibold">KH tháng</span>
     <span className="inline-flex items-center gap-0.5">thấp{MAU_THANG.map(m => <span key={m} className={`h-3 w-4 rounded-sm ${m.split(' ')[0]}`} />)}cao</span>
   </span>
 );
@@ -632,49 +786,94 @@ const CanChuY = ({ ds, onChon, dangTim }: { ds: ChuY[]; onChon: (ma: string) => 
 );
 
 type CotBd = { i: number; ngan: string; ten: string; do: number; vang: number; thuong: number; tong: number };
-/** Biểu đồ kế hoạch nhập kho theo tháng, cột chồng theo luồng (đỏ / vàng / thường). Bấm cột để lọc bảng theo tháng. */
+/** Biểu đồ kế hoạch nhập kho theo tháng: cột chồng theo luồng (đỏ / vàng / thường) + 3 đường diễn biến giá trị từng luồng qua
+ *  các tháng (người dùng 20/11/2026). Bấm cột để lọc bảng theo tháng. */
+const MAU_BD = {
+  do: { cot: '#ef4444', duong: '#b91c1c', ten: 'Luồng đỏ' },
+  vang: { cot: '#fde047', duong: '#ca8a04', ten: 'Luồng vàng' },
+  thuong: { cot: '#34d399', duong: '#047857', ten: 'Luồng thường' },
+} as const;
+const KHOA_BD = ['do', 'vang', 'thuong'] as const;
 const BieuDoThang = ({ cot, iThangNay, chon, onChon }: { cot: CotBd[]; iThangNay: number | null; chon: number | null; onChon: (i: number) => void }) => {
-  const max = Math.max(1, ...cot.map(c => c.tong));
-  const CAO = 96; // px — chiều cao cột lớn nhất (gọn, người dùng 19/11/2026)
   const tongKh = cot.reduce((s, c) => s + c.tong, 0);
+  // Rối khi chồng cột + đường (người dùng 20/11/2026) => chọn 1 trong 2 kiểu xem: cột chồng (mặc định) / đường diễn biến
+  const [kieu, setKieu] = useState<'cot' | 'duong'>('cot');
+  const du = cot.map(c => ({ ...c, nay: c.i === iThangNay, dangChon: c.i === chon }));
+  const mo = (c: CotBd) => (chon != null && c.i !== chon ? 0.35 : 1);
   return (
     <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <p className="font-bold text-slate-900">Kế hoạch nhập kho theo tháng</p>
         <p className="text-xs text-slate-500">tỷ · tổng <span className="font-bold text-blue-700">{fmtSo(tongKh)}</span> · bấm cột để lọc bảng</p>
-        <span className="ml-auto inline-flex items-center gap-3 text-xs text-slate-600">
-          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm bg-red-600" />Đỏ</span>
-          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm bg-amber-500" />Vàng</span>
-          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm bg-slate-400" />Thường</span>
+        <span className="ml-auto inline-flex flex-wrap items-center gap-3 text-xs text-slate-600">
+          {KHOA_BD.map(k => (
+            <span key={k} className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm" style={{ background: kieu === 'duong' ? MAU_BD[k].duong : MAU_BD[k].cot }} />{MAU_BD[k].ten}</span>
+          ))}
+          <span className="inline-flex overflow-hidden rounded-md border border-slate-300" role="group" aria-label="Kiểu biểu đồ">
+            {([['cot', 'Cột'], ['duong', 'Đường diễn biến']] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setKieu(k)} aria-pressed={kieu === k}
+                className={`px-2 py-0.5 font-semibold ${kieu === k ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{l}</button>
+            ))}
+          </span>
         </span>
       </div>
-      <div className="mt-auto flex items-stretch pt-2">
-        <div className="flex flex-1 items-end gap-1 sm:gap-2">
-          {cot.map(c => {
-            const nay = c.i === iThangNay, dangChon = c.i === chon;
-            const h = (c.tong / max) * CAO;
-            const phan = (v: number) => (c.tong > 0 ? (v / c.tong) * h : 0);
-            return (
-              <button key={c.i} type="button" onClick={() => onChon(c.i)}
-                title={`${c.ten}: ${fmtSo(c.tong)} tỷ · Đỏ ${fmtSo(c.do)} · Vàng ${fmtSo(c.vang)} · Thường ${fmtSo(c.thuong)}`}
-                className={`group flex min-w-0 flex-1 flex-col items-center rounded-lg px-1 pt-1 ${dangChon ? 'bg-blue-50 ring-1 ring-blue-300' : 'hover:bg-slate-50'}`}>
-                <span className={`text-xs font-bold tabular-nums ${c.tong ? 'text-slate-800' : 'text-slate-400'}`}>{c.tong ? fmtSo(c.tong) : '0'}</span>
-                <span className="mt-1 flex w-full max-w-[2.75rem] flex-col-reverse overflow-hidden rounded-t-md" style={{ height: Math.max(2, h) }}>
-                  {c.tong > 0 ? (
-                    <>
-                      <span className="block w-full bg-red-600" style={{ height: phan(c.do) }} />
-                      <span className="block w-full bg-amber-500" style={{ height: phan(c.vang) }} />
-                      <span className="block w-full bg-slate-400 group-hover:bg-slate-500" style={{ height: phan(c.thuong) }} />
-                    </>
-                  ) : <span className="block h-full w-full bg-slate-200" />}
-                </span>
-                <span className={`mt-1 border-t border-slate-200 pt-1 text-xs ${nay ? 'font-bold text-blue-700' : 'font-semibold text-slate-600'} w-full text-center`}>{c.ngan}</span>
-                {/* luôn giữ dòng này (ẩn ở cột khác) để mọi cột chung 1 đường đáy */}
-                <span className={`text-[0.6875rem] font-medium text-blue-600 ${nay ? '' : 'invisible'}`} aria-hidden={!nay}>tháng này</span>
-              </button>
-            );
-          })}
-        </div>
+      <div className="mt-1 min-h-[9rem] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={du} margin={{ top: 18, right: 8, left: 8, bottom: 4 }} barCategoryGap="28%"
+            onClick={(e: { activeTooltipIndex?: number } | null) => { const x = e?.activeTooltipIndex; if (x != null && du[x]) onChon(du[x].i); }}>
+            <XAxis dataKey="ngan" axisLine={{ stroke: '#e2e8f0' }} tickLine={false} interval={0} height={kieu === 'duong' ? 54 : 40}
+              padding={kieu === 'duong' ? { left: 36, right: 36 } : undefined}
+              tick={(t: { x?: number | string; y?: number | string; payload?: { value?: string; index?: number } }) => {
+                const c = du[t.payload?.index ?? -1];
+                return (
+                  <g transform={`translate(${Number(t.x)},${Number(t.y)})`}>
+                    <text y={10} textAnchor="middle" fontSize={12} fontWeight={c?.nay || c?.dangChon ? 700 : 600} fill={c?.nay ? '#1d4ed8' : '#475569'}>{t.payload?.value}</text>
+                    {/* Kiểu đường: tổng tháng ghi ngay dưới tên tháng (thay cột tổng — rối, người dùng 20/11/2026) */}
+                    {kieu === 'duong' && <text y={25} textAnchor="middle" fontSize={12} fontWeight={700} fill="#0f172a">{c && c.tong ? `Σ ${fmtSo(c.tong)}` : 'Σ 0'}</text>}
+                    {c?.nay && <text y={kieu === 'duong' ? 39 : 24} textAnchor="middle" fontSize={10} fill="#2563eb">tháng này</text>}
+                  </g>
+                );
+              }} />
+            <YAxis hide domain={[0, (m: number) => (m > 0 ? m * 1.08 : 1)]} />
+            <Tooltip cursor={{ fill: '#f1f5f9' }} content={({ active, payload }) => {
+              const c = active ? (payload?.[0]?.payload as (typeof du)[number] | undefined) : undefined;
+              if (!c) return null;
+              return (
+                <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg">
+                  <p className="font-bold text-slate-900">{c.ten}: {fmtSo(c.tong)} tỷ</p>
+                  {KHOA_BD.map(k => (
+                    <p key={k} className="flex items-center gap-1.5 tabular-nums text-slate-700">
+                      <span className="h-2.5 w-2.5 rounded-sm" style={{ background: MAU_BD[k].cot }} />{MAU_BD[k].ten}: <b>{fmtSo(c[k])}</b>
+                      {c.tong > 0 && <span className="text-slate-500">({((c[k] / c.tong) * 100).toFixed(0)}%)</span>}
+                    </p>
+                  ))}
+                  <p className="mt-1 text-slate-400">Bấm để lọc bảng theo tháng này</p>
+                </div>
+              );
+            }} />
+            {kieu === 'cot' && KHOA_BD.map((k, j) => (
+              <Bar key={k} dataKey={k} stackId="l" fill={MAU_BD[k].cot} maxBarSize={48} isAnimationActive={false} className="cursor-pointer"
+                radius={j === 2 ? [6, 6, 0, 0] : 0}>
+                {du.map(c => <Cell key={c.i} fillOpacity={mo(c)} />)}
+                {j === 2 && (
+                  <LabelList dataKey="tong" content={(lp: { x?: number | string; y?: number | string; width?: number | string; index?: number }) => {
+                    const c = du[lp.index ?? -1];
+                    if (!c) return null;
+                    return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={12} fontWeight={700}
+                      fill={c.tong ? '#1e293b' : '#94a3b8'}>{c.tong ? fmtSo(c.tong) : '0'}</text>;
+                  }} />
+                )}
+              </Bar>
+            ))}
+            {kieu === 'duong' && KHOA_BD.map(k => (
+              <Line key={`d-${k}`} dataKey={k} type="linear" stroke={MAU_BD[k].duong} strokeWidth={2.5} isAnimationActive={false}
+                dot={{ r: 4, fill: MAU_BD[k].duong, stroke: '#fff', strokeWidth: 1.5 }} activeDot={{ r: 5 }} legendType="none">
+                <LabelList dataKey={k} position="top" offset={8} fontSize={11} fontWeight={600} fill={MAU_BD[k].duong}
+                  formatter={(v: number) => (v > 0 ? fmtSo(v) : '')} />
+              </Line>
+            ))}
+          </ComposedChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

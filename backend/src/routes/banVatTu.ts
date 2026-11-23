@@ -5,21 +5,13 @@ import { createCache, cachedByVersions } from '../server/cache.js';
 import { userHasPermission, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
 
 // ============================================================================
-// BÁN VẬT TƯ TỒN KHO — bán TẤT CẢ hàng đang tồn trong kho vật tư (kể cả hàng gán công trình, mã đầu 800 giá 0,
-// CCDC đầu 400; hàng gán công trình chỉ gắn nhãn ở giao diện)
-//   GET /api/ban-vat-tu/danh-sach      từng dòng tồn (mã + kho) kèm thuộc tính master và thông tin bán
-//   PUT /api/ban-vat-tu/:ma            sửa thông tin bán của 1 mã (giá bán, ảnh, trạng thái, liên hệ, ghi chú)
+// DANH MỤC VẬT TƯ — tra cứu TẤT CẢ hàng đang tồn trong kho vật tư (công cụ quản trị nội bộ, kể cả hàng gán công trình,
+// mã đầu 800 giá 0, CCDC đầu 400; hàng gán công trình chỉ gắn nhãn ở giao diện)
+//   GET /api/ban-vat-tu/danh-sach      từng dòng tồn (mã + kho) kèm thuộc tính master, ảnh nội bộ, link ảnh đã dán trước
 //   GET /api/ban-vat-tu/:ma/mua-hang   lý lịch mua (PR/PO trong bảng vat_tu) của 1 mã — NCC / giá chỉ khi có quyền giá
 //   GET /api/ban-vat-tu/anh/:id        bytes 1 ảnh nội bộ (ban_vt_anh — ảnh mẫu sheet 03_MATERIALS, nạp bằng nap_anh_vat_tu.py)
-//   PUT /api/ban-vat-tu/anh/:id        duyệt / ẩn ảnh nội bộ { trangThai?: 'da_duyet' | 'an' | 'tu_dong', congKhai?: boolean }
-//   PUT /api/ban-vat-tu/cong-khai-hang-loat  đăng / gỡ hàng loạt mã lên trang khách { mas, bat }
-//   GET /api/ban-vat-tu/yeu-cau        yêu cầu báo giá khách gửi từ trang công khai (+ số yêu cầu 'moi')
-//   PUT /api/ban-vat-tu/yeu-cau/:id    đổi trạng thái / ghi chú nội bộ của 1 yêu cầu
-//
-// Trang khách 15/11 (backend/sql/2026-11-15_ban_vat_tu_cong_khai.sql; API công khai ở routes/banVatTuCongKhai.ts):
-// ban_vt_thong_tin.dang_cong_khai / ten_hien_thi / mo_ta_cong_khai / dang_cong_khai_luc, ban_vt_anh.cong_khai, bảng
-// ban_vt_yeu_cau. Chưa chạy SQL (42703) => danh sách / PUT cũ vẫn chạy (cột mới coi như mặc định: chưa đăng, ảnh không
-// công khai); sửa trường mới / đăng hàng loạt / yêu cầu => 503 kèm tên file SQL.
+//   PUT /api/ban-vat-tu/anh/:id        duyệt / ẩn ảnh nội bộ { trangThai: 'da_duyet' | 'an' | 'tu_dong' }
+// (Đường dẫn giữ chữ "ban-vat-tu" để không vỡ quyền đã cấp / bookmark; tính năng bán + trang khách đã bỏ 21/11/2026.)
 //
 // Bổ sung 15/11 (backend/sql/2026-11-15_ban_vat_tu_bo_sung.sql): ban_vt_master.suy_tu_ten (thuộc tính tách từ tên, chỉ
 // trường master đang trống) + bảng ban_vt_anh. Chưa chạy SQL (42P01 / 42703) => danh sách vẫn trả như cũ (suyTuTen {},
@@ -28,61 +20,36 @@ import { userHasPermission, MATERIAL_PRICE_PERMISSION } from '../server/permissi
 // - Bảng (backend/sql/2026-11-14_ban_vat_tu_ton.sql, nạp bằng backend/scripts/nap_ban_vat_tu.py):
 //     ban_vt_ton        ảnh chụp tồn kho (mỗi lần nạp xoá hết rồi ghi lại), nhiều dòng / mã (khác kho)
 //     ban_vt_master     thuộc tính vật tư (ZMM60 + DEMO), PK ma_vat_tu
-//     ban_vt_thong_tin  thông tin bán người dùng nhập trên web, PK ma_vat_tu
+//     ban_vt_thong_tin  CHỈ ĐỌC cột anh_urls (link ảnh người dùng đã dán trước đây); các cột khác không dùng nữa
 // - Ghép theo MÃ SAP dạng chuỗi, giữ nguyên (không zfill, không HEX).
-// - gia_tri là TRIỆU ĐỒNG; giá bán gia_ban_vnd là ĐỒNG / 1 đơn vị; gia_binh_quan trong DB là đồng / price_unit đơn vị
-//   như file SAP (price_unit có thể = 1000, vd gỗ CD3) => API trả master.giaBinhQuan đã chia price_unit (đồng / 1 đvt).
+// - gia_tri là TRIỆU ĐỒNG; gia_binh_quan trong DB là đồng / price_unit đơn vị như file SAP (price_unit có thể = 1000,
+//   vd gỗ CD3) => API trả master.giaBinhQuan đã chia price_unit (đồng / 1 đvt).
 // - Ngày trả chuỗi 'YYYY-MM-DD' bằng to_char (Date của JS lúc nửa đêm giờ +7 qua toISOString() lùi 1 ngày).
-// - Quyền: xem 'ban_vat_tu', sửa 'ban_vat_tu_sua' (ADMIN có mọi quyền — quyền là chuỗi trong users.permissions, không
-//   có danh sách đăng ký ở máy chủ). Giá vốn (giaTri, donGiaVon, master.giaBinhQuan) chỉ trả cho người có quyền xem giá
-//   vật tư (MATERIAL_PRICE_PERMISSION), bỏ ở máy chủ chứ không gửi xuống. Quyền đó che cả nhà cung cấp
-//   (MATERIAL_PRICE_COLUMNS có nha_cung_cap) => thuộc tính MP37 NHÀ CUNG CẤP / MP18 MÃ SẢN PHẨM NCC cũng bỏ khi không có quyền.
+// - Quyền: xem 'ban_vat_tu', duyệt / ẩn ảnh 'ban_vat_tu_sua' (ADMIN có mọi quyền — quyền là chuỗi trong
+//   users.permissions, không có danh sách đăng ký ở máy chủ). Giá vốn (giaTri, donGiaVon, master.giaBinhQuan) chỉ trả
+//   cho người có quyền xem giá vật tư (MATERIAL_PRICE_PERMISSION), bỏ ở máy chủ chứ không gửi xuống. Quyền đó che cả
+//   nhà cung cấp (MATERIAL_PRICE_COLUMNS có nha_cung_cap) => thuộc tính MP37 NHÀ CUNG CẤP / MP18 MÃ SẢN PHẨM NCC cũng
+//   bỏ khi không có quyền.
 // - Cache theo phiên bản RIÊNG table_versions 'ban_vt' (CHỈ loader bump => nhật ký cập nhật dữ liệu phản ánh đúng lần nạp
-//   tồn kho) ghép MAX(updated_at) của ban_vt_thong_tin (PUT đổi). Không thêm vào TABLE_TO_VERSION_KEY của server/data.ts
-//   (map đó cho phép tải nguyên bảng qua /api/all-data).
+//   tồn kho) ghép mốc duyệt ảnh. Không thêm vào TABLE_TO_VERSION_KEY của server/data.ts (map đó cho phép tải nguyên
+//   bảng qua /api/all-data).
 // - Chưa chạy SQL tạo bảng (lỗi 42P01) => GET trả danh sách rỗng + canhBao, không 500.
 // ============================================================================
 
 const TEN_PHIEN_BAN = 'ban_vt';
 export const QUYEN_XEM = 'ban_vat_tu';
 export const QUYEN_SUA = 'ban_vat_tu_sua';
-const LOI_QUYEN_XEM = { error: 'Bạn chưa có quyền xem trang bán vật tư tồn kho' };
-const LOI_QUYEN_SUA = { error: 'Bạn chưa có quyền sửa thông tin bán vật tư' };
+const LOI_QUYEN_XEM = { error: 'Bạn chưa có quyền xem Danh mục vật tư' };
+const LOI_QUYEN_SUA = { error: 'Bạn chưa có quyền duyệt / ẩn ảnh vật tư' };
 export const CANH_BAO_THIEU_BANG = 'Chưa tạo bảng — chạy backend/sql/2026-11-14_ban_vat_tu_ton.sql';
 // ~5.100 dòng nối 3 bảng: nhẹ, nhưng để rộng hơn trần mặc định phòng lúc DB bận
 const TIMEOUT_MS = 15000;
 
-export const TRANG_THAI_BAN = ['dang_ban', 'da_giu', 'da_ban', 'ngung_ban'] as const;
-export type TrangThaiBan = typeof TRANG_THAI_BAN[number];
-export const GIA_BAN_TOI_DA = 1e13;
-export const SO_ANH_TOI_DA = 10;
-export const URL_TOI_DA_KY_TU = 1000;
-export const CHUOI_TOI_DA_KY_TU = 2000;
 export const MA_TOI_DA_KY_TU = 100;
-export const TEN_HIEN_THI_TOI_DA_KY_TU = 200;
-export const SO_MA_HANG_LOAT_TOI_DA = 6000;
-export const SQL_CONG_KHAI = 'backend/sql/2026-11-15_ban_vat_tu_cong_khai.sql';
-const LOI_THIEU_COT_CONG_KHAI = { error: `Chưa tạo cột / bảng trang khách — chạy ${SQL_CONG_KHAI}` };
 
 // ---------------------------------------------------------------------------
 // KIỂU DỮ LIỆU (đúng hợp đồng với frontend/services/banVatTuApi.ts)
 // ---------------------------------------------------------------------------
-export interface ThongTinBan {
-  giaBanVnd: number | null;
-  anhUrls: string[];
-  trangThai: TrangThaiBan;
-  lienHe: string | null;
-  ghiChu: string | null;
-  updatedBy: string | null;
-  updatedAt: string | null;
-  /** đã duyệt đăng lên trang khách (trang khách chỉ hiện khi đồng thời trangThai = 'dang_ban') */
-  dangCongKhai: boolean;
-  /** tên cho khách (null => tên vật tư) */
-  tenHienThi: string | null;
-  /** mô tả cho khách (văn bản thuần) */
-  moTaCongKhai: string | null;
-}
-
 export interface MasterVatTu {
   ten: string | null;
   nhomSap: string | null;
@@ -114,8 +81,6 @@ export interface AnhVatTu {
   trangThai: 'tu_dong' | 'da_duyet';
   congTrinh: string | null;
   codeVatLieu: string | null;
-  /** admin đã bật "hiện cho khách" (mặc định false: ảnh sheet 03 hay có chữ viết tay / dấu duyệt / tên CT) */
-  congKhai: boolean;
 }
 
 export const TRANG_THAI_ANH = ['tu_dong', 'da_duyet', 'an'] as const;
@@ -166,7 +131,8 @@ export interface DongBanVatTu {
   /** đồng / đvt = giaTri * 1e6 / soLuong; null nếu không có quyền hoặc soLuong <= 0 */
   donGiaVon: number | null;
   master: MasterVatTu | null;
-  ban: ThongTinBan;
+  /** link ảnh người dùng đã dán trước đây (ban_vt_thong_tin.anh_urls) — chỉ đọc */
+  anhLink: string[];
   /** ảnh nội bộ: đã duyệt trước, rồi chắc chắn, rồi mới nhất */
   anh: AnhVatTu[];
 }
@@ -194,22 +160,6 @@ const soHoacNull = (v: unknown): number | null => {
 };
 const chuoiHoacNull = (v: unknown): string | null => (v === null || v === undefined ? null : String(v));
 
-export const laTrangThaiBan = (v: unknown): v is TrangThaiBan =>
-  typeof v === 'string' && (TRANG_THAI_BAN as readonly string[]).includes(v);
-
-/** URL ảnh hợp lệ: http(s)://…, ≤ URL_TOI_DA_KY_TU ký tự, không khoảng trắng / ký tự điều khiển. */
-export const laUrlAnhHopLe = (v: unknown): v is string => {
-  if (typeof v !== 'string' || v.length === 0 || v.length > URL_TOI_DA_KY_TU) return false;
-  // eslint-disable-next-line no-control-regex
-  if (/[\s\u0000-\u001f\u007f]/.test(v)) return false;
-  try {
-    const u = new URL(v);
-    return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname;
-  } catch {
-    return false;
-  }
-};
-
 /** Mã vật tư trên URL: chuỗi khác rỗng (sau khi bỏ khoảng trắng 2 đầu), ≤ MA_TOI_DA_KY_TU ký tự. Giữ nguyên chuỗi
  *  (không zfill: mã 11 số là mã thật). Sai => null. */
 export const docMaVatTu = (v: unknown): string | null => {
@@ -218,165 +168,9 @@ export const docMaVatTu = (v: unknown): string | null => {
   return ma && ma.length <= MA_TOI_DA_KY_TU ? ma : null;
 };
 
-/** Trường người dùng gửi lên trong PUT; trường không gửi = giữ nguyên giá trị cũ. */
-export interface ThayDoiBan {
-  giaBanVnd?: number | null;
-  anhUrls?: string[];
-  trangThai?: TrangThaiBan;
-  lienHe?: string | null;
-  ghiChu?: string | null;
-  dangCongKhai?: boolean;
-  tenHienThi?: string | null;
-  moTaCongKhai?: string | null;
-}
-
-/** Chuỗi tuỳ chọn: null / '' / chỉ khoảng trắng => null; bỏ khoảng trắng 2 đầu; > toiDa ký tự => sai. */
-const docChuoiTuyChon = (v: unknown, toiDa = CHUOI_TOI_DA_KY_TU): { hopLe: true; giaTri: string | null } | { hopLe: false } => {
-  if (v === null) return { hopLe: true, giaTri: null };
-  if (typeof v !== 'string' || v.length > toiDa) return { hopLe: false };
-  const s = v.trim();
-  return { hopLe: true, giaTri: s === '' ? null : s };
-};
-
-/**
- * Kiểm tra thân PUT /api/ban-vat-tu/:ma. Hợp lệ khi:
- * - giaBanVnd: null hoặc số hữu hạn 0 … 1e13 (đồng / 1 đơn vị)
- * - anhUrls: mảng ≤ 10 URL http(s), mỗi URL ≤ 1000 ký tự (bỏ trùng, giữ thứ tự)
- * - trangThai: 'dang_ban' | 'da_giu' | 'da_ban' | 'ngung_ban'
- * - lienHe, ghiChu, moTaCongKhai: null hoặc chuỗi ≤ 2000 ký tự ('' => null); tenHienThi: ≤ 200 ký tự
- * - dangCongKhai: boolean (bật khi trạng thái khác 'dang_ban' vẫn lưu — trang khách chỉ hiện khi đang bán)
- * - có ít nhất 1 trường; trường lạ bị bỏ qua.
- */
-export const kiemTraThanPut = (body: unknown): { hopLe: true; thayDoi: ThayDoiBan } | { hopLe: false; loi: string } => {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return { hopLe: false, loi: 'Dữ liệu gửi lên không hợp lệ' };
-  const b = body as Record<string, unknown>;
-  const thayDoi: ThayDoiBan = {};
-
-  if (b.giaBanVnd !== undefined) {
-    if (b.giaBanVnd === null) thayDoi.giaBanVnd = null;
-    else if (typeof b.giaBanVnd !== 'number' || !Number.isFinite(b.giaBanVnd) || b.giaBanVnd < 0 || b.giaBanVnd > GIA_BAN_TOI_DA) {
-      return { hopLe: false, loi: 'Giá bán phải là số từ 0 đến 10.000 tỷ đồng' };
-    } else thayDoi.giaBanVnd = b.giaBanVnd;
-  }
-
-  if (b.anhUrls !== undefined) {
-    if (!Array.isArray(b.anhUrls)) return { hopLe: false, loi: 'Danh sách ảnh không hợp lệ' };
-    const urls: string[] = [];
-    for (const x of b.anhUrls) {
-      const u = typeof x === 'string' ? x.trim() : x;
-      if (!laUrlAnhHopLe(u)) return { hopLe: false, loi: `Link ảnh phải bắt đầu bằng http:// hoặc https:// và dài tối đa ${URL_TOI_DA_KY_TU} ký tự` };
-      if (!urls.includes(u)) urls.push(u);
-    }
-    if (urls.length > SO_ANH_TOI_DA) return { hopLe: false, loi: `Tối đa ${SO_ANH_TOI_DA} ảnh cho 1 mã vật tư` };
-    thayDoi.anhUrls = urls;
-  }
-
-  if (b.trangThai !== undefined) {
-    if (!laTrangThaiBan(b.trangThai)) return { hopLe: false, loi: 'Trạng thái bán không hợp lệ' };
-    thayDoi.trangThai = b.trangThai;
-  }
-
-  for (const truong of ['lienHe', 'ghiChu'] as const) {
-    if (b[truong] === undefined) continue;
-    const r = docChuoiTuyChon(b[truong]);
-    if (!r.hopLe) return { hopLe: false, loi: `${truong === 'lienHe' ? 'Liên hệ' : 'Ghi chú'} tối đa ${CHUOI_TOI_DA_KY_TU} ký tự` };
-    thayDoi[truong] = r.giaTri;
-  }
-
-  if (b.dangCongKhai !== undefined) {
-    if (typeof b.dangCongKhai !== 'boolean') return { hopLe: false, loi: 'Đăng lên trang khách phải là true / false' };
-    thayDoi.dangCongKhai = b.dangCongKhai;
-  }
-  if (b.tenHienThi !== undefined) {
-    const r = docChuoiTuyChon(b.tenHienThi, TEN_HIEN_THI_TOI_DA_KY_TU);
-    if (!r.hopLe) return { hopLe: false, loi: `Tên hiển thị cho khách tối đa ${TEN_HIEN_THI_TOI_DA_KY_TU} ký tự` };
-    thayDoi.tenHienThi = r.giaTri;
-  }
-  if (b.moTaCongKhai !== undefined) {
-    const r = docChuoiTuyChon(b.moTaCongKhai);
-    if (!r.hopLe) return { hopLe: false, loi: `Mô tả cho khách tối đa ${CHUOI_TOI_DA_KY_TU} ký tự` };
-    thayDoi.moTaCongKhai = r.giaTri;
-  }
-
-  if (Object.keys(thayDoi).length === 0) return { hopLe: false, loi: 'Không có thông tin nào để lưu' };
-  return { hopLe: true, thayDoi };
-};
-
-/** Các cột thông tin bán (alias ban_*), dùng chung cho GET và RETURNING của PUT. coCongKhai = false: DB chưa chạy
- *  SQL trang khách (thiếu cột, 42703) => không đọc cột mới (dungThongTinBan coi như mặc định: chưa đăng). */
-const SQL_COT_BAN = (b: string, coCongKhai = true) => `
-  ${b}.gia_ban_vnd AS ban_gia, ${b}.anh_urls AS ban_anh, ${b}.trang_thai AS ban_trang_thai,
-  ${b}.lien_he AS ban_lien_he, ${b}.ghi_chu AS ban_ghi_chu, ${b}.updated_by AS ban_updated_by,
-  to_char(${b}.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ban_updated_at${coCongKhai ? `,
-  ${b}.dang_cong_khai AS ban_dang_cong_khai, ${b}.ten_hien_thi AS ban_ten_hien_thi, ${b}.mo_ta_cong_khai AS ban_mo_ta_cong_khai` : ''}`;
-
-/** Thay đổi có đụng cột trang khách (cần SQL 2026-11-15_ban_vat_tu_cong_khai.sql) */
-export const coTruongCongKhai = (t: ThayDoiBan): boolean =>
-  t.dangCongKhai !== undefined || t.tenHienThi !== undefined || t.moTaCongKhai !== undefined;
-
-/** Cột DB của từng trường sửa được (thứ tự cố định => SQL ổn định). */
-// Kiểu ép tường minh: tham số trong INSERT … SELECT không được suy kiểu theo cột đích như INSERT … VALUES
-export const COT_THAY_DOI: Array<[keyof ThayDoiBan, string, string]> = [
-  ['giaBanVnd', 'gia_ban_vnd', 'numeric'],
-  ['anhUrls', 'anh_urls', 'text[]'],
-  ['trangThai', 'trang_thai', 'text'],
-  ['lienHe', 'lien_he', 'text'],
-  ['ghiChu', 'ghi_chu', 'text'],
-  ['dangCongKhai', 'dang_cong_khai', 'boolean'],
-  ['tenHienThi', 'ten_hien_thi', 'text'],
-  ['moTaCongKhai', 'mo_ta_cong_khai', 'text'],
-];
-
-/** Mốc "mới đăng" khi UPSERT trùng mã: bật từ tắt => now(); còn lại giữ mốc cũ (trang khách chỉ đọc mốc khi đang bật). */
-const SQL_CAP_NHAT_MOC_DANG =
-  'dang_cong_khai_luc = CASE WHEN EXCLUDED.dang_cong_khai AND NOT ban_vt_thong_tin.dang_cong_khai THEN now() '
-  + 'ELSE ban_vt_thong_tin.dang_cong_khai_luc END';
-
-/**
- * SQL UPSERT ban_vt_thong_tin CHỈ với các trường có gửi (trường không gửi: giữ giá trị cũ, dòng mới lấy mặc định của
- * bảng). Chỉ ghi khi mã có trong ban_vt_ton — không có dòng trả về => 404. $1 = mã, $2 = người sửa, $3… = giá trị.
- * docCotCongKhai = false: RETURNING không đọc cột trang khách (DB chưa chạy SQL trang khách, thay đổi không đụng cột đó).
- */
-export const dungSqlUpsert = (ma: string, nguoiSua: string | null, thayDoi: ThayDoiBan, docCotCongKhai = true): { sql: string; thamSo: unknown[] } => {
-  const cot: string[] = [];
-  const giuCho: string[] = [];
-  const giaTri: unknown[] = [];
-  for (const [truong, tenCot, kieu] of COT_THAY_DOI) {
-    if (thayDoi[truong] === undefined) continue;
-    cot.push(tenCot);
-    giaTri.push(thayDoi[truong]);
-    giuCho.push(`$${giaTri.length + 2}::${kieu}`);
-  }
-  const capNhat = [...cot.map(c => `${c} = EXCLUDED.${c}`), 'updated_by = EXCLUDED.updated_by', 'updated_at = now()'];
-  if (thayDoi.dangCongKhai !== undefined) {
-    // Dòng mới: bật => mốc now(). Dòng đã có: xem SQL_CAP_NHAT_MOC_DANG
-    const giuChoDang = giuCho[cot.indexOf('dang_cong_khai')];
-    cot.push('dang_cong_khai_luc');
-    giuCho.push(`CASE WHEN ${giuChoDang} THEN now() END`);
-    capNhat.push(SQL_CAP_NHAT_MOC_DANG);
-  }
-  const sql = `
-    INSERT INTO ban_vt_thong_tin (ma_vat_tu, ${[...cot, 'updated_by', 'updated_at'].join(', ')})
-    SELECT $1::text, ${[...giuCho, '$2::text', 'now()'].join(', ')}
-    WHERE EXISTS (SELECT 1 FROM ban_vt_ton WHERE ma_vat_tu = $1::text)
-    ON CONFLICT (ma_vat_tu) DO UPDATE SET ${capNhat.join(', ')}
-    RETURNING ${SQL_COT_BAN('ban_vt_thong_tin', docCotCongKhai || coTruongCongKhai(thayDoi))}`;
-  return { sql, thamSo: [ma, nguoiSua, ...giaTri] };
-};
-
-/** Thông tin bán từ dòng DB (alias ban_*). Chưa có dòng (LEFT JOIN rỗng) => mặc định: đang bán, chưa giá, chưa ảnh. */
-export const dungThongTinBan = (row: Record<string, unknown>): ThongTinBan => ({
-  giaBanVnd: soHoacNull(row.ban_gia),
-  anhUrls: Array.isArray(row.ban_anh) ? row.ban_anh.filter((x): x is string => typeof x === 'string' && x !== '') : [],
-  trangThai: laTrangThaiBan(row.ban_trang_thai) ? row.ban_trang_thai : 'dang_ban',
-  lienHe: chuoiHoacNull(row.ban_lien_he),
-  ghiChu: chuoiHoacNull(row.ban_ghi_chu),
-  updatedBy: chuoiHoacNull(row.ban_updated_by),
-  updatedAt: chuoiHoacNull(row.ban_updated_at),
-  dangCongKhai: row.ban_dang_cong_khai === true,
-  tenHienThi: chuoiHoacNull(row.ban_ten_hien_thi),
-  moTaCongKhai: chuoiHoacNull(row.ban_mo_ta_cong_khai),
-});
+/** Mảng link ảnh (text[]) từ DB => chỉ giữ chuỗi khác rỗng. */
+export const docAnhLink = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x !== '') : [];
 
 /** JSONB thuộc tính MPxx => { tên: giá trị } chỉ giữ giá trị khác rỗng, mọi giá trị đổi ra chuỗi. */
 export const chuanHoaThuocTinh = (v: unknown): Record<string, string> => {
@@ -493,127 +287,13 @@ export const docIdAnh = (v: unknown): number | null => {
   return n > 0 ? n : null;
 };
 
-/**
- * Kiểm tra thân PUT /api/ban-vat-tu/anh/:id: { trangThai?: 'da_duyet' | 'an' | 'tu_dong', congKhai?: boolean } — ít
- * nhất 1 trường. Kết quả chỉ có khoá của trường đã gửi.
- */
-export const kiemTraThanPutAnh = (body: unknown):
-  { hopLe: true; trangThai?: TrangThaiAnh; congKhai?: boolean } | { hopLe: false; loi: string } => {
+/** Kiểm tra thân PUT /api/ban-vat-tu/anh/:id: { trangThai: 'da_duyet' | 'an' | 'tu_dong' }. */
+export const kiemTraThanPutAnh = (body: unknown): { hopLe: true; trangThai: TrangThaiAnh } | { hopLe: false; loi: string } => {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) return { hopLe: false, loi: 'Dữ liệu gửi lên không hợp lệ' };
   const b = body as Record<string, unknown>;
-  const kq: { hopLe: true; trangThai?: TrangThaiAnh; congKhai?: boolean } = { hopLe: true };
-  if (b.trangThai !== undefined) {
-    if (!laTrangThaiAnh(b.trangThai)) return { hopLe: false, loi: 'Trạng thái ảnh phải là da_duyet, an hoặc tu_dong' };
-    kq.trangThai = b.trangThai;
-  }
-  if (b.congKhai !== undefined) {
-    if (typeof b.congKhai !== 'boolean') return { hopLe: false, loi: 'Hiện cho khách phải là true / false' };
-    kq.congKhai = b.congKhai;
-  }
-  if (kq.trangThai === undefined && kq.congKhai === undefined) {
-    return { hopLe: false, loi: 'Trạng thái ảnh phải là da_duyet, an hoặc tu_dong' };
-  }
-  return kq;
+  if (!laTrangThaiAnh(b.trangThai)) return { hopLe: false, loi: 'Trạng thái ảnh phải là da_duyet, an hoặc tu_dong' };
+  return { hopLe: true, trangThai: b.trangThai };
 };
-
-/** Kiểm tra thân PUT /api/ban-vat-tu/cong-khai-hang-loat: { mas: string[] (1…6000, bỏ trùng), bat: boolean }. */
-export const kiemTraThanHangLoat = (body: unknown): { hopLe: true; mas: string[]; bat: boolean } | { hopLe: false; loi: string } => {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return { hopLe: false, loi: 'Dữ liệu gửi lên không hợp lệ' };
-  const b = body as Record<string, unknown>;
-  if (typeof b.bat !== 'boolean') return { hopLe: false, loi: 'Thiếu bat (true = đăng, false = gỡ)' };
-  if (!Array.isArray(b.mas) || b.mas.length === 0) return { hopLe: false, loi: 'Chưa chọn mã nào' };
-  if (b.mas.length > SO_MA_HANG_LOAT_TOI_DA) return { hopLe: false, loi: `Tối đa ${SO_MA_HANG_LOAT_TOI_DA} mã mỗi lần` };
-  const mas = new Set<string>();
-  for (const x of b.mas) {
-    const ma = docMaVatTu(x);
-    if (!ma) return { hopLe: false, loi: 'Có mã vật tư không hợp lệ' };
-    mas.add(ma);
-  }
-  return { hopLe: true, mas: [...mas], bat: b.bat };
-};
-
-export const TRANG_THAI_YEU_CAU = ['moi', 'dang_xu_ly', 'da_xong', 'huy'] as const;
-export type TrangThaiYeuCau = typeof TRANG_THAI_YEU_CAU[number];
-export const laTrangThaiYeuCau = (v: unknown): v is TrangThaiYeuCau =>
-  typeof v === 'string' && (TRANG_THAI_YEU_CAU as readonly string[]).includes(v);
-
-/** Kiểm tra thân PUT /api/ban-vat-tu/yeu-cau/:id: { trangThai?, ghiChuNoiBo? (≤ 2000, '' => null) } — ít nhất 1 trường. */
-export const kiemTraThanPutYeuCau = (body: unknown):
-  { hopLe: true; trangThai?: TrangThaiYeuCau; ghiChuNoiBo?: string | null } | { hopLe: false; loi: string } => {
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) return { hopLe: false, loi: 'Dữ liệu gửi lên không hợp lệ' };
-  const b = body as Record<string, unknown>;
-  const kq: { hopLe: true; trangThai?: TrangThaiYeuCau; ghiChuNoiBo?: string | null } = { hopLe: true };
-  if (b.trangThai !== undefined) {
-    if (!laTrangThaiYeuCau(b.trangThai)) return { hopLe: false, loi: 'Trạng thái yêu cầu không hợp lệ' };
-    kq.trangThai = b.trangThai;
-  }
-  if (b.ghiChuNoiBo !== undefined) {
-    const r = docChuoiTuyChon(b.ghiChuNoiBo);
-    if (!r.hopLe) return { hopLe: false, loi: `Ghi chú nội bộ tối đa ${CHUOI_TOI_DA_KY_TU} ký tự` };
-    kq.ghiChuNoiBo = r.giaTri;
-  }
-  if (kq.trangThai === undefined && kq.ghiChuNoiBo === undefined) return { hopLe: false, loi: 'Không có thông tin nào để lưu' };
-  return kq;
-};
-
-export interface DongYeuCauMua {
-  ma: string;
-  ten: string;
-  soLuong: number;
-  dvt: string | null;
-}
-
-export interface YeuCauMua {
-  id: number;
-  maYeuCau: string | null;
-  items: DongYeuCauMua[];
-  tenKhach: string;
-  sdt: string;
-  email: string | null;
-  congTy: string | null;
-  ghiChu: string | null;
-  trangThai: TrangThaiYeuCau;
-  ghiChuNoiBo: string | null;
-  xuLyBoi: string | null;
-  xuLyLuc: string | null;
-  createdAt: string | null;
-}
-
-/** items JSONB của yêu cầu => mảng dòng (bỏ phần tử sai dạng). */
-export const docDongYeuCau = (v: unknown): DongYeuCauMua[] => {
-  let o = v;
-  if (typeof o === 'string') {
-    try { o = JSON.parse(o); } catch { return []; }
-  }
-  if (!Array.isArray(o)) return [];
-  const kq: DongYeuCauMua[] = [];
-  for (const x of o) {
-    if (x === null || typeof x !== 'object') continue;
-    const r = x as Record<string, unknown>;
-    const ma = chuoiHoacNull(r.ma);
-    const soLuong = soHoacNull(r.soLuong);
-    if (!ma || soLuong === null) continue;
-    kq.push({ ma, ten: chuoiHoacNull(r.ten) ?? ma, soLuong, dvt: chuoiHoacNull(r.dvt) });
-  }
-  return kq;
-};
-
-/** 1 dòng ban_vt_yeu_cau => yêu cầu API (admin). Không trả ip_hash / user_agent. */
-export const dungYeuCau = (row: Record<string, unknown>): YeuCauMua => ({
-  id: Number(row.id),
-  maYeuCau: chuoiHoacNull(row.ma_yeu_cau),
-  items: docDongYeuCau(row.items),
-  tenKhach: String(row.ten_khach ?? ''),
-  sdt: String(row.sdt ?? ''),
-  email: chuoiHoacNull(row.email),
-  congTy: chuoiHoacNull(row.cong_ty),
-  ghiChu: chuoiHoacNull(row.ghi_chu),
-  trangThai: laTrangThaiYeuCau(row.trang_thai) ? row.trang_thai : 'moi',
-  ghiChuNoiBo: chuoiHoacNull(row.ghi_chu_noi_bo),
-  xuLyBoi: chuoiHoacNull(row.xu_ly_boi),
-  xuLyLuc: chuoiHoacNull(row.xu_ly_luc),
-  createdAt: chuoiHoacNull(row.created_at),
-});
 
 /** Content-Type trả cho ảnh: chỉ kiểu ảnh raster quen thuộc (không SVG — có thể chứa script); lạ => image/jpeg. */
 export const mimeAnhAnToan = (v: unknown): string => {
@@ -632,7 +312,6 @@ export const dungAnh = (row: Record<string, unknown>): AnhVatTu | null => {
     trangThai: row.trang_thai,
     congTrinh: chuoiHoacNull(row.cong_trinh)?.trim() || null,
     codeVatLieu: chuoiHoacNull(row.code_vat_lieu)?.trim() || null,
-    congKhai: row.cong_khai === true,
   };
 };
 
@@ -773,7 +452,7 @@ export const dungDong = (row: Record<string, unknown>, coGiaVon: boolean, phu: P
     giaTri,
     donGiaVon,
     master,
-    ban: dungThongTinBan(row),
+    anhLink: docAnhLink(row.anh_link),
     anh: phu.anh ?? [],
   };
 };
@@ -787,9 +466,9 @@ export const xepDong = (items: DongBanVatTu[], coGiaVon: boolean): DongBanVatTu[
 
 // ---------------------------------------------------------------------------
 // PHIÊN BẢN (khoá cache) = table_versions 'ban_vt' (loader bump; chưa có dòng => MAX(updated_at) của bảng tồn)
-// + MAX(updated_at) của ban_vt_thong_tin (PUT đổi — không bump table_versions để nhật ký cập nhật dữ liệu không báo
-// "đã cập nhật" khi chỉ sửa giá / ảnh). Giữ 3 giây + dùng chung 1 truy vấn cho các lần gọi đồng thời (như
-// routes/tonKhoVt.ts). theHe: PUT tăng => truy vấn bắt đầu trước PUT không được nhớ lại khoá cũ vào phienBanNho.
+// + mốc duyệt ảnh (phienBanAnh — PUT ảnh không bump table_versions để nhật ký cập nhật dữ liệu không báo "đã cập nhật"
+// khi chỉ duyệt ảnh). Giữ 3 giây + dùng chung 1 truy vấn cho các lần gọi đồng thời (như routes/tonKhoVt.ts).
+// theHe: PUT tăng => truy vấn bắt đầu trước PUT không được nhớ lại khoá cũ vào phienBanNho.
 // ---------------------------------------------------------------------------
 const PHIEN_BAN_TTL_MS = 3000;
 let phienBanNho: { luc: number; khoa: string } | null = null;
@@ -818,16 +497,14 @@ const phienBanAnh = async (): Promise<string> => {
 const tinhPhienBanChinh = async (): Promise<string> => {
   try {
     const r = await timedQuery(
-      `SELECT (SELECT to_char(MAX(last_updated) AT TIME ZONE 'UTC', ${DINH_DANG_GIO})
-                 FROM table_versions WHERE table_name = $1) AS tv,
-              (SELECT to_char(MAX(updated_at) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) FROM ban_vt_thong_tin) AS tt`,
+      `SELECT to_char(MAX(last_updated) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS tv
+       FROM table_versions WHERE table_name = $1`,
       [TEN_PHIEN_BAN]);
     const tv = r.rows[0]?.tv as string | null | undefined;
-    const tt = (r.rows[0]?.tt as string | null | undefined) ?? '';
-    if (tv) return `tv:${tv}|tt:${tt}`;
+    if (tv) return `tv:${tv}`;
     const r2 = await timedQuery(
       `SELECT to_char(MAX(updated_at) AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS v FROM ban_vt_ton`);
-    return `ua:${r2.rows[0]?.v ?? 'rong'}|tt:${tt}`;
+    return `ua:${r2.rows[0]?.v ?? 'rong'}`;
   } catch (e) {
     if (!laThieuBang(e)) throw e;
     return 'thieu-bang';
@@ -839,16 +516,16 @@ const tinhPhienBan = async (): Promise<string> => {
   return `${chinh}|anh:${anh}`;
 };
 
-/** Sau khi ghi (PUT / đăng hàng loạt / duyệt ảnh): instance này thấy phiên bản mới ngay (instance khác chậm tối đa
- *  PHIEN_BAN_TTL_MS); truy vấn phiên bản đang chạy dở (bắt đầu trước khi ghi) không được nhớ lại khoá cũ. */
+/** Sau khi duyệt / ẩn ảnh: instance này thấy phiên bản mới ngay (instance khác chậm tối đa PHIEN_BAN_TTL_MS); truy
+ *  vấn phiên bản đang chạy dở (bắt đầu trước khi ghi) không được nhớ lại khoá cũ. */
 const boPhienBanNho = () => {
   theHe++;
   phienBanNho = null;
   phienBanDangDoc = null;
 };
 
-/** Khoá phiên bản dữ liệu bán vật tư — dùng chung cho trang khách (routes/banVatTuCongKhai.ts). */
-export const docPhienBan = async (): Promise<string> => {
+/** Khoá phiên bản dữ liệu Danh mục vật tư (danh sách + lý lịch mua). */
+const docPhienBan = async (): Promise<string> => {
   if (phienBanNho && Date.now() - phienBanNho.luc < PHIEN_BAN_TTL_MS) return phienBanNho.khoa;
   if (phienBanDangDoc) return phienBanDangDoc;
   const theHeLucDau = theHe;
@@ -869,7 +546,7 @@ export const docPhienBan = async (): Promise<string> => {
 // 2 khoá: có / không có quyền giá vốn
 const cacheDanhSach = createCache<Omit<DanhSachBanVatTu, 'coQuyenSua'>>(2);
 
-const sqlDanhSach = (coCongKhai: boolean) => `
+const SQL_DANH_SACH = `
   WITH moc AS (
     SELECT t.ngay_chot, t.nguon_file FROM ban_vt_ton t
     ORDER BY t.ngay_chot DESC NULLS LAST, t.updated_at DESC NULLS LAST LIMIT 1
@@ -886,9 +563,10 @@ const sqlDanhSach = (coCongKhai: boolean) => `
          m.chung_loai AS m_chung_loai, m.chat_lieu AS m_chat_lieu, m.quy_cach AS m_quy_cach, m.mau AS m_mau,
          m.thuong_hieu AS m_thuong_hieu, m.xuat_xu AS m_xuat_xu, m.thuoc_tinh AS m_thuoc_tinh,
          m.nguon AS m_nguon,
-         ${SQL_COT_BAN('b', coCongKhai)}
+         b.anh_urls AS anh_link
   FROM ban_vt_ton t
   LEFT JOIN ban_vt_master m ON m.ma_vat_tu = t.ma_vat_tu
+  -- chỉ đọc link ảnh đã dán trước (bảng thông tin cũ, không còn ghi)
   LEFT JOIN ban_vt_thong_tin b ON b.ma_vat_tu = t.ma_vat_tu
   -- Bảng nạp lại nguyên ảnh chụp mỗi lần; phòng còn sót lần chốt cũ thì chỉ lấy lần chốt mới nhất
   WHERE t.ngay_chot IS NOT DISTINCT FROM (SELECT ngay_chot FROM moc)`;
@@ -918,32 +596,16 @@ const docNccGanNhat = async (): Promise<Map<string, unknown>> => new Map((await 
   ORDER BY v.ma_vat_tu_sap, v.ngay_pr DESC NULLS LAST, v.id DESC`,
 )).map(r => [String(r.ma), r.nha_cung_cap]));
 
-const sqlAnhTheoMa = (coCongKhai: boolean) => `
+/** Ảnh nội bộ theo mã (bỏ ảnh đã ẩn); chưa có bảng => không ảnh. */
+const docAnhTheoMa = async (): Promise<Map<string, AnhVatTu[]>> => gomAnhTheoMa(await docBoSung(`
   SELECT a.id, a.ma_vat_tu, a.chac_chan, a.trang_thai, a.cong_trinh, a.code_vat_lieu,
-         ${coCongKhai ? 'a.cong_khai' : 'FALSE AS cong_khai'},
          to_char(a.created_at AT TIME ZONE 'UTC', ${DINH_DANG_GIO}) AS tao_luc
   FROM ban_vt_anh a
-  WHERE a.trang_thai <> 'an' AND a.ma_vat_tu IN (SELECT ma_vat_tu FROM ban_vt_ton)`;
+  WHERE a.trang_thai <> 'an' AND a.ma_vat_tu IN (SELECT ma_vat_tu FROM ban_vt_ton)`));
 
-/** Ảnh nội bộ theo mã; chưa có cột cong_khai (chưa chạy SQL trang khách) => đọc như cũ, congKhai = false. */
-const docAnhTheoMa = async (): Promise<Map<string, AnhVatTu[]>> => {
-  try {
-    return gomAnhTheoMa((await timedQuery(sqlAnhTheoMa(true), [], { timeoutMs: TIMEOUT_MS, workMemMb: 16 })).rows);
-  } catch (e) {
-    if (!laThieuBangHoacCot(e)) throw e;
-    return gomAnhTheoMa(await docBoSung(sqlAnhTheoMa(false)));
-  }
-};
-
-/** Truy vấn danh sách; thiếu cột trang khách (42703) => đọc lại không có cột đó. Lỗi khác (kể cả 42P01) ném ra. */
-const docDongDanhSach = async (): Promise<Array<Record<string, unknown>>> => {
-  try {
-    return (await timedQuery(sqlDanhSach(true), [], { timeoutMs: TIMEOUT_MS, workMemMb: 16 })).rows;
-  } catch (e) {
-    if ((e as { code?: string })?.code !== '42703') throw e;
-    return (await timedQuery(sqlDanhSach(false), [], { timeoutMs: TIMEOUT_MS, workMemMb: 16 })).rows;
-  }
-};
+/** Truy vấn danh sách. Lỗi (kể cả 42P01 thiếu bảng) ném ra. */
+const docDongDanhSach = async (): Promise<Array<Record<string, unknown>>> =>
+  (await timedQuery(SQL_DANH_SACH, [], { timeoutMs: TIMEOUT_MS, workMemMb: 16 })).rows;
 
 export const tinhDanhSach = async (coGiaVon: boolean): Promise<Omit<DanhSachBanVatTu, 'coQuyenSua'>> => {
   let rows: Array<Record<string, unknown>>;
@@ -990,117 +652,9 @@ app.get('/api/ban-vat-tu/danh-sach', async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// CÁC ĐƯỜNG CỐ ĐỊNH (/cong-khai-hang-loat, /yeu-cau, /anh/:id) — đăng ký TRƯỚC PUT '/api/ban-vat-tu/:ma' (không thì
-// PUT /cong-khai-hang-loat bị /:ma bắt với ma = 'cong-khai-hang-loat').
-// ---------------------------------------------------------------------------
-
-// PUT /api/ban-vat-tu/cong-khai-hang-loat { mas, bat } — đăng / gỡ nhiều mã lên trang khách trong 1 câu lệnh.
-// bat = true: UPSERT (mã chưa có dòng thông tin => tạo dòng, mặc định đang bán); chỉ mã có trong ban_vt_ton.
-// bat = false: chỉ UPDATE dòng đang bật (không tạo dòng thừa). Trả số mã thực sự đổi.
-const SQL_DANG_HANG_LOAT = `
-  INSERT INTO ban_vt_thong_tin (ma_vat_tu, dang_cong_khai, dang_cong_khai_luc, updated_by, updated_at)
-  SELECT DISTINCT t.ma_vat_tu, TRUE, now(), $2::text, now()
-  FROM ban_vt_ton t WHERE t.ma_vat_tu = ANY($1::text[])
-  ON CONFLICT (ma_vat_tu) DO UPDATE SET dang_cong_khai = TRUE, dang_cong_khai_luc = now(),
-    updated_by = EXCLUDED.updated_by, updated_at = now()
-  WHERE NOT ban_vt_thong_tin.dang_cong_khai
-  RETURNING ma_vat_tu`;
-const SQL_GO_HANG_LOAT = `
-  UPDATE ban_vt_thong_tin SET dang_cong_khai = FALSE, updated_by = $2::text, updated_at = now()
-  WHERE ma_vat_tu = ANY($1::text[]) AND dang_cong_khai
-  RETURNING ma_vat_tu`;
-
-app.put('/api/ban-vat-tu/cong-khai-hang-loat', async (req: Request, res: Response) => {
-  try {
-    if (!(await userHasPermission(req, QUYEN_SUA))) return res.status(403).json(LOI_QUYEN_SUA);
-    const kt = kiemTraThanHangLoat(req.body);
-    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    let soDoi: number;
-    try {
-      soDoi = (await timedQuery(kt.bat ? SQL_DANG_HANG_LOAT : SQL_GO_HANG_LOAT, [kt.mas, req.user?.username ?? null],
-        { timeoutMs: TIMEOUT_MS })).rows.length;
-    } catch (e) {
-      if (laThieuBangHoacCot(e)) return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
-      throw e;
-    }
-    if (soDoi > 0) boPhienBanNho();
-    res.json({ soDoi });
-  } catch (error) {
-    console.error('Lỗi ban-vat-tu cong-khai-hang-loat:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// GET /api/ban-vat-tu/yeu-cau?trangThai=moi|dang_xu_ly|da_xong|huy — yêu cầu báo giá của khách, mới nhất trước, tối đa
-// 500; soMoi = số yêu cầu 'moi' (huy hiệu, không phụ thuộc bộ lọc). Không cache (ít dòng, cần thấy ngay).
-export const SO_YEU_CAU_TOI_DA = 500;
-const DINH_DANG_GIO_GIAY = `'YYYY-MM-DD"T"HH24:MI:SS"Z"'`;
-const SQL_COT_YEU_CAU = `id, ma_yeu_cau, items, ten_khach, sdt, email, cong_ty, ghi_chu, trang_thai, ghi_chu_noi_bo, xu_ly_boi,
-  to_char(xu_ly_luc AT TIME ZONE 'UTC', ${DINH_DANG_GIO_GIAY}) AS xu_ly_luc,
-  to_char(created_at AT TIME ZONE 'UTC', ${DINH_DANG_GIO_GIAY}) AS created_at`;
-
-app.get('/api/ban-vat-tu/yeu-cau', async (req: Request, res: Response) => {
-  try {
-    if (!(await userHasPermission(req, QUYEN_XEM))) return res.status(403).json(LOI_QUYEN_XEM);
-    const loc = req.query.trangThai;
-    if (loc !== undefined && loc !== '' && !laTrangThaiYeuCau(loc)) return res.status(400).json({ error: 'Trạng thái lọc không hợp lệ' });
-    const trangThai = laTrangThaiYeuCau(loc) ? loc : null;
-    let rows: Array<Record<string, unknown>>;
-    let soMoi: number;
-    try {
-      const [ds, dem] = await Promise.all([
-        timedQuery(
-          `SELECT ${SQL_COT_YEU_CAU} FROM ban_vt_yeu_cau
-           WHERE ($1::text IS NULL OR trang_thai = $1::text)
-           ORDER BY created_at DESC NULLS LAST, id DESC LIMIT ${SO_YEU_CAU_TOI_DA}`, [trangThai]),
-        timedQuery(`SELECT COUNT(*)::int AS n FROM ban_vt_yeu_cau WHERE trang_thai = 'moi'`),
-      ]);
-      rows = ds.rows;
-      soMoi = Number(dem.rows[0]?.n ?? 0);
-    } catch (e) {
-      if (!laThieuBangHoacCot(e)) throw e;
-      return res.json({ items: [], soMoi: 0, canhBao: LOI_THIEU_COT_CONG_KHAI.error });
-    }
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({ items: rows.map(dungYeuCau), soMoi });
-  } catch (error) {
-    console.error('Lỗi ban-vat-tu yeu-cau:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// PUT /api/ban-vat-tu/yeu-cau/:id { trangThai?, ghiChuNoiBo? } — ghi xu_ly_boi / xu_ly_luc
-app.put('/api/ban-vat-tu/yeu-cau/:id', async (req: Request, res: Response) => {
-  try {
-    if (!(await userHasPermission(req, QUYEN_SUA))) return res.status(403).json(LOI_QUYEN_SUA);
-    const id = docIdAnh(req.params.id);
-    if (id === null) return res.status(400).json({ error: 'Mã yêu cầu không hợp lệ' });
-    const kt = kiemTraThanPutYeuCau(req.body);
-    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    const sets = ['xu_ly_boi = $2::text', 'xu_ly_luc = now()'];
-    const thamSo: unknown[] = [id, req.user?.username ?? null];
-    if (kt.trangThai !== undefined) { thamSo.push(kt.trangThai); sets.push(`trang_thai = $${thamSo.length}::text`); }
-    if (kt.ghiChuNoiBo !== undefined) { thamSo.push(kt.ghiChuNoiBo); sets.push(`ghi_chu_noi_bo = $${thamSo.length}::text`); }
-    let dong: Record<string, unknown> | undefined;
-    try {
-      dong = (await timedQuery(`UPDATE ban_vt_yeu_cau SET ${sets.join(', ')} WHERE id = $1 RETURNING ${SQL_COT_YEU_CAU}`, thamSo))
-        .rows[0] as Record<string, unknown> | undefined;
-    } catch (e) {
-      if (laThieuBangHoacCot(e)) return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
-      throw e;
-    }
-    if (!dong) return res.status(404).json({ error: 'Không tìm thấy yêu cầu' });
-    res.json({ yeuCau: dungYeuCau(dong) });
-  } catch (error) {
-    console.error('Lỗi ban-vat-tu PUT yeu-cau:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// ---------------------------------------------------------------------------
 // GET /api/ban-vat-tu/anh/:id — bytes 1 ảnh nội bộ (giao diện fetch có token -> blob -> objectURL, như ảnh vướng mắc).
 // Đăng ký TRƯỚC '/:ma/mua-hang' (không trùng mẫu vì khác đoạn cuối, nhưng để rõ thứ tự). Ảnh đã ẩn chỉ người có quyền
-// sửa xem được (để bỏ ẩn).
+// duyệt ảnh xem được (để bỏ ẩn).
 // ---------------------------------------------------------------------------
 app.get('/api/ban-vat-tu/anh/:id', async (req: Request, res: Response) => {
   try {
@@ -1131,15 +685,13 @@ app.get('/api/ban-vat-tu/anh/:id', async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// PUT /api/ban-vat-tu/anh/:id { trangThai?, congKhai? } — duyệt / ẩn / trả về tự động / hiện cho khách. Ghi
-// duyet_boi / duyet_luc ở MỌI thay đổi (kể cả chỉ bật / tắt congKhai): khoá cache danh sách + trang khách đổi qua
-// MAX(duyet_luc) (phienBanAnh) — không bump table_versions 'ban_vt' (dòng đó chỉ phản ánh lần nạp, như PUT thông tin).
+// PUT /api/ban-vat-tu/anh/:id { trangThai } — duyệt / ẩn / trả về tự động. Ghi duyet_boi / duyet_luc: khoá cache danh
+// sách đổi qua MAX(duyet_luc) (phienBanAnh) — không bump table_versions 'ban_vt' (dòng đó chỉ phản ánh lần nạp).
 // ---------------------------------------------------------------------------
-const sqlPutAnh = (coCongKhai: boolean) => `
-  UPDATE ban_vt_anh SET trang_thai = COALESCE($2::text, trang_thai), duyet_boi = $3, duyet_luc = now()
-    ${coCongKhai ? ', cong_khai = COALESCE($4::boolean, cong_khai)' : ''}
+const SQL_PUT_ANH = `
+  UPDATE ban_vt_anh SET trang_thai = $2::text, duyet_boi = $3, duyet_luc = now()
   WHERE id = $1
-  RETURNING id, ma_vat_tu, chac_chan, trang_thai, cong_trinh, code_vat_lieu, ${coCongKhai ? 'cong_khai' : 'FALSE AS cong_khai'}`;
+  RETURNING id, ma_vat_tu, chac_chan, trang_thai, cong_trinh, code_vat_lieu`;
 
 app.put('/api/ban-vat-tu/anh/:id', async (req: Request, res: Response) => {
   try {
@@ -1148,23 +700,12 @@ app.put('/api/ban-vat-tu/anh/:id', async (req: Request, res: Response) => {
     if (id === null) return res.status(400).json({ error: 'Mã ảnh không hợp lệ' });
     const kt = kiemTraThanPutAnh(req.body);
     if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    const nguoi = req.user?.username ?? null;
     let dong: Record<string, unknown> | undefined;
     try {
-      try {
-        dong = (await timedQuery(sqlPutAnh(true), [id, kt.trangThai ?? null, nguoi, kt.congKhai ?? null])).rows[0] as
-          Record<string, unknown> | undefined;
-      } catch (e) {
-        // Chưa có cột cong_khai: chỉ đổi trạng thái thì vẫn làm được như cũ
-        if ((e as { code?: string })?.code !== '42703' || kt.congKhai !== undefined) throw e;
-        dong = (await timedQuery(sqlPutAnh(false), [id, kt.trangThai ?? null, nguoi])).rows[0] as
-          Record<string, unknown> | undefined;
-      }
+      dong = (await timedQuery(SQL_PUT_ANH, [id, kt.trangThai, req.user?.username ?? null])).rows[0] as
+        Record<string, unknown> | undefined;
     } catch (e) {
-      if (laThieuBangHoacCot(e)) {
-        return res.status(503).json({ error: kt.congKhai !== undefined ? LOI_THIEU_COT_CONG_KHAI.error
-          : 'Chưa tạo bảng ảnh — chạy backend/sql/2026-11-15_ban_vat_tu_bo_sung.sql' });
-      }
+      if (laThieuBangHoacCot(e)) return res.status(503).json({ error: 'Chưa tạo bảng ảnh — chạy backend/sql/2026-11-15_ban_vat_tu_bo_sung.sql' });
       throw e;
     }
     if (!dong) return res.status(404).json({ error: 'Không tìm thấy ảnh' });
@@ -1177,52 +718,10 @@ app.put('/api/ban-vat-tu/anh/:id', async (req: Request, res: Response) => {
         trangThai: laTrangThaiAnh(dong.trang_thai) ? dong.trang_thai : 'tu_dong',
         congTrinh: chuoiGon(dong.cong_trinh),
         codeVatLieu: chuoiGon(dong.code_vat_lieu),
-        congKhai: dong.cong_khai === true,
       },
     });
   } catch (error) {
     console.error('Lỗi ban-vat-tu PUT ảnh:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// ---------------------------------------------------------------------------
-// PUT /api/ban-vat-tu/:ma — UPSERT ban_vt_thong_tin (updated_at = now() => khoá cache đổi qua MAX(updated_at);
-// không bump table_versions 'ban_vt', dòng đó chỉ phản ánh lần nạp tồn kho). ĐĂNG KÝ SAU các đường cố định ở trên.
-// ---------------------------------------------------------------------------
-app.put('/api/ban-vat-tu/:ma', async (req: Request, res: Response) => {
-  try {
-    if (!(await userHasPermission(req, QUYEN_SUA))) return res.status(403).json(LOI_QUYEN_SUA);
-    const ma = docMaVatTu(req.params.ma);
-    if (!ma) return res.status(400).json({ error: 'Mã vật tư không hợp lệ' });
-    const kt = kiemTraThanPut(req.body);
-    if (!kt.hopLe) return res.status(400).json({ error: kt.loi });
-    const nguoiSua = req.user?.username ?? null;
-
-    let dong: Record<string, unknown> | undefined;
-    try {
-      // 1 câu lệnh (tự nguyên tử); mã không có trong ban_vt_ton => không ghi, không có dòng trả về
-      const chay = async (docCotCongKhai: boolean) => {
-        const { sql, thamSo } = dungSqlUpsert(ma, nguoiSua, kt.thayDoi, docCotCongKhai);
-        return (await timedQuery(sql, thamSo)).rows[0] as Record<string, unknown> | undefined;
-      };
-      try {
-        dong = await chay(true);
-      } catch (e) {
-        // Chưa chạy SQL trang khách: thay đổi không đụng cột mới thì vẫn lưu như cũ (RETURNING bỏ cột mới)
-        if ((e as { code?: string })?.code !== '42703' || coTruongCongKhai(kt.thayDoi)) throw e;
-        dong = await chay(false);
-      }
-    } catch (e) {
-      if (laThieuBang(e)) return res.status(503).json({ error: CANH_BAO_THIEU_BANG });
-      if ((e as { code?: string })?.code === '42703') return res.status(503).json(LOI_THIEU_COT_CONG_KHAI);
-      throw e;
-    }
-    if (!dong) return res.status(404).json({ error: `Không có mã ${ma} trong tồn kho vật tư đang bán` });
-    boPhienBanNho();
-    res.json({ ban: dungThongTinBan(dong) });
-  } catch (error) {
-    console.error('Lỗi ban-vat-tu PUT:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

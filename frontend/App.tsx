@@ -1,10 +1,12 @@
+import { useMayTinhBang } from './services/mayTinhBang';
 // src/App.tsx
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Settings, Columns, Smartphone, Search, Factory, Hammer, Database, CalendarClock } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Settings, Columns, Smartphone, Search, Factory, Hammer, Database, CalendarClock, FolderOpen } from 'lucide-react';
 import { dangKyNapBang } from './services/napBang';
-import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinhDu, API_BASE_URL, type NguonBanGhiCongTrinh } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinhDu, luuKhiRanh, API_BASE_URL, type NguonBanGhiCongTrinh } from './services/dataService';
+import { boNho, baoMocDoi, ngayVN as ngayVNNho } from './services/nhoApi';
 import { taiFileCongTrinh, fileCongTrinhDaCo, fileCongTrinhCu, coSoFile, ghepDongFile, type DuLieuFileCongTrinh } from './services/congTrinhFile';
 import { findColumnKey } from './components/Dashboard/utils/columnKeyResolver';
 import { giaiNenBanGhi, type Rec as CongTrinhRec } from './components/Construction/core/banGhiCongTrinh';
@@ -33,12 +35,14 @@ import { lazyPage } from './utils/chunkReload';
 const ChartOverview = lazyPage(() => import('./components/Charts/ChartOverview'));
 // 7. Tồn kho vật tư (bảng ton_kho_vt): trang riêng 6 biểu đồ theo nhóm KVT, số liệu qua /api/ton-kho-vt/*
 const TonKhoVatTu = lazyPage(() => import('./components/Charts/TonKhoVatTu'));
-// Bán vật tư tồn kho (bảng ban_vt_*): danh sách toàn bộ hàng tồn kho vật tư đem bán, số liệu qua /api/ban-vat-tu/*
+// Danh mục vật tư (bảng ban_vt_*): tra cứu toàn bộ hàng tồn kho vật tư (quản trị nội bộ), số liệu qua /api/ban-vat-tu/*
 const BanVatTu = lazyPage(() => import('./components/BanVatTu/BanVatTu'));
-// Trang KHÁCH mua vật tư tồn (/#/cua-hang): CÔNG KHAI — không đăng nhập, không MainLayout / AuthContext, tải riêng;
-// số liệu qua /api/cong-khai/* (máy chủ chỉ trả mã admin đã đăng)
-const CuaHang = lazyPage(() => import('./components/CuaHang/CuaHang'));
-const laDuongCuaHang = () => /^#\/cua-hang(\/|\?|$)/.test(window.location.hash);
+// Đặt – Mua vật tư theo nhóm SAP (bảng vat_tu tổng hợp ở máy chủ, /api/vat-tu/dat-mua/*) — module Vật tư đợt 1
+const DatMua = lazyPage(() => import('./components/VatTu/DatMua'));
+// Xuất tiêu hao vật tư (bảng xuat_tieu_hao_vt, /api/vat-tu/tieu-hao/*) — module Vật tư đợt 4, quyền 'vt_tieu_hao'
+const TieuHao = lazyPage(() => import('./components/VatTu/TieuHao'));
+// Hồ sơ công trình (1 công trình theo cây mục — bản thử 20/11/2026), số lấy qua API
+const HoSoCongTrinh = lazyPage(() => import('./components/Construction/HoSoCongTrinh'));
 const HoiDapPopup = React.lazy(() => import('./components/HoiDap/HoiDapPopup'));
 const loadDashboardPage = () => import('./components/Dashboard');
 const Dashboard = lazyPage(loadDashboardPage);
@@ -100,7 +104,7 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: strin
 // Nhóm menu "Vật tư": mọi trang liên quan đến vật tư (không lặp ở Biểu đồ / Dữ liệu)
 const VAT_TU_CHART_KEYS = ['stock_vt'];
 const VAT_TU_VIEW_IDS = ['materials'];
-const VAT_TU_PATHS = ['/ban-vat-tu', '/charts/ton-kho-vat-tu', '/materials'];
+const VAT_TU_PATHS = ['/ban-vat-tu', '/vat-tu/dat-mua', '/vat-tu/tieu-hao', '/charts/ton-kho-vat-tu', '/materials'];
 
 const CONSTRUCTION_PATH = '/cong-trinh/tong-quan';
 // Lúc mở app chờ tối đa bấy nhiêu cho setup gộp xưởng / KH đã đạt / bảng tên công trình trước khi áp dữ liệu
@@ -119,22 +123,19 @@ const tablesForPath = (path: string): string[] => {
   if (one[path]) return [one[path]];
   // Tổng quan công trình: không chặn — bản ghi gọn do máy chủ dựng sẵn (/api/tong-quan/cong-trinh, cùng code giao diện)
   // nên trang hiện + lọc được ngay; bảng sản xuất (danh sách HEX, cửa sổ công trình) và nhập kho (nhịp nhập kho) tải ngầm
-  if (path === '/cong-trinh/tong-quan') return [];
+  if (path === '/cong-trinh/tong-quan' || path === '/cong-trinh/ho-so') return [];
   // Tổng quan: không chặn màn hình — số màn đầu do máy chủ tính sẵn (/api/tong-quan/san-xuat, cùng code giao diện;
   // doanh thu, 6 thẻ báo cáo, tồn kho, KHSX tháng vốn đã từ máy chủ). Mọi bảng tải ngầm (tablesNenForPath), có bảng
   // sản xuất thì trang tự tính như cũ (lọc tức thì, danh sách hạng mục, xuất Excel).
   if (path === '/') return [];
   if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path === '/ban-vat-tu' || path.startsWith('/charts/')) return [];
+  // Module Vật tư (/vat-tu/*): số liệu tổng hợp ở máy chủ, không tải bảng vat_tu ~30 nghìn dòng
+  if (path.startsWith('/vat-tu/')) return [];
   // Setup dữ liệu: theo thẻ đang mở (trangKey) — Xưởng / Gộp xưởng chỉ gọi API; Nhóm công trình cần bảng sản xuất;
   // Cột dữ liệu (và thẻ mặc định chưa rõ) cần cột của đủ 12 bảng
   if (path === '/mra' || path === '/nhap-bot' || path === '/setup?tab=xuong' || path === '/setup?tab=gop-xuong') return [];
   if (path === '/setup?tab=nhom-cong-trinh') return ['production'];
   return ALL_TABLE_ENDPOINTS;
-};
-// Việc không gấp (lưu bộ nhớ trình duyệt): chạy lúc luồng chính rảnh, chậm nhất 2 giây
-const luuKhiRanh = (f: () => void) => {
-  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-  if (w.requestIdleCallback) w.requestIdleCallback(f, { timeout: 2000 }); else setTimeout(f, 300);
 };
 // Khoá trang để chọn bảng cần nạp: đường dẫn, riêng Setup dữ liệu kèm thẻ đang mở (?tab=)
 const trangKey = (pathname: string, search: string): string =>
@@ -157,20 +158,6 @@ const App: React.FC = () => {
   const isTramEntry = /^\/xuong\/tram(\/|$)/.test(window.location.pathname);
   const isXuongEntry = /^\/(m\/)?xuong(\/|$)/.test(window.location.pathname);
   const isMobileEntry = window.location.pathname.startsWith('/m');
-  // Mở thẳng link trang khách (/#/cua-hang): dựng riêng, ngoài AuthProvider (không gọi /api/auth/me, không chuyển /login).
-  // Rời sang đường khác (sửa link) => chạy app thường; app thường vẫn có route /cua-hang công khai.
-  const [isCuaHangEntry, setIsCuaHangEntry] = useState(() => !isTramEntry && !isXuongEntry && !isMobileEntry && laDuongCuaHang());
-  useEffect(() => {
-    if (!isCuaHangEntry) return;
-    const onHash = () => { if (!laDuongCuaHang()) setIsCuaHangEntry(false); };
-    window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
-  }, [isCuaHangEntry]);
-
-  if (isCuaHangEntry) {
-    return <Suspense fallback={<FullScreenLoader />}><CuaHang /></Suspense>;
-  }
-
   // Lưu ý: view-project-mapping + table-column-config giờ được tải trong MainLayout
   // (chỉ chạy sau khi đã đăng nhập), vì backend bắt buộc token cho mọi /api/*.
   // Tải ở đây khi chưa đăng nhập sẽ bị 401 và cache lại cấu hình rỗng.
@@ -193,14 +180,14 @@ const App: React.FC = () => {
             <HashRouter>
               <Routes>
                 <Route path="/login" element={<Login />} />
-                {/* Trang khách mua vật tư tồn: công khai, ngoài MainLayout / RequirePermission */}
-                <Route path="/cua-hang" element={<CuaHang />} />
                 <Route element={<MainLayout />}>
                   {/* --- Tổng quan --- */}
                   <Route path="/" element={<RequirePermission viewId="dashboard"><DashboardWrapper /></RequirePermission>} />
                   <Route path="/tra-cuu-hex" element={<RequirePermission viewId="hex_lookup"><HexLookupWrapper /></RequirePermission>} />
                   <Route path="/vuong-mac" element={<RequirePermission viewId="vuong_mac"><VuongMacManager /></RequirePermission>} />
                   <Route path="/ban-vat-tu" element={<RequirePermission viewId="ban_vat_tu"><BanVatTu /></RequirePermission>} />
+                  <Route path="/vat-tu/dat-mua" element={<RequirePermission viewId="materials"><DatMua /></RequirePermission>} />
+                  <Route path="/vat-tu/tieu-hao" element={<RequirePermission viewId="vt_tieu_hao"><TieuHao /></RequirePermission>} />
 
                   {/* --- Nhóm Dữ liệu --- */}
                   <Route path="/list" element={<RequirePermission viewId="production"><DataGridWrapper type="production" /></RequirePermission>} />
@@ -219,6 +206,7 @@ const App: React.FC = () => {
                   {/* --- Nhóm Công trình --- */}
                   <Route path="/cong-trinh/tong-quan" element={<RequirePermission viewId="construction_overview"><ConstructionOverviewWrapper /></RequirePermission>} />
                   {/* Luồng đỏ / Căn mẫu không còn là trang riêng: chọn nhóm ngay trong Tổng quan công trình (link cũ chuyển về đó) */}
+                  <Route path="/cong-trinh/ho-so" element={<RequirePermission viewId="construction_overview"><HoSoCongTrinh /></RequirePermission>} />
                   <Route path="/cong-trinh/luong-do" element={<Navigate to="/cong-trinh/tong-quan" replace />} />
                   <Route path="/cong-trinh/can-mau" element={<Navigate to="/cong-trinh/tong-quan" replace />} />
                   {/* Setup dữ liệu: 1 trang chung, chọn mục bằng thẻ (?tab=). Đường dẫn cũ của 3 trang setup chuyển về đúng thẻ */}
@@ -520,6 +508,11 @@ const AnalysisDataWrapper = () => {
 
 const DataGridWrapper = ({ type }: { type: 'production' | 'material' | 'khsx' }) => {
   const context = useOutletContext<MainLayoutContext>();
+  // key theo bảng: 3 trang cùng dựng DataGrid ở cùng vị trí => không có key thì React giữ state (bộ lọc, ô tìm, cách tính
+  // dòng TỔNG) của trang trước khi chuyển /list → /materials (rà soát 23/11/2026)
+  return <DataGridTheoLoai key={type} type={type} context={context} />;
+};
+const DataGridTheoLoai = ({ type, context }: { type: 'production' | 'material' | 'khsx'; context: MainLayoutContext }) => {
   if (type === 'production') {
     const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.productionColumns, 'production', PRODUCTION_DEFAULT_VIEW_COLUMNS);
     return <DataGrid data={context.productionData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG, TARGET_COLUMN_NAMES.TINH_TRANG]} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Mã HEX (Tìm nhiều)' }} exportFileNamePrefix="production_data" enableAggregation={true} />;
@@ -527,7 +520,9 @@ const DataGridWrapper = ({ type }: { type: 'production' | 'material' | 'khsx' })
     const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.khsxColumns, 'khsx', PRODUCTION_DEFAULT_VIEW_COLUMNS);
     return <DataGrid data={context.khsxData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG, TARGET_COLUMN_NAMES.TINH_TRANG]} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Mã HEX (Tìm nhiều)' }} exportFileNamePrefix="khsx_data" enableAggregation={true} />;
   } else {
-    const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.materialColumns, 'material');
+    // Chưa setup cột: ẩn sẵn các cột ghi chú dài / người tạo (bật lại qua nút Cột)
+    const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.materialColumns, 'material',
+      context.materialColumns.map(c => c.key).filter(k => !['ghi_chu_tinh_trang_po', 'item_note_pr', 'team_pr_note', 'nguoi_tao'].includes(k)));
     return <DataGrid data={context.materialData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.SO_PR, label: 'Số PR (Tìm nhiều)' }} additionalSearchColumns={[{ header: TARGET_COLUMN_NAMES.SO_PO, label: 'Số PO (Tìm nhiều)' }]} filterHeaders={[TARGET_COLUMN_NAMES.TRACKING_NO, TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.TEN_VAT_TU, TARGET_COLUMN_NAMES.NHOM_VT]} exportFileNamePrefix="material_data" enableAggregation={true} />;
   }
 };
@@ -628,7 +623,10 @@ const MainLayout: React.FC = () => {
   useEffect(() => { void taiDuLieuDen(); }, [taiDuLieuDen]);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Máy tính bảng: menu trái mặc định là dải biểu tượng; mở ra thì đè lên trang, chọn trang / chạm ngoài là thu lại
+  const mtb = useMayTinhBang();
+  const [isCollapsed, setIsCollapsed] = useState(mtb);
+  useEffect(() => { setIsCollapsed(mtb); }, [mtb]);
 
   // Trạng thái đóng/mở của các nhóm menu - mặc định đóng
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
@@ -685,7 +683,8 @@ const MainLayout: React.FC = () => {
 
   // ADMIN vừa lưu setup gộp xưởng (cache đã cập nhật) -> gộp lại dữ liệu, các trang gọi lại API
   useEffect(() => {
-    const onChanged = () => { setWorkshopGroupsVersion(v => v + 1); setRefreshKey(k => k + 1); };
+    // Số máy chủ tính theo gộp xưởng: bỏ bản lưu số tổng hợp để trang gắn lại không hiện số theo gộp xưởng cũ
+    const onChanged = () => { boNho(); setWorkshopGroupsVersion(v => v + 1); setRefreshKey(k => k + 1); };
     window.addEventListener('workshop-groups-changed', onChanged);
     return () => window.removeEventListener('workshop-groups-changed', onChanged);
   }, []);
@@ -767,6 +766,8 @@ const MainLayout: React.FC = () => {
 
       const serverVersions = await verRes.json();
       if (stale()) return boLuot();
+      // Phiên bản bảng trên máy chủ (hoặc ngày VN) đổi => báo các trang đang mở gọi lại API số tổng hợp; lần đầu chỉ ghi mốc
+      baoMocDoi(JSON.stringify(serverVersions) + '|' + ngayVNNho());
       syncCoveredRef.current = new Set(activeTablesRef.current);
 
       // Danh sách endpoint + setter, dùng để biết bảng nào cần cập nhật
@@ -1026,7 +1027,7 @@ const MainLayout: React.FC = () => {
   }, []);
 
   const toggleMobileSidebar = () => setIsMobileSidebarOpen(!isMobileSidebarOpen);
-  const closeMobileSidebar = () => setIsMobileSidebarOpen(false);
+  const closeMobileSidebar = () => { setIsMobileSidebarOpen(false); if (mtb) setIsCollapsed(true); };
   const toggleDesktopSidebar = () => setIsCollapsed(!isCollapsed);
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -1080,6 +1081,8 @@ const MainLayout: React.FC = () => {
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới
+        // (bỏ bản lưu số tổng hợp trước: trang gắn lại không lấy số cũ làm giá trị đầu)
+        boNho();
         setRefreshKey(k => k + 1);
         showToast('Đã cập nhật dữ liệu mới nhất', 'success');
       } else {
@@ -1160,14 +1163,14 @@ const MainLayout: React.FC = () => {
     khsxData: wgKhsxData, khsxColumns, orderData: wgOrderData, orderColumns, inventoryData: wgInventoryData, inventoryColumns,
     tkbvData: wgTkbvData, tkbvColumns, pthspData: wgPthspData, pthspColumns, analysisData: wgAnalysisData, analysisColumns,
     yearlyPlanData: wgYearlyPlanData, yearlyPlanColumns, exportData: wgExportData, exportColumns,
-    stockData: wgStockData, stockColumns, attendanceData: wgAttendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
+    stockData: wgStockData, stockColumns, attendanceData: wgAttendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed || mtb,
     isGlobalLoading: loading,
     soPhuMra: phuMra.soPhu, mraVer: banMra?.ver ?? null,
   }), [
     canonicalProductionData, productionColumnsPhu, phuMra.soPhu, banMra?.ver, wgMaterialData, materialColumns, wgKhsxData, khsxColumns,
     wgOrderData, orderColumns, wgInventoryData, inventoryColumns, wgTkbvData, tkbvColumns, wgPthspData, pthspColumns,
     wgAnalysisData, analysisColumns, wgYearlyPlanData, yearlyPlanColumns, wgExportData, exportColumns,
-    wgStockData, stockColumns, wgAttendanceData, attendanceColumns, isCollapsed, loading,
+    wgStockData, stockColumns, wgAttendanceData, attendanceColumns, isCollapsed, mtb, loading,
   ]);
 
   // ------------------------------------------------------------
@@ -1183,9 +1186,11 @@ const MainLayout: React.FC = () => {
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && !VAT_TU_VIEW_IDS.includes(v.id) && hasPermission(v.id));
   const coXuong = user?.role === 'ADMIN' || hasPermission('xuong_quan_ly');
   const coBanVatTu = hasPermission('ban_vat_tu');
-  // Nhóm "Vật tư": Danh mục vật tư (bán tồn) + Tồn kho vật tư (biểu đồ) + Dữ liệu vật tư — chỉ mục có quyền
+  // Nhóm "Vật tư": Danh mục vật tư (tra tồn) + Tồn kho vật tư (biểu đồ) + Dữ liệu vật tư — chỉ mục có quyền
   const vatTuItems = [
     ...(coBanVatTu ? [{ key: 'ban_vat_tu', label: 'Danh mục vật tư', path: '/ban-vat-tu' }] : []),
+    ...(hasPermission('materials') ? [{ key: 'vt_dat_mua', label: 'Đặt – Mua', path: '/vat-tu/dat-mua' }] : []),
+    ...(hasPermission('vt_tieu_hao') ? [{ key: 'vt_tieu_hao', label: 'Xuất tiêu hao', path: '/vat-tu/tieu-hao' }] : []),
     ...CHART_SUB_ITEMS.filter(i => VAT_TU_CHART_KEYS.includes(i.key) && hasPermission(i.permId))
       .map(i => ({ key: i.key, label: 'Tồn kho vật tư', path: i.path })),
     ...APP_VIEWS.filter(v => VAT_TU_VIEW_IDS.includes(v.id) && hasPermission(v.id))
@@ -1215,7 +1220,7 @@ const MainLayout: React.FC = () => {
           key={item.key}
           to={item.path}
           onClick={closeMobileSidebar}
-          className={`flex items-center py-1.5 px-3 rounded-md text-[0.8125rem] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
+          className={`flex items-center py-1.5 px-3 rounded-md text-[0.8125rem] transition-colors duration-150 mtb:py-2.5 mtb:text-sm ${active ? NAV_ACTIVE : NAV_IDLE}`}
         >
           <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
         </Link>
@@ -1237,12 +1242,20 @@ const MainLayout: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/40 z-50 md:hidden" />
       )}
 
+      {mtb && !isCollapsed && (
+        <>
+          {/* Giữ chỗ dải biểu tượng + nền mờ: chạm ra ngoài là thu menu */}
+          <div className="w-20 shrink-0" aria-hidden />
+          <div className="fixed inset-0 z-[64] bg-slate-900/30" onClick={() => setIsCollapsed(true)} aria-hidden />
+        </>
+      )}
+
       <aside className={`
-  fixed md:static inset-y-0 left-0 z-[60] bg-white text-slate-600 border-r border-slate-200
+  fixed ${mtb && !isCollapsed ? 'z-[65]' : 'z-[60] md:static'} inset-y-0 left-0 bg-white text-slate-600 border-r border-slate-200
   transform transition-all duration-300 ease-in-out flex flex-col shadow-lg md:shadow-none
   overflow-x-hidden
   ${isMobileSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
-  ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+  ${isCollapsed ? 'md:w-20' : mtb ? 'md:w-72 md:shadow-2xl' : 'md:w-64'}
 `}>
         <div className={`h-16 flex items-center bg-white transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
           <div className={`flex items-center gap-2.5 font-semibold text-slate-900 text-[0.9375rem] tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
@@ -1256,7 +1269,7 @@ const MainLayout: React.FC = () => {
           </button>
         </div>
 
-        <nav className="flex-1 py-3 space-y-0.5 px-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <nav className={`flex-1 py-3 space-y-0.5 px-3 overflow-y-auto overflow-x-hidden custom-scrollbar ${isCollapsed ? 'mtb:px-1 mtb:py-1 mtb:[scrollbar-width:none] mtb:[&::-webkit-scrollbar]:hidden' : ''}`}>
           {/* Tổng quan - luôn hiển thị riêng, ở đầu */}
           {dashboardView && (
             <NavLink
@@ -1277,6 +1290,17 @@ const MainLayout: React.FC = () => {
               icon={<Box size={18} className="shrink-0" />}
               label="Tổng quan công trình"
               active={location.pathname === CONSTRUCTION_PATH}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {canSeeConstruction && (
+            <NavLink
+              to="/cong-trinh/ho-so"
+              icon={<FolderOpen size={18} className="shrink-0" />}
+              label="Hồ sơ công trình"
+              active={location.pathname === '/cong-trinh/ho-so'}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />
@@ -1432,7 +1456,7 @@ const MainLayout: React.FC = () => {
           {user?.role === 'USER' && (
             <button
               onClick={() => { setIsChangePasswordOpen(true); closeMobileSidebar(); }}
-              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0' : ''}`}
+              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0 mtb:hidden' : ''}`}
               title="Đổi mật khẩu"
             >
               <Key size={18} />
@@ -1442,7 +1466,7 @@ const MainLayout: React.FC = () => {
 
           <button
             onClick={handleLogoutClick}
-            className={`${FOOT_BTN} hover:!text-red-600 hover:!bg-red-50 ${isCollapsed ? 'justify-center !gap-0' : 'hidden'}`}
+            className={`${FOOT_BTN} hover:!text-red-600 hover:!bg-red-50 ${isCollapsed ? 'justify-center !gap-0 mtb:hidden' : 'hidden'}`}
             title="Đăng xuất"
           >
             <LogOut size={18} />
@@ -1451,7 +1475,7 @@ const MainLayout: React.FC = () => {
 
           <button
             onClick={() => { setIsInstallOpen(true); closeMobileSidebar(); }}
-            className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0' : ''}`}
+            className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0 mtb:hidden' : ''}`}
             title="Tải ứng dụng điện thoại"
           >
             <Smartphone size={18} />
@@ -1461,7 +1485,7 @@ const MainLayout: React.FC = () => {
           {hasPermission('data_log') && (
             <button
               onClick={() => { setIsLogOpen(true); closeMobileSidebar(); }}
-              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0' : ''}`}
+              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0 mtb:hidden' : ''}`}
               title="Nhật ký cập nhật dữ liệu"
             >
               <Clock size={18} />
@@ -1603,16 +1627,26 @@ interface NavGroupProps {
   children: React.ReactNode;
 }
 
+/** Máy tính bảng: tên ngắn dưới biểu tượng của dải menu thu gọn (không có chuột để xem chú thích) */
+const TEN_DAI: Record<string, string> = {
+  'Tổng quan đơn hàng': 'Đơn hàng', 'Tổng quan công trình': 'Công trình', 'Hồ sơ công trình': 'Hồ sơ CT',
+  'Setup dữ liệu': 'Setup', 'Quản trị User': 'User',
+};
+const NhanDai: React.FC<{ ten: string }> = ({ ten }) => (
+  <span className="mt-0.5 hidden w-full truncate text-center text-[0.6875rem] font-medium leading-tight mtb:block">{TEN_DAI[ten] ?? ten}</span>
+);
+
 const NavGroup: React.FC<NavGroupProps> = ({ icon, label, tooltip, collapsed, open, active, onToggle, children }) => (
   <div>
     <button
       onClick={onToggle}
       title={collapsed ? (tooltip || label) : undefined}
       className={`flex items-center w-full py-2 rounded-lg text-sm transition-colors duration-150
-        ${collapsed ? 'justify-center gap-0 px-2' : 'gap-3 px-3'}
+        ${collapsed ? 'justify-center gap-0 px-2 mtb:flex-col mtb:px-0.5 mtb:py-1.5' : 'gap-3 px-3 mtb:py-2.5'}
         ${active ? 'text-aa-600 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
     >
       {icon}
+      {collapsed && <NhanDai ten={label} />}
       {/* Thu gọn: bỏ hẳn chữ (flex-1 dù rộng 0 vẫn chiếm chỗ trống, đẩy icon lệch trái) */}
       <span className={`text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'hidden' : 'flex-1 w-auto opacity-100'}`}>
         {label}
@@ -1656,14 +1690,15 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, active, onClick, col
     onClick={onClick}
     title={collapsed ? label : undefined}
     className={`flex items-center py-2 rounded-lg text-sm transition-colors duration-150 group relative
-      ${collapsed ? 'justify-center gap-0 px-2' : 'gap-3 px-3'}
+      ${collapsed ? 'justify-center gap-0 px-2 mtb:flex-col mtb:px-0.5 mtb:py-1.5' : 'gap-3 px-3 mtb:py-2.5'}
       ${active ? NAV_ACTIVE : NAV_IDLE}
     `}
   >
     <div className="shrink-0">{icon}</div>
-    <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+    <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0 mtb:hidden' : 'w-auto opacity-100'}`}>
       {label}
     </span>
+    {collapsed && <NhanDai ten={label} />}
     {collapsed && (
       <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity shadow-lg">
         {label}

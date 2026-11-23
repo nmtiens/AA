@@ -9,6 +9,8 @@ import {
   type StockDateEntry,
   type StockByProjectRow,
 } from '../../../services/dataService';
+import { docNho } from '../../../services/nhoApi';
+import { urlStockDates } from '../../../services/urlTongQuan';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -72,7 +74,6 @@ export function useStockData({
   filters,
   viewProjectWhitelist, // ✅ FIX
 }: UseStockDataParams): UseStockDataResult {
-  const [stockDates, setStockDates] = useState<StockDateEntry[]>([]);
   const [stockByProjectData, setStockByProjectData] = useState<StockByProjectRow[]>([]);
   const [stockTotalCount, setStockTotalCount] = useState<number>(0);
 
@@ -100,6 +101,15 @@ export function useStockData({
   // phải set thẳng kết quả = rỗng.
   const isScopedWithNoProjects = viewProjectWhitelist !== undefined && effectiveCongTrinh.length === 0;
 
+  // Khai báo SAU effectiveCongTrinh vì giá trị khởi tạo cần đúng phạm vi công trình lúc gắn.
+  // Mở lại trang trong ngày: hiện ngay danh sách ngày tồn kho lần trước của đúng bộ lọc này (đọc đồng bộ từ RAM,
+  // cùng chuỗi URL với fetchStockDates); effect bên dưới vẫn gọi thật và thay khi số về.
+  const [stockDates, setStockDates] = useState<StockDateEntry[]>(() =>
+    isScopedWithNoProjects
+      ? []
+      : docNho<StockDateEntry[]>(urlStockDates({ congTrinh: effectiveCongTrinh, xuong: filters.xuong })) ?? []
+  );
+
   useEffect(() => {
     // SỬA: KHÔNG truyền tinhTrang/tinhTrangIpo — Tồn kho chỉ lọc theo
     // congTrinh/xuong, bất kể bộ lọc tổng có chọn Tình Trạng/Tình Trạng IPO hay không.
@@ -111,10 +121,13 @@ export function useStockData({
 
     // ✅ FIX: dùng effectiveCongTrinh (đã giao với whitelist nếu có) thay vì
     // filters.congTrinh trần — đây là chỗ gây lỗi tồn kho không lọc theo view.
+    // Bộ lọc đổi thì bỏ phản hồi của bộ lọc cũ: lời gọi trùng URL dùng chung 1 request (nhoApi), nên đổi A → B → A
+    // nhanh thì A (request đầu) về trước, B về sau — không chốt thì danh sách ngày của B đè lên bộ lọc A đang xem
+    let on = true;
     fetchStockDates({
       congTrinh: effectiveCongTrinh,
       xuong: filters.xuong,
-    }).then(result => { if (result !== null) setStockDates(result); });
+    }).then(result => { if (on && result !== null) setStockDates(result); });
 
     // ✅ FIX: fetchStockTotalCount() trước đây KHÔNG nhận tham số filter nào —
     // luôn trả COUNT(*) của toàn bộ bảng ton_kho bất kể đang ở view nào.
@@ -124,6 +137,7 @@ export function useStockData({
       congTrinh: effectiveCongTrinh,
       xuong: filters.xuong,
     }).then(setStockTotalCount);
+    return () => { on = false; };
   }, [effectiveCongTrinh, filters.xuong, isScopedWithNoProjects]);
 
   const latestStockDateAvailable = useMemo<Date | null>(() => {

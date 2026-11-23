@@ -10,6 +10,14 @@ const defaultFormatValue = fmtInt;
 const isZeroCell = (v: number) => !Number.isFinite(v) || Math.abs(v) < 0.005;
 // Cùng mẫu bảng tab BOT (BangCayBot)
 
+/** Nhãn tiêu đề 2 dòng: tên (+ nút sắp) không xuống dòng, đơn vị chữ nhỏ dòng dưới; không đơn vị => dòng dưới trống */
+const Nhan2 = ({ ten, donVi, trai }: { ten: React.ReactNode; donVi?: React.ReactNode; trai?: boolean }) => (
+  <span className={`inline-flex flex-col leading-tight align-middle ${trai ? 'items-start' : 'items-center'}`}>
+    <span className="inline-flex items-center whitespace-nowrap">{ten}</span>
+    <span className={`text-xs font-semibold normal-case text-slate-700 ${donVi ? '' : 'invisible'}`} aria-hidden={!donVi}>{donVi || '·'}</span>
+  </span>
+);
+
 export const DetailModalTable = ({
   data,
   title,
@@ -156,7 +164,7 @@ useEffect(() => {
       });
     }
     return sortableItems;
-  }, [filteredData, sortConfig]);
+  }, [filteredData, sortConfig, sapTheoKhuVuc]);
 
   const allOptions = useMemo(() => data.map(i => i.name).sort(), [data]);
   const visibleOptions = allOptions.filter(opt => opt.toLowerCase().includes(filterSearch.toLowerCase()));
@@ -178,7 +186,7 @@ useEffect(() => {
 
   if (data.length === 0) {
     return (
-      <div className="mb-8">
+      <div className="mx-auto mb-8 w-full max-w-6xl">
         <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
           {stt ? `${stt}. ` : ''}{title}
         </h4>
@@ -194,25 +202,35 @@ useEffect(() => {
   const totalMtd = filteredData.reduce((a, b) => a + b.mtd, 0);
 
   return (
-    <div className="mb-8">
+    <div className="mx-auto mb-8 w-full max-w-6xl">
       <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
         {stt ? `${stt}. ` : ''}{title}
       </h4>
-      <div className="bg-white border-l border-t border-slate-300 overflow-hidden flex flex-col max-h-[500px]">
-        <div className="overflow-auto custom-scrollbar flex-1 relative">
-          <table className={`${table} relative`}>
-            <thead className={thead}>
+      {/* Bảng gọn, nằm giữa cửa sổ (người dùng 19/11/2026): khối tiêu đề + bảng rộng tối đa 72rem (đủ tên công trình 1 dòng), canh giữa */}
+      <div className="bg-white border-l border-t border-slate-300 overflow-hidden flex flex-col max-h-[500px] w-full">
+        <div className="overflow-auto custom-scrollbar flex-1 relative [scrollbar-gutter:stable]">
+          {/* Bố cục cố định (người dùng 19/11/2026): STT + cột số cùng độ rộng ở mọi bảng của cửa sổ => các bảng thẳng cột
+              nhau; nhãn in hoa, tên + nút sắp 1 dòng, đơn vị dòng dưới (cột không đơn vị giữ dòng trống) => nhãn thẳng hàng */}
+          <table className={`${table} relative table-fixed`}>
+            <colgroup>
+              <col className="w-16" />
+              <col />
+              <col className="w-56" />
+              {coMtd && <col className="w-56" />}
+            </colgroup>
+            <thead className={`${thead} uppercase`}>
               <tr>
-                <th className={`${thB} w-12 text-center`}>STT</th>
-                <th className={`${thB} min-w-[200px] z-30 text-left`}>
-                  <div className="flex items-center justify-between">
+                <th className={`${thB} text-center align-middle`}><Nhan2 ten="STT" /></th>
+                <th className={`${thB} z-30 text-center align-middle`}>
+                  {/* Tiêu đề căn giữa, nút lọc dính mép phải */}
+                  <div className="relative flex items-center justify-center px-7">
                     <span
-                      className="cursor-pointer flex items-center"
+                      className="cursor-pointer"
                       onClick={() => requestSort('name')}
                     >
-                      {tenCot} <SortIcon columnKey="name" />
+                      <Nhan2 ten={<>{tenCot}<SortIcon columnKey="name" /></>} />
                     </span>
-                    <div className="relative" ref={filterRef}>
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2" ref={filterRef}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setIsFilterOpen(!isFilterOpen); }}
                         className={`p-1 rounded hover:bg-emerald-400 transition-colors ${selectedKeys.size !== data.length ? 'text-wood-600 bg-wood-50' : 'text-slate-700'}`}
@@ -221,7 +239,7 @@ useEffect(() => {
                         <Filter size={14} fill={selectedKeys.size !== data.length ? "currentColor" : "none"} />
                       </button>
                       {isFilterOpen && (
-                        <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl w-64 z-50 text-left normal-case font-normal flex flex-col animate-in fade-in zoom-in-95 duration-200">
+                        <div className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl w-64 z-50 text-left normal-case font-normal flex flex-col animate-in fade-in zoom-in-95 duration-200">
                           <div className="p-2 border-b border-slate-100 bg-slate-50 rounded-t-lg">
                             <div className="relative">
                               <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -267,17 +285,17 @@ useEffect(() => {
                   </div>
                 </th>
                 <th
-                  className={`${thB} cursor-pointer text-center transition-colors hover:bg-emerald-400`}
+                  className={`${thB} cursor-pointer text-center align-middle transition-colors hover:bg-emerald-400`}
                   onClick={() => requestSort('daily')}
                 >
-                  {dateLabel} <br /> {unitLabel} <SortIcon columnKey="daily" />
+                  <Nhan2 ten={<>{dateLabel}<SortIcon columnKey="daily" /></>} donVi={unitLabel} />
                 </th>
                 {coMtd && (
                   <th
-                    className={`${thB} cursor-pointer text-center transition-colors hover:bg-emerald-400`}
+                    className={`${thB} cursor-pointer text-center align-middle transition-colors hover:bg-emerald-400`}
                     onClick={() => requestSort('mtd')}
                   >
-                    {mtdLabel} <br /> {unitLabel} <SortIcon columnKey="mtd" />
+                    <Nhan2 ten={<>{mtdLabel}<SortIcon columnKey="mtd" /></>} donVi={unitLabel} />
                   </th>
                 )}
               </tr>
@@ -286,7 +304,7 @@ useEffect(() => {
               {sortedData.length > 0 ? sortedData.map((item, idx) => (
                 <tr key={idx} className="transition-colors hover:bg-amber-50">
                   <td className={tdSo}>{fmtInt(idx + 1)}</td>
-                  <td className={`${tdB} text-left font-bold`}>{item.name}</td>
+                  <td className={`${tdB} text-left font-bold break-words`}>{item.name}</td>
                   {/* Chỉ ô ≈ 0 (dưới 0,005 — dư số thực) để trống; ô âm (vd. nhập kho điều chỉnh) vẫn hiện số vì đã cộng vào tổng */}
                   <td className={`${tdSo} ${!isZeroCell(item.daily) && item.daily < 0 ? 'font-bold text-red-600' : ''}`}>
                     {oSo(item.name, 'daily', item.daily)}

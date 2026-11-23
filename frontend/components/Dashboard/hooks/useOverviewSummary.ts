@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataRow } from '../../../types';
 import { projectMatchKey } from '../../../utils/productionMetrics';
 import {
@@ -17,6 +17,8 @@ import {
 } from '../utils/dateHelpers';
 import { AnalysisItem } from '../types';
 import { DashboardFiltersState } from './useDashboardFilters';
+import { docNho } from '../../../services/nhoApi';
+import { urlOverviewSummary } from '../../../services/urlTongQuan';
 
 type OverviewMetric = 'COUNT' | 'SUM';
 type GroupAnalysisKey = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export';
@@ -53,7 +55,30 @@ interface UseOverviewSummaryParams {
   // và KHÔNG được ép buộc, nếu không sẽ crash "Cannot read properties of undefined
   // (reading 'length')" ngay khi Dashboard tổng gọi hook này.
   viewProjectWhitelist?: string[];
+  /**
+   * Danh sách ngày (unifiedDateOptions) đã đủ để chốt ngày mặc định chưa — lấy từ useDashboardOptions. Chưa sẵn sàng
+   * thì KHÔNG gọi summary "toàn bộ thời gian" trong lúc chờ (trước đây gọi thừa 1 lần rồi bỏ). Mặc định true = như cũ.
+   */
+  sanSang?: boolean;
+  /**
+   * false = danh sách ngày đang là bản lưu trong ngày, máy chủ chưa trả lời. Khi nó thành true mà ngày mặc định đã
+   * chọn theo bản lưu không còn đúng thì chọn lại 1 lần (nếu người dùng chưa đổi). Mặc định true = như cũ.
+   */
+  ngayDaXacNhan?: boolean;
 }
+
+/** from / to / dates (YYYY-MM-DD) của 1 lựa chọn "Ngày báo cáo"; null = không ngày nào đọc được */
+const khoangNgay = (ngay: string[]): { from: string; to: string; dates: string[] } | null => {
+  const parsedDates = ngay.map(d => parseVNDate(d)).filter((d): d is Date => d !== null);
+  if (parsedDates.length === 0) return null;
+  const minDate = new Date(Math.min(...parsedDates.map(d => d.getTime())));
+  const maxDate = new Date(Math.max(...parsedDates.map(d => d.getTime())));
+  return {
+    from: toISODateLocal(minDate),
+    to: toISODateLocal(maxDate),
+    dates: Array.from(new Set(parsedDates.map(d => toISODateLocal(d)))),
+  };
+};
 
 /**
  * Gom toàn bộ state + effect của khối "BÁO CÁO TỔNG QUAN": bộ lọc ngày, fetch overview
@@ -106,16 +131,32 @@ export function useOverviewSummary({
   filters,
   unifiedDateOptions,
   viewProjectWhitelist, // ✅ FIX: có thể là undefined
+  sanSang = true,
+  ngayDaXacNhan = true,
 }: UseOverviewSummaryParams) {
 
-  const [overviewSummary, setOverviewSummary] = useState<OverviewSummary | null>(null);
-  const [overviewDateFilters, setOverviewDateFilters] = useState<string[]>([]);
+  // Danh sách ngày có ngay ở lượt vẽ đầu (bản lưu trong ngày) thì chốt ngày mặc định LUÔN ở đây, không chờ effect:
+  // nếu để rỗng một lượt, effect tải bên dưới sẽ kịp gửi summary "toàn bộ thời gian" chạy đua với ngày mặc định.
+  const [overviewDateFilters, datNgayLoc] = useState<string[]>(() => {
+    const t = getYesterdayDateOption(unifiedDateOptions);
+    return t ? [t] : [];
+  });
   const [overviewMetric, setOverviewMetric] = useState<OverviewMetric>('SUM');
   const [showDateWarning, setShowDateWarning] = useState(false);
   const [groupAnalysisCache, setGroupAnalysisCache] = useState<Record<string, GroupAnalysisRow[]>>({});
 
   const overviewFetchIdRef = useRef(0);
-  const hasInitializedOverviewDate = useRef(false);
+  const hasInitializedOverviewDate = useRef(overviewDateFilters.length > 0);
+  // Ngày mặc định vừa đặt trong effect, state chưa kịp nhận: effect tải bỏ qua lượt "chưa chọn ngày" này
+  const ngayCho = useRef<string | null>(null);
+  // Nơi khác (người dùng, TongQuanDauTrang) đặt ngày: không còn "đang chờ ngày mặc định" nữa — kể cả khi đặt rỗng
+  const setOverviewDateFilters = useCallback((values: string[]) => { ngayCho.current = null; datNgayLoc(values); }, []);
+  // Ngày mặc định chọn theo danh sách LƯU (máy chủ chưa xác nhận); null = không cần xét lại
+  const ngayTheoBanLuu = useRef<string | null>(
+    !ngayDaXacNhan && overviewDateFilters.length > 0 ? overviewDateFilters[0] : null,
+  );
+  // Đã có lần gọi summary thật nào chưa: lần đầu không chờ 300 ms (chưa có gì để gom)
+  const daGoi = useRef(false);
 
   // ✅ FIX: hàm dùng chung — giao giữa bộ lọc tổng (filters.congTrinh) và danh sách
   // công trình đã setup cho view (viewProjectWhitelist).
@@ -139,6 +180,20 @@ export function useOverviewSummary({
 
     const isScopedWithNoProjects = viewProjectWhitelist !== undefined
     && getEffectiveCongTrinh().length === 0;
+
+  // Số đã lưu trong ngày của đúng URL sắp gọi (ngày mặc định + bộ lọc lúc gắn) hiện ngay ở lượt vẽ đầu. Đây là
+  // điểm DUY NHẤT số cũ vào state này; sau đó chỉ có phản hồi mạng (qua requestId) được ghi.
+  const [overviewSummary, setOverviewSummary] = useState<OverviewSummary | null>(() => {
+    if (isScopedWithNoProjects) return null;
+    const loc = { congTrinh: getEffectiveCongTrinh(), xuong: filters.xuong };
+    if (overviewDateFilters.length === 0) {
+      // Chưa chọn ngày: chỉ là "toàn bộ thời gian" thật khi danh sách ngày đã sẵn sàng mà rỗng
+      if (!(sanSang && unifiedDateOptions.length === 0)) return null;
+      return docNho<OverviewSummary>(urlOverviewSummary(undefined, undefined, undefined, loc)) ?? null;
+    }
+    const k = khoangNgay(overviewDateFilters);
+    return k ? docNho<OverviewSummary>(urlOverviewSummary(k.from, k.to, k.dates, loc)) ?? null : null;
+  });
 
   const buildZeroOverviewSummary = (dateStr: string): OverviewSummary => {
     const zeroGroup = {
@@ -189,10 +244,24 @@ export function useOverviewSummary({
   useEffect(() => {
     if (!hasInitializedOverviewDate.current && unifiedDateOptions.length > 0) {
       const target = getYesterdayDateOption(unifiedDateOptions);
-      if (target) setOverviewDateFilters([target]);
+      if (target) {
+        ngayCho.current = target;
+        if (!ngayDaXacNhan) ngayTheoBanLuu.current = target;
+        datNgayLoc([target]);
+      }
       hasInitializedOverviewDate.current = true;
+      return;
     }
-  }, [unifiedDateOptions]);
+    // Ngày mặc định đã chọn theo danh sách lưu, nay máy chủ trả lời: nếu danh sách mới cho ngày khác (vd. sáng chưa
+    // có số hôm qua, giờ đã có) thì chọn lại đúng ngày mà bản không dùng bản lưu sẽ chọn — chỉ 1 lần, và chỉ khi
+    // người dùng chưa đổi ngày.
+    if (ngayDaXacNhan && ngayTheoBanLuu.current !== null) {
+      const cu = ngayTheoBanLuu.current;
+      ngayTheoBanLuu.current = null;
+      const target = getYesterdayDateOption(unifiedDateOptions);
+      if (target && target !== cu) datNgayLoc(dang => (dang.length === 1 && dang[0] === cu ? [target] : dang));
+    }
+  }, [unifiedDateOptions, ngayDaXacNhan]);
 
   useEffect(() => {
     if (showDateWarning) {
@@ -200,6 +269,9 @@ export function useOverviewSummary({
       return () => clearTimeout(timer);
     }
   }, [showDateWarning]);
+
+  // Danh sách ngày sẵn sàng mà rỗng thật (không có ngày nào để chọn) — khi đó "chưa chọn ngày" = toàn bộ thời gian
+  const khongCoNgay = sanSang && unifiedDateOptions.length === 0;
 
   // Fetch overview summary — debounce 300ms + hủy request cũ khi filter đổi liên tục
   useEffect(() => {
@@ -214,6 +286,15 @@ export function useOverviewSummary({
       return;
     }
 
+    if (overviewDateFilters.length > 0) ngayCho.current = null;
+    else if (
+      // ngày mặc định đã đặt, đang chờ lượt vẽ lại
+      ngayCho.current !== null
+      // hoặc chưa từng chốt ngày mặc định và danh sách ngày còn đang tải: ngày mặc định sắp tới, gọi "toàn bộ thời
+      // gian" lúc này là thừa. Người dùng tự bỏ chọn ngày (đã chốt ngày mặc định rồi) thì vẫn gọi như cũ.
+      || (!hasInitializedOverviewDate.current && !khongCoNgay)
+    ) return;
+
     const controller = new AbortController();
     const filterOpts = {
       signal: controller.signal,
@@ -223,28 +304,27 @@ export function useOverviewSummary({
 
     const timer = setTimeout(() => {
       if (overviewDateFilters.length === 0) {
+        daGoi.current = true;
         fetchOverviewSummary(undefined, undefined, undefined, filterOpts).then(data => {
           if (data && requestId === overviewFetchIdRef.current) setOverviewSummary(data);
         }).catch(err => { if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err); });
         return;
       }
-      const parsedDates = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null);
-      if (parsedDates.length === 0) return;
-      const minDate = new Date(Math.min(...parsedDates.map(d => d.getTime())));
-      const maxDate = new Date(Math.max(...parsedDates.map(d => d.getTime())));
-      const dateFromISO = toISODateLocal(minDate);
-      const dateToISO = toISODateLocal(maxDate);
-      const explicitDatesISO = Array.from(new Set(parsedDates.map(d => toISODateLocal(d))));
+      const k = khoangNgay(overviewDateFilters);
+      if (!k) return;
+      daGoi.current = true;
 
-      fetchOverviewSummary(dateFromISO, dateToISO, explicitDatesISO, filterOpts).then(data => {
+      fetchOverviewSummary(k.from, k.to, k.dates, filterOpts).then(data => {
         if (data && requestId === overviewFetchIdRef.current) setOverviewSummary(data);
       }).catch(err => { if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err); });
-    }, 300);
+    // Lần gọi thật đầu tiên đi ngay; các lần sau mới gom 300 ms (đổi bộ lọc liên tục)
+    }, daGoi.current ? 300 : 0);
 
     return () => { clearTimeout(timer); controller.abort(); };
   // viewProjectWhitelist ảnh hưởng tới filterOpts nên vẫn cần trong dependency (an toàn
   // kể cả khi nó là undefined giữa các lần render).
-  }, [overviewDateFilters, filters.congTrinh, filters.xuong, viewProjectWhitelist]);
+  // khongCoNgay: danh sách ngày tải xong mà rỗng thì chạy lại để gọi "toàn bộ thời gian" (lượt trước đã bỏ qua).
+  }, [overviewDateFilters, filters.congTrinh, filters.xuong, viewProjectWhitelist, khongCoNgay]);
 
   const latestUnifiedDate = useMemo<Date | null>(() => {
     if (overviewSummary?.date) return parseVNDate(overviewSummary.date) || new Date(overviewSummary.date);
