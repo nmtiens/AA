@@ -4,6 +4,8 @@ import { TRONG_M2, NHOM_VAT_TU, giaTriLoc, docFileBopM2, khopCongTrinh, type DuL
 import { ChiTiet, Loc, TAT_CA } from './PivotExcel';
 import { PivotCay, NutChieu, type ChieuCay, type ChonCay } from './PivotCay';
 import { API_BASE_URL } from '../../services/dataService';
+import { theoDoiMocBang } from '../../services/mocDuLieu';
+import { useMocBang } from '../../hooks/useMocBang';
 import { IPO_MAC_DINH } from '../../utils/productionMetrics';
 import { fmtInt } from '../../utils/format';
 
@@ -26,20 +28,22 @@ const khoaLuu = (ct: string) => `bopM2:${ct}`;
 // Cửa sổ công trình gọi taiTruocBopM2 lúc mở để tab BOM có sẵn số khi bấm vào.
 const NHO_MS = 5 * 60_000;
 const boNho = new Map<string, { luc: number; ketQua?: DuLieuM2 | null; dangTai?: Promise<DuLieuM2 | null> }>();
+// BOM có dữ liệu mới: bỏ hết số đã nhớ (cả lượt đang tải). Đăng ký lúc nạp module => chạy trước các component đang nghe
+theoDoiMocBang(doi => { if (doi.has('bom')) { boNho.clear(); boNhoNhieu.clear(); } });
 const maCtOf = (ten: string) => ten.match(/CT\d{2}-\d{3}/i)?.[0]?.toUpperCase() ?? null;
 export const taiTruocBopM2 = (tenCongTrinh: string): Promise<DuLieuM2 | null> => {
   const ma = maCtOf(tenCongTrinh);
   if (!ma) return Promise.resolve(null);
   const e = boNho.get(ma);
   if (e && Date.now() - e.luc < NHO_MS) return e.dangTai ?? Promise.resolve(e.ketQua ?? null);
-  const dangTai = fetch(`${API_BASE_URL}/bop-m2?ct=${encodeURIComponent(ma)}`)
-    .then(r => (r.ok ? r.json() : null))
+  const dangTai: Promise<DuLieuM2 | null> = fetch(`${API_BASE_URL}/bop-m2?ct=${encodeURIComponent(ma)}`)
+    .then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
     .then((d: DuLieuM2 | null) => {
       const kq = d && d.hex?.length ? d : null;
-      boNho.set(ma, { luc: Date.now(), ketQua: kq });
+      if (boNho.get(ma)?.dangTai === dangTai) boNho.set(ma, { luc: Date.now(), ketQua: kq });
       return kq;
     })
-    .catch(() => { boNho.delete(ma); return null; });
+    .catch(() => { if (boNho.get(ma)?.dangTai === dangTai) boNho.delete(ma); return null; });
   boNho.set(ma, { luc: Date.now(), dangTai });
   return dangTai;
 };
@@ -77,14 +81,16 @@ export const BopM2Section = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: strin
     return s0 ? 'db' : s0 === null ? 'khong' : 'tai';
   });
 
+  const moc = useMocBang(['bom']);
   useEffect(() => {
     let bo = false;
     taiTruocBopM2(tenCongTrinh).then(d => {
       if (bo) return;
-      if (d) { setDuLieu(d); setNguonDb('db'); } else setNguonDb('khong');
+      // Lấy lại mà không có số (lỗi) thì giữ bảng DB đang hiện
+      if (d) { setDuLieu(d); setNguonDb('db'); } else setNguonDb(x => (moc && x === 'db' ? x : 'khong'));
     });
     return () => { bo = true; };
-  }, [tenCongTrinh]);
+  }, [tenCongTrinh, moc]);
 
   const chonFile = async (f: File | undefined) => {
     if (!f) return;
@@ -213,15 +219,15 @@ export const taiTruocBomTatCa = (tenCongTrinh: string[]): Promise<KqNhieu> | nul
   if (!khoa) return null;
   const e = boNhoNhieu.get(khoa);
   if (e && Date.now() - e.luc < NHO_MS) return e.dangTai ?? Promise.resolve(e.kq!);
-  const dangTai = fetch(`${API_BASE_URL}/bop-m2/nhieu?cts=${encodeURIComponent(khoa)}`)
+  const dangTai: Promise<KqNhieu> = fetch(`${API_BASE_URL}/bop-m2/nhieu?cts=${encodeURIComponent(khoa)}`)
     .then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
     .then((d: { soCt: number; hex: HexM2[]; vatLieu: VatLieuM2[] }) => {
       const kq: KqNhieu = { khoa, soCt: d.soCt, duLieu: { hex: d.hex ?? [], vatLieu: d.vatLieu ?? [] } };
-      boNhoNhieu.set(khoa, { luc: Date.now(), kq });
+      if (boNhoNhieu.get(khoa)?.dangTai === dangTai) boNhoNhieu.set(khoa, { luc: Date.now(), kq });
       if (boNhoNhieu.size > 6) boNhoNhieu.delete(boNhoNhieu.keys().next().value!);
       return kq;
     })
-    .catch(err => { boNhoNhieu.delete(khoa); throw err; });
+    .catch(err => { if (boNhoNhieu.get(khoa)?.dangTai === dangTai) boNhoNhieu.delete(khoa); throw err; });
   boNhoNhieu.set(khoa, { luc: Date.now(), dangTai });
   return dangTai;
 };
@@ -231,6 +237,7 @@ export const BomTatCa = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: string[];
   const ma = khoa ? khoa.split(',') : [];
   const [kq, setKq] = useState<KqNhieu | null>(() => boNhoNhieu.get(khoa)?.kq ?? null);
   const [loi, setLoi] = useState<string | null>(null);
+  const moc = useMocBang(['bom']);
   useEffect(() => {
     if (!khoa) return;
     let bo = false;
@@ -240,7 +247,7 @@ export const BomTatCa = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: string[];
     taiTruocBomTatCa(tenCongTrinh)?.then(k => { if (!bo) setKq(k); })
       .catch(e => { if (!bo) setLoi(e instanceof Error ? e.message : String(e)); });
     return () => { bo = true; };
-  }, [khoa]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [khoa, moc]); // eslint-disable-line react-hooks/exhaustive-deps
   const dangTai = !!khoa && kq?.khoa !== khoa && !loi;
   // Mã CT => tên đầy đủ (như bảng BOP / BOT) để hiện + xếp theo Luồng đỏ
   const tenCt = useMemo(() => {
@@ -252,7 +259,7 @@ export const BomTatCa = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: string[];
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
         {!khoa ? 'Không có công trình nào có mã CTxx-xxx trong phạm vi đang xem.'
-          : loi ? <span className="text-red-600">Không tải được BOP-M2 ({loi}).</span>
+          : loi && kq?.khoa !== khoa ? <span className="text-red-600">Không tải được BOP-M2 ({loi}).</span>
           : dangTai ? 'Đang tải BOP-M2 của các công trình…'
           : <><b className="text-slate-800">{fmtInt(kq!.soCt)}</b> / {fmtInt(ma.length)} công trình đã nạp · {fmtInt(kq!.duLieu.hex.length)} HEX · {fmtInt(kq!.duLieu.vatLieu.length)} dòng vật liệu</>}
       </p>

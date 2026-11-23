@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { ModalShell } from '../shared/ModalShell';
 import { useAuth } from '../../context/AuthContext';
+import { useMocBang } from '../../hooks/useMocBang';
 import { LocTenVatTu } from './tonKhoVatTu/LocTenVatTu';
 import type { LocTen } from './tonKhoVatTu/locTenExcel';
 import {
@@ -776,30 +777,37 @@ function ChiTietModal({ mo, onDong }: { mo: MoChiTiet; onDong: () => void }) {
   const [gioiHan, setGioiHan] = useState(BUOC_HIEN);
   const [dangXuat, setDangXuat] = useState(false);
 
+  // Dữ liệu mới: gọi lại ngầm, giữ danh sách / bộ lọc đang xem
+  const moc = useMocBang(['tonKhoVt']);
+  const daTai = useRef<MoChiTiet | null>(null);
   useEffect(() => {
     const ac = new AbortController();
-    setDuLieu(null); setLoi(null);
+    const ngam = daTai.current === mo;
+    if (!ngam) { setDuLieu(null); setLoi(null); }
     if (mo.loc && mo.loc.ten.length === 0) {
       setDuLieu({ ngay: mo.ngayChot, ngayTruoc: mo.ngaySoVoi, coGia: true, dong: [] });
       return () => ac.abort();
     }
     layChiTietTonKhoVt(mo.ngayChot, mo.nhom, mo.ngaySoVoi, ac.signal, mo.loc?.ten)
-      .then(d => { if (!ac.signal.aborted) setDuLieu(d); })
+      .then(d => { if (!ac.signal.aborted) { daTai.current = mo; setDuLieu(d); } })
       .catch((e: unknown) => {
         if (ac.signal.aborted) return;
         console.error('Lỗi tải chi tiết tồn kho vật tư:', e);
+        if (ngam && !laLoiChuaCoQuyen(e)) return;
+        daTai.current = null;
         if (laLoiChuaCoQuyen(e)) setLoi({ thongBao: 'Bạn chưa có quyền xem tồn kho vật tư', chuaCoQuyen: true });
         // LoiTonKhoVt luôn mang câu tiếng Việt; lỗi khác (lỗi lập trình…) không đưa chữ tiếng Anh ra người dùng
         else setLoi({ thongBao: e instanceof LoiTonKhoVt ? e.message : 'Lỗi không xác định, hãy thử lại', chuaCoQuyen: false });
       });
     return () => ac.abort();
-  }, [mo, lanTai]);
+  }, [mo, lanTai, moc]);
 
   // ModalShell chỉ tìm [data-autofocus] lúc mở, khi đó ô tìm chưa vẽ (đang tải) => tiêu điểm nằm ở nút Đóng.
   // Danh sách về thì đưa tiêu điểm vào ô tìm: gõ được mã ngay, Space / Enter không lỡ tay đóng cửa sổ.
-  useEffect(() => { if (duLieu) oTimRef.current?.focus(); }, [duLieu]);
+  const coDuLieu = !!duLieu;
+  useEffect(() => { if (coDuLieu) oTimRef.current?.focus(); }, [coDuLieu]);
 
-  useEffect(() => { setGioiHan(BUOC_HIEN); }, [loc, timHoan, xep, duLieu]);
+  useEffect(() => { setGioiHan(BUOC_HIEN); }, [loc, timHoan, xep]);
 
   const coGia = duLieu?.coGia ?? false;
   const ds = useMemo(() => (duLieu ? duLieu.dong.map(d => phanLoaiDong(d, duLieu.coGia)) : []), [duLieu]);
@@ -1060,21 +1068,33 @@ const TonKhoVatTu: React.FC = () => {
       setKetQuaLoc(m => ({ ...m, [nhom]: { trangThai: 'xong', duLieu: { capNhat: null, ngay: [], nhom: [nhom], diem: [] } } }));
       return;
     }
+    taiLoc(nhom, loc, false);
+  };
+  /** Tải số của 1 thẻ đang lọc; ngam = đang có số, giữ nguyên tới khi số mới về */
+  const taiLoc = (nhom: string, loc: LocTen, ngam: boolean) => {
+    acLoc.current.get(nhom)?.abort();
     const ac = new AbortController();
     acLoc.current.set(nhom, ac);
-    setKetQuaLoc(m => ({ ...m, [nhom]: { trangThai: 'dang_tai' } }));
+    if (!ngam) setKetQuaLoc(m => ({ ...m, [nhom]: { trangThai: 'dang_tai' } }));
     layTongHopTonKhoVt(ac.signal, { nhom, ten: loc.ten })
       .then(d => { if (!ac.signal.aborted) setKetQuaLoc(m => ({ ...m, [nhom]: { trangThai: 'xong', duLieu: d } })); })
       .catch((e: unknown) => {
         if (ac.signal.aborted) return;
         console.error('Lỗi tải tồn kho vật tư theo bộ lọc tên:', e);
+        if (ngam) return;
         setKetQuaLoc(m => ({ ...m, [nhom]: { trangThai: 'loi', thongBao: e instanceof LoiTonKhoVt ? e.message : 'Lỗi không xác định, hãy thử lại' } }));
       });
   };
 
+  // Dữ liệu mới: gọi lại ngầm (cả các thẻ đang lọc tên), số đang hiện giữ tới khi số mới về
+  const mocTon = useMocBang(['tonKhoVt']);
+  useEffect(() => {
+    if (mocTon) Object.entries(locTheoNhom).forEach(([nhom, loc]) => { if (loc.ten.length) taiLoc(nhom, loc, ketQuaLoc[nhom]?.trangThai === 'xong'); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mocTon]);
   useEffect(() => {
     const ac = new AbortController();
-    setTrangThai({ loai: 'dang_tai' });
+    setTrangThai(t => (t.loai === 'xong' ? t : { loai: 'dang_tai' }));
     layTongHopTonKhoVt(ac.signal)
       .then(d => { if (!ac.signal.aborted) setTrangThai({ loai: 'xong', duLieu: d }); })
       .catch((e: unknown) => {
@@ -1082,10 +1102,10 @@ const TonKhoVatTu: React.FC = () => {
         console.error('Lỗi tải tổng hợp tồn kho vật tư:', e);
         // LoiTonKhoVt luôn mang câu tiếng Việt; lỗi khác không đưa chữ tiếng Anh ra người dùng (đã ghi console)
         const thongBao = e instanceof LoiTonKhoVt ? e.message : 'Lỗi không xác định, hãy thử lại';
-        setTrangThai(laLoiChuaCoQuyen(e) ? { loai: 'chua_quyen', thongBao } : { loai: 'loi', thongBao });
+        setTrangThai(t => (laLoiChuaCoQuyen(e) ? { loai: 'chua_quyen', thongBao } : t.loai === 'xong' ? t : { loai: 'loi', thongBao }));
       });
     return () => ac.abort();
-  }, [lanTai]);
+  }, [lanTai, mocTon]);
 
   const duLieu = trangThai.loai === 'xong' ? trangThai.duLieu : null;
   const ngayMoiNhat = useMemo(() => (duLieu ? dsNgayChot(duLieu).slice(-1)[0] ?? null : null), [duLieu]);

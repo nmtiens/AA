@@ -1,3 +1,4 @@
+import { hanPhienBan } from '../server/data.js';
 import express from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
@@ -806,7 +807,7 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
 // SỐ LIỆU MÀN "TỔNG QUAN" (app điện thoại): việc của tôi, theo trạng thái / hạn / loại / xưởng / công trình
 // ============================================================================
 interface VmStatsTho { rows: any[]; day: { created_today: unknown; resolved_today: unknown; closed_today: unknown } }
-const vmStatsNho = taoNhoNgan<VmStatsTho>(20_000, 2);
+const vmStatsNho = taoNhoNgan<VmStatsTho>(() => hanPhienBan(20_000), 2);
 // 1 câu thay cho 2 câu chạy song song (trước chiếm cả 2 kết nối của pool): 3 số đếm hôm nay (luôn đúng 1 dòng) nối
 // trái với các vướng mắc chưa đóng => không có dòng mở nào vẫn còn 1 dòng mang 3 số đếm (id NULL, bỏ ở Node).
 const docVmStats = async (ready: boolean): Promise<VmStatsTho> => {
@@ -845,11 +846,11 @@ const tachVmStats = (rows: any[]): VmStatsTho => ({
 });
 // Bảng điều khiển: dòng thô theo (cột quy trình, mốc đầu kỳ) nhớ 60 giây — đổi bộ lọc xưởng / kỳ trong cùng 12 tuần
 // là trúng (lọc làm ở Node). Không phụ thuộc người dùng; quyền vẫn kiểm trước khi đọc bản nhớ.
-const vmDashboardNho = taoNhoNgan<any[]>(60_000, 4);
+const vmDashboardNho = taoNhoNgan<any[]>(() => hanPhienBan(60_000), 4);
 // Vướng mắc đang mở gộp theo công trình (/by-project bên dưới): vướng mắc đổi bất kỳ lúc nào (không có phiên bản bảng)
 // => giữ 1 phút, dùng chung lượt đang tính
 type VmByProject = { ma: string; ten: string; open: number; overdue: number }[];
-const vmByProjectNho = taoNhoNgan<VmByProject>(60_000, 1);
+const vmByProjectNho = taoNhoNgan<VmByProject>(() => hanPhienBan(60_000), 1);
 /** Gọi ngay sau mỗi thao tác ghi thành công: người vừa thao tác thấy số mới ở instance này */
 const xoaNhoVuongMac = () => { vmStatsNho.xoa(); vmDashboardNho.xoa(); vmByProjectNho.xoa(); };
 

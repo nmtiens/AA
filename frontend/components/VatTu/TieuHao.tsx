@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dangMayTinhBang } from '../../services/mayTinhBang';
 import { AlertTriangle, ChevronLeft, ChevronRight, Database, Download, Loader2, RefreshCw, Search, X } from 'lucide-react';
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import * as bang from '../shared/bangBaoCao';
 import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter';
+import { useMocBang } from '../../hooks/useMocBang';
 import { useToast } from '../../context/ToastContext';
 import { fmtInt } from '../../utils/format';
 import {
@@ -63,12 +64,22 @@ const TieuHao: React.FC = () => {
     return k ? { ...loc, ...k } : loc;
   }, [loc, thangChon]);
 
+  // Có dữ liệu mới => gọi lại ngầm: số của đúng bộ lọc này đã hiện thì giữ nguyên tới khi số mới về, lỗi thì giữ số cũ
+  const moc = useMocBang(['tieuHao', 'tonKhoVt']);
+  const mocBieuDo = useMocBang(['tieuHao']);
+  const daTaiBieuDo = useRef<BoLocTieuHao | null>(null);
+  const daTai = useRef<[BoLocTieuHao, TabTh, number] | null>(null);
+
   // Biểu đồ (luôn theo nhóm)
   useEffect(() => {
     const ac = new AbortController();
+    const im = daTaiBieuDo.current === loc;
+    if (!im) daTaiBieuDo.current = null;
     layTongHopTieuHao(loc, 'nhom', ac.signal)
       .then(d => {
+        if (ac.signal.aborted) return;
         if (laChuaCo(d)) { setDuBieuDo(null); return; }
+        daTaiBieuDo.current = loc;
         setDuBieuDo(d);
         setTenNhom(cu => {
           const moi = { ...cu };
@@ -76,23 +87,26 @@ const TieuHao: React.FC = () => {
           return moi;
         });
       })
-      .catch(() => { if (!ac.signal.aborted) setDuBieuDo(null); });
+      .catch(() => { if (!ac.signal.aborted && !im) setDuBieuDo(null); });
     return () => ac.abort();
-  }, [loc, lanTai]);
+  }, [loc, lanTai, mocBieuDo]);
 
   // Bảng + thẻ số theo tab
   useEffect(() => {
     const ac = new AbortController();
-    setTt({ loai: 'dang_tai' });
+    const im = daTai.current?.[0] === locBang && daTai.current[1] === tab && daTai.current[2] === lanTai;
+    if (!im) { daTai.current = null; setTt({ loai: 'dang_tai' }); }
     layTongHopTieuHao(locBang, tab, ac.signal)
       .then(d => {
-        if (laChuaCo(d)) { setDu(null); setTt({ loai: 'chua_co' }); return; }
+        if (ac.signal.aborted) return;
+        if (laChuaCo(d)) { daTai.current = null; setDu(null); setTt({ loai: 'chua_co' }); return; }
+        daTai.current = [locBang, tab, lanTai];
         setDu(d);
         setTt({ loai: 'xong' });
       })
-      .catch(e => { if (!ac.signal.aborted) setTt({ loai: 'loi', thongBao: thongBaoLoi(e), chuaQuyen: laChuaQuyen(e) }); });
+      .catch(e => { if (!ac.signal.aborted && !im) setTt({ loai: 'loi', thongBao: thongBaoLoi(e), chuaQuyen: laChuaQuyen(e) }); });
     return () => ac.abort();
-  }, [locBang, tab, lanTai]);
+  }, [locBang, tab, lanTai, moc]);
 
   const coGia = du?.coGia === true;
   const datLoc = <K extends keyof BoLocTieuHao>(k: K, v: BoLocTieuHao[K]) => setLoc(l => ({ ...l, [k]: v }));
@@ -478,13 +492,18 @@ const CuaSoCon = ({ yc, coGia, tren, onClose, onXemChungTu }: {
   const [du, setDu] = useState<TongHopTieuHao | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
   useEsc(tren, onClose);
+  const moc = useMocBang(['tieuHao', 'tonKhoVt']);
+  const daTai = useRef<XemCon | null>(null);
   useEffect(() => {
     const ac = new AbortController();
     layTongHopTieuHao(yc.loc, yc.theo, ac.signal)
-      .then(d => { if (laChuaCo(d)) setLoi('Chưa có dữ liệu xuất tiêu hao'); else setDu(d); })
-      .catch(e => { if (!ac.signal.aborted) setLoi(thongBaoLoi(e)); });
+      .then(d => {
+        if (ac.signal.aborted) return;
+        if (laChuaCo(d)) setLoi('Chưa có dữ liệu xuất tiêu hao'); else { daTai.current = yc; setDu(d); setLoi(null); }
+      })
+      .catch(e => { if (!ac.signal.aborted && daTai.current !== yc) setLoi(thongBaoLoi(e)); });
     return () => ac.abort();
-  }, [yc]);
+  }, [yc, moc]);
   return (
     <div className={bang.cuaSoNen} onClick={onClose}>
       <div className={bang.cuaSoKhung} onClick={e => e.stopPropagation()}>
@@ -520,14 +539,25 @@ const CuaSoChungTu = ({ yc, onClose }: { yc: XemChungTu; onClose: () => void }) 
   const [dangXuat, setDangXuat] = useState(false);
   const { showToast } = useToast();
   useEsc(true, onClose);
+  const moc = useMocBang(['tieuHao']);
+  const daTai = useRef<[XemChungTu, number] | null>(null);
   useEffect(() => {
     const ac = new AbortController();
-    setLoi(null);
+    const im = daTai.current?.[0] === yc && daTai.current[1] === trang;
+    if (!im) { daTai.current = null; setLoi(null); }
     layChiTietTieuHao(yc.loc, { ma: yc.ma, dvt: yc.dvt, trang, co: CO_TRANG }, ac.signal)
-      .then(d => { if (laChuaCo(d)) setLoi('Chưa có dữ liệu xuất tiêu hao'); else setDu(d); })
-      .catch(e => { if (!ac.signal.aborted) setLoi(thongBaoLoi(e)); });
+      .then(d => {
+        if (ac.signal.aborted) return;
+        if (laChuaCo(d)) { daTai.current = null; setLoi('Chưa có dữ liệu xuất tiêu hao'); return; }
+        // Dữ liệu mới ít trang hơn => về trang cuối
+        const cuoi = Math.max(1, Math.ceil(d.tong / CO_TRANG));
+        if (trang > cuoi) { setTrang(cuoi); return; }
+        daTai.current = [yc, trang];
+        setDu(d);
+      })
+      .catch(e => { if (!ac.signal.aborted && !im) setLoi(thongBaoLoi(e)); });
     return () => ac.abort();
-  }, [yc, trang]);
+  }, [yc, trang, moc]);
   const coGia = du?.coGia === true;
   const cot = useMemo(() => cotChungTuHien(coGia), [coGia]);
   const soTrang = du ? Math.max(1, Math.ceil(du.tong / CO_TRANG)) : 1;

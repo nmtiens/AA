@@ -1,3 +1,5 @@
+import { useMocBang } from './hooks/useMocBang';
+import { NHOM_BAO, RANH_SAU_MS, TEN_NHOM, gioVN, nenHoi, nhanMoc, theoDoiMocBang } from './services/mocDuLieu';
 import { useMayTinhBang } from './services/mayTinhBang';
 // src/App.tsx
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
@@ -311,8 +313,11 @@ const ConstructionOverviewWrapper = () => {
   // bảng tải xong trình duyệt ghép lại ra cùng số (không nhảy số)
   const [banGhiSan, setBanGhiSan] = useState<CongTrinhRec[] | null>(null);
   const [nguonSan, setNguonSan] = useState<NguonBanGhiCongTrinh | null>(null);
+  const mocFile = useMocBang(['bot', 'production']);
+  const mocSan = useRef(0);
   useEffect(() => {
-    if (coBang || banGhiSan) return;
+    if (coBang || (banGhiSan && mocSan.current === mocFile)) return;
+    mocSan.current = mocFile;
     let on = true;
     fetchTongQuanCongTrinhDu().then(z => {
       if (!on || !z) return;
@@ -321,7 +326,7 @@ const ConstructionOverviewWrapper = () => {
       setNguonSan(z.nguon);
     });
     return () => { on = false; };
-  }, [coBang]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [coBang, mocFile]); // eslint-disable-line react-hooks/exhaustive-deps
   // Số theo FILE CÔNG TRÌNH (services/congTrinhFile.ts): HEX của file + ô file khác dữ liệu app, ghép vào dòng app cùng HEX.
   // Chưa tạo bảng / tool chưa nạp / lỗi => dùng dữ liệu app như cũ (ghi rõ trên trang).
   const [file, setFile] = useState<DuLieuFileCongTrinh | null>(() => fileCongTrinhDaCo());
@@ -331,9 +336,9 @@ const ConstructionOverviewWrapper = () => {
   useEffect(() => {
     if (!fileCongTrinhCu()) return;
     let on = true;
-    taiFileCongTrinh().then(d => { if (on) { setFile(d); setFileLoi(false); } }).catch(() => { if (on) setFileLoi(true); });
+    taiFileCongTrinh().then(d => { if (on) { setFile(d); setFileLoi(false); } }).catch(() => { if (on && !fileCongTrinhDaCo()) setFileLoi(true); }); // đã có số thì giữ
     return () => { on = false; };
-  }, [context.productionData]);
+  }, [context.productionData, mocFile]);
   const theoFile = coSoFile(file);
   const dataFile = useMemo(
     () => (theoFile && coBang && file ? ghepDongFile(context.productionData, context.productionColumns,
@@ -621,6 +626,14 @@ const MainLayout: React.FC = () => {
   // Chỉ gọi lúc mở app và khi bấm Làm mới; lỗi thì giữ giá trị cũ
   const taiDuLieuDen = useCallback(() => layDuLieuDen().then(d => { if (d) setDuLieuDen(d); }).catch(() => undefined), []);
   useEffect(() => { void taiDuLieuDen(); }, [taiDuLieuDen]);
+  // Có dữ liệu mới: cập nhật "Dữ liệu đến", KH đã đạt và báo tên nguồn vừa cập nhật
+  useEffect(() => theoDoiMocBang(doi => {
+    const bao = NHOM_BAO.filter(k => doi.has(k));
+    if (bao.length) void taiDuLieuDen();
+    if (doi.has('production') || doi.has('inventory')) fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }).catch(() => undefined);
+    const ten = bao.map(k => TEN_NHOM[k]);
+    if (ten.length) showToast(`Đã cập nhật dữ liệu mới: ${ten.slice(0, 3).join(', ')}${ten.length > 3 ? ` và ${ten.length - 3} nguồn khác` : ''}`, 'success');
+  }), [taiDuLieuDen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   // Máy tính bảng: menu trái mặc định là dải biểu tượng; mở ra thì đè lên trang, chọn trang / chạm ngoài là thu lại
@@ -724,6 +737,7 @@ const MainLayout: React.FC = () => {
   // Lượt đồng bộ đang chạy (nếu có). Đồng bộ được gọi từ 3 nơi: hẹn giờ 60s, khi quay lại
   // tab, và nút "Làm mới" — không chặn thì có thể cùng lúc tải /api/all-data nhiều lần.
   const syncInFlightRef = useRef<Promise<boolean> | null>(null);
+  const lanHoiRef = useRef(0); // lần gần nhất hỏi /api/check-versions
   // Các bảng lượt đồng bộ gần nhất đã xét (để biết lượt đang chạy có gồm bảng trang mới cần hay không)
   const syncCoveredRef = useRef<Set<string>>(new Set());
   const settleLoading = () => { if (pendingLoadsRef.current === 0 && !syncInFlightRef.current) setLoading(false); };
@@ -760,14 +774,17 @@ const MainLayout: React.FC = () => {
     // Trước đây bỏ lượt rồi chờ lần hẹn giờ 60 giây: máy mới / vừa đăng nhập lại phải chờ ~1 phút mới có bảng.
     const boLuot = (): Promise<boolean> | false => (mountedRef.current && lan < 2 ? runSync(forceAll, lan + 1) : false);
     try {
-      if (activeTablesRef.current.size === 0) return true; // trang hiện tại không dùng bảng nào
+      lanHoiRef.current = Date.now();
       const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
       if (!verRes.ok) return false;
 
       const serverVersions = await verRes.json();
       if (stale()) return boLuot();
       // Phiên bản bảng trên máy chủ (hoặc ngày VN) đổi => báo các trang đang mở gọi lại API số tổng hợp; lần đầu chỉ ghi mốc
-      baoMocDoi(JSON.stringify(serverVersions) + '|' + ngayVNNho());
+      const { _moc, ...verBang } = serverVersions;
+      baoMocDoi(JSON.stringify(verBang) + '|' + ngayVNNho());
+      nhanMoc(serverVersions); // nhóm dữ liệu nào đổi => trang đang nghe tự gọi lại API (hooks/useMocBang)
+      if (activeTablesRef.current.size === 0) { syncCoveredRef.current = new Set(); return true; } // trang không dùng bảng thô nào
       syncCoveredRef.current = new Set(activeTablesRef.current);
 
       // Danh sách endpoint + setter, dùng để biết bảng nào cần cập nhật
@@ -981,6 +998,7 @@ const MainLayout: React.FC = () => {
       // Chạy 1 lần (StrictMode ở bản dev gọi effect 2 lần => đọc cache 2 lần song song)
       if (initStartedRef.current) return;
       initStartedRef.current = true;
+      if (tablesForPath(pathnameRef.current).length === 0) void checkAndSync(); // ghi mốc ngay, không chờ lượt 60 giây
       await loadForPath(pathnameRef.current);
     };
 
@@ -991,9 +1009,10 @@ const MainLayout: React.FC = () => {
     // Trước đây hỏi cả khi tab ẩn / máy để qua đêm => 1 tab quên đóng cũng giữ DB thức 24/7 (gói miễn phí Layerbase
     // bắt DB ngủ ≥ 25% thời gian, bị tạm dừng 20/10/2026). Quay lại sau khi rảnh => hỏi ngay.
     const POLLING_INTERVAL = 60000;
-    const RANH_SAU_MS = 15 * 60_000;
+    // 23/11/2026: màn hình mở mà không ai chạm vẫn hỏi (thưa hơn, chỉ ban ngày) — nhịp ở services/mocDuLieu.nenHoi
     let lanCuoiThaoTac = Date.now();
     const coNguoi = () => document.visibilityState === 'visible' && Date.now() - lanCuoiThaoTac < RANH_SAU_MS;
+    const hoiDuoc = () => nenHoi({ hien: document.visibilityState === 'visible', tuLucThaoTac: Date.now() - lanCuoiThaoTac, tuLucHoi: Date.now() - lanHoiRef.current, gioVN: gioVN() });
     // MRA (Supabase) hỏi theo nhịp riêng 2 phút, cùng điều kiện có người
     let lanTaiMra = Date.now();
     const hoiMra = () => {
@@ -1002,8 +1021,8 @@ const MainLayout: React.FC = () => {
     };
     const intervalId = setInterval(() => {
       setNgayVN(homNayVN());
+      if (hoiDuoc()) checkAndSync();
       if (!coNguoi()) return;
-      checkAndSync();
       if (Date.now() - lanTaiMra >= MRA_POLL_MS) hoiMra();
     }, POLLING_INTERVAL);
     const thaoTac = () => {

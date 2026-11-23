@@ -5,6 +5,7 @@ import { fetchStockHealthDetail, type StockHealthDetail, type StockHealthDetailQ
 import { fmtInt, fmtPt, fmtTy } from '../../../../utils/format';
 import { downloadCsvFile, rowsToCsvString } from '../../utils/csvExport';
 import * as bang from '../../../shared/bangBaoCao';
+import { useMocBang } from '../../../../hooks/useMocBang';
 import { cotTong, dongTong, hienO, ngayVn, trong, type Cot } from './tonKhoChiTietBang';
 
 // Bấm 1 số của báo cáo Tồn kho v5 => cửa sổ liệt kê các dòng tạo nên số đó (/api/stock/health/chi-tiet).
@@ -95,14 +96,20 @@ const NoiDung: React.FC<{ yeuCau: YeuCau; onClose: () => void }> = ({ yeuCau, on
   const moLuc = useRef(0);
   const bamNen = useRef(false);
 
+  // Có dữ liệu mới: lấy lại ngầm, giữ bảng đang xem (lỗi thì giữ số cũ)
+  const moc = useMocBang(['stock', 'production', 'inventory', 'export']);
+  const mocCu = useRef(moc);
   useEffect(() => {
     const ac = new AbortController();
-    setKq(null); setLoi(null);
+    const ngam = mocCu.current !== moc && kq !== null;
+    mocCu.current = moc;
+    if (!ngam) { setKq(null); setLoi(null); }
     fetchStockHealthDetail(date, yc, { congTrinh, xuong, signal: ac.signal })
-      .then(setKq)
-      .catch(e => { if (!ac.signal.aborted) setLoi(String(e?.message || e)); });
+      .then(d => { if (!ac.signal.aborted) setKq(d); })
+      .catch(e => { if (!ac.signal.aborted && !ngam) setLoi(String(e?.message || e)); });
     return () => ac.abort();
-  }, [date, yc, congTrinh, xuong, lanThu]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, yc, congTrinh, xuong, lanThu, moc]);
 
   // Đóng thì trả focus về phần tử vừa bấm, không cuộn trang
   useEffect(() => {

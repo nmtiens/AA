@@ -3,6 +3,7 @@ import { ClipboardPaste, History, Plus, RefreshCw, Search, Settings, X } from 'l
 import { ModalShell } from '../shared/ModalShell';
 import { useBotHangMuc } from '../../services/botHangMuc';
 import { API_BASE_URL } from '../../services/dataService';
+import { useMocBang } from '../../hooks/useMocBang';
 import { fmtInt, fmtTy, fmtDate } from '../../utils/format';
 import { stageRank } from '../../utils/productionMetrics';
 import * as bang from '../shared/bangBaoCao';
@@ -101,12 +102,35 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
     { k: 'P022', cd: 'P022' }, { k: 'P025', cd: 'P025' },
   ];
 
+  // Thứ tự lượt gọi: kết quả của lượt cũ về sau không đè số mới hơn
+  const luotGoi = useRef(0);
+  const luotHien = useRef(0);
   const tai = useCallback(() => {
     setDangTai(true); setLoi(null);
     const luc = soLanLuu.current;
-    taiBot().then(d => { setDu(d); if (soLanLuu.current === luc) { setNgay(d.ngay); setSoLan(d.soLan ?? {}); } }).catch(e => setLoi(e instanceof Error ? e.message : String(e))).finally(() => setDangTai(false));
+    const luot = ++luotGoi.current;
+    taiBot().then(d => { if (luot < luotHien.current) return; luotHien.current = luot; setDu(d); if (soLanLuu.current === luc) { setNgay(d.ngay); setSoLan(d.soLan ?? {}); } }).catch(e => setLoi(e instanceof Error ? e.message : String(e))).finally(() => setDangTai(false));
   }, []);
   useEffect(() => { tai(); }, [tai]);
+  // Có dữ liệu mới: lấy lại ngầm, lỗi thì giữ số cũ. Đang sửa ô / mở cửa sổ nhập thì đợi đóng rồi mới lấy
+  const moc = useMocBang(['bot', 'botCongDoan', 'production']);
+  const [dangLuu, setDangLuu] = useState(0); // số lượt lưu đang gửi: chưa xong thì chưa lấy lại
+  const mocDaLay = useRef(0);
+  const dangNhap = !!dangSua || !!xem || moDan || moForm || moSetup || dangLuu > 0;
+  const dangNhapRef = useRef(dangNhap);
+  dangNhapRef.current = dangNhap;
+  useEffect(() => {
+    if (moc === mocDaLay.current || dangNhap) return undefined;
+    let bo = false;
+    const luc = soLanLuu.current;
+    const luot = ++luotGoi.current;
+    taiBot().then(d => {
+      if (bo || dangNhapRef.current || soLanLuu.current !== luc || luot < luotHien.current) return;
+      luotHien.current = luot; mocDaLay.current = moc;
+      setDu(d); setNgay(d.ngay); setSoLan(d.soLan ?? {});
+    }).catch(() => { /* giữ số đang hiện */ });
+    return () => { bo = true; };
+  }, [moc, dangNhap]);
 
   const q = du?.quyen ?? null;
   const today = homNayIso();
@@ -142,6 +166,10 @@ export const BotCongDoan = ({ items, onHexClick, chiCuaToi = false }: { items: H
 
   const luu = async (dsGui: OGhi[]) => {
     if (!dsGui.length) return;
+    setDangLuu(n => n + 1);
+    try { await luuThat(dsGui); } finally { soLanLuu.current += 1; setDangLuu(n => n - 1); }
+  };
+  const luuThat = async (dsGui: OGhi[]) => {
     soLanLuu.current += 1;
     // Gửi theo đợt (dán hàng chục nghìn ô); đợt lỗi thì dừng, các đợt trước đã lưu
     const d: { bo: { hex: string; congDoan: string; dot?: DotBot; lyDo: string }[] } = { bo: [] };
@@ -1001,9 +1029,13 @@ const SetupPhanCong = ({ du, xuongDs, onClose, onDaLuu }: { du: DuLieu; xuongDs:
 // ---------------------------------------------------------------------------- lịch sử sửa 1 HEX
 const LichSu = ({ hex, onClose }: { hex: string; onClose: () => void }) => {
   const [ds, setDs] = useState<{ cong_doan: string; dot?: string; ngay_cu: string | null; ngay_moi: string | null; nguoi: string; bo_phan: string | null; luc: string; lan?: number | null }[] | null>(null);
+  const moc = useMocBang(['bot']);
   useEffect(() => {
-    fetch(`${API_BASE_URL}/bot-cong-doan/lich-su?hex=${encodeURIComponent(hex)}`).then(r => r.json()).then(d => setDs(d.ds ?? [])).catch(() => setDs([]));
-  }, [hex]);
+    let bo = false;
+    fetch(`${API_BASE_URL}/bot-cong-doan/lich-su?hex=${encodeURIComponent(hex)}`).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
+      .then(d => { if (!bo) setDs(d.ds ?? []); }).catch(() => { if (!bo) setDs(x => x ?? []); });
+    return () => { bo = true; };
+  }, [hex, moc]);
   // Mở từ cửa sổ HEX (z 9993) => lớp phải cao hơn
   return (
     <ModalShell open onClose={onClose} labelledBy="bcd-ls" closeOnEsc closeOnBackdrop

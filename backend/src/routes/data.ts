@@ -1,3 +1,4 @@
+import { layMocBang } from '../server/mocBang.js';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { pool, timedQuery } from '../db.js';
@@ -743,8 +744,9 @@ app.post('/api/material/pr-hexes', async (req: Request, res: Response) => {
 // --- API KIỂM TRA PHIÊN BẢN ---
 app.get('/api/check-versions', async (_req: Request, res: Response) => {
   try {
-    const versions = await getVersions(VERSIONS_MOI_MS);
-    res.json(versions);
+    // _moc: mốc các bảng ngoài table_versions (server/mocBang.ts) — trình duyệt tự làm mới trang đang xem khi đổi
+    const [versions, moc] = await Promise.all([getVersions(VERSIONS_MOI_MS), layMocBang()]);
+    res.json({ ...versions, _moc: moc });
     // Dữ liệu vừa đổi (ETL) hoặc file công trình vừa nạp (tool trên Drive) => dựng sẵn ở nền cho người mở web sau
     // (server/lamNong.ts). Mốc file chỉ dùng để kích, không gửi về trình duyệt.
     // Đã trả lời rồi: câu hỏi mốc file (tối đa 1 lần / 30 giây) phải được đăng ký waitUntil NGAY (đồng bộ, như

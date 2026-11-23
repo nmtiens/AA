@@ -8,6 +8,7 @@ import { fetchHexExtra, gcnPending as isGcnPending, type HexExtra } from '../../
 import { type RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
+import { useMocBang } from '../../hooks/useMocBang';
 import type { NvlRaw } from '../../utils/nvlParse';
 import { BopM2Section, taiTruocBopM2 } from './BopM2Section';
 import { BotKhnk } from './BotKhnk';
@@ -231,7 +232,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
   // Phần Kho của bảng BOP: mọi hạng mục không hủy của công trình (kể cả IPO hoàn thành), không theo bộ lọc trang
   const khoItems = useMemo(() => (khoRows ? dungHangMuc(khoRows) : items), [khoRows, items, keys, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hexList = useMemo(() => [...new Set(items.map(i => i.hex).filter(Boolean))], [items]);
+  // Giữ nguyên mảng khi danh sách HEX không đổi (bảng sản xuất tải lại) => không gọi lại API thừa
+  const hexKhoa = useMemo(() => [...new Set(items.map(i => i.hex).filter(Boolean))].join('|'), [items]);
+  const hexList = useMemo(() => (hexKhoa ? hexKhoa.split('|') : []), [hexKhoa]);
   // Đơn HỦY: ngoài mọi tổng, hiện riêng ở tiêu đề
   const huy = useMemo(() => rows.reduce((a, r) => (laHuy(r[keys.ipoKey]) ? { n: a.n + 1, total: a.total + parseNumber(r[keys.triGiaKey]) } : a), { n: 0, total: 0 }), [rows, keys.ipoKey, keys.triGiaKey]);
   const hangMucByHex = useMemo(() => {
@@ -258,13 +261,17 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
   // Thông tin thêm theo HEX (SL theo công đoạn SX, QC, gia công ngoài) — tải khi mở
   const [extra, setExtra] = useState<Record<string, HexExtra> | null>(null);
+  // Chỉ mở / đổi công trình mới xoá số (ở đây và effect BOM dưới); có dữ liệu mới thì giữ số đang hiện tới khi số mới về
+  const mocSx = useMocBang(['production']);
+  const mocVt = useMocBang(['material', 'production']);
+  const mocVm = useMocBang(['vuongMac']);
+  useEffect(() => { setExtra(null); }, [isOpen, projectName]);
   useEffect(() => {
-    setExtra(null);
     if (!isOpen || hexList.length === 0) return;
     const ctrl = new AbortController();
-    fetchHexExtra(hexList, ctrl.signal).then(setExtra).catch(() => { if (!ctrl.signal.aborted) setExtra({}); });
+    fetchHexExtra(hexList, ctrl.signal).then(m => { if (!ctrl.signal.aborted) setExtra(m); }).catch(() => { if (!ctrl.signal.aborted) setExtra(x => x ?? {}); });
     return () => ctrl.abort();
-  }, [isOpen, hexList]);
+  }, [isOpen, projectName, hexList, mocSx]);
 
   // Nhịp nhập kho theo tuần (bảng nhập kho, các HEX của công trình) + dự báo theo nhịp PACE_WEEKS tuần gần nhất
   const weekly = useMemo(() => {
@@ -314,6 +321,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
   useEffect(() => {
     setMatCount(null); setMaterialLines(null); setProjectLines(null); setNvlByHex(null); setOpenIssues(null); setMaterialIssues(null);
+    setIssueCats({}); setOpenIssueList({});
+  }, [isOpen, projectName]);
+  useEffect(() => {
     if (!isOpen || hexList.length === 0) return;
     const ctrl = new AbortController();
     const token = getToken() ?? '';
@@ -322,9 +332,13 @@ export const ProjectHealthModal: React.FC<Props> = ({
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ hexes: hexList, mode }),
       signal: ctrl.signal,
-    }).then(r => (r.ok ? r.json() : null));
+    }).then(r => (r.ok ? r.json() : null)).then(d => {
+      if (ctrl.signal.aborted) throw new Error('đã huỷ');   // lượt cũ: không đè số mới
+      return d;
+    });
 
-    post('hex-counts').then(d => setMatCount(d ?? {})).catch(() => {});
+    // d = null (máy chủ lỗi): giữ số đang có
+    post('hex-counts').then(d => setMatCount(x => d ?? x ?? {})).catch(() => {});
     post('matched').then(d => {
       const list: MaterialLine[] = (d?.rows ?? []).map((r: MaterialLine) => ({
         hexes: Array.isArray(r.hexes) ? r.hexes : [],
@@ -336,11 +350,20 @@ export const ProjectHealthModal: React.FC<Props> = ({
         // Cần cho phân loại 2 cấp: gia công ngoài (nhóm 806), Đóng PR (đã nhận 1 phần / có PO chưa nhận / không PO)
         nhom_vt: r.nhom_vt, so_luong_da_nhan_sap: r.so_luong_da_nhan_sap, so_po: r.so_po,
       }));
-      setMaterialLines(list);
+      setMaterialLines(x => (d ? list : x ?? list));
     }).catch(() => {});
-    post('project-uncoded').then(d => setProjectLines(d?.rows ?? [])).catch(() => {});
-    post('nvl').then(d => setNvlByHex(d ?? {})).catch(() => {});
+    post('project-uncoded').then(d => setProjectLines(x => d?.rows ?? x ?? [])).catch(() => {});
+    post('nvl').then(d => setNvlByHex(x => d ?? x ?? {})).catch(() => {});
+    return () => ctrl.abort();
+  }, [isOpen, projectName, hexList, mocVt]);
+
+  useEffect(() => {
+    if (!isOpen || hexList.length === 0) return;
+    let bo = false;
     fetchVuongMacList(hexList).then(map => {
+      if (bo) return;
+      // Tải lỗi trả {} (danh sách thật gồm cả vướng mắc đã xử lý): đang có số thì giữ
+      if (Object.keys(map).length === 0) { setOpenIssues(x => x ?? {}); setMaterialIssues(x => x ?? {}); return; }
       const o: Record<string, number> = {};
       const m3: Record<string, VuongMacItem[]> = {};
       const catMap: Record<string, Partial<Record<FiveMCategory, number>>> = {};
@@ -359,9 +382,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
       setMaterialIssues(m3);
       setIssueCats(catMap);
       setOpenIssueList(openMap);
-    }).catch(() => { setOpenIssues({}); setMaterialIssues({}); setIssueCats({}); });
-    return () => ctrl.abort();
-  }, [isOpen, hexList]);
+    }).catch(() => { if (!bo) { setOpenIssues(x => x ?? {}); setMaterialIssues(x => x ?? {}); } });
+    return () => { bo = true; };
+  }, [isOpen, projectName, hexList, mocVm]);
 
   // ---------- Tổng hợp 3 thẻ ----------
   const bot = useMemo(() => {

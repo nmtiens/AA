@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useTrendFilter, Granularity } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { useMocBang } from '../../../../hooks/useMocBang';
 import { fmtPt } from '../../../../utils/format';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 import { fetchYearPlan } from '../../../../services/dataService';
@@ -212,6 +213,9 @@ export default function TrendChart({ source, embedded = false, stt, displayMode,
 
   const [raw, setRaw] = useState<ApiPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  // Dữ liệu mới: gọi lại ngầm, số đang hiện giữ tới khi số mới về
+  const moc = useMocBang([source, 'production']);
+  const daTai = useRef('');   // bộ tham số của số đang hiện
 
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState(0);
@@ -256,6 +260,7 @@ export default function TrendChart({ source, embedded = false, stt, displayMode,
 
   useEffect(() => {
     if (!hasValidRange) {
+      daTai.current = '';
       setRaw([]);
       setLoading(false);
       setPinned(null);
@@ -263,8 +268,6 @@ export default function TrendChart({ source, embedded = false, stt, displayMode,
     }
 
     let cancelled = false;
-    setLoading(true);
-    setPinned(null);
     const params = new URLSearchParams({ source, granularity });
     params.set('dateFrom', dateFrom);
     params.set('dateTo', dateTo);
@@ -274,37 +277,52 @@ export default function TrendChart({ source, embedded = false, stt, displayMode,
     if (phanLoai) params.set('phanLoai', phanLoai);
     if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ [DATES FIX]
-    fetch(`/api/trend?${params.toString()}`)
+    const khoa = `/api/trend?${params.toString()}`;
+    const ngam = daTai.current === khoa;
+    if (!ngam) {
+      daTai.current = '';
+      setLoading(true);
+      setPinned(null);
+    }
+    fetch(khoa)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => { if (!cancelled) setRaw(Array.isArray(d) ? d : []); })
+      .then(d => {
+        if (cancelled) return;
+        daTai.current = khoa;
+        setRaw(Array.isArray(d) ? d : []);
+      })
       .catch(err => {
         console.error(`Lỗi fetch /api/trend (${source}):`, err);
-        if (!cancelled) setRaw([]);
+        if (!cancelled && !ngam) setRaw([]);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
     // ✅ [DATES FIX] thêm selectedDatesCsv vào deps — nếu không, đổi tập ngày rời rạc
     // (mà dateFrom/dateTo min/max không đổi) sẽ KHÔNG kích hoạt fetch lại.
   }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,
-      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
+      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, moc]);
 
   // Kế hoạch năm theo tháng (đơn vị Tỷ) — chỉ tải khi được yêu cầu
   const showPlan = planOverlay && isMoney && granularity === 'month' && source === 'inventory';
   const [planByMonth, setPlanByMonth] = useState<Record<string, number>>({});
+  const mocKH = useMocBang(['yearlyPlan']);
+  const khDaTai = useRef('');
   useEffect(() => {
-    if (!planOverlay || !hasValidRange) { setPlanByMonth({}); return; }
+    if (!planOverlay || !hasValidRange) { khDaTai.current = ''; setPlanByMonth({}); return; }
     let cancelled = false;
+    const khoa = `${dateFrom}|${dateTo}|${xuong}`;
     fetchYearPlan(dateFrom.slice(0, 7), dateTo.slice(0, 7), xuong || undefined).then(d => {
-      if (cancelled) return;
+      if (cancelled || (!d && khDaTai.current === khoa)) return;   // lỗi khi gọi lại: giữ số cũ
+      khDaTai.current = d ? khoa : '';
       const m: Record<string, number> = {};
       (d?.byMonth ?? []).forEach(p => { m[`${p.period}-01`] = p.value; });
       setPlanByMonth(m);
     });
     return () => { cancelled = true; };
-  }, [planOverlay, hasValidRange, dateFrom, dateTo, xuong]);
+  }, [planOverlay, hasValidRange, dateFrom, dateTo, xuong, mocKH]);
 
   const chartData = useMemo(() => {
     if (!hasValidRange) return [];
@@ -348,10 +366,14 @@ export default function TrendChart({ source, embedded = false, stt, displayMode,
     return Number(chartData.reduce((s, p) => s + (p.total ?? 0), 0).toFixed(2));
   }, [raw, chartData, displayMode]);
 
-  const openDetailForPinned = async () => {
+  const lanChiTiet = useRef(0);
+  const openDetailForPinned = async (ngam = false) => {
     if (!pinned) return;
-    setDetailOpen(true);
-    setDetailLoading(true);
+    const lan = ++lanChiTiet.current;
+    if (!ngam) {
+      setDetailOpen(true);
+      setDetailLoading(true);
+    }
     try {
       const params = new URLSearchParams({
         source,
@@ -371,18 +393,25 @@ export default function TrendChart({ source, embedded = false, stt, displayMode,
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
+      if (lan !== lanChiTiet.current) return;
       setDetailRows(data.rows || []);
       setDetailColumns(data.columns || []);
       setDetailTruncated(!!data.truncated);
     } catch (err) {
       console.error('Lỗi fetch /api/detail:', err);
+      if (ngam || lan !== lanChiTiet.current) return;
       setDetailRows([]);
       setDetailColumns([]);
       setDetailTruncated(false);
     } finally {
-      setDetailLoading(false);
+      if (lan === lanChiTiet.current) setDetailLoading(false);
     }
   };
+  // Cửa sổ chi tiết đang mở cũng lấy số mới (đang tải dở thì tải lại)
+  useEffect(() => {
+    if (moc && detailOpen) void openDetailForPinned(!detailLoading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moc]);
 
   const handleChartClick = (state: any, event: React.MouseEvent) => {
     if (!state || !state.activePayload || state.activePayload.length === 0) return;
@@ -517,9 +546,9 @@ export default function TrendChart({ source, embedded = false, stt, displayMode,
             y={pinned.y}
             containerWidth={wrapWidth}
             label={pinned.point.period}
-            value={pinned.point.total ?? 0}
+            value={chartData.find(p => p.periodKey === pinned.point.periodKey)?.total ?? pinned.point.total ?? 0}
             unit={unit}
-            onViewDetail={openDetailForPinned}
+            onViewDetail={() => void openDetailForPinned()}
             onClose={() => setPinned(null)}
           />
         )}

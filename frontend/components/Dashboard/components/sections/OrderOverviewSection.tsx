@@ -22,6 +22,7 @@ import { useMoDanhSachHex, layHexChiTiet } from '../Dashboards/DanhSachHex';
 import DetailDataModal from '../Dashboards/DetailDataModal';
 import { getYesterdayDateOption, parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
 import { formatTrieuAsTy } from '../../../../utils/money';
+import { useMocBang } from '../../../../hooks/useMocBang';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -284,6 +285,10 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   // chung (overviewDateFilters) đổi, NẠP LẠI cache cho ĐÚNG modal đang mở. Đây là phần
   // còn thiếu trước đây khiến tab "Chi tiết dữ liệu" không bao giờ tự refetch khi người
   // dùng đổi công trình/ngày ở tab "Biểu đồ xu hướng".
+  // Có dữ liệu mới của bảng đang xem: gọi lại ngầm (loadGroupAnalysis bỏ bản nhớ cũ, giữ số đang hiện)
+  const khoaMo = isIpoDetailModalOpen ? 'order' as const : isTkbvDetailModalOpen ? 'tkbv' as const : isPthspDetailModalOpen ? 'pthsp' as const
+    : isInventoryDetailModalOpen ? 'inventory' as const : isExportDetailModalOpen ? 'export' as const : null;
+  const moc = useMocBang(khoaMo ? [khoaMo, 'production'] : []);
   useEffect(() => {
     if (isIpoDetailModalOpen) loadGroupAnalysis('order', activeTrendFilter);
     else if (isTkbvDetailModalOpen) loadGroupAnalysis('tkbv', activeTrendFilter);
@@ -299,7 +304,13 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     isPthspDetailModalOpen,
     isInventoryDetailModalOpen,
     isExportDetailModalOpen,
+    moc,
   ]);
+  // Cửa sổ Tồn kho đang mở: tồn kho / ngày chốt đổi thì lấy lại bảng theo công trình
+  useEffect(() => {
+    if (isStockDetailModalOpen) loadStockByProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadStockByProject]);
 
   // ---------- Bấm 1 ô số ở bảng "Chi tiết theo khu vực / công trình" => danh sách hạng mục (view có sẵn của Dashboard) ----------
   // Như phễu (OnLineStageDetailModal.onValueClick -> HexDetailModal): lấy các HEX tạo nên số đó rồi Dashboard mở
@@ -314,6 +325,19 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   // mọi thời gian, lẫn hạng mục chưa nhập / chưa xuất trong kỳ)
   const [nguon, setNguon] = useState<{ mo: boolean; tieuDe: string; mau: string; dangTai: boolean; rows: any[]; columns: any[]; cat: boolean }>(
     { mo: false, tieuDe: '', mau: '#059669', dangTai: false, rows: [], columns: [], cat: false });
+  // Danh sách nguồn đang mở: có dữ liệu mới thì lấy lại ngầm (lỗi giữ dòng cũ)
+  const nguonXem = useRef<{ url: string; source: 'inventory' | 'export' } | null>(null);
+  const mocNguon = useMocBang(nguon.mo && nguonXem.current ? [nguonXem.current.source, 'production'] : []);
+  useEffect(() => {
+    const x = nguonXem.current;
+    if (!nguon.mo || !x || !mocNguon) return;
+    const id = ++dsReq.current;
+    fetch(x.url)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then(d => { if (id === dsReq.current) setNguon(n => ({ ...n, dangTai: false, rows: d.rows || [], columns: d.columns || [], cat: !!d.truncated })); })
+      .catch(() => { if (id === dsReq.current) setNguon(n => (n.dangTai ? { ...n, dangTai: false } : n)); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mocNguon]);
   const moDanhSach = (source: string, dimension: 'xuong' | 'congtrinh', ten: string) => (name: string, kind: 'daily' | 'mtd') => {
     if (source === 'stock') { onOpenStockItems?.(name); return; }
     const tuNguon = source === 'inventory' || source === 'export';
@@ -338,7 +362,9 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
       const tieuDe = `${ten} — ${name} · ${nhan}`;
       const mau = source === 'inventory' ? '#059669' : '#d97706';
       setNguon({ mo: true, tieuDe, mau, dangTai: true, rows: [], columns: [], cat: false });
-      fetch(`/api/detail?${params.toString()}`)
+      const url = `/api/detail?${params.toString()}`;
+      nguonXem.current = { url, source };
+      fetch(url)
         .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
         .then(d => { if (id === dsReq.current) setNguon({ mo: true, tieuDe, mau, dangTai: false, rows: d.rows || [], columns: d.columns || [], cat: !!d.truncated }); })
         .catch(e => { console.error('Lỗi fetch /api/detail:', e); if (id === dsReq.current) setNguon(n => ({ ...n, dangTai: false })); });

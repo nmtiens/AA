@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Search, X, ChevronRight, ChevronDown, AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { API_BASE_URL } from '../../services/dataService';
+import { theoDoiMocBang, type NhomDuLieu } from '../../services/mocDuLieu';
+import { useMocBang } from '../../hooks/useMocBang';
 import { fmtInt, fmtTy } from '../../utils/format';
 import * as bang from '../shared/bangBaoCao';
 import {
@@ -36,14 +38,19 @@ const fmtNgay = (iso: string) => { const d = new Date(iso); return `${String(d.g
 // Số BOT dùng chung cả trang: tải ngầm khi mở trang (như BOM) => bấm tab BOT có bảng ngay. Gộp các lần gọi trùng lúc.
 let boNho: { du: DuLieu; luc: number } | null = null;
 let dangGoi: Promise<DuLieu> | null = null;
+const NHOM_BOT: readonly NhomDuLieu[] = ['bot', 'production'];
+// Có dữ liệu mới: số đã nhớ coi như cũ, lượt đang gọi (đọc trước khi đổi) không dùng chung nữa. Đăng ký lúc nạp module
+// => chạy trước các component đang nghe
+theoDoiMocBang(doi => { if (NHOM_BOT.some(k => doi.has(k))) { if (boNho) boNho.luc = 0; dangGoi = null; } });
 /** moi = false: đã có số trong 1 phút thì dùng lại, không gọi máy chủ */
 export const taiTruocBaoCaoBot = (moi = false): Promise<DuLieu> => {
   if (!moi && boNho && Date.now() - boNho.luc < 60_000) return Promise.resolve(boNho.du);
   if (!dangGoi) {
-    dangGoi = fetch(`${API_BASE_URL}/bot-tong-hop`)
+    const p: Promise<DuLieu> = fetch(`${API_BASE_URL}/bot-tong-hop`)
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
-      .then((d: DuLieu) => { boNho = { du: d, luc: Date.now() }; return d; })
-      .finally(() => { dangGoi = null; });
+      .then((d: DuLieu) => { if (dangGoi === p) boNho = { du: d, luc: Date.now() }; return d; })
+      .finally(() => { if (dangGoi === p) dangGoi = null; });
+    dangGoi = p;
   }
   return dangGoi;
 };
@@ -69,14 +76,26 @@ export const BaoCaoBot = ({ onHexClick, ipoChon = [IPO_MAC_DINH], onIpos }: {
   const [chonCon, setChonCon] = useState<Record<string, ChieuBot>>({});
   const [xep, setXep] = useState<'luu' | 'gia'>('luu');   // luu: file lưu mới nhất lên đầu; gia: theo tổng giảm dần (như file)
 
+  // Thứ tự lượt gọi: kết quả của lượt cũ về sau không đè số mới hơn
+  const luotGoi = useRef(0);
+  const luotHien = useRef(0);
+  const nhan = useCallback((luot: number, d: DuLieu) => { if (luot >= luotHien.current) { luotHien.current = luot; setDu(d); } }, []);
   const tai = useCallback(() => {
     setDangTai(true);
     setLoi(null);
+    const luot = ++luotGoi.current;
     taiTruocBaoCaoBot(true)
-      .then(d => setDu(d))
+      .then(d => nhan(luot, d))
       .catch(e => setLoi(e instanceof Error ? e.message : String(e)))
       .finally(() => setDangTai(false));
-  }, []);
+  }, [nhan]);
+  // Có dữ liệu mới: lấy lại ngầm, lỗi thì giữ số đang hiện
+  const moc = useMocBang(NHOM_BOT);
+  useEffect(() => {
+    if (!moc) return;
+    const luot = ++luotGoi.current;
+    taiTruocBaoCaoBot(true).then(d => nhan(luot, d)).catch(() => { /* giữ số đang hiện */ });
+  }, [moc, nhan]);
   // Mở tab: hiện ngay số đã tải ngầm (taiTruocBaoCaoBot ở trang); số cũ hơn 1 phút thì lấy lại phía sau, không che bảng
   useEffect(() => {
     if (boNho) setDu(boNho.du);
@@ -437,15 +456,19 @@ const ChiTietO = ({ chon, ipo, chiCt, onClose, onHexClick }: { chon: ChonO; ipo:
   const duongKhoa = JSON.stringify(chon.duong);
   // Chiều chưa có trên đường dòng => thêm cột ở bảng HEX (vd. ô của dòng sản phẩm: thêm cột công trình, xưởng)
   const coChieu = (c: ChieuBot) => chon.duong.some(x => x.c === c);
+  const moc = useMocBang(NHOM_BOT);
+  // Chỉ đổi ô đang xem mới xoá bảng; có dữ liệu mới thì giữ dòng đang hiện tới khi dòng mới về
+  useEffect(() => { setDong(null); setLoi(null); }, [duongKhoa, ipoKhoa, thang, chiCt]);
   useEffect(() => {
-    setDong(null); setLoi(null);
+    let bo = false;
     const q = new URLSearchParams({ ipo: ipoKhoa, thang, ct: chiCt ? '1' : '0' });
     for (const x of JSON.parse(duongKhoa) as DuongO) q.set(THAM_SO[x.c], x.v);
     fetch(`${API_BASE_URL}/bot-tong-hop/chi-tiet?${q}`)
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
-      .then((d: { dong: DongChiTiet[] }) => setDong(d.dong))
-      .catch(e => setLoi(e instanceof Error ? e.message : String(e)));
-  }, [duongKhoa, ipoKhoa, thang, chiCt]);
+      .then((d: { dong: DongChiTiet[] }) => { if (!bo) { setDong(d.dong); setLoi(null); } })
+      .catch(e => { if (!bo) setLoi(e instanceof Error ? e.message : String(e)); });
+    return () => { bo = true; };
+  }, [duongKhoa, ipoKhoa, thang, chiCt, moc]);
   const k = chon.cot?.khoa ?? '';
   const tieuDeCot = !k ? 'tất cả' : k === CHUA_BOT ? NHAN_CHUA
     : k.length === 10 ? `ngày ${k.slice(8)}/${k.slice(5, 7)}/${k.slice(0, 4)}` : k.length === 7 ? `tháng ${k.slice(5)}/${k.slice(0, 4)}` : `năm ${k}`;
@@ -460,7 +483,7 @@ const ChiTietO = ({ chon, ipo, chiCt, onClose, onHexClick }: { chon: ChonO; ipo:
         <button type="button" onClick={onClose} aria-label="Đóng" className="rounded p-1 hover:bg-slate-100"><X className="h-5 w-5" /></button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
-        {loi ? <p className="text-sm text-red-700">Không tải được ({loi}).</p>
+        {loi && !dong ? <p className="text-sm text-red-700">Không tải được ({loi}).</p>
           : !dong ? <p className="text-sm text-slate-500">Đang tải…</p>
             : (
               <div className={`${bang.khung} min-h-0 flex-1`}>

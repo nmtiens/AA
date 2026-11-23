@@ -3,6 +3,7 @@ import { DataRow } from '../../../types';
 import { parseNumber } from '../utils/numberParsers';
 import { fetchKhsxNhapKhoSummary, type KhsxNhapKhoSummary } from '../../../services/dataService';
 import { docNho } from '../../../services/nhoApi';
+import { useMocBang } from '../../../hooks/useMocBang';
 import { expandProjectNames } from '../../../utils/productionMetrics';
 import { inPlanWeek } from './useUnifiedTimeFilters';
 import { matchesFilter, toFilterSet } from '../utils/filterMatch';
@@ -193,6 +194,7 @@ export function useKhsxSummary({
   const khsxFetchIdRef = useRef(0);
   // Đã có lần gọi thật nào chưa: lần đầu không chờ 300 ms (chưa có thao tác nào của người dùng để gom)
   const daGoi = useRef(false);
+  const moc = useMocBang(['khsx', 'inventory', 'production']); // có dữ liệu mới: gọi lại, số cũ giữ tới khi số mới về
 
   useEffect(() => {
     // Ở chế độ NĂM, bảng KH/TH theo tháng-tuần này không hiển thị (xem
@@ -229,7 +231,7 @@ export function useKhsxSummary({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [unifiedTimeFilters, viewMode, filters.congTrinh, filters.xuong]);
+  }, [unifiedTimeFilters, viewMode, filters.congTrinh, filters.xuong, moc]);
 
   const totalKhsxAmount = khsxSummary?.totalKh ?? 0;
   const weeklyKhFallback = khsxSummary?.weeklyKhFallback;

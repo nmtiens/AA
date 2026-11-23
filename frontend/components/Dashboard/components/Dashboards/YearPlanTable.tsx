@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTrendFilter } from './TrendFilterContext';
+import { useMocBang } from '../../../../hooks/useMocBang';
 import { fetchYearPlan, fetchYearPlanActual, type YearPlanActualData } from '../../../../services/dataService';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 import { fmtPt } from '../../../../utils/format';
@@ -60,19 +61,23 @@ export default function YearPlanTable({ stt }: { stt?: number } = {}) {
   // Mặc định mở tới cấp Quý; bấm Quý để xem từng tháng
   const [open, setOpen] = useState<Set<string>>(new Set(['y', 'h1', 'h2']));
 
+  // Dữ liệu mới: gọi lại ngầm, lỗi thì giữ số cũ
+  const moc = useMocBang(['yearlyPlan', 'inventory', 'production']);
+  const khoaTai = useRef('');
   useEffect(() => {
     let cancelled = false;
-    setPlan(null); setActual(null);
+    const khoa = `${year}|${xuong}`;
+    if (khoaTai.current !== khoa) { khoaTai.current = khoa; setPlan(null); setActual(null); }
     fetchYearPlan(`${year}-01`, `${year}-12`, xuong || undefined).then(d => {
       if (cancelled) return;
       const m: MonthMap = {};
       (d?.byMonth ?? []).forEach(p => { m[Number(p.period.slice(5, 7))] = p.value; });
-      setPlan(m);
+      setPlan(p => (d || !p ? m : p));
     });
     const q = new URLSearchParams({ source: 'inventory', granularity: 'month', dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` });
     if (xuong) q.set('xuong', xuong);
     fetch(`/api/trend?${q.toString()}`)
-      .then(r => (r.ok ? r.json() : []))
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((rows: { period: string; total: number }[]) => {
         if (cancelled) return;
         const m: MonthMap = {};
@@ -84,19 +89,25 @@ export default function YearPlanTable({ stt }: { stt?: number } = {}) {
         });
         setActual(m);
       })
-      .catch(() => { if (!cancelled) setActual({}); });
+      .catch(() => { if (!cancelled) setActual(p => p ?? {}); });
     return () => { cancelled = true; };
-  }, [year, xuong]);
+  }, [year, xuong, moc]);
 
+  const mocXuong = useMocBang(['yearlyPlan', 'inventory', 'production', 'khsx']);
+  const namDaTai = useRef(0);   // năm của số theo khu vực đang hiện
   useEffect(() => {
-    if (mode !== 'xuong') return;
+    if (mode !== 'xuong') { namDaTai.current = 0; return; }
     let cancelled = false;
-    setByXuongLoading(true);
+    const ngam = namDaTai.current === year;
+    if (!ngam) { namDaTai.current = 0; setByXuongLoading(true); }
     fetchYearPlanActual(year).then(d => {
-      if (!cancelled) { setByXuong(d); setByXuongLoading(false); }
+      if (cancelled) return;
+      if (d) namDaTai.current = year;
+      if (d || !ngam) setByXuong(d);
+      setByXuongLoading(false);
     });
     return () => { cancelled = true; };
-  }, [mode, year]);
+  }, [mode, year, mocXuong]);
 
   // xưởng -> tháng -> giá trị
   const xuongMaps = useMemo(() => {

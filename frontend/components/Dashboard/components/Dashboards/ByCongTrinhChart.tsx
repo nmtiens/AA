@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { useMocBang } from '../../../../hooks/useMocBang';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 import { topVaKhac } from './xuongKy';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
@@ -152,6 +153,9 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
 
   const [raw, setRaw] = useState<ApiCongTrinhPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  // Dữ liệu mới: gọi lại ngầm, số đang hiện giữ tới khi số mới về
+  const moc = useMocBang([source, 'production']);
+  const daTai = useRef('');   // bộ tham số của số đang hiện
 
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState(0);
@@ -195,6 +199,7 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
 
   useEffect(() => {
     if (!hasValidRange) {
+      daTai.current = '';
       setRaw([]);
       setLoading(false);
       setPinned(null);
@@ -202,8 +207,6 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
     }
 
     let cancelled = false;
-    setLoading(true);
-    setPinned(null);
     const params = new URLSearchParams({ source });
     params.set('dateFrom', dateFrom);
     params.set('dateTo', dateTo);
@@ -213,20 +216,31 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
     if (phanLoai) params.set('phanLoai', phanLoai);
     if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
-    fetch(`/api/trend-by-congtrinh?${params.toString()}`)
+    const khoa = `/api/trend-by-congtrinh?${params.toString()}`;
+    const ngam = daTai.current === khoa;
+    if (!ngam) {
+      daTai.current = '';
+      setLoading(true);
+      setPinned(null);
+    }
+    fetch(khoa)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => { if (!cancelled) setRaw(Array.isArray(d) ? d : []); })
+      .then(d => {
+        if (cancelled) return;
+        daTai.current = khoa;
+        setRaw(Array.isArray(d) ? d : []);
+      })
       .catch(err => {
         console.error(`Lỗi fetch /api/trend-by-congtrinh (${source}):`, err);
-        if (!cancelled) setRaw([]);
+        if (!cancelled && !ngam) setRaw([]);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,
-      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
+      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, moc]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
@@ -267,10 +281,14 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
   const rowHeight = Math.max(embedded ? 50 : 54, 22 + soDongTen * (yAxisFontSize + 1) + 12);
   const chartHeight = Math.max(embedded ? 320 : 420, chartData.length * rowHeight + 60);
 
-  const openDetailForPinned = async () => {
+  const lanChiTiet = useRef(0);
+  const openDetailForPinned = async (ngam = false) => {
     if (!pinned) return;
-    setDetailOpen(true);
-    setDetailLoading(true);
+    const lan = ++lanChiTiet.current;
+    if (!ngam) {
+      setDetailOpen(true);
+      setDetailLoading(true);
+    }
     try {
       const params = new URLSearchParams({
         source,
@@ -287,18 +305,25 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
+      if (lan !== lanChiTiet.current) return;
       setDetailRows(data.rows || []);
       setDetailColumns(data.columns || []);
       setDetailTruncated(!!data.truncated);
     } catch (err) {
       console.error('Lỗi fetch /api/detail:', err);
+      if (ngam || lan !== lanChiTiet.current) return;
       setDetailRows([]);
       setDetailColumns([]);
       setDetailTruncated(false);
     } finally {
-      setDetailLoading(false);
+      if (lan === lanChiTiet.current) setDetailLoading(false);
     }
   };
+  // Cửa sổ chi tiết đang mở cũng lấy số mới (đang tải dở thì tải lại)
+  useEffect(() => {
+    if (moc && detailOpen) void openDetailForPinned(!detailLoading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moc]);
 
   const handleChartClick = (state: any, event: React.MouseEvent) => {
     if (!state || !state.activePayload || state.activePayload.length === 0) return;
@@ -406,9 +431,9 @@ export default function ByCongTrinhChart({ source, embedded = false, stt, displa
             containerWidth={wrapWidth}
             containerHeight={wrapHeight}
             label={pinned.point.congTrinh}
-            value={pinned.point.total}
+            value={chartData.find(p => p.congTrinhCode === pinned.point.congTrinhCode)?.total ?? pinned.point.total}
             unit={unit}
-            onViewDetail={openDetailForPinned}
+            onViewDetail={() => void openDetailForPinned()}
             onClose={() => setPinned(null)}
           />
         )}

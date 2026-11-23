@@ -1,3 +1,4 @@
+import { useMocBang } from '../../hooks/useMocBang';
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { API_BASE_URL } from '../../services/dataService';
@@ -25,6 +26,8 @@ export const CanhBaoFileLoi = () => {
       .then((d: { fileLoi?: FileLoiBot[] } | null) => { if (d && Array.isArray(d.fileLoi)) setDs(d.fileLoi); })
       .catch(() => { /* mất mạng / chưa có bảng: không báo gì */ });
   }, []);
+  const moc = useMocBang(['bot']);
+  useEffect(() => { if (moc) tai(); }, [moc, tai]);
   useEffect(() => {
     tai();
     let lanCuoi = Date.now();

@@ -11,6 +11,7 @@ import { NhanSoCu } from './shared/NhanSoCu';
 import { fetchRevenue2026, fetchTongQuanSanXuat, type Revenue2026Data } from '../services/dataService';
 import type { TongQuanSanXuat } from './Dashboard/core/tongQuanSanXuat';
 import { useToast } from '../context/ToastContext';
+import { useMocBang } from '../hooks/useMocBang';
 import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
 import { ProductionDonutPanel, type OrderMixSelection } from './Dashboard/components/shared/ProductionDonutPanel';
 import { categoryOptions } from './Dashboard/utils/filterMatch';
@@ -232,13 +233,14 @@ const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(
 // Yêu cầu mở modal "Chi tiết Nhập Kho" theo cả năm (khi bấm ô "Thực hiện lũy kế").
 // nonce tăng mỗi lần bấm để OrderOverviewSection biết có yêu cầu mới.
 const [inventoryOpenRequest, setInventoryOpenRequest] = useState<{ nonce: number; year: number; withPlan?: boolean } | null>(null);
+const mocDoanhSo = useMocBang(['yearlyPlan', 'inventory', 'production']);
 useEffect(() => {
   // Đổi năm thì bỏ phản hồi của năm cũ: lời gọi trùng URL dùng chung 1 request (nhoApi), nên đổi năm A → B → A nhanh
   // thì A về trước, B về sau — không chốt thì số năm B đè lên năm A đang chọn
   let on = true;
   fetchRevenue2026(selectedRevenueYear).then(data => { if (on && data) setRevenue2026(data); });
   return () => { on = false; };
-}, [selectedRevenueYear]);
+}, [selectedRevenueYear, mocDoanhSo]);
  
 const {
   congTrinhOptions: congTrinhOptionsMay,
@@ -415,8 +417,11 @@ const {
 });
 
 // Chưa có bảng sản xuất: hỏi máy chủ số của đúng bộ lọc + các nút đang chọn (đổi thì hỏi lại)
+const mocSanXuat = useMocBang(['production']);
+const khoaSan = useRef(''); // bộ lọc + nút của số đang hiện: làm mới lỗi thì giữ số, không báo lỗi
 useEffect(() => {
   if (coBangSanXuat) return;
+  const khoa = JSON.stringify([appliedFilters, workshopMetric, projectMetric, projectSummaryMetric, excludeFabrics, bottleneckViewMode]);
   const ctl = new AbortController();
   const t = setTimeout(() => {
     fetchTongQuanSanXuat({
@@ -424,11 +429,11 @@ useEffect(() => {
       tuyChon: { workshopMetric, projectMetric, projectSummaryMetric, excludeFabrics, bottleneckViewMode },
     }, ctl.signal).then(d => {
       if (ctl.signal.aborted) return;
-      if (d) { setSanTuMayChu(d); setSanLoi(false); } else setSanLoi(true);
+      if (d) { khoaSan.current = khoa; setSanTuMayChu(d); setSanLoi(false); } else if (khoaSan.current !== khoa) setSanLoi(true);
     });
   }, 120);
   return () => { clearTimeout(t); ctl.abort(); };
-}, [coBangSanXuat, appliedFilters, workshopMetric, projectMetric, projectSummaryMetric, excludeFabrics, bottleneckViewMode]);
+}, [coBangSanXuat, appliedFilters, workshopMetric, projectMetric, projectSummaryMetric, excludeFabrics, bottleneckViewMode, mocSanXuat]);
 
 const {
   selectedExportColumns, setSelectedExportColumns,
@@ -554,7 +559,8 @@ const {
 
   // Thẻ "Vướng mắc đang mở": cộng theo công trình (lọc theo công trình nếu đang chọn)
   const [vmRows, setVmRows] = useState<VmByProjectRow[]>(() => vuongMacDaNho() ?? []);
-  useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, []);
+  const mocVm = useMocBang(['vuongMac', 'production']);
+  useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, [mocVm]);
   const vm = useMemo(() => {
     const chon = effectiveFilters.congTrinh;
     const ds = chon.length ? vmRows.filter(r => chon.includes(r.ten) || chon.includes(r.ma)) : vmRows;
@@ -950,6 +956,7 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
            <MaterialListSection
      sectionRef={null}
      displayedMaterialData={displayedMaterialData}
+     khoaLoc={JSON.stringify([appliedFilters, selectedMaterialGroups])}
      getMaterialRowClassName={getMaterialRowClassName}
    />
             </>)}

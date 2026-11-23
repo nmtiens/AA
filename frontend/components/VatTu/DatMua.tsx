@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dangMayTinhBang } from '../../services/mayTinhBang';
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Download, Loader2, RefreshCw, Search, X } from 'lucide-react';
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import * as bang from '../shared/bangBaoCao';
 import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter';
+import { useMocBang } from '../../hooks/useMocBang';
 import { useToast } from '../../context/ToastContext';
 import { fmtInt } from '../../utils/format';
 import {
@@ -62,11 +63,20 @@ const DatMua: React.FC = () => {
     return k ? { ...loc, ...giaoKhoang(loc, k) } : loc;
   }, [loc, thangChon]);
 
+  // Có dữ liệu mới => gọi lại ngầm: số của đúng bộ lọc này đã hiện thì giữ nguyên tới khi số mới về, lỗi thì giữ số cũ
+  const mocPr = useMocBang(['material']);
+  const mocNhom = useMocBang(['material', 'tieuHao']);
+  const daTaiNhom = useRef<[BoLocDatMua, number] | null>(null);
+  const daTaiThang = useRef<[BoLocDatMua, number] | null>(null);
+
   useEffect(() => {
     const ac = new AbortController();
-    setTt({ loai: 'dang_tai' });
+    const im = daTaiNhom.current?.[0] === locBang && daTaiNhom.current[1] === lanTai;
+    if (!im) { daTaiNhom.current = null; setTt({ loai: 'dang_tai' }); }
     layTheoNhom(locBang, ac.signal)
       .then(d => {
+        if (ac.signal.aborted) return;
+        daTaiNhom.current = [locBang, lanTai];
         setDu(d);
         setTenNhom(cu => {
           const moi = { ...cu };
@@ -75,18 +85,19 @@ const DatMua: React.FC = () => {
         });
         setTt({ loai: 'xong' });
       })
-      .catch(e => { if (!ac.signal.aborted) setTt({ loai: 'loi', thongBao: thongBaoLoi(e), chuaQuyen: laChuaQuyen(e) }); });
+      .catch(e => { if (!ac.signal.aborted && !im) setTt({ loai: 'loi', thongBao: thongBaoLoi(e), chuaQuyen: laChuaQuyen(e) }); });
     return () => ac.abort();
-  }, [locBang, lanTai]);
+  }, [locBang, lanTai, mocNhom]);
 
   useEffect(() => {
     const ac = new AbortController();
-    setThang({ loai: 'dang_tai' });
+    const im = daTaiThang.current?.[0] === loc && daTaiThang.current[1] === lanTai;
+    if (!im) { daTaiThang.current = null; setThang({ loai: 'dang_tai' }); }
     layTheoThang(loc, ac.signal)
-      .then(du => setThang({ loai: 'xong', du }))
-      .catch(e => { if (!ac.signal.aborted) setThang({ loai: 'loi', thongBao: thongBaoLoi(e) }); });
+      .then(du => { if (ac.signal.aborted) return; daTaiThang.current = [loc, lanTai]; setThang({ loai: 'xong', du }); })
+      .catch(e => { if (!ac.signal.aborted && !im) setThang({ loai: 'loi', thongBao: thongBaoLoi(e) }); });
     return () => ac.abort();
-  }, [loc, lanTai]);
+  }, [loc, lanTai, mocPr]);
 
   const coGia = du?.coGia === true;
   const homNay = du?.homNay ?? '';
@@ -456,11 +467,14 @@ const CuaSoMa = ({ nhom, loc, coGia, tren, onClose, onXemDong }: {
   const [tim, setTim] = useState('');
   const locNhom = useMemo(() => ({ ...loc, nhom: [nhom.ma] }), [loc, nhom.ma]);
   useEsc(tren, onClose);
+  const moc = useMocBang(['material', 'tieuHao', 'tonKhoVt']);
+  const daTai = useRef<BoLocDatMua | null>(null);
   useEffect(() => {
     const ac = new AbortController();
-    layTheoMa(locNhom, ac.signal).then(setDu).catch(e => { if (!ac.signal.aborted) setLoi(thongBaoLoi(e)); });
+    layTheoMa(locNhom, ac.signal).then(d => { if (ac.signal.aborted) return; daTai.current = locNhom; setDu(d); setLoi(null); })
+      .catch(e => { if (!ac.signal.aborted && daTai.current !== locNhom) setLoi(thongBaoLoi(e)); });
     return () => ac.abort();
-  }, [locNhom]);
+  }, [locNhom, moc]);
   const ds = useMemo(() => {
     const t = tim.trim().toLowerCase();
     const tat = du?.ma ?? [];
@@ -557,13 +571,24 @@ const CuaSoDong = ({ yc, homNay, onClose }: { yc: XemDong; homNay: string; onClo
   const [dangXuat, setDangXuat] = useState(false);
   const { showToast } = useToast();
   useEsc(true, onClose);
+  const moc = useMocBang(['material']);
+  const daTai = useRef<[XemDong, number] | null>(null);
   useEffect(() => {
     const ac = new AbortController();
-    setLoi(null);
+    const im = daTai.current?.[0] === yc && daTai.current[1] === trang;
+    if (!im) { daTai.current = null; setLoi(null); }
     layDong(yc.loc, { ma: yc.ma, dvt: yc.dvt, loai: yc.loai, trang, co: CO_TRANG }, ac.signal)
-      .then(setDu).catch(e => { if (!ac.signal.aborted) setLoi(thongBaoLoi(e)); });
+      .then(d => {
+        if (ac.signal.aborted) return;
+        // Dữ liệu mới ít trang hơn => về trang cuối
+        const cuoi = Math.max(1, Math.ceil(d.tong / CO_TRANG));
+        if (trang > cuoi) { setTrang(cuoi); return; }
+        daTai.current = [yc, trang];
+        setDu(d);
+      })
+      .catch(e => { if (!ac.signal.aborted && !im) setLoi(thongBaoLoi(e)); });
     return () => ac.abort();
-  }, [yc, trang]);
+  }, [yc, trang, moc]);
   const coGia = du?.coGia === true;
   const cot = useMemo(() => cotDongHien(coGia), [coGia]);
   const soTrang = du ? Math.max(1, Math.ceil(du.tong / CO_TRANG)) : 1;

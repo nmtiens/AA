@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { RefreshCw, Plus, Download, Search as SearchIcon, AlertTriangle, Clock, CheckCircle2, Lock, Flame, Siren } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
-  fetchVuongMacDashboard, fetchVuongMacAllStrict, fetchHandlerNames, goiYVatTu, UNAUTHORIZED, LOAI_TIEN,
+  fetchVuongMacDashboard, fetchVuongMacAllStrict, fetchVuongMacItem, fetchHandlerNames, goiYVatTu, UNAUTHORIZED, LOAI_TIEN,
   type VuongMacDashboard, type VuongMacItem, type VmGroupStat, type FiveMCategory, type VmStatus, type VuongMacQuery,
   type GoiYVatTu, type LoaiTien, type HexHit, type ChiTietTien,
 } from '../../services/vuongMacService';
 import { fetchXuongList } from '../../services/vuongMacMobileApi';
 import { useAuth } from '../../context/AuthContext';
+import { useMocBang } from '../../hooks/useMocBang';
 import { useToast } from '../../context/ToastContext';
 import { STATUS_META, PRIORITY_META, CAT_CODE, CAT_NAME, fmtHours, fmtShort, fmtDay, dayKey, displayState, gomBangNhom, DISPLAY_META, botCountdown } from './model';
 import * as bang from '../shared/bangBaoCao';
@@ -74,11 +75,17 @@ export default function VuongMacManager() {
   const [dashLoading, setDashLoading] = useState(false);
   const [dashErr, setDashErr] = useState('');
 
-  const loadDash = useCallback(async () => {
-    setDashLoading(true); setDashErr('');
-    try { setDash(await fetchVuongMacDashboard({ from, to, xuong })); }
-    catch (e: any) { setDashErr(e.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : e.message); }
-    finally { setDashLoading(false); }
+  // lan*: chỉ nhận kết quả của lần gọi mới nhất. im = làm mới ngầm: không bật vòng chờ, lỗi thì giữ số cũ
+  const lanDash = useRef(0);
+  const loadDash = useCallback(async (im = false) => {
+    const id = ++lanDash.current;
+    if (!im) { setDashLoading(true); setDashErr(''); }
+    try {
+      const d = await fetchVuongMacDashboard({ from, to, xuong });
+      if (id === lanDash.current) { setDash(d); setDashErr(''); }
+    } catch (e: any) {
+      if (id === lanDash.current && !im) setDashErr(e.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : e.message);
+    } finally { if (id === lanDash.current) setDashLoading(false); }
   }, [from, to, xuong]);
   useEffect(() => { loadDash(); }, [loadDash]);
   useEffect(() => {
@@ -135,18 +142,41 @@ export default function VuongMacManager() {
       page: p, pageSize: size,
     };
   }, [f]);
-  const loadList = useCallback(async (p = 1) => {
-    setListLoading(true);
+  const lanList = useRef(0);
+  const trangXin = useRef(1);   // trang của lần gọi mới nhất
+  const loadList = useCallback(async (p = 1, im = false) => {
+    const id = ++lanList.current;
+    trangXin.current = p;
+    if (!im) setListLoading(true);
     try {
-      const r = await fetchVuongMacAllStrict(query(p));
-      setRows(r.data); setTotal(r.total); setPage(p);
+      let trang = p;
+      let r = await fetchVuongMacAllStrict(query(p));
+      // Dữ liệu mới ít trang hơn => về trang cuối còn dòng (máy chủ trả tổng 0 khi quá trang => trang 1)
+      if (im && p > 1 && !r.data.length && id === lanList.current) {
+        trang = Math.min(p - 1, Math.max(1, Math.ceil(r.total / PAGE)));
+        r = await fetchVuongMacAllStrict(query(trang));
+      }
+      if (id !== lanList.current) return;
+      trangXin.current = trang;
+      setRows(r.data); setTotal(r.total); setPage(trang);
     } catch (e: any) {
-      flash(e.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : e.message);
+      if (id === lanList.current && !im) flash(e.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : e.message);
     } finally {
-      setListLoading(false);
+      if (id === lanList.current) setListLoading(false);
     }
   }, [query, flash]);
   useEffect(() => { loadList(1); }, [loadList]);
+
+  // Có dữ liệu mới => gọi lại ngầm (đang tải thật thì gọi lại như tải thật để vòng chờ / báo lỗi vẫn đúng)
+  const moc = useMocBang(['vuongMac', 'production', 'inventory']);
+  useEffect(() => {
+    if (!moc) return;
+    loadDash(!dashLoading);
+    loadList(trangXin.current, !listLoading);
+    const cu = detail;
+    // Chi tiết đang mở: chỉ thay khi nó chưa đổi trong lúc gọi (form đang sửa giữ bản riêng — DetailSheet)
+    if (cu) fetchVuongMacItem(cu.id).then(it => setDetail(d => (d === cu ? it : d))).catch(() => { /* giữ bản cũ */ });
+  }, [moc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lọc loại vấn đề tiền (loaiTien) làm ở máy chủ (/api/vuong-mac/all) => tổng + phân trang đúng theo bộ lọc
   const shownRows = rows;
@@ -155,7 +185,7 @@ export default function VuongMacManager() {
     flash(msg);
     if (next === null) { setRows(rs => rs.filter(r => r.id !== detail?.id)); setDetail(null); }
     else { setRows(rs => rs.map(r => (r.id === next.id ? next : r))); setDetail(next); }
-    loadDash(); loadList(page);
+    loadDash(); loadList(trangXin.current, true);   // bỏ lượt danh sách đang bay (đọc trước lúc ghi), lấy lại ngầm
   };
 
   // Xuất Excel: tải tối đa 2000 dòng theo bộ lọc hiện tại
@@ -488,7 +518,6 @@ export default function VuongMacManager() {
     const inList = rows.find(r => r.id === id);
     if (inList) { setDetail(inList); return; }
     try {
-      const { fetchVuongMacItem } = await import('../../services/vuongMacService');
       setDetail(await fetchVuongMacItem(id));
     } catch (e: any) { flash(e.message); }
   }
@@ -616,17 +645,29 @@ function GoiYM6Panel({ onBao, onMo, daBao }: {
   const [q, setQ] = useState('');
   const [n, setN] = useState(GOI_Y_TRANG);
 
-  const load = useCallback(async () => {
-    setLoading(true); setErr('');
-    try { setDs(await goiYVatTu()); }
-    catch (e: any) {
+  const lan = useRef(0);
+  const load = useCallback(async (im = false) => {
+    const id = ++lan.current;
+    if (!im) { setLoading(true); setErr(''); }
+    try {
+      const d = await goiYVatTu();
+      if (id === lan.current) { setDs(d); setErr(''); }
+    } catch (e: any) {
+      if (im || id !== lan.current) return;
       const m = String(e?.message ?? '');
       if (/403|quyền/i.test(m)) setHidden(true);
       else setErr(m === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : (m || 'Không tải được gợi ý'));
-    } finally { setLoading(false); }
+    } finally { if (id === lan.current) setLoading(false); }
   }, []);
   const daTai = useRef(false);
   useEffect(() => { if (open && !daTai.current) { daTai.current = true; load(); } }, [open, load]);
+  // Có dữ liệu mới: đang mở thì gọi lại ngầm, đang thu gọn thì để lần mở sau tải lại
+  const moc = useMocBang(['material', 'production', 'vuongMac']);
+  useEffect(() => {
+    if (!moc || !daTai.current) return;
+    if (open) load(!loading);
+    else daTai.current = false;
+  }, [moc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loc = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -640,7 +681,7 @@ function GoiYM6Panel({ onBao, onMo, daBao }: {
       right={
         <div className="flex items-center gap-2 text-sm">
           {open && (
-            <button onClick={load} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+            <button onClick={() => load()} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-40">
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Tải lại
             </button>
           )}

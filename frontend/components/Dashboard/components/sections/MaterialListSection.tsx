@@ -10,6 +10,8 @@ const MATERIAL_ITEMS_PER_PAGE = 100;
 interface MaterialListSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
   displayedMaterialData: DataRow[];
+  /** Bộ lọc đang áp: đổi thì về trang 1 (bảng có dữ liệu mới thì giữ trang đang xem) */
+  khoaLoc: string;
   getMaterialRowClassName: (row: DataRow) => string;
 }
 
@@ -29,18 +31,22 @@ const formatCellValue = (value: any): string => {
 export const MaterialListSection = ({
   sectionRef,
   displayedMaterialData,
+  khoaLoc,
   getMaterialRowClassName,
 }: MaterialListSectionProps) => {
-const [materialListPage, setMaterialListPage] = useState(1);
+const [trangChon, setMaterialListPage] = useState(1);
 
 useEffect(() => {
   setMaterialListPage(1);
-}, [displayedMaterialData]);
+}, [khoaLoc]);
 
 const totalMaterialPages = Math.max(
   1,
   Math.ceil(displayedMaterialData.length / MATERIAL_ITEMS_PER_PAGE)
 );
+
+  // Dữ liệu mới ít trang hơn thì dừng ở trang cuối
+  const materialListPage = Math.min(trangChon, totalMaterialPages);
 
   const paginatedMaterialList = useMemo(
     () => displayedMaterialData.slice(

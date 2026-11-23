@@ -1,3 +1,4 @@
+import { dangCanSoMoi } from './mocDuLieu';
 import { getToken } from './userService';
 import { taoHangDoi, type MucUuTien } from '../utils/hangDoiApi';
 
@@ -78,6 +79,8 @@ export function installAuthFetch(): void {
     if (token) {
       const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
       if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+      // Vừa có dữ liệu mới: báo máy chủ đừng trả theo bản nhớ phiên bản cũ (services/mocDuLieu)
+      if (dangCanSoMoi()) headers.set('x-du-lieu-moi', '1');
       finalInit = { ...init, headers };
     }
 

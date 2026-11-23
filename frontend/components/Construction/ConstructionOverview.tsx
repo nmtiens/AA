@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
@@ -34,6 +34,7 @@ import { maIpo } from './core/baoCaoBot';
 import { HexTimelineModal } from './HexTimelineModal';
 import { CuaSoKho, type LoaiKho } from './CuaSoKho';
 import { API_BASE_URL } from '../../services/dataService';
+import { useMocBang } from '../../hooks/useMocBang';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
 import { fmtInt, fmtPt } from '../../utils/format';
@@ -194,40 +195,47 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const [locKhsx, setLocKhsx] = useState(false);
   const [khsxCt, setKhsxCt] = useState<{ thang: number; nam: number; loai: string | null; capNhat: string | null; hex: string[]; congTrinh: { name: string; codes: string[] }[] } | null>(null);
   const [khsxLoi, setKhsxLoi] = useState(false);
+  // Có dữ liệu mới: lấy lại ngầm, danh sách đang lọc giữ tới khi số mới về (lỗi thì giữ số cũ)
+  const mocKhsx = useMocBang(['khsx']);
+  const khsxCtMoc = useRef(0);
   useEffect(() => {
-    if (!locKhsx || khsxCt) return;
+    if (!locKhsx || (khsxCt && khsxCtMoc.current === mocKhsx)) return;
     const d = new Date();
     const ac = new AbortController();
-    setKhsxLoi(false);
+    if (!khsxCt) setKhsxLoi(false);
     fetch(`${API_BASE_URL}/khsx/cong-trinh?nam=${d.getFullYear()}&thang=${d.getMonth() + 1}`, { signal: ac.signal })
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then(setKhsxCt)
-      .catch(() => { if (!ac.signal.aborted) setKhsxLoi(true); });
+      .then(x => { if (ac.signal.aborted) return; khsxCtMoc.current = mocKhsx; setKhsxLoi(false); setKhsxCt(x); })
+      .catch(() => { if (!ac.signal.aborted && !khsxCt) setKhsxLoi(true); });
     return () => ac.abort();
-  }, [locKhsx, khsxCt]);
+  }, [locKhsx, khsxCt, mocKhsx]);
   // Tháng chưa có KHSX (bảng KHSX chưa nạp kỳ mới): lấy theo các công trình có trong Bảng KHNK (file PRODUCTION STATUS)
   const [khnkCt, setKhnkCt] = useState<{ ma: Set<string>; ten: Set<string> } | null>(null);
   const khsxTrong = locKhsx && khsxCt?.loai === null;
+  const mocKhnk = useMocBang(['khnk']);
+  const khnkCtMoc = useRef(0);
   useEffect(() => {
-    if (!khsxTrong || khnkCt) return;
+    if (!khsxTrong || (khnkCt && khnkCtMoc.current === mocKhnk)) return;
     let bo = false;
     taiTruocKhnk().then(d => {
       if (bo) return;
+      khnkCtMoc.current = mocKhnk;
       const iMa = d.tieuDe.findIndex(t => t.nhan === 'MÃ CT'), iTen = d.tieuDe.findIndex(t => t.nhan === 'TÊN CÔNG TRÌNH');
       const chu = (v: unknown) => String(v ?? '').trim();
       setKhnkCt({
         ma: new Set(d.dong.map(x => chu(x.o[iMa]).toUpperCase()).filter(Boolean)),
         ten: new Set(d.dong.map(x => chu(x.o[iTen])).filter(Boolean).map(projectMatchKey)),
       });
-    }).catch(() => { if (!bo) setKhnkCt({ ma: new Set(), ten: new Set() }); });
+    }).catch(() => { if (!bo && !khnkCt) setKhnkCt({ ma: new Set(), ten: new Set() }); });
     return () => { bo = true; };
-  }, [khsxTrong, khnkCt]);
+  }, [khsxTrong, khnkCt, mocKhnk]);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Vướng mắc đang mở theo công trình (API nhẹ, 1 lần khi mở trang)
   // Khởi tạo từ số đã lưu trong ngày (đọc đồng bộ, đúng tài khoản / mức xem) để ô vướng mắc hiện ngay;
   // lời gọi bên dưới thay bằng số mới. Chưa có bản lưu thì vẫn null = "Đang tải" như cũ.
   const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(() => vuongMacDaNho() ?? null);
-  useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, []);
+  const mocVm = useMocBang(['vuongMac', 'production']);
+  useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, [mocVm]);
   const vmIndex = useMemo(() => {
     const byMa = new Map<string, { open: number; overdue: number }>();
     const byName = new Map<string, { open: number; overdue: number }>();

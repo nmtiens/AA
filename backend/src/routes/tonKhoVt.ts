@@ -159,10 +159,10 @@ export const xepNhom = (diem: DiemTonKhoVt[]): string[] => {
 
 // ---------------------------------------------------------------------------
 // PHIÊN BẢN BẢNG (khoá cache) — table_versions.last_updated; không có dòng => MAX(updated_at) của bảng.
-// Giữ 3 giây + dùng chung 1 truy vấn cho các lần gọi đồng thời (như getVersions ở server/data.ts).
+// Giữ 2 giây + dùng chung 1 truy vấn cho các lần gọi đồng thời (như getVersions ở server/data.ts).
 // ---------------------------------------------------------------------------
 interface PhienBan { khoa: string; capNhat: string | null }
-const PHIEN_BAN_TTL_MS = 3000;
+const PHIEN_BAN_TTL_MS = 2000;   // ngắn hơn 2,5 giây trình duyệt chờ trước khi gọi lại (services/mocDuLieu GOM_MS)
 let phienBanNho: { luc: number; giaTri: PhienBan } | null = null;
 let phienBanDangDoc: Promise<PhienBan> | null = null;
 

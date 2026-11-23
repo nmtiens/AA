@@ -6,6 +6,7 @@ import {
   type FiveMCategory, type VuongMacItem,
 } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
+import { useMocBang } from '../../hooks/useMocBang';
 import { searchHex, fetchHexNotes, type HexHit } from '../../services/vuongMacMobileApi';
 import { NoteContent, dongXuongMra, NhanMra, DongNguonBop } from '../Dashboard/components/modals/HexDetailModal';
 import { phuViTriMra, nhanTheoMa, type BanDoMra } from '../Dashboard/core/viTriMra';
@@ -210,6 +211,11 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
   const [addFor, setAddFor] = useState<HexHit | null>(null);
   const [toast, setToast] = useState('');
   const reqId = useRef(0);
+  // Có dữ liệu mới => tìm lại ngầm đúng chuỗi đang hiện (giữ kết quả cũ tới khi có số mới, lỗi thì giữ)
+  const moc = useMocBang(['production', 'inventory', 'vuongMac']);
+  const daTim = useRef<string | null>(null);
+  const lanCt = useRef(0);
+  const ctMoi = useRef<Record<string, number>>({}); // lần gọi chi tiết mới nhất của từng hex
 
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500); };
 
@@ -217,7 +223,9 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
     const raw = q.trim();
     const bulk = isBulk(raw);
 
-    if (!getToken()) { setError(UNAUTHORIZED); setLoading(false); return; }
+    const im = daTim.current === raw;
+    if (!im) daTim.current = null;
+    if (!getToken()) { if (!im) { setError(UNAUTHORIZED); setLoading(false); } return; }
     if (!bulk && raw.length < 2) {
       reqId.current++;
       setHits([]); setCounts({}); setMissing([]); setBulkInfo(null); setTruncated(false); setError(''); setLoading(false);
@@ -226,7 +234,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
 
     const id = ++reqId.current;
     const t = setTimeout(async () => {
-      setLoading(true); setError('');
+      if (!im) { setLoading(true); setError(''); }
       try {
         let r: HexHit[];
         let miss: string[] = [];
@@ -262,9 +270,10 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
           if (cut) r = r.slice(0, SEARCH_LIMIT);
         }
         if (id !== reqId.current) return;
+        daTim.current = raw;
         setHits(r); setMissing(miss); setBulkInfo(info); setTruncated(cut);
 
-        const map = await fetchVuongMacList(r.map(h => h.hex));
+        const map = await fetchVuongMacList(r.map(h => h.hex), im);
         if (id !== reqId.current) return;
         const c: Counts = {};
         r.forEach(h => {
@@ -273,18 +282,21 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
         });
         setCounts(c);
       } catch (e: any) {
-        if (id === reqId.current) setError(e.message || 'Không tìm được');
+        if (id === reqId.current && !im) setError(e.message || 'Không tìm được');
       } finally {
         if (id === reqId.current) setLoading(false);
       }
     }, 350);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, moc]);
 
-  const loadDetail = useCallback(async (hex: string) => {
-    setDetails(d => ({ ...d, [hex]: 'loading' }));
+  const loadDetail = useCallback(async (hex: string, im = false) => {
+    const lan = ++lanCt.current;
+    ctMoi.current[hex] = lan;
+    if (!im) setDetails(d => ({ ...d, [hex]: 'loading' }));
     try {
-      const [notes, map] = await Promise.all([fetchHexNotes(hex), fetchVuongMacList([hex])]);
+      const [notes, map] = await Promise.all([fetchHexNotes(hex), fetchVuongMacList([hex], im)]);
+      if (ctMoi.current[hex] !== lan) return;
       const items = map[hex] || [];
       setDetails(d => ({ ...d, [hex]: { notes, items } }));
       setCounts(c => ({
@@ -292,6 +304,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
         [hex]: { open: items.filter(v => !v.isResolved).length, done: items.filter(v => v.isResolved).length },
       }));
     } catch (e: any) {
+      if (im || ctMoi.current[hex] !== lan) return;
       setDetails(d => { const n = { ...d }; delete n[hex]; return n; });
       flash(e.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : (e.message || 'Không tải được chi tiết'));
     }
@@ -300,6 +313,15 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
   // Cửa sổ chi tiết: openHex = hex đang xem, idx = vị trí trong danh sách kết quả
   const modalBodyRef = useRef<HTMLDivElement>(null);
   const idx = openHex ? hits.findIndex(h => h.hex === openHex) : -1;
+
+  // Có dữ liệu mới: hex đang xem gọi lại ngầm, các hex khác bỏ bản nhớ (mở lại thì tải)
+  useEffect(() => {
+    if (!moc) return;
+    const x = openHex ? details[openHex] : undefined;
+    ctMoi.current = {};
+    setDetails(openHex && x ? { [openHex]: x } : {});
+    if (openHex && x) loadDetail(openHex, x !== 'loading');
+  }, [moc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openDetail = (hex: string) => {
     setOpenHex(hex);

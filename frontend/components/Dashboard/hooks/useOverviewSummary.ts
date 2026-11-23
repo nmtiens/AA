@@ -18,6 +18,7 @@ import {
 import { AnalysisItem } from '../types';
 import { DashboardFiltersState } from './useDashboardFilters';
 import { docNho } from '../../../services/nhoApi';
+import { useMocBang } from '../../../hooks/useMocBang';
 import { urlOverviewSummary } from '../../../services/urlTongQuan';
 
 type OverviewMetric = 'COUNT' | 'SUM';
@@ -150,13 +151,20 @@ export function useOverviewSummary({
   // Ngày mặc định vừa đặt trong effect, state chưa kịp nhận: effect tải bỏ qua lượt "chưa chọn ngày" này
   const ngayCho = useRef<string | null>(null);
   // Nơi khác (người dùng, TongQuanDauTrang) đặt ngày: không còn "đang chờ ngày mặc định" nữa — kể cả khi đặt rỗng
-  const setOverviewDateFilters = useCallback((values: string[]) => { ngayCho.current = null; datNgayLoc(values); }, []);
+  const setOverviewDateFilters = useCallback((values: string[]) => {
+    ngayCho.current = null;
+    // Cùng danh sách ngày thì giữ mảng cũ: không gọi lại số của đúng các ngày đó
+    datNgayLoc(cu => (cu.join('|') === values.join('|') ? cu : values));
+  }, []);
   // Ngày mặc định chọn theo danh sách LƯU (máy chủ chưa xác nhận); null = không cần xét lại
   const ngayTheoBanLuu = useRef<string | null>(
     !ngayDaXacNhan && overviewDateFilters.length > 0 ? overviewDateFilters[0] : null,
   );
   // Đã có lần gọi summary thật nào chưa: lần đầu không chờ 300 ms (chưa có gì để gom)
   const daGoi = useRef(false);
+  // Có dữ liệu mới: gọi lại, số cũ giữ tới khi số mới về
+  const moc = useMocBang(['order', 'tkbv', 'pthsp', 'inventory', 'export', 'production']);
+  const mocNhom = useRef<Record<string, number>>({}); // groupAnalysisCache[khoá] lấy ở lần `moc` nào
 
   // ✅ FIX: hàm dùng chung — giao giữa bộ lọc tổng (filters.congTrinh) và danh sách
   // công trình đã setup cho view (viewProjectWhitelist).
@@ -324,7 +332,7 @@ export function useOverviewSummary({
   // viewProjectWhitelist ảnh hưởng tới filterOpts nên vẫn cần trong dependency (an toàn
   // kể cả khi nó là undefined giữa các lần render).
   // khongCoNgay: danh sách ngày tải xong mà rỗng thì chạy lại để gọi "toàn bộ thời gian" (lượt trước đã bỏ qua).
-  }, [overviewDateFilters, filters.congTrinh, filters.xuong, viewProjectWhitelist, khongCoNgay]);
+  }, [overviewDateFilters, filters.congTrinh, filters.xuong, viewProjectWhitelist, khongCoNgay, moc]);
 
   const latestUnifiedDate = useMemo<Date | null>(() => {
     if (overviewSummary?.date) return parseVNDate(overviewSummary.date) || new Date(overviewSummary.date);
@@ -434,12 +442,13 @@ export function useOverviewSummary({
     const filterKey = getGroupAnalysisFilterKey(override);
     const kW = `${key}-xuong-${filterKey}`;
     const kP = `${key}-congtrinh-${filterKey}`;
-    if (groupAnalysisCache[kW] && groupAnalysisCache[kP]) return;
+    if (groupAnalysisCache[kW] && groupAnalysisCache[kP] && mocNhom.current[kW] === moc) return;
 
     // ✅ FIX: cùng lý do — scope rỗng thì không gọi API, set thẳng cache = [].
     // Chỉ áp dụng khi KHÔNG có override cụ thể (override luôn có đúng 1 công trình,
     // không thể rỗng theo nghĩa "scope rỗng").
     if (!override?.congTrinh && viewProjectWhitelist !== undefined && effectiveCongTrinh.length === 0) {
+      mocNhom.current[kW] = moc;
       setGroupAnalysisCache(prev => ({ ...prev, [kW]: [], [kP]: [] }));
       return;
     }
@@ -461,7 +470,14 @@ export function useOverviewSummary({
       fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, allTime, ...filterOpts }),
       fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, allTime, ...filterOpts }),
     ]);
-    setGroupAnalysisCache(prev => ({ ...prev, [kW]: byXuong, [kP]: byCongTrinh }));
+    if ((mocNhom.current[kW] ?? -1) > moc) return; // đã có số của lần dữ liệu mới hơn
+    mocNhom.current[kW] = moc;
+    // Lỗi trả []: làm mới mà rỗng thì giữ số đang hiện
+    setGroupAnalysisCache(prev => ({
+      ...prev,
+      [kW]: byXuong.length || !prev[kW] ? byXuong : prev[kW],
+      [kP]: byCongTrinh.length || !prev[kP] ? byCongTrinh : prev[kP],
+    }));
   };
 
   const toAnalysisItems = (

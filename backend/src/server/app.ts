@@ -9,7 +9,7 @@ import { authenticateJWT, authenticateActiveUserKichSom } from './auth.js';
 import { isXuongPath } from './xuong/auth.js';
 import { ensureProjectAliases } from './projectAlias.js';
 import { ensureWorkshopGroups } from './workshopGroups.js';
-import { getVersions } from './data.js';
+import { getVersions, xinSoMoi } from './data.js';
 import { giuHamSong } from './sharedCache.js';
 
 // Instance Express dùng chung. Middleware hạ tầng + bắt buộc đăng nhập được gắn
@@ -157,6 +157,8 @@ function kichNapSom(path: string) {
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
   const path = req.path.toLowerCase();
   if (path.startsWith('/api/')) {
+    // Trình duyệt vừa thấy có dữ liệu mới: bản nhớ phiên bản phải đọc lại (chỉ đổi hạn nhớ, không tự hỏi DB)
+    if (req.headers['x-du-lieu-moi']) xinSoMoi();
     if (!NO_WORKSHOP_GROUPS.test(path)) { try { await ensureWorkshopGroups(false, true); } catch { /* giữ setup cũ */ } }
     if (NO_WAIT_PROJECT_ALIASES.test(path)) {
       // Route không dùng tên công trình: không kích nạp bảng tên (truy vấn nặng, chiếm thêm 1 kết nối DB tới ~28 giây

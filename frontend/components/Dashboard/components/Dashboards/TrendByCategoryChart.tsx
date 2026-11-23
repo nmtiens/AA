@@ -7,6 +7,7 @@ import {
 } from 'recharts';
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { useMocBang } from '../../../../hooks/useMocBang';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
@@ -151,6 +152,9 @@ export default function TrendByCategoryChart({
 
   const [raw, setRaw] = useState<ApiCategoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  // Dữ liệu mới: gọi lại ngầm, số đang hiện giữ tới khi số mới về
+  const moc = useMocBang([source, 'production']);
+  const daTai = useRef('');   // bộ tham số của số đang hiện
 
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState(0);
@@ -188,6 +192,7 @@ export default function TrendByCategoryChart({
 
   useEffect(() => {
     if (!canFetch) {
+      daTai.current = '';
       setRaw([]);
       setLoading(false);
       setPinned(null);
@@ -195,8 +200,6 @@ export default function TrendByCategoryChart({
     }
 
     let cancelled = false;
-    setLoading(true);
-    setPinned(null);
     const params = new URLSearchParams({ source });
     params.set('dateFrom', dateFrom);
     params.set('dateTo', dateTo);
@@ -206,20 +209,31 @@ export default function TrendByCategoryChart({
     if (dvt) params.set('dvt', dvt);
     if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
-    fetch(`${cfg.endpoint}?${params.toString()}`)
+    const khoa = `${cfg.endpoint}?${params.toString()}`;
+    const ngam = daTai.current === khoa;
+    if (!ngam) {
+      daTai.current = '';
+      setLoading(true);
+      setPinned(null);
+    }
+    fetch(khoa)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => { if (!cancelled) setRaw(Array.isArray(d) ? d : []); })
+      .then(d => {
+        if (cancelled) return;
+        daTai.current = khoa;
+        setRaw(Array.isArray(d) ? d : []);
+      })
       .catch(err => {
         console.error(`Lỗi fetch ${cfg.endpoint} (${source}):`, err);
-        if (!cancelled) setRaw([]);
+        if (!cancelled && !ngam) setRaw([]);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [cfg, source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch,
-      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
+      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, moc]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!canFetch) return [];
@@ -254,10 +268,14 @@ export default function TrendByCategoryChart({
     return Number(sum.toFixed(2));
   }, [raw, chartData, displayMode]);
 
-  const openDetailForPinned = async () => {
+  const lanChiTiet = useRef(0);
+  const openDetailForPinned = async (ngam = false) => {
     if (!pinned) return;
-    setDetailOpen(true);
-    setDetailLoading(true);
+    const lan = ++lanChiTiet.current;
+    if (!ngam) {
+      setDetailOpen(true);
+      setDetailLoading(true);
+    }
     try {
       const params = new URLSearchParams({
         source,
@@ -276,18 +294,25 @@ export default function TrendByCategoryChart({
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
+      if (lan !== lanChiTiet.current) return;
       setDetailRows(data.rows || []);
       setDetailColumns(data.columns || []);
       setDetailTruncated(!!data.truncated);
     } catch (err) {
       console.error('Lỗi fetch /api/detail:', err);
+      if (ngam || lan !== lanChiTiet.current) return;
       setDetailRows([]);
       setDetailColumns([]);
       setDetailTruncated(false);
     } finally {
-      setDetailLoading(false);
+      if (lan === lanChiTiet.current) setDetailLoading(false);
     }
   };
+  // Cửa sổ chi tiết đang mở cũng lấy số mới (đang tải dở thì tải lại)
+  useEffect(() => {
+    if (moc && detailOpen) void openDetailForPinned(!detailLoading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moc]);
 
   const handleChartClick = (state: any, event: React.MouseEvent) => {
     if (!state || !state.activePayload || state.activePayload.length === 0) return;
@@ -400,9 +425,9 @@ export default function TrendByCategoryChart({
             y={pinned.y}
             containerWidth={wrapWidth}
             label={pinned.point.name}
-            value={pinned.point.total}
+            value={chartData.find(p => p.code === pinned.point.code)?.total ?? pinned.point.total}
             unit={unit}
-            onViewDetail={openDetailForPinned}
+            onViewDetail={() => void openDetailForPinned()}
             onClose={() => setPinned(null)}
           />
         )}

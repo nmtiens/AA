@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, Customized } from 'recharts';
 import { FolderOpen, Info, Lightbulb, Package, CalendarRange, Layers, NotebookPen, AlertTriangle } from 'lucide-react';
 import { API_BASE_URL } from '../../services/dataService';
+import { useMocBang } from '../../hooks/useMocBang';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { parseNvlStatus, nvlLinePending, type NvlStatusLine } from '../../utils/nvlParse';
 import { BopM2Section } from './BopM2Section';
@@ -280,29 +281,41 @@ export default function HoSoCongTrinh() {
   const [mucMo, setMucMo] = useState<KhoaMuc>('thong-tin');
   const refs = useRef<Partial<Record<KhoaMuc, HTMLElement | null>>>({});
 
+  // Có dữ liệu mới => gọi lại ngầm, nội dung đang hiện giữ tới khi bản mới về
+  const mocDs = useMocBang(['production']);
+  const mocHs = useMocBang(['production', 'inventory', 'export', 'stock', 'khsx', 'material', 'bot', 'khnk', 'bom', 'tonKhoVt', 'hoSo', 'banVt', 'vuongMac']);
+  const maCo = useRef('');   // mã của hồ sơ đang hiện
+  const coDs = useRef(false);
   useEffect(() => {
-    fetch(`${API_BASE_URL}/ho-so-cong-trinh/danh-sach`).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
+    const ac = new AbortController();
+    fetch(`${API_BASE_URL}/ho-so-cong-trinh/danh-sach`, { signal: ac.signal }).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
       .then((d: { ds: typeof ds }) => {
+        if (ac.signal.aborted) return;
+        coDs.current = true;
         const hop = (d.ds ?? []).filter(x => /^[A-Z]{2,3}\d{2}-[0-9A-Z]{1,12}$/.test(x.ma));
         setDs(hop);
         setMa(m => m || hop.find(x => x.ma.startsWith('CT'))?.ma || '');
       })
-      .catch(e => setLoi(e instanceof Error ? e.message : String(e)));
-  }, []);
+      .catch(e => { if (!ac.signal.aborted && !coDs.current) setLoi(e instanceof Error ? e.message : String(e)); });
+    return () => ac.abort();
+  }, [mocDs]);
   useEffect(() => {
     if (!ma) return;
     const ac = new AbortController();
-    setDangTai(true); setLoi(null); setHs(null);
-    // giữ mã trên địa chỉ để gửi link
-    const goc = window.location.hash.split('?')[0];
-    window.history.replaceState(null, '', `${goc}?ma=${encodeURIComponent(ma)}`);
+    if (maCo.current !== ma) {
+      maCo.current = '';
+      setDangTai(true); setLoi(null); setHs(null);
+      // giữ mã trên địa chỉ để gửi link
+      const goc = window.location.hash.split('?')[0];
+      window.history.replaceState(null, '', `${goc}?ma=${encodeURIComponent(ma)}`);
+    }
     fetch(`${API_BASE_URL}/ho-so-cong-trinh/${encodeURIComponent(ma)}`, { signal: ac.signal })
       .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `Lỗi ${r.status}`); return j as HoSo; })
-      .then(setHs)
-      .catch(e => { if (!ac.signal.aborted) { setHs(null); setLoi(e instanceof Error ? e.message : String(e)); } })
+      .then(h => { if (ac.signal.aborted) return; maCo.current = ma; setLoi(null); setHs(h); })
+      .catch(e => { if (!ac.signal.aborted && maCo.current !== ma) { setHs(null); setLoi(e instanceof Error ? e.message : String(e)); } })
       .finally(() => { if (!ac.signal.aborted) setDangTai(false); });
     return () => ac.abort();
-  }, [ma]);
+  }, [ma, mocHs]);
 
   const trangThai = useMemo<Record<KhoaMuc, TrangThai>>(() => ({
     'thong-tin': 'du',

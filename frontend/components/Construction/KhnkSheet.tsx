@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ArrowDown, ArrowUp, ArrowUpDown, AlertTriangle } from 'lucide-react';
 import { API_BASE_URL } from '../../services/dataService';
+import { theoDoiMocBang } from '../../services/mocDuLieu';
+import { useMocBang } from '../../hooks/useMocBang';
 import { fmtInt } from '../../utils/format';
 import * as bang from '../shared/bangBaoCao';
 import { mauLuong, sapXepTheoThuTu, sttHienThi } from './core/thuTuNhom';
@@ -27,13 +29,16 @@ let dangGoi: Promise<DuLieu> | null = null;
 export const taiTruocKhnk = (moi = false): Promise<DuLieu> => {
   if (!moi && boNho && Date.now() - boNho.luc < 60_000) return Promise.resolve(boNho.du);
   if (!dangGoi) {
-    dangGoi = fetch(`${API_BASE_URL}/khnk-sheet`)
+    const goi: Promise<DuLieu> = fetch(`${API_BASE_URL}/khnk-sheet`)
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
-      .then((d: DuLieu) => { boNho = { du: d, luc: Date.now() }; return d; })
-      .finally(() => { dangGoi = null; });
+      .then((d: DuLieu) => { if (dangGoi === goi) boNho = { du: d, luc: Date.now() }; return d; })   // lời gọi đã bị bỏ thì không ghi đè bản mới
+      .finally(() => { if (dangGoi === goi) dangGoi = null; });
+    dangGoi = goi;
   }
   return dangGoi;
 };
+// Sheet có bản mới: bỏ hạn bản nhớ + lời gọi đang chạy (đăng ký lúc nạp file => chạy trước các trang, các trang dùng chung 1 lời gọi)
+theoDoiMocBang(nhom => { if (nhom.has('khnk')) { if (boNho) boNho.luc = 0; dangGoi = null; } });
 
 // Số trong file là TRIỆU ĐỒNG => hiện TỶ, 2 số lẻ (người dùng 19/11/2026); -0.00 không hiện dấu trừ
 const fmtSo = (v: number) => {
@@ -79,23 +84,42 @@ export const KhnkSheet = ({ khuVuc, soApp, onXemCt, onXemHangMuc, onXemKho }: {
   const [locKh, setLocKh] = useState<string[]>([]);
   // Lọc Khu vực ngay trên bảng (người dùng 19/11/2026) — vẫn theo thêm bộ lọc Khu vực của trang nếu có
   const [locKv, setLocKv] = useState<string[]>([]);
+  // Có dữ liệu mới => gọi lại ngầm, số đang hiện giữ tới khi số mới về (lỗi thì giữ số cũ)
+  const mocTt = useMocBang(['production']), mocKho = useMocBang(['inventory', 'export', 'stock']), mocKhnk = useMocBang(['khnk']);
   useEffect(() => {
-    fetch(`${API_BASE_URL}/khnk-sheet/thong-tin`).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
-      .then((d: { ct: Record<string, { kv: string | null; kh: string | null; tksx?: number; nk?: number; dh?: number; n?: number }> }) => setTtCt(d.ct ?? {}))
-      .catch(() => setTtCt({}));
-  }, []);
+    const ac = new AbortController();
+    fetch(`${API_BASE_URL}/khnk-sheet/thong-tin`, { signal: ac.signal }).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
+      .then((d: { ct: Record<string, { kv: string | null; kh: string | null; tksx?: number; nk?: number; dh?: number; n?: number }> }) => { if (!ac.signal.aborted) setTtCt(d.ct ?? {}); })
+      .catch(() => { /* giữ số đang có */ });
+    return () => ac.abort();
+  }, [mocTt]);
   useEffect(() => {
-    if (kho) return;
-    fetch(`${API_BASE_URL}/khnk-sheet/kho`).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
-      .then((d: { kho: Record<string, { nhap: number; xuat: number; ton: number }>; ngayTon?: string | null }) => { setKho(d.kho ?? {}); setNgayTon(d.ngayTon ?? null); })
-      .catch(() => setKho({}));
-  }, [kho]);
+    const ac = new AbortController();
+    fetch(`${API_BASE_URL}/khnk-sheet/kho`, { signal: ac.signal }).then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
+      .then((d: { kho: Record<string, { nhap: number; xuat: number; ton: number }>; ngayTon?: string | null }) => { if (!ac.signal.aborted) { setKho(d.kho ?? {}); setNgayTon(d.ngayTon ?? null); } })
+      .catch(() => { if (!ac.signal.aborted) setKho(x => x ?? {}); });
+    return () => ac.abort();
+  }, [mocKho]);
 
+  const luot = useRef(0), duRef = useRef(du);
   const tai = useCallback((moi: boolean) => {
+    const l = ++luot.current;
     setLoi(null);
-    taiTruocKhnk(moi).then(setDu).catch(e => setLoi(e instanceof Error ? e.message : String(e)));
+    taiTruocKhnk(moi).then(d => {
+      if (l !== luot.current) return;
+      // Sheet thêm / bớt cột: sắp xếp, cột đang mở, tháng đang chọn nhớ theo vị trí => dời theo tên cột
+      const cu = duRef.current?.tieuDe ?? [], m = d.tieuDe;
+      if (cu.length && (cu.length !== m.length || cu.some((t, i) => t.nhan !== m[i].nhan))) {
+        const doi = (i: number) => m.findIndex(t => t.nhan === cu[i]?.nhan && t.an === cu[i]?.an);
+        setSap(s => (s && doi(s.i) >= 0 ? { ...s, i: doi(s.i) } : null));
+        setMoNhom(x => new Set([...x].map(doi).filter(i => i >= 0)));
+        setChonThang(x => (x != null && doi(x) >= 0 ? doi(x) : null));
+      }
+      duRef.current = d;
+      setDu(d);
+    }).catch(e => { if (l === luot.current) setLoi(e instanceof Error ? e.message : String(e)); });
   }, []);
-  useEffect(() => { tai(false); }, [tai]);
+  useEffect(() => { tai(false); }, [tai, mocKhnk]);
 
   const td = useMemo(() => du?.tieuDe ?? [], [du]);
   // Nhóm cột ẩn liền nhau: gắn vào cột hiện đứng ngay trước (bấm + ở cột đó để mở)
@@ -624,14 +648,21 @@ const CuaSoChenh = ({ ma, ten, onClose }: { ma: string; ten: string; onClose: ()
   const [du, setDu] = useState<{ rows: DongChenh[]; ngayTon: string | null } | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
   const [chiLech, setChiLech] = useState(true);
+  const moc = useMocBang(['production', 'inventory', 'export', 'stock']);
+  const maCo = useRef('');   // mã đã có số trên màn hình => lần gọi lại lỗi thì giữ số cũ
   useEffect(() => {
-    fetch(`${API_BASE_URL}/khnk-sheet/kho-chenh?ma=${encodeURIComponent(ma)}`)
+    const ac = new AbortController();
+    fetch(`${API_BASE_URL}/khnk-sheet/kho-chenh?ma=${encodeURIComponent(ma)}`, { signal: ac.signal })
       .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `Lỗi ${r.status}`); return j; })
-      .then(setDu).catch(e => setLoi(e instanceof Error ? e.message : String(e)));
+      .then(d => { if (ac.signal.aborted) return; maCo.current = ma; setLoi(null); setDu(d); })
+      .catch(e => { if (!ac.signal.aborted && maCo.current !== ma) setLoi(e instanceof Error ? e.message : String(e)); });
+    return () => ac.abort();
+  }, [ma, moc]);
+  useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
-  }, [ma, onClose]);
+  }, [onClose]);
   const tat = du?.rows ?? [];
   const ds = chiLech ? tat.filter(x => Math.abs(x.chenh) >= 0.05) : tat;   // ≥ 0.05 triệu
   const tong = (k: 'nhap' | 'xuat' | 'ton' | 'chenh') => tat.reduce((s0, x) => s0 + x[k], 0);

@@ -114,9 +114,11 @@ const trangThaiChon = (so: number, tong: number): 'het' | 'khong' | 'mot_phan' =
   so === 0 ? 'khong' : so >= tong ? 'het' : 'mot_phan';
 
 // Gắn mới mỗi lần mở => ô tìm trống, ô kiểm lấy lại đúng bộ lọc đang áp dụng
-function HopLoc({ nhom, phienBan, loc, onDong, onApDung }: {
+function HopLoc({ nhom, phienBan: phienBanMoi, loc, onDong, onApDung }: {
   nhom: string; phienBan: string; loc: LocTen | null; onDong: () => void; onApDung: (loc: LocTen | null) => void;
 }) {
+  // Giữ phiên bản lúc mở hộp: dữ liệu mới về không nạp lại danh sách, không mất ô đang đánh dấu
+  const [phienBan] = useState(phienBanMoi);
   const [ds, setDs] = useState<TenVatTu[] | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
   const [lanTai, setLanTai] = useState(0);

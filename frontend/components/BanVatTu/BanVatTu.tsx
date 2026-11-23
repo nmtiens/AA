@@ -6,6 +6,7 @@ import {
 import {
   laLoiChuaCoQuyenBan, layDanhSachBanVatTu, LoiBanVatTu, type AnhNoiBo, type DanhSachBanVatTu, type TrangThaiAnh,
 } from '../../services/banVatTuApi';
+import { useMocBang } from '../../hooks/useMocBang';
 import { useToast } from '../../context/ToastContext';
 import { ChiTietVatTu } from './ChiTietVatTu';
 import { DongBang, TheVatTu } from './TheVatTu';
@@ -87,11 +88,23 @@ const BanVatTu: React.FC = () => {
     try { localStorage.setItem(KHOA_CHE_DO, c); } catch { /* trình duyệt chặn bộ nhớ: bỏ qua */ }
   };
 
+  // Có dữ liệu mới => gọi lại ngầm: giữ danh sách đang hiện + chỗ đang cuộn tới khi số mới về, lỗi thì giữ số cũ
+  const moc = useMocBang(['banVt', 'material']);
+  const daTai = useRef(-1);         // lanTai của danh sách đang hiện
+  const lanDoiAnh = useRef(0);
+  const [lanVeDau, setLanVeDau] = useState(0);
+
   useEffect(() => {
     const ac = new AbortController();
-    setTrangThai({ loai: 'dang_tai' });
+    const im = daTai.current === lanTai;
+    const doiAnhLucDau = lanDoiAnh.current;
+    if (!im) { daTai.current = -1; setTrangThai({ loai: 'dang_tai' }); }
     layDanhSachBanVatTu(ac.signal)
       .then(ds => {
+        // Vừa duyệt ảnh trong lúc gọi ngầm => bỏ kết quả có thể cũ (duyệt xong mốc banVt đổi, sẽ gọi lại)
+        if (ac.signal.aborted || (im && lanDoiAnh.current !== doiAnhLucDau)) return;
+        daTai.current = lanTai;
+        if (!im) setLanVeDau(n => n + 1);
         setDuLieu(ds);
         setDong(chuanBiDong(ds.items, homNay));
         setTrangThai({ loai: 'xong' });
@@ -99,12 +112,12 @@ const BanVatTu: React.FC = () => {
         if (!ds.coGiaVon) setXep(x => (x.cot === 'giaTri' ? { cot: 'soLuong', giam: true } : x));
       })
       .catch((e: unknown) => {
-        if (ac.signal.aborted) return;
+        if (ac.signal.aborted || im) return;
         if (laLoiChuaCoQuyenBan(e)) setTrangThai({ loai: 'chua_quyen', thongBao: (e as LoiBanVatTu).message });
         else setTrangThai({ loai: 'loi', thongBao: e instanceof LoiBanVatTu ? e.message : 'Không tải được danh sách, hãy thử lại' });
       });
     return () => ac.abort();
-  }, [lanTai, homNay]);
+  }, [lanTai, homNay, moc]);
 
   const coGiaVon = duLieu?.coGiaVon === true;
   const coQuyenSua = duLieu?.coQuyenSua === true;
@@ -121,11 +134,11 @@ const BanVatTu: React.FC = () => {
   const chonKho = useMemo(() => dsLuaChon(locDong(dong, locTre, coGiaVon, 'kho'), d => d.khoTen)
     .sort((a, b) => thuTuLoai(a.giaTri) - thuTuLoai(b.giaTri) || a.giaTri.localeCompare(b.giaTri, 'vi')), [dong, locTre, coGiaVon]);
 
-  // Đổi bộ lọc / cách xếp / chế độ / tải lại => về đầu danh sách, hiện lại đợt đầu (duyệt ảnh thì giữ chỗ đang xem)
+  // Đổi bộ lọc / cách xếp / chế độ / tải lại => về đầu danh sách, hiện lại đợt đầu (duyệt ảnh / tự làm mới thì giữ chỗ đang xem)
   useEffect(() => {
     setSoHien(DOT_HIEN[cheDo]);
     cuonRef.current?.scrollTo({ top: 0 });
-  }, [locTre, xep, cheDo, duLieu]);
+  }, [locTre, xep, cheDo, lanVeDau]);
 
   // Cuộn gần cuối => hiện thêm 1 đợt
   useEffect(() => {
@@ -146,8 +159,10 @@ const BanVatTu: React.FC = () => {
   const moChiTiet = useCallback((d: DongBan) => setMoKhoa(d.khoa), []);
   const dangMo = moKhoa ? dong.find(d => d.khoa === moKhoa) ?? null : null;
   const cungMa = useMemo(() => (dangMo ? dong.filter(d => d.ma === dangMo.ma) : []), [dong, dangMo]);
-  const daDoiAnh = useCallback((ma: string, id: number, tt: TrangThaiAnh, anhGoc?: AnhNoiBo) =>
-    setDong(ds => ganTrangThaiAnh(ds, ma, id, tt, anhGoc)), []);
+  const daDoiAnh = useCallback((ma: string, id: number, tt: TrangThaiAnh, anhGoc?: AnhNoiBo) => {
+    lanDoiAnh.current++;
+    setDong(ds => ganTrangThaiAnh(ds, ma, id, tt, anhGoc));
+  }, []);
 
   const xuatExcel = async () => {
     if (!daLoc.length) return;

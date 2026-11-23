@@ -11,6 +11,7 @@ import {
   createVuongMacStrict, updateVuongMacStrict, uploadVuongMacPhoto, deleteVuongMacPhoto, fetchHexSearch, fetchPeople, traGia,
 } from '../../services/vuongMacService';
 import { useAuth } from '../../context/AuthContext';
+import { useMocBang } from '../../hooks/useMocBang';
 import { AuthImg } from '../shared/VuongMacPhoto';
 import { BottomSheet, LabeledField, inputCls, btnPrimary, chipCls } from '../Mobile/mobileUi';
 import HandlerPicker from '../Mobile/HandlerPicker';
@@ -198,14 +199,25 @@ function Conversation({ v, flash, refreshKey }: { v: VuongMacItem; flash: (m: st
   const endRef = useRef<HTMLDivElement>(null);
   const me = currentUsername().toLowerCase();
 
-  const load = useCallback(() => fetchVuongMacLog(v.hex, v.id).then(setLogs), [v.hex, v.id]);
+  const lan = useRef(0);          // chỉ nhận kết quả của lần gọi mới nhất
+  const tuCuon = useRef(true);    // làm mới ngầm thì giữ chỗ đang cuộn
+  const load = useCallback((im = false) => {
+    const id = ++lan.current;
+    return fetchVuongMacLog(v.hex, v.id, im).then(r => {
+      if (id !== lan.current) return;
+      tuCuon.current = !im;
+      setLogs(r);
+    }, () => { if (id === lan.current) setLogs(l => l ?? []); /* chỉ khi làm mới ngầm: giữ số cũ */ });
+  }, [v.hex, v.id]);
   useEffect(() => { load(); }, [load, refreshKey]);
+  const moc = useMocBang(['vuongMac']);
+  useEffect(() => { if (moc) load(true); }, [moc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cũ -> mới (giống khung chat); bỏ "Cập nhật" không có chi tiết (sửa chữ) cho gọn
   const items = (logs ?? [])
     .filter(l => l.action !== 'DELETE' && !(l.action === 'UPDATE' && !l.detail))
     .sort((x, y) => new Date(x.actedAt).getTime() - new Date(y.actedAt).getTime() || x.id - y.id);
-  useEffect(() => { if (items.length) endRef.current?.scrollIntoView({ block: 'nearest' }); }, [logs]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (items.length && tuCuon.current) endRef.current?.scrollIntoView({ block: 'nearest' }); }, [logs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = async () => {
     const t = text.trim();
@@ -297,6 +309,10 @@ export function DetailSheet({ v, onClose, onChanged, onOpenHex, flash }: {
   const [action, setAction] = useState<Action | null>(null);
   const [viewer, setViewer] = useState<{ ids: number[]; idx: number } | null>(null);
   const [convKey, setConvKey] = useState(0);
+  // Đang mở form thì giữ bản lúc mở (v có thể được làm mới ngầm — form so ảnh / ưu tiên với bản gốc để biết cái nào đã đổi)
+  const banGoc = useRef(v);
+  if (!action) banGoc.current = v;
+  const row = banGoc.current;
   const perms = v.perms ?? { edit: !!v.canModify, work: !!v.canModify, close: !!v.canModify, delete: !!v.canModify };
   const cd = botCountdown(v);
   const anhSp = v.chiTiet?.anhSp;
@@ -314,10 +330,10 @@ export function DetailSheet({ v, onClose, onChanged, onOpenHex, flash }: {
   };
   const done = (next: VuongMacItem | null, msg: string) => { setAction(null); setConvKey(k => k + 1); onChanged(next, msg); };
 
-  if (action?.type === 'edit') return <FormSheet row={v} onClose={() => setAction(null)} onDone={(it, msg) => done(it, msg)} />;
-  if (action?.type === 'extend') return <ExtendSheet row={v} onClose={() => setAction(null)} onDone={it => done(it, 'Đã gửi yêu cầu thêm thời gian')} />;
-  if (action?.type === 'status') return <StatusSheet row={v} kind={action.kind} onClose={() => setAction(null)} onDone={(it, msg) => done(it, msg)} />;
-  if (action?.type === 'delete') return <DeleteSheet row={v} onClose={() => setAction(null)} onDone={() => done(null, 'Đã xóa')} />;
+  if (action?.type === 'edit') return <FormSheet row={row} onClose={() => setAction(null)} onDone={(it, msg) => done(it, msg)} />;
+  if (action?.type === 'extend') return <ExtendSheet row={row} onClose={() => setAction(null)} onDone={it => done(it, 'Đã gửi yêu cầu thêm thời gian')} />;
+  if (action?.type === 'status') return <StatusSheet row={row} kind={action.kind} onClose={() => setAction(null)} onDone={(it, msg) => done(it, msg)} />;
+  if (action?.type === 'delete') return <DeleteSheet row={row} onClose={() => setAction(null)} onDone={() => done(null, 'Đã xóa')} />;
   if (action?.type === 'log') return <LogSheet row={v} onClose={() => setAction(null)} />;
 
   // Mốc thời gian theo quy trình
@@ -1015,7 +1031,13 @@ export function DeleteSheet({ row, onClose, onDone }: { row: VuongMacItem; onClo
 // Nhật ký đầy đủ của HEX (mọi vướng mắc cùng HEX, kể cả đã xoá)
 export function LogSheet({ row, onClose }: { row: VuongMacItem; onClose: () => void }) {
   const [logs, setLogs] = useState<VuongMacLogEntry[] | null>(null);
-  useEffect(() => { fetchVuongMacLog(row.hex).then(setLogs); }, [row.hex]);
+  const moc = useMocBang(['vuongMac']);
+  useEffect(() => {
+    let on = true;
+    // moc > 0 = làm mới ngầm: lỗi thì giữ nhật ký đang hiện
+    fetchVuongMacLog(row.hex, undefined, moc > 0).then(r => { if (on) setLogs(r); }, () => { if (on) setLogs(l => l ?? []); });
+    return () => { on = false; };
+  }, [row.hex, moc]);
   const sorted = (logs ?? []).slice().sort((x, y) => new Date(y.actedAt).getTime() - new Date(x.actedAt).getTime() || y.id - x.id);
   return (
     <BottomSheet title={`📜 Nhật ký · HEX ${row.hex}`} onClose={onClose}>

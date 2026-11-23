@@ -9,6 +9,7 @@ import { formatTrieuAsTy } from '../../../../utils/money';
 import { fmtInt, fmtSoTy } from '../../../../utils/format';
 import { khung, soBam as GACH, table, tdB as TD_B, tdSo as SO_B, tfoot as TFOOT_B, thC as TH_B, thead as THEAD_B } from '../../../shared/bangBaoCao';
 import { toISODateLocal } from '../../utils/dateHelpers';
+import { useMocBang } from '../../../../hooks/useMocBang';
 import { bamSvg, bangKhong, chamBam, ChiTietProvider, hinhCot, So, ThanhBam, useMoChiTiet, type Bam, type MoChiTiet, type PhamViChiTiet, type YcChiTiet } from './TonKhoChiTiet';
 
 // Tab "Tổng quan sức khoẻ" của cửa sổ Tồn kho: báo cáo Tồn kho thành phẩm v5 (docs/thiet-ke-ton-kho-v5-day-du.png).
@@ -974,17 +975,23 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
   const dateISO = date ? toISODateLocal(date) : '';
   const khoaLoc = `${congTrinh.join('|')}#${xuong.join(',')}`;
 
+  // Có dữ liệu mới: lấy lại ngầm đúng ngày + bộ lọc đang hiện (không bật "Đang cập nhật", lỗi thì giữ số cũ)
+  const moc = useMocBang(['stock', 'production', 'inventory', 'export']);
+  const khoaHien = useRef('');
   useEffect(() => {
     if (!dateISO) return;
     const ac = new AbortController();
-    setDangTai(true); setLoi(null);
+    const khoa = `${dateISO}#${khoaLoc}`;
+    const ngam = khoaHien.current === khoa;
+    setLoi(null);
+    setDangTai(!ngam);
     fetchStockHealth(dateISO, { congTrinh, xuong, signal: ac.signal })
-      .then(d => { setData(d); setPhamVi({ date: d.date, congTrinh, xuong }); setDangTai(false); })
-      .catch(e => { if (!ac.signal.aborted) { setLoi(String(e?.message || e)); setDangTai(false); } });
+      .then(d => { if (ac.signal.aborted) return; khoaHien.current = khoa; setData(d); setPhamVi({ date: d.date, congTrinh, xuong }); setDangTai(false); })
+      .catch(e => { if (!ac.signal.aborted && !ngam) { setLoi(String(e?.message || e)); setDangTai(false); } });
     return () => ac.abort();
     // khoaLoc thay cho 2 mảng (mảng mới mỗi lần vẽ)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateISO, khoaLoc]);
+  }, [dateISO, khoaLoc, moc]);
 
   if (!dateISO) return <p className="p-8 text-center text-sm text-slate-500">Chưa có ngày chốt tồn kho.</p>;
   if (loi && !data) return <p className="p-8 text-center text-sm text-red-600">Không tải được số tồn kho ({loi}).</p>;

@@ -5,6 +5,7 @@ import type { PhotoItem } from '../Mobile/PhotoPicker';
 import { ModalShell } from '../shared/ModalShell';
 import * as bang from '../shared/bangBaoCao';
 import { fmtInt } from '../../utils/format';
+import { useMocBang } from '../../hooks/useMocBang';
 import { LOAI_TIEN, UNAUTHORIZED, traGia, fetchVuongMacPhotoUrl, type ChiTietTien, type LoaiTien, type TraGiaHex } from '../../services/vuongMacService';
 import { LabeledField, inputCls } from '../Mobile/mobileUi';
 import {
@@ -20,23 +21,27 @@ import {
 // Tiền đều là VNĐ.
 // ============================================================================
 
-export function useTraGia(hexes: string[]) {
+/** moc đổi => tra lại ngầm (bảng giá đang hiện giữ nguyên tới khi có số mới) */
+export function useTraGia(hexes: string[], moc = 0) {
   const key = [...new Set(hexes.filter(Boolean))].join(',');
   const [kq, setKq] = useState<Record<string, TraGiaHex>>({});
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const daTra = useRef('');
   useEffect(() => {
     // Không còn mã: bỏ cả cờ đang tra (lần tra cũ bị huỷ nên finally của nó không tắt loading)
-    if (!key) { setKq({}); setErr(''); setLoading(false); return; }
+    if (!key) { daTra.current = ''; setKq({}); setErr(''); setLoading(false); return; }
     let huy = false;
+    const im = daTra.current === key;
+    if (!im) daTra.current = '';
     const t = setTimeout(async () => {
-      setLoading(true); setErr('');
-      try { const r = await traGia(key.split(',')); if (!huy) setKq(r); }
-      catch (e: any) { if (!huy) setErr(e?.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : (e?.message || 'Không tra được giá')); }
+      if (!im) { setLoading(true); setErr(''); }
+      try { const r = await traGia(key.split(',')); if (!huy) { daTra.current = key; setKq(r); } }
+      catch (e: any) { if (!huy && !im) setErr(e?.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn' : (e?.message || 'Không tra được giá')); }
       finally { if (!huy) setLoading(false); }
     }, 400);
     return () => { huy = true; clearTimeout(t); };
-  }, [key]);
+  }, [key, moc]);
   return { kq, loading, err };
 }
 
@@ -541,7 +546,8 @@ export function TienM6Fields({ mainHex, value, onChange, batBuocLoai, scanButton
 export function TienM6View({ hex, ct, dense }: { hex: string; ct?: ChiTietTien | null; dense?: boolean }) {
   const loai = ct?.loai;
   const ds = useMemo(() => (loai ? [hex, ...(loai === 'nhieu_gia' ? (ct?.hexTrung ?? []) : [])] : []), [hex, loai, ct?.hexTrung]);
-  const { kq, loading, err } = useTraGia(ds);
+  const moc = useMocBang(['production', 'material']);
+  const { kq, loading, err } = useTraGia(ds, moc);
   const tomTat = useMemo(() => tomTatMucGia(ds, kq), [ds, kq]);
   if (!ct?.loai) return null;
   const m = LOAI_TIEN_META[ct.loai];

@@ -3,6 +3,7 @@ import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, XCircle, Ca
 import { LinkLightbox } from '../shared/LinkLightbox';
 import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
+import { useMocBang } from '../../hooks/useMocBang';
 import { parsePlanDate, deadlineOf, RAW_DEADLINE_KEYS, planAfterDue, dwellBucket, doneValue, remainValue, laHuy, daNhapDu, isQtyComplete, tyLeHoanThanh, DWELL_STUCK, DWELL_NONE, stageIndex } from '../../utils/productionMetrics';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { workshopGroupOf } from '../../utils/workshopGroups';
@@ -73,8 +74,10 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
   const [mra, setMra] = useState<string | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
 
+  const moc = useMocBang(['production']);
+  // Chỉ đổi HEX mới xoá; có dữ liệu mới thì giữ dòng đang hiện tới khi dòng mới về
+  useEffect(() => { setRow(null); setError(null); }, [hex]);
   useEffect(() => {
-    setRow(null); setError(null);
     if (!hex) return;
     const ctrl = new AbortController();
     fetch(`/api/production/hex/${encodeURIComponent(hex)}`, {
@@ -82,10 +85,10 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       signal: ctrl.signal,
     })
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(r.status === 404 ? 'Không tìm thấy hạng mục' : 'Không tải được dữ liệu'))))
-      .then(setRow)
+      .then(d => { if (!ctrl.signal.aborted) { setRow(d); setError(null); } })
       .catch(e => { if (e.name !== 'AbortError') setError(e.message); });
     return () => ctrl.abort();
-  }, [hex]);
+  }, [hex, moc]);
 
   useEffect(() => {
     setMra(null);
@@ -236,7 +239,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
-          {error ? (
+          {error && !row ? (
             <p className="rounded-lg bg-red-50 p-6 text-center text-sm text-red-600">{error}</p>
           ) : !row || !d ? (
             <p className="rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-400">Đang tải…</p>

@@ -11,14 +11,14 @@ export interface NhoNgan<T> {
   xoa(): void;
 }
 
-export const taoNhoNgan = <T>(ttlMs: number, toiDa = 8, now: () => number = Date.now): NhoNgan<T> => {
+export const taoNhoNgan = <T>(ttlMs: number | (() => number), toiDa = 8, now: () => number = Date.now): NhoNgan<T> => {
   const map = new Map<string, { at: number; v: T }>();
   const dangTinh = new Map<string, Promise<T>>();
   let doi = 0; // tăng mỗi lần xoa(): kết quả của lượt tính thuộc đời cũ không được lưu
   return {
     lay(khoa, tinh) {
       const hit = map.get(khoa);
-      if (hit && now() - hit.at < ttlMs) return Promise.resolve(hit.v);
+      if (hit && now() - hit.at < (typeof ttlMs === 'function' ? ttlMs() : ttlMs)) return Promise.resolve(hit.v);
       const cho = dangTinh.get(khoa);
       if (cho) return cho;
       const doiLucDau = doi;

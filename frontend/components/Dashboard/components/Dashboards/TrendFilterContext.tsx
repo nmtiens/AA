@@ -1,5 +1,7 @@
 import { createContext, useContext, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
+import { useMocBang } from '../../../../hooks/useMocBang';
+import { theoDoiMocBang, type NhomDuLieu } from '../../../../services/mocDuLieu';
 
 export type Granularity = 'day' | 'week' | 'month';
 /** Lọc theo kỳ: chọn 1 tuần (thứ Hai–Chủ nhật) / 1 tháng / 1 năm; kỳ đang chạy tính tới ngày mốc (ngày dữ liệu mới nhất) */
@@ -19,12 +21,15 @@ const readSavedFilterLists = (): FilterLists | null => {
   } catch { return null; }
 };
 let filterListsRequest: Promise<FilterLists> | null = null;
+// Bảng mà /api/filters/* đọc. Nghe ngay khi nạp file nên xoá bản nhớ TRƯỚC khi các ô lọc gọi lại => cả trang chỉ 1 lượt tải
+const NHOM_O_LOC: NhomDuLieu[] = ['khsx', 'order', 'inventory', 'export', 'tkbv', 'pthsp', 'stock', 'production'];
+theoDoiMocBang(doi => { if (NHOM_O_LOC.some(k => doi.has(k))) filterListsRequest = null; });
 /** Bấm "Làm mới": lần mở ô lọc kế tiếp tải lại danh sách (ETL thêm công trình / đổi setup gộp xưởng). */
 export const resetFilterLists = () => { filterListsRequest = null; };
 const loadFilterLists = (delayMs: number): Promise<FilterLists> => {
   if (!filterListsRequest) {
     const get = (u: string) => fetch(u).then(r => (r.ok ? r.json() : [])).catch(() => []);
-    filterListsRequest = new Promise(r => setTimeout(r, delayMs)).then(() => Promise.all([
+    const yeuCau: Promise<FilterLists> = new Promise(r => setTimeout(r, delayMs)).then(() => Promise.all([
       get('/api/filters/xuong'),
       get('/api/filters/cong-trinh'),
       get('/api/filters/dvt'),
@@ -33,9 +38,10 @@ const loadFilterLists = (delayMs: number): Promise<FilterLists> => {
       // Lưu khi đủ dữ liệu (lỗi trả [] thì giữ bản cũ, lần mở sau thử lại)
       if (lists.every(l => Array.isArray(l) && l.length > 0)) {
         try { localStorage.setItem(FILTER_LISTS_KEY, JSON.stringify(lists)); } catch { /* bỏ qua */ }
-      } else filterListsRequest = null;
+      } else if (filterListsRequest === yeuCau) filterListsRequest = null;
       return lists;
     });
+    filterListsRequest = yeuCau;
   }
   return filterListsRequest;
 };
@@ -162,10 +168,11 @@ export function TrendFilterProvider({
   const [dvtList, setDvtList] = useState<FilterOption[]>(saved?.[2] ?? []);
   const [phanLoaiList, setPhanLoaiList] = useState<FilterOption[]>(saved?.[3] ?? []);
 
+  const mocLoc = useMocBang(NHOM_O_LOC);
   useEffect(() => {
     let cancelled = false;
     // Có bản đã lưu: làm mới sau 4 giây (số liệu chính tải trước); chưa có thì tải ngay
-    loadFilterLists(saved ? 4000 : 0).then(([xuongData, ctData, dvtData, plData]) => {
+    loadFilterLists(saved || mocLoc ? 4000 : 0).then(([xuongData, ctData, dvtData, plData]) => {
       if (cancelled) return;
       if (xuongData.length) setXuongList(xuongData);
       if (ctData.length) setRawCongTrinhList(ctData);
@@ -173,7 +180,7 @@ export function TrendFilterProvider({
       if (plData.length) setPhanLoaiList(plData);
     });
     return () => { cancelled = true; };
-  }, [saved]);
+  }, [saved, mocLoc]);
 
   const congTrinhList = useMemo(() => {
     if (viewProjectWhitelist === undefined) return rawCongTrinhList;

@@ -1,5 +1,6 @@
 import { getToken } from './userService';
 import { goiNho, docNho } from './nhoApi';
+import { theoDoiMocBang } from './mocDuLieu';
 import { urlVuongMacTheoCongTrinh } from './urlTongQuan';
 
 // ============================================================================
@@ -240,7 +241,8 @@ export const vuongMacDaNho = (): VmByProjectRow[] | undefined => docNho<VmByProj
 
 const VUONG_MAC_LIST_BATCH = 2000;
 
-export const fetchVuongMacList = async (hexes: string[]): Promise<Record<string, VuongMacItem[]>> => {
+/** nemLoi: lỗi thì ném ra (làm mới ngầm giữ số cũ) thay vì trả {} */
+export const fetchVuongMacList = async (hexes: string[], nemLoi = false): Promise<Record<string, VuongMacItem[]>> => {
   try {
     if (hexes.length === 0) return {};
     // Server nhận tối đa 2000 hex/lần -> chia lô (trước đây quá 2000 thì lỗi 400 và trả rỗng âm thầm)
@@ -264,6 +266,7 @@ export const fetchVuongMacList = async (hexes: string[]): Promise<Record<string,
     return data;
   } catch (e) {
     console.error('fetchVuongMacList error:', e);
+    if (nemLoi) throw e;
     return {};
   }
 };
@@ -360,15 +363,16 @@ export const deleteVuongMacStrict = async (id: number): Promise<void> => {
   await callJson(`/api/vuong-mac/${id}`, { method: 'DELETE' });
 };
 
-/** Nhật ký theo HEX; truyền id để chỉ lấy của 1 vướng mắc */
-export const fetchVuongMacLog = async (hex: string, id?: number): Promise<VuongMacLogEntry[]> => {
+/** Nhật ký theo HEX; truyền id để chỉ lấy của 1 vướng mắc; nemLoi: lỗi thì ném ra thay vì trả [] */
+export const fetchVuongMacLog = async (hex: string, id?: number, nemLoi = false): Promise<VuongMacLogEntry[]> => {
   try {
     const qs = id ? `?id=${id}` : '';
     const r = await fetch(`/api/vuong-mac/log/${encodeURIComponent(hex)}${qs}`, { headers: authHeaders() });
-    if (!r.ok) return [];
+    if (!r.ok) throw new Error(`Lỗi ${r.status}`);
     return await r.json();
   } catch (e) {
     console.error('fetchVuongMacLog error:', e);
+    if (nemLoi) throw e;
     return [];
   }
 };
@@ -631,6 +635,9 @@ const TRA_GIA_TTL = 60_000;  // nhớ kết quả 1 phút: thêm / bỏ từng m
 const traGiaCache = new Map<string, { at: number; v: TraGiaHex | null }>();
 // Kết quả phụ thuộc quyền người xem (tổng vật tư) => đổi người đăng nhập (đổi token) thì bỏ hết bản nhớ
 let traGiaToken: string | null = null;
+// Có dữ liệu sản xuất / vật tư mới => bản nhớ trước lúc này coi như hết hạn
+let traGiaMoc = 0;
+theoDoiMocBang(d => { if (d.has('production') || d.has('material')) traGiaMoc = Date.now(); });
 
 /** Tra tên hạng mục, công trình, đơn giá, trị giá, tổng vật tư (VNĐ) của các HEX. Mã không có trong dữ liệu => không có trong kết quả */
 export const traGia = async (hexes: string[]): Promise<Record<string, TraGiaHex>> => {
@@ -638,7 +645,7 @@ export const traGia = async (hexes: string[]): Promise<Record<string, TraGiaHex>
   const token = getToken();
   if (token !== traGiaToken) { traGiaCache.clear(); traGiaToken = token; }
   const ds = [...new Set(hexes.map(h => h.trim()).filter(Boolean))];
-  const thieu = ds.filter(h => { const c = traGiaCache.get(h); return !c || now - c.at > TRA_GIA_TTL; });
+  const thieu = ds.filter(h => { const c = traGiaCache.get(h); return !c || c.at < traGiaMoc || now - c.at > TRA_GIA_TTL; });
   for (let i = 0; i < thieu.length; i += TRA_GIA_MAX) {
     const lo = thieu.slice(i, i + TRA_GIA_MAX);
     const d = await callJson<{ ketQua?: Record<string, TraGiaHex>; coGiaVatTu?: boolean }>(

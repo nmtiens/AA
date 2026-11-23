@@ -11,7 +11,7 @@ import { DashboardFilter } from '../shared/DashboardFilter';
 import { khThTheoLoc, khThThang, mauTyLe, mocQuy, trangThaiSo } from '../../core/dauTrang';
 import { docNho, goiNho } from '../../../../services/nhoApi';
 import { urlKhNgay, urlNkNgay, urlOverviewSummary, urlPlanActual } from '../../../../services/urlTongQuan';
-import { useMocDuLieu } from '../../../../hooks/useMocDuLieu';
+import { useMocBang } from '../../../../hooks/useMocBang';
 
 // ============================================================================
 // Đầu trang Tổng quan theo ảnh mẫu 2 (docs/designs/figma-thiet-ke-lai/2): chọn kỳ Hôm nay / 7 ngày / Tháng này;
@@ -168,23 +168,35 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
 
   // Kỳ chọn => "Ngày báo cáo" chung của trang
   const { setOverviewDateFilters, unifiedDateOptions } = p;
+  // Danh sách ngày lấy lại mà các ngày của kỳ không đổi thì không đặt lại: giữ ngày người dùng đang chọn ở cửa sổ
+  const daDat = useRef<{ khoang: KhoangKy; chon: string } | null>(null);
   useEffect(() => {
     if (!khoang) return;
+    const dat = (chon: string[]) => {
+      const khoa = chon.join('|');
+      if (!chon.length || (daDat.current?.khoang === khoang && daDat.current.chon === khoa)) return;
+      daDat.current = { khoang, chon: khoa };
+      setOverviewDateFilters(chon);
+    };
     if (khoang.dates) {
       // Chỉ đưa vào "Ngày báo cáo" các ngày có số liệu, đúng chuỗi ngày của danh sách gốc
       const can = new Set(khoang.dates);
       const chon = unifiedDateOptions.filter(o => { const x = parseVNDate(o); return !!x && can.has(toISODateLocal(x)); });
-      if (chon.length) setOverviewDateFilters(chon);
+      dat(chon);
       return;
     }
     const a = toISODateLocal(khoang.tu), b = toISODateLocal(khoang.den);
     const chon = unifiedDateOptions.filter(o => { const x = parseVNDate(o); if (!x) return false; const s = toISODateLocal(x); return s >= a && s <= b; });
-    if (chon.length) setOverviewDateFilters(chon);
+    dat(chon);
   }, [khoang, unifiedDateOptions, setOverviewDateFilters]);
 
   // Số của kỳ này + kỳ trước (cùng bộ lọc công trình / xưởng với dải Dòng chảy)
-  // Tăng khi dữ liệu máy chủ đổi (sau ETL): các effect tải số bên dưới gọi lại, số đang hiện giữ tới khi số mới về
-  const moc = useMocDuLieu();
+  // Tăng khi bảng nguồn đổi (sau ETL): các effect tải số bên dưới gọi lại, số đang hiện giữ tới khi số mới về
+  const moc = useMocBang(['order', 'tkbv', 'pthsp', 'inventory', 'export', 'production']);
+  const mocNk = useMocBang(['inventory', 'production']);
+  const mocKhTh = useMocBang(['yearlyPlan', 'inventory', 'production', 'khsx']);
+  const mocTuanKh = useMocBang(['khsx', 'inventory', 'production']);
+  const mocKhNgay = useMocBang(['khsx', 'production']);
   // uNay / uTruoc = URL của số đang hiện ở từng ô — để khi gọi lỗi chỉ giữ số của ĐÚNG kỳ + bộ lọc đang xem
   type SoHien = { nay: SoKy | null; truoc: SoKy | null; uNay: string | null; uTruoc: string | null };
   const urlSo = (k: KhoangKy) => {
@@ -296,7 +308,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       .catch(khiLoi);
     return () => { on = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ky, ngayMoi, locKey, khoang, tuanChon, xemThang, thangTD, moc]);
+  }, [ky, ngayMoi, locKey, khoang, tuanChon, xemThang, thangTD, mocNk]);
 
   const [khThDau] = useState(() => {
     const url = urlPlanActual(String(ngayMoi.getFullYear()), p.congTrinh);
@@ -306,8 +318,11 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const [khTh, setKhTh] = useState<YearPlanActualData | null>(khThDau.d);
   const khThCua = useRef<string | null>(khThDau.url);
   // Danh sách công trình / xưởng để chọn (lọc chéo theo lựa chọn bên kia)
+  const mocDs = useRef(mocNk);
   useEffect(() => {
     if (!nkKhoang) return;
+    const ngam = mocDs.current !== mocNk; // làm mới ngầm: rỗng (lỗi) thì giữ danh sách cũ
+    mocDs.current = mocNk;
     const ac = new AbortController();
     const goc = () => new URLSearchParams({ source: 'inventory', dateFrom: toISODateLocal(nkKhoang.tu), dateTo: toISODateLocal(nkKhoang.den) });
     const lay = (url: string) => fetch(url, { signal: ac.signal }).then(r => (r.ok ? r.json() : [])).then(d => (Array.isArray(d) ? d : []));
@@ -332,18 +347,21 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     Promise.all([ctPromise, xPromise]).then(([ct, x]) => {
       if (ac.signal.aborted) return;
       // Giữ cả mục đang chọn (dù không còn số) để bỏ chọn được
-      setDsCt([...ct, ...locCt.filter(t => !ct.includes(t))]);
-      setDsXuong([...x, ...locXuong.filter(t => !x.includes(t))]);
+      if (!ngam || ct.length) setDsCt([...ct, ...locCt.filter(t => !ct.includes(t))]);
+      if (!ngam || x.length) setDsXuong([...x, ...locXuong.filter(t => !x.includes(t))]);
     }).catch(() => { /* bỏ qua: huỷ hoặc lỗi mạng */ });
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nkKhoang?.tu.getTime(), nkKhoang?.den.getTime(), locKey, locXuong.join('|'), locCt.join('|')]);
+  }, [nkKhoang?.tu.getTime(), nkKhoang?.den.getTime(), locKey, locXuong.join('|'), locCt.join('|'), mocNk]);
   // Nhập kho theo ngày của phần đã chọn: mỗi xưởng chọn 1 lần gọi (công trình chọn lọc chung bằng ctWhitelist), cộng lại
   const [nkLoc, setNkLoc] = useState<Map<string, number> | null>(null);
   const locDangBat = locXuong.length > 0 || locCt.length > 0;
+  const nkLocCua = useRef<string | null>(null); // phần chọn + khoảng của số đang hiện
   useEffect(() => {
-    if (!locDangBat || !nkKhoang) { setNkLoc(null); return; }
-    setNkLoc(null);
+    if (!locDangBat || !nkKhoang) { setNkLoc(null); nkLocCua.current = null; return; }
+    const khoa = JSON.stringify([locXuong, locCt, nkKhoang.tu.getTime(), nkKhoang.den.getTime(), locKey]);
+    // Cùng phần chọn (chỉ có dữ liệu mới): giữ số đang hiện tới khi số mới về
+    if (nkLocCua.current !== khoa) { setNkLoc(null); nkLocCua.current = null; }
     const ac = new AbortController();
     // 1 lần gọi lỗi (null) => bỏ cả phép cộng (catch bên dưới xoá trắng): thiếu 1 xưởng thì tổng / phần 'KHÁC' sai
     // khongLuu: phần lọc này không bao giờ đọc lại bản lưu, mà chọn 'KHÁC' gọi 1 URL cho MỖI xưởng — lưu thì đẩy số
@@ -364,11 +382,11 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       const cong = (m: Map<string, number>, he = 1) => m.forEach((v, k) => kq.set(k, (kq.get(k) ?? 0) + v * he));
       chon.forEach(m => cong(m));
       if (tong && moiXuong) { cong(tong); moiXuong.forEach(m => cong(m, -1)); kq.forEach((v, k) => kq.set(k, Math.max(v, 0))); }
-      if (!ac.signal.aborted) setNkLoc(kq);
-    })().catch(() => { if (!ac.signal.aborted) setNkLoc(new Map()); });
+      if (!ac.signal.aborted) { nkLocCua.current = khoa; setNkLoc(kq); }
+    })().catch(() => { if (!ac.signal.aborted && nkLocCua.current !== khoa) setNkLoc(new Map()); });
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locXuong.join('|'), locCt.join('|'), nkKhoang?.tu.getTime(), nkKhoang?.den.getTime(), locKey, khTh]);
+  }, [locXuong.join('|'), locCt.join('|'), nkKhoang?.tu.getTime(), nkKhoang?.den.getTime(), locKey, khTh, mocNk]);
   // Đầu trang luôn là năm của hôm qua, không theo LỌC NĂM ở tab Kế hoạch
   const nam = ngayMoi.getFullYear();
   const namLabel = String(nam);
@@ -394,7 +412,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       .catch(() => { /* bỏ qua: huỷ */ });
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [namLabel, locKey, moc]);
+  }, [namLabel, locKey, mocKhTh]);
   // KH năm không chia theo công trình
   const coKhTrang = p.congTrinh.length === 0;
   // Chế độ Tháng: KH tháng lấy từ KHSX tháng (bảng khsx, file KHNK của tháng) khi tháng đó đã có — có cột công trình
@@ -434,12 +452,20 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   }, [tienDo, khTh, ngayMoi, thangTD, namLabel, coKhTrang, coKhKy, locKey]);
   // KH tuần trong tháng: KH / nhập kho từng tuần (API KHSX theo tuần) — chỉ tải khi xem Tháng
   const [tuanKh, setTuanKh] = useState<Array<{ tuan: number; tu: Date; den: Date; nhan: string; kh: number; th: number }>>([]);
+  const tuanKhCua = useRef(''); // tháng + bộ lọc của số đang hiện
   useEffect(() => {
     if (tienDo !== 'thang') return;
     const ac = new AbortController();
+    const khoa = `${thangTD}#${locKey}`;
     const ds = tuanTrongThang(ngayMoi.getFullYear(), thangTD);
     Promise.all(ds.map(w => fetchKhsxNhapKhoSummary({ nam: String(w.nam), mode: 'week', tuan: String(w.tuan), congTrinh: p.congTrinh, xuong: p.xuong, signal: ac.signal, khongLuu: true })))
-      .then(kq => { if (!ac.signal.aborted) setTuanKh(ds.map((w, i) => ({ tuan: w.tuan, tu: w.tu, den: w.den, nhan: w.nhan, kh: kq[i]?.totalKh ?? 0, th: kq[i]?.totalTh ?? 0 }))); });
+      .then(kq => {
+        if (ac.signal.aborted) return;
+        // Làm mới ngầm mà lỗi (null): giữ số đang hiện
+        if (tuanKhCua.current === khoa && kq.some(x => !x)) return;
+        tuanKhCua.current = khoa;
+        setTuanKh(ds.map((w, i) => ({ tuan: w.tuan, tu: w.tu, den: w.den, nhan: w.nhan, kh: kq[i]?.totalKh ?? 0, th: kq[i]?.totalTh ?? 0 })));
+      });
     const y = ngayMoi.getFullYear();
     const tuT = new Date(y, thangTD - 1, 1), denT = new Date(y, thangTD, 0);
     // Đổi bộ lọc / tháng: bỏ số của bộ lọc cũ ngay (lấy bản lưu của URL mới nếu có) — lỗi mạng sau đó không để lại số của
@@ -455,7 +481,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       .catch(() => { /* bỏ qua: huỷ hoặc lỗi mạng */ });
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tienDo, ngayMoi, thangTD, locKey]);
+  }, [tienDo, ngayMoi, thangTD, locKey, mocTuanKh]);
   const [nkThang, setNkThang] = useState<Map<string, number>>(new Map());
   const nkThangUrl = useRef<string | null>(null);
   // Mục tiêu từng tuần — CHỈ phần ngày nằm trong tháng, để cờ / ô tuần / thanh tháng khớp nhau:
@@ -512,9 +538,11 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   // Tuần đang chọn: mục tiêu = đúng số trên ô tuần (KH tuần nếu có, không thì phần chia từ KH tháng), chỉ phần ngày
   // trong tháng; mức mỗi ngày = mục tiêu / số ngày làm việc của tuần trong tháng. Trước chỉ đọc KH tuần => tuần chưa có
   // KH tuần mất đường "Cần" và cột đổi màu, tuần có KH thì có (lúc này lúc kia)
-  const mucTuan = tuanChon ? (tuanChon.muc ?? tuanChon.kh) : 0;
-  const ngayTuan = tuanChon ? (tuanChon.ngayTrong && tuanChon.ngayTrong > 0 ? tuanChon.ngayTrong : NGAY_TUAN) : NGAY_TUAN;
-  const thTuan = tuanChon ? (tuanChon.thTrong ?? tuanChon.th) : 0;
+  // Số của tuần lấy từ tuanMT (tuanChon chỉ là bản lúc bấm) => có dữ liệu mới thì khớp ô tuần
+  const tuanXem = tuanChon && (tuanMT.find(w => w.tu.getTime() === tuanChon.tu.getTime()) ?? tuanChon);
+  const mucTuan = tuanXem ? (tuanXem.muc ?? tuanXem.kh) : 0;
+  const ngayTuan = tuanXem?.ngayTrong && tuanXem.ngayTrong > 0 ? tuanXem.ngayTrong : NGAY_TUAN;
+  const thTuan = tuanXem ? (tuanXem.thTrong ?? tuanXem.th) : 0;
   const canMoiNgay = tuanChon ? (mucTuan > 0 ? mucTuan / ngayTuan : 0) : canMoiNgayKy;
   // Ngưỡng tô màu cột ngày: đạt KH tháng mỗi ngày => xanh (đang chọn tuần thì theo mức cần của tuần)
   const nguongDat = tuanChon ? canMoiNgay : mucKhThang > 0 ? mucKhThang : canMoiNgay;
@@ -554,7 +582,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       .catch(khiLoi);
     return () => ac.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [khTu, khDen, locXuong.join('|'), locCt.join('|'), locKey, moc]);
+  }, [khTu, khDen, locXuong.join('|'), locCt.join('|'), locKey, mocKhNgay]);
   // Ngày gần nhất CÓ nhập kho (ngày mới nhất có thể chưa nạp số => không báo 'chậm' oan)
   const nkCuoi = [...nk].reverse().find(d => d.v > 0) ?? null;
   // Biểu đồ vẽ phần đã chọn (lọc xưởng / công trình); khung "Cần chú ý" vẫn theo toàn bộ (nkCuoi)

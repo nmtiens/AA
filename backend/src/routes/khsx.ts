@@ -213,7 +213,7 @@ app.get('/api/khsx/cong-trinh', async (req: Request, res: Response) => {
     if (!Number.isInteger(nam) || !Number.isInteger(thang) || thang < 1 || thang > 12) {
       return res.status(400).json({ error: 'Thiếu / sai nam, thang' });
     }
-    const payload = await cachedByVersions(khsxCtCache, `${nam}-${thang}`, ['khsx'], async () => {
+    const payload = await cachedByVersions(khsxCtCache, `${nam}-${thang}`, ['khsx', 'production'], async () => {
       const lay = (loai: string) => timedQuery(
         `SELECT TRIM(ten_cong_trinh) AS ten, TRIM(ma_cong_trinh) AS ma, TRIM(hex::text) AS hex
            FROM khsx

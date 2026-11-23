@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL } from '../../services/dataService';
+import { useMocBang } from '../../hooks/useMocBang';
 import * as bang from '../shared/bangBaoCao';
 
 // ============================================================================
@@ -32,17 +33,21 @@ export function CuaSoKho({ ma, ten, loai: loaiDau, thang: thangDau, onClose }: {
   const [tim, setTim] = useState('');
   useEffect(() => { setLoai(loaiDau); }, [loaiDau, ma]);
   // Tải cả 3 bảng 1 lần để thẻ chuyển hiện sẵn tổng
+  // Có dữ liệu kho mới => gọi lại ngầm, số đang hiện giữ tới khi số mới về
+  const moc = useMocBang(['inventory', 'export', 'stock']);
+  const maTai = useRef('');
   useEffect(() => {
     const ac = new AbortController();
-    setDu({});
+    if (maTai.current !== ma) setDu({});
+    maTai.current = ma;
     (['nhap', 'xuat', 'ton'] as LoaiKho[]).forEach(l => {
       fetch(`${API_BASE_URL}/khnk-sheet/kho-dong-chuan?${new URLSearchParams({ loai: l, ma })}`, { signal: ac.signal })
         .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `Lỗi ${r.status}`); return j as DuLieu; })
-        .then(d => setDu(x => ({ ...x, [l]: d })))
-        .catch(e => { if (!ac.signal.aborted) setDu(x => ({ ...x, [l]: { loi: e instanceof Error ? e.message : String(e) } })); });
+        .then(d => { if (!ac.signal.aborted) setDu(x => ({ ...x, [l]: d })); })
+        .catch(e => { if (!ac.signal.aborted) setDu(x => { const c = x[l]; return c && !('loi' in c) ? x : { ...x, [l]: { loi: e instanceof Error ? e.message : String(e) } }; }); });
     });
     return () => ac.abort();
-  }, [ma]);
+  }, [ma, moc]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', k);

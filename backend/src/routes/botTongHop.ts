@@ -47,11 +47,11 @@ const SQL_THONG_KE = `SELECT nguon, COUNT(*)::int AS n, COUNT(tt_con_lai)::int A
 // BOT hạng mục: NGÀY CẦN GIAO PC ĐỀ XUẤT của từng HEX theo file công trình — cột "BOT hạng mục" ở cửa sổ HEX
 // (BOP / BOT x BOP). Dạng cột { hex[], ngay[] } (chỉ HEX có ngày); nhớ tạm theo lần nạp file mới nhất của tool
 // (bot_tong_hop_file.nap_luc) => không đọc lại ~30k dòng mỗi lần mở trang.
-// Mốc file: 1 câu nhẹ, nhớ 3 giây và gộp các lần hỏi đồng thời (mở trang gọi /bot-tong-hop, /loi, /ngay-hex cùng lúc)
+// Mốc file: 1 câu nhẹ, nhớ 2 giây (ngắn hơn 2,5 giây trình duyệt chờ gom) và gộp các lần hỏi đồng thời (mở trang gọi /bot-tong-hop, /loi, /ngay-hex cùng lúc)
 let mocNho: { luc: number; khoa: string } | null = null;
 let mocDangHoi: Promise<string> | null = null;
 const layMocFile = (): Promise<string> => {
-  if (mocNho && Date.now() - mocNho.luc < 3000) return Promise.resolve(mocNho.khoa);
+  if (mocNho && Date.now() - mocNho.luc < 2000) return Promise.resolve(mocNho.khoa);
   if (!mocDangHoi) {
     mocDangHoi = timedQuery(`SELECT COALESCE(to_char(MAX(nap_luc), 'YYYYMMDDHH24MISSUS'), '') || ':' || COUNT(*) AS khoa FROM bot_tong_hop_file`)
       .then(k => { const khoa = chuoi(k.rows[0]?.khoa); mocNho = { luc: Date.now(), khoa }; return khoa; })

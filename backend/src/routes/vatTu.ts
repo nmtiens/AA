@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { app } from '../server/app.js';
 import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
-import { getRelevantVersions } from '../server/data.js';
+import { getRelevantVersions, hanPhienBan } from '../server/data.js';
 import { vnDayKey } from '../server/common.js';
 import { userHasPermission, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
 import { laNgayHopLe } from './tonKhoVt.js';
@@ -1338,7 +1338,7 @@ const chuoiLuc = (v: unknown): string | null => {
   return String(v);
 };
 const docPhienBanTH = async (): Promise<PhienBanTH> => {
-  if (pbThNho && Date.now() - pbThNho.luc < PB_TH_TTL_MS) return pbThNho.giaTri;
+  if (pbThNho && Date.now() - pbThNho.luc < hanPhienBan(PB_TH_TTL_MS)) return pbThNho.giaTri;
   if (pbThDangDoc) return pbThDangDoc;
   pbThDangDoc = (async () => {
     try {

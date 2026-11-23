@@ -3,7 +3,7 @@ import { gzipSync } from 'zlib';
 import { timedQuery } from '../db.js';
 import { app } from '../server/app.js';
 import { chuoi } from '../server/botTongHop.js';
-import { getVersions } from '../server/data.js';
+import { getVersions, hanPhienBan } from '../server/data.js';
 import { COT_CT, sqlHangMuc, moDoi, taoNhoCoHan } from '../server/congTrinh.js';
 import { guiGzip } from '../server/snapshot.js';
 import { laGioNghiDb } from '../server/gioNghi.js';
@@ -40,10 +40,10 @@ const RONG: FileCongTrinh['body'] = { coBang: false, capNhat: null, soFile: 0, c
 /** Mốc file công trình: khoa đổi là số file đổi; coBang false = chưa tạo bảng bot_tong_hop_file */
 export interface MocFile { coBang: boolean; khoa: string; capNhat: string | null; soFile: number }
 const MOC_KHONG_BANG: MocFile = { coBang: false, khoa: 'khong-bang', capNhat: null, soFile: 0 };
-// Mốc file: 1 câu nhẹ (không tham số => 1 lượt đi-về), nhớ 3 giây + gộp các lần hỏi đồng thời như getVersions —
+// Mốc file: 1 câu nhẹ (không tham số => 1 lượt đi-về), nhớ 2 giây (ngắn hơn 2,5 giây trình duyệt chờ gom) + gộp các lần hỏi đồng thời như getVersions —
 // /cong-trinh/hang-muc, /tong-quan/cong-trinh, /bot-cong-doan/hex và việc tự làm nóng dùng chung 1 câu.
-// An toàn: file mới hiện chậm tối đa 3 giây (tool nạp file vài phút / lần); lỗi DB không được nhớ.
-const mocFile = taoNhoCoHan<MocFile>(3000, async () => {
+// An toàn: file mới hiện chậm tối đa 2 giây (tool nạp file vài phút / lần); lỗi DB không được nhớ.
+const mocFile = taoNhoCoHan<MocFile>(2000, async () => {
   try {
     const k = (await timedQuery(SQL_KHOA)).rows[0] ?? {};
     return { coBang: true, khoa: chuoi(k.khoa), capNhat: chuoi(k.cap_nhat) || null, soFile: Number(k.so_file) || 0 };
@@ -103,7 +103,7 @@ export async function layFileCongTrinh(moc?: MocFile): Promise<FileCongTrinh> {
  *  giờ để DB ngủ thì không hỏi thêm) */
 let mocNho: { luc: number; khoa: string } | null = null;
 export async function khoaFileNho(): Promise<string> {
-  if (mocNho && (Date.now() - mocNho.luc < 30_000 || laGioNghiDb())) return mocNho.khoa;
+  if (mocNho && (Date.now() - mocNho.luc < hanPhienBan(30_000) || laGioNghiDb())) return mocNho.khoa;
   if (laGioNghiDb()) return '';
   let khoa = '';
   try { const m = await layMocFile(); khoa = m.coBang ? m.khoa : ''; } catch { /* chưa có bảng / lỗi DB: không tính */ }

@@ -153,12 +153,12 @@ export default function DetailDataModal({
 
   const canGroup = columns.includes(groupCol);
 
-  // Reset về trang 1 + đóng hết các nhóm đang mở mỗi khi mở modal hoặc dữ liệu (rows) đổi —
-  // tránh trường hợp đang đứng ở trang 3 của dữ liệu cũ khi xem dữ liệu mới.
+  // Reset về trang 1 + đóng hết các nhóm đang mở mỗi khi mở modal hoặc đổi tiêu đề (xem số khác).
+  // Cùng 1 số được làm mới ngầm (chỉ rows đổi) thì giữ nguyên trang và nhóm đang mở.
   useEffect(() => {
     setPage(1);
     setExpanded(new Set());
-  }, [rows, open]);
+  }, [title, open]);
 
   // ==== Setup cột hiển thị (chỉ Admin) — chọn/ẩn + kéo-thả sắp xếp thứ tự cột.
   // Vì modal này dùng chung cho nhiều bảng dữ liệu khác nhau (columns đổi theo
@@ -224,6 +224,7 @@ export default function DetailDataModal({
   // Khi không group: giữ nguyên hành vi cũ, phân trang theo số dòng gốc.
   const totalUnits = canGroup ? groups.length : rows.length;
   const totalPages = Math.max(1, Math.ceil(totalUnits / ROWS_PER_PAGE));
+  useEffect(() => { setPage(p => Math.min(p, totalPages)); }, [totalPages]);
 
   const pagedGroups = useMemo(() => {
     if (!canGroup) return [];

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataRow } from '../../../types';
 import { projectMatchKey } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal, computeMtdRows } from '../utils/dateHelpers';
@@ -10,6 +10,7 @@ import {
   type StockByProjectRow,
 } from '../../../services/dataService';
 import { docNho } from '../../../services/nhoApi';
+import { useMocBang } from '../../../hooks/useMocBang';
 import { urlStockDates } from '../../../services/urlTongQuan';
 
 // ---------------------------------------------------------------------------
@@ -110,6 +111,9 @@ export function useStockData({
       : docNho<StockDateEntry[]>(urlStockDates({ congTrinh: effectiveCongTrinh, xuong: filters.xuong })) ?? []
   );
 
+  // Có dữ liệu mới: gọi lại, số cũ giữ tới khi số mới về
+  const moc = useMocBang(['stock', 'production']);
+  const khoaDem = useRef('');
   useEffect(() => {
     // SỬA: KHÔNG truyền tinhTrang/tinhTrangIpo — Tồn kho chỉ lọc theo
     // congTrinh/xuong, bất kể bộ lọc tổng có chọn Tình Trạng/Tình Trạng IPO hay không.
@@ -136,9 +140,15 @@ export function useStockData({
     fetchStockTotalCount({
       congTrinh: effectiveCongTrinh,
       xuong: filters.xuong,
-    }).then(setStockTotalCount);
+    }).then(n => {
+      if (!on) return;
+      const khoa = `${effectiveCongTrinh.join('|')}#${filters.xuong.join('|')}`;
+      if (!n && khoaDem.current === khoa) return; // làm mới lỗi (0): giữ số đang có
+      khoaDem.current = khoa;
+      setStockTotalCount(n);
+    });
     return () => { on = false; };
-  }, [effectiveCongTrinh, filters.xuong, isScopedWithNoProjects]);
+  }, [effectiveCongTrinh, filters.xuong, isScopedWithNoProjects, moc]);
 
   const latestStockDateAvailable = useMemo<Date | null>(() => {
     if (stockDates.length === 0) return null;
@@ -206,18 +216,30 @@ export function useStockData({
   const stockOverviewCardValue = !stockOverviewEntry ? 0 : overviewMetric === 'COUNT' ? stockOverviewEntry.count : stockOverviewEntry.value;
   const stockOverviewMa0 = stockOverviewEntry?.count0 ?? 0;
 
+// moc trong deps: có dữ liệu mới thì hàm đổi, cửa sổ đang mở gọi lại
+const byProject = useRef({ id: 0, khoa: '' });
 const loadStockByProject = useCallback(() => {
+    const id = ++byProject.current.id;
     if (isScopedWithNoProjects) {
+      byProject.current.khoa = '';
       setStockByProjectData([]);
       return;
     }
     if (closestStockDate) {
-      fetchStockByProject(toISODateLocal(closestStockDate), {
+      const ngay = toISODateLocal(closestStockDate);
+      const khoa = `${effectiveCongTrinh.join('|')}#${filters.xuong.join('|')}#${ngay}`;
+      fetchStockByProject(ngay, {
         congTrinh: effectiveCongTrinh,
         xuong: filters.xuong,
-      }).then(setStockByProjectData);
+      }).then(ds => {
+        if (id !== byProject.current.id) return;
+        if (!ds.length && byProject.current.khoa === khoa) return; // làm mới lỗi ([]): giữ số đang hiện
+        byProject.current.khoa = khoa;
+        setStockByProjectData(ds);
+      });
     }
-  }, [isScopedWithNoProjects, closestStockDate, effectiveCongTrinh, filters.xuong]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScopedWithNoProjects, closestStockDate, effectiveCongTrinh, filters.xuong, moc]);
 
  return {
     stockDates,

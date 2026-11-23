@@ -316,11 +316,21 @@ export const TABLE_TO_VERSION_KEY: Record<string, string> = {
 //    nên hai đường này phải đọc phiên bản mới, không thì bảng cũ bị dán nhãn mới tới lần ETL sau.
 const VERSIONS_TTL_MS = 30_000;
 export const VERSIONS_MOI_MS = 3000;
+// Trình duyệt vừa thấy có dữ liệu mới gửi kèm tiêu đề x-du-lieu-moi (server/app.ts gọi xinSoMoi): trong vài giây, bản nhớ
+// phiên bản 30 giây của instance này chỉ được tin 3 giây — không thì instance khác trả số cũ rồi trang không hỏi lại nữa.
+let soMoiDen = 0;
+export const xinSoMoi = () => {
+  soMoiDen = Date.now() + 5000;
+  // /api/all-data được gọi ngay khi vừa thấy phiên bản mới: bản nhớ đọc trước đó của instance này phải bỏ
+  if (versionsMemo && Date.now() - versionsMemo.at > 500) versionsMemo = null;
+};
+/** Hạn tin bản nhớ: bình thường `thuong`, đang có người cần số mới thì tối đa 2 giây (ngắn hơn lúc trình duyệt gom) */
+export const hanPhienBan = (thuong: number): number => (Date.now() < soMoiDen ? Math.min(thuong, 2000) : thuong);
 let versionsMemo: { at: number; value: Record<string, string> } | null = null;
 let versionsInflight: Promise<Record<string, string>> | null = null;
 
 export const getVersions = async (conMoiMs: number = VERSIONS_TTL_MS): Promise<Record<string, string>> => {
-  if (versionsMemo && Date.now() - versionsMemo.at < conMoiMs) return versionsMemo.value;
+  if (versionsMemo && Date.now() - versionsMemo.at < hanPhienBan(conMoiMs)) return versionsMemo.value;
   if (versionsInflight) return versionsInflight;
   versionsInflight = (async () => {
     try {

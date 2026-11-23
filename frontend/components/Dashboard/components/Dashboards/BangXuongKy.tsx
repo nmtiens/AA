@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { useMocBang } from '../../../../hooks/useMocBang';
 import * as bang from '../../../shared/bangBaoCao';
 import { fmtInt, fmtTy } from '../../../../utils/format';
 import { bienKy, chonKy, nhanKy, pivotXuongKy, type DongXuongKy } from './xuongKy';
@@ -15,6 +16,8 @@ interface Props {
 }
 
 interface ChiTiet {
+  x: string;
+  k: string | null;
   tieuDe: string;
   rows: Record<string, unknown>[];
   columns: string[];
@@ -27,14 +30,16 @@ export default function BangXuongKy({ source, displayMode, accentColor, title }:
   const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv } = useTrendFilter();
   const [rows, setRows] = useState<DongXuongKy[]>([]);
   const [loading, setLoading] = useState(true);
+  // Dữ liệu mới: gọi lại ngầm, số đang hiện giữ tới khi số mới về
+  const moc = useMocBang([source, 'production']);
+  const daTai = useRef('');   // bộ tham số của số đang hiện
   const [chiTiet, setChiTiet] = useState<ChiTiet | null>(null);
   const coKhoang = Boolean(dateFrom && dateTo);
   const ky = coKhoang ? chonKy(dateFrom, dateTo) : 'month';
 
   useEffect(() => {
-    if (!coKhoang) { setRows([]); setLoading(false); return; }
+    if (!coKhoang) { daTai.current = ''; setRows([]); setLoading(false); return; }
     let huy = false;
-    setLoading(true);
     const p = new URLSearchParams({ source, dateFrom, dateTo, ky });
     if (xuong) p.set('xuong', xuong);
     if (congTrinh) p.set('congTrinh', congTrinh);
@@ -42,21 +47,26 @@ export default function BangXuongKy({ source, displayMode, accentColor, title }:
     if (phanLoai) p.set('phanLoai', phanLoai);
     if (hasCtWhitelist) p.set('ctWhitelist', ctWhitelistCsv);
     if (selectedDatesCsv) p.set('dates', selectedDatesCsv);
-    fetch(`/api/trend-by-xuong?${p.toString()}`)
+    const khoa = p.toString();
+    const ngam = daTai.current === khoa;
+    if (!ngam) { daTai.current = ''; setLoading(true); }
+    fetch(`/api/trend-by-xuong?${khoa}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(d => { if (!huy) setRows(Array.isArray(d) ? d : []); })
-      .catch(err => { console.error('Lỗi bảng xưởng × kỳ:', err); if (!huy) setRows([]); })
+      .then(d => { if (!huy) { daTai.current = khoa; setRows(Array.isArray(d) ? d : []); } })
+      .catch(err => { console.error('Lỗi bảng xưởng × kỳ:', err); if (!huy && !ngam) setRows([]); })
       .finally(() => { if (!huy) setLoading(false); });
     return () => { huy = true; };
-  }, [source, ky, coKhoang, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
+  }, [source, ky, coKhoang, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, moc]);
 
   const laTien = displayMode === 'SUM';
   const b = useMemo(() => pivotXuongKy(rows, r => (laTien ? r.total : r.totalCount)), [rows, laTien]);
   const fmt = (v: number) => (laTien ? fmtTy(v) : fmtInt(v));
 
-  const moChiTiet = async (x: string, k: string | null) => {
+  const lanChiTiet = useRef(0);
+  const moChiTiet = async (x: string, k: string | null, ngam = false) => {
+    const lan = ++lanChiTiet.current;
     const bien = k ? bienKy(k, ky, dateFrom, dateTo) : { tu: dateFrom, den: dateTo };
-    setChiTiet({ tieuDe: `${title}, ${x}, ${k ? nhanKy(k, ky) : 'cả kỳ'}`, rows: [], columns: [], truncated: false, loading: true });
+    if (!ngam) setChiTiet({ x, k, tieuDe: `${title}, ${x}, ${k ? nhanKy(k, ky) : 'cả kỳ'}`, rows: [], columns: [], truncated: false, loading: true });
     try {
       const p = new URLSearchParams({ source, dimension: 'xuong', value: x, dateFrom: bien.tu, dateTo: bien.den });
       if (congTrinh) p.set('congTrinh', congTrinh);
@@ -67,12 +77,17 @@ export default function BangXuongKy({ source, displayMode, accentColor, title }:
       const r = await fetch(`/api/detail?${p.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
-      setChiTiet(c => c && { ...c, rows: d.rows || [], columns: d.columns || [], truncated: !!d.truncated, loading: false });
+      if (lan === lanChiTiet.current) setChiTiet(c => c && { ...c, rows: d.rows || [], columns: d.columns || [], truncated: !!d.truncated, loading: false });
     } catch (err) {
       console.error('Lỗi chi tiết bảng xưởng × kỳ:', err);
-      setChiTiet(c => c && { ...c, loading: false });
+      if (lan === lanChiTiet.current) setChiTiet(c => c && { ...c, loading: false });
     }
   };
+  // Cửa sổ chi tiết đang mở cũng lấy số mới (đang tải dở thì tải lại)
+  useEffect(() => {
+    if (moc && chiTiet) void moChiTiet(chiTiet.x, chiTiet.k, !chiTiet.loading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moc]);
 
   if (!coKhoang || (!loading && !b.dong.length)) return null;
   if (loading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">Đang tải...</div>;

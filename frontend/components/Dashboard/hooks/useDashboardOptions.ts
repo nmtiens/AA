@@ -6,7 +6,7 @@ import { fetchTuyChonThoiGian, type TuyChonThoiGian } from '../../../services/da
 import { napBang } from '../../../services/napBang';
 import { docNho } from '../../../services/nhoApi';
 import { urlTuyChonThoiGian } from '../../../services/urlTongQuan';
-import { useMocDuLieu } from '../../../hooks/useMocDuLieu';
+import { useMocBang } from '../../../hooks/useMocBang';
 
 interface UseDashboardOptionsParams {
   productionData: DataRow[];
@@ -59,7 +59,7 @@ const BANG_TUY_CHON = ['order', 'tkbv', 'pthsp', 'inventory', 'khsx'];
 
 /**
  * Danh sách thời gian từ máy chủ, không cần tải nguyên bảng. API lỗi thì tải bảng như cũ; sanSang = false trong lúc chờ
- * để ngày mặc định không chốt theo danh sách thiếu. `moc` đổi (máy chủ có dữ liệu mới — useMocDuLieu) thì lấy lại.
+ * để ngày mặc định không chốt theo danh sách thiếu. `moc` đổi (máy chủ có dữ liệu mới — useMocBang) thì lấy lại.
  * Có danh sách đã lưu trong ngày (nhoApi) thì dùng ngay từ lượt vẽ đầu; `daXacNhan` = false tới khi máy chủ trả lời
  * lần đầu (hoặc đã tải bảng dự phòng).
  */
@@ -115,7 +115,7 @@ export function useDashboardOptions({
 }: UseDashboardOptionsParams) {
   // Mốc = số đếm "máy chủ có dữ liệu mới", không còn là tham chiếu bảng nhập kho: bảng về từng phần làm tham chiếu
   // đổi 2-3 lần lúc mở trang, mỗi lần gọi lại API này một lượt
-  const moc = useMocDuLieu();
+  const moc = useMocBang(['order', 'tkbv', 'pthsp', 'inventory', 'khsx']);
   const { tuMayChu, sanSang, daXacNhan } = useTuyChonThoiGian(moc);
 
   // --- Production filter options ---
