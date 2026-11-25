@@ -121,7 +121,7 @@ export const urlGuiTruoc = (
 
 /** Trang -> quyền cần có + URL đầu tiên trang đó gọi (cố định, không phụ thuộc bộ lọc) */
 const TRANG_GUI_TRUOC: Record<string, { quyen: string; url: string; mayMoi?: string }> = {
-  '/cong-trinh/tong-quan': { quyen: 'construction_overview', url: `${API}/cong-trinh/hang-muc`, mayMoi: `${API}/tong-quan/cong-trinh` },
+  '/cong-trinh/tong-quan': { quyen: 'construction_overview', url: `${API}/cong-trinh/hang-muc?cu=1`, mayMoi: `${API}/tong-quan/cong-trinh` },
   '/cong-trinh/ho-so': { quyen: 'construction_overview', url: `${API}/ho-so-cong-trinh/danh-sach` },
   '/users': { quyen: 'users', url: `${API}/users?page=1&pageSize=100` },
 };

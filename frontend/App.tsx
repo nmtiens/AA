@@ -9,7 +9,7 @@ import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shiel
 import { dangKyNapBang } from './services/napBang';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinhDu, coBangSanXuatLuu, luuKhiRanh, API_BASE_URL, type NguonBanGhiCongTrinh } from './services/dataService';
 import { boNho, baoMocDoi, ngayVN as ngayVNNho } from './services/nhoApi';
-import { taiFileCongTrinh, fileCongTrinhDaCo, fileCongTrinhCu, coSoFile, ghepDongFile, type DuLieuFileCongTrinh } from './services/congTrinhFile';
+import { taiFileCongTrinh, ngheFileCongTrinh, fileCongTrinhDaCo, fileCongTrinhCu, coSoFile, ghepDongFile, type DuLieuFileCongTrinh } from './services/congTrinhFile';
 import { findColumnKey } from './components/Dashboard/utils/columnKeyResolver';
 import { giaiNenBanGhi, type Rec as CongTrinhRec } from './components/Construction/core/banGhiCongTrinh';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
@@ -341,6 +341,7 @@ const ConstructionOverviewWrapper = () => {
     taiFileCongTrinh().then(d => { if (on) { setFile(d); setFileLoi(false); } }).catch(() => { if (on && !fileCongTrinhDaCo()) setFileLoi(true); }); // đã có số thì giữ
     return () => { on = false; };
   }, [context.productionData, mocFile]);
+  useEffect(() => ngheFileCongTrinh(setFile), []);
   const theoFile = coSoFile(file);
   const dataFile = useMemo(
     () => (theoFile && coBang && file ? ghepDongFile(context.productionData, context.productionColumns,
@@ -359,8 +360,14 @@ const ConstructionOverviewWrapper = () => {
         Số theo file công trình{nguon.capNhat ? ` · cập nhật ${fmtGio(nguon.capNhat)}` : ''}</span>
     : <span className="font-semibold text-amber-700" title="Chưa có bảng cong_trinh_hang_muc hoặc tool chưa nạp file công trình">Chưa có số theo file công trình — đang hiện số của app</span>;
   // Chờ danh sách công trình của nhóm Luồng đỏ / Căn mẫu (Công trình → Setup) để lọc theo nhóm
-  return <ConstructionOverview data={dataFile ?? context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''}
-    inventory={context.inventoryData} banGhiSan={coBang ? null : banGhiSan} nguonSo={nguonSo} />;
+  // Nhãn góc dưới, không chiếm chỗ: chỉ hiện khi đang xem số của lần nạp file trước
+  const nhan = !coBang ? null : file?.dangCapNhat ? 'Đang cập nhật số mới…' : file?.capNhatLoi ? 'Chưa lấy được số mới nhất' : null;
+  return <>
+    <ConstructionOverview data={dataFile ?? context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''}
+      inventory={context.inventoryData} banGhiSan={coBang ? null : banGhiSan} nguonSo={nguonSo} />
+    {nhan && <div role="status" className="pointer-events-none fixed bottom-8 right-24 z-40 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm">
+      {nhan}{file?.capNhat ? ` (đang xem số ${fmtGio(file.capNhat)})` : ''}</div>}
+  </>;
 };
 
 const ConstructionSetupWrapper = () => {

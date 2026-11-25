@@ -76685,6 +76685,18 @@ var docSnapshot = async (khoa, ver, nguon) => {
     return null;
   }
 };
+var docSnapshotMoiNhat = async (khoa) => {
+  if (!snapshotBat) return null;
+  try {
+    const r = await pool.query("SELECT ver, du_lieu FROM all_data_snapshot WHERE khoa = $1", [khoa]);
+    const x = r.rows[0];
+    return x ? { ver: x.ver, buf: x.du_lieu } : null;
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false;
+    else console.error("[all-data] \u0111\u1ECDc b\u1EA3n n\xE9n l\u1ED7i", e);
+    return null;
+  }
+};
 var SNAPSHOT_GIU_NGAY = 14;
 var SNAPSHOT_DON_MS = 6 * 36e5;
 var donLuc = 0;
@@ -77117,6 +77129,11 @@ var ghiChung = async (khoa, body) => {
     console.error("[cong-trinh/hang-muc] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
   }
 };
+var verBang2 = (v) => {
+  if (v === null || v === void 0 || v === "") return "";
+  const d = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(d.getTime()) ? String(v) : d.toISOString();
+};
 var nho2 = null;
 var dangDung = null;
 async function layFileCongTrinh(moc2) {
@@ -77131,7 +77148,7 @@ async function layFileCongTrinh(moc2) {
   }
   const ver = await pVer;
   const khoaFile = k.khoa;
-  const khoa = `${khoaFile}|${ver.production ?? ""}`;
+  const khoa = `${khoaFile}|${verBang2(ver.production)}`;
   if (nho2?.khoa === khoa) return nho2.kq;
   if (dangDung?.khoa === khoa) return dangDung.p;
   const p = (async () => {
@@ -77180,8 +77197,27 @@ async function khoaFileNho() {
   mocNho = { luc: Date.now(), khoa };
   return khoa;
 }
-app.get("/api/cong-trinh/hang-muc", async (_req, res) => {
+var phanBang = (khoa) => khoa.slice(khoa.lastIndexOf("|") + 1);
+async function layBanTruoc() {
+  const [k, ver] = await Promise.all([layMocFile(), getVersions()]);
+  if (!k.coBang) return null;
+  const bang = verBang2(ver.production), khoa = `${k.khoa}|${bang}`;
+  if (nho2?.khoa === khoa) return null;
+  if (nho2 && phanBang(nho2.khoa) === bang) return nho2.kq.body;
+  const x = await docSnapshotMoiNhat(KHOA_NEN);
+  if (!x || x.ver === khoa || phanBang(x.ver) !== bang) return null;
   try {
+    return JSON.parse((await giaiNen(x.buf)).toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+app.get("/api/cong-trinh/hang-muc", async (req, res) => {
+  try {
+    if (req.query.cu === "1") {
+      const truoc = await layBanTruoc().catch(() => null);
+      if (truoc) return guiGzip(res, gzipSync(JSON.stringify({ ...truoc, dangCapNhat: true })));
+    }
     const kq = await layFileCongTrinh();
     if (!kq.body.coBang) return res.json(kq.body);
     kq.gz ??= gzipSync(JSON.stringify(kq.body));

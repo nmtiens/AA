@@ -200,9 +200,9 @@ describe('urlGuiTruocTrang', () => {
   const coCt = { role: 'USER', permissions: ['construction_overview'] };
   it('Tổng quan công trình: đăng nhập, phiên bản, bản ghi gọn + hạng mục theo file', () => {
     expect(urlGuiTruocTrang('/', '#/cong-trinh/tong-quan', coCt)).toEqual(
-      ['/api/auth/me', '/api/check-versions', '/api/cong-trinh/hang-muc', '/api/tong-quan/cong-trinh']);
+      ['/api/auth/me', '/api/check-versions', '/api/cong-trinh/hang-muc?cu=1', '/api/tong-quan/cong-trinh']);
     expect(urlGuiTruocTrang('/', '#/cong-trinh/tong-quan', coCt, true)).toEqual( // máy đã lưu bảng: khỏi tải bản dựng sẵn
-      ['/api/auth/me', '/api/check-versions', '/api/cong-trinh/hang-muc']);
+      ['/api/auth/me', '/api/check-versions', '/api/cong-trinh/hang-muc?cu=1']);
   });
   it('không có quyền trang đó: chỉ đăng nhập + phiên bản; app điện thoại / đăng nhập: không gửi', () => {
     expect(urlGuiTruocTrang('/', '#/users', coCt)).toEqual(['/api/auth/me', '/api/check-versions']);

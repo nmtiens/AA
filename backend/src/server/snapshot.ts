@@ -30,6 +30,19 @@ export const docSnapshot = async (khoa: string, ver: string, nguon: { v: string 
   }
 };
 
+/** Bản nén mới nhất của khoá, bất kể phiên bản (nơi gọi tự xét ver) */
+export const docSnapshotMoiNhat = async (khoa: string): Promise<{ ver: string; buf: Buffer } | null> => {
+  if (!snapshotBat) return null;
+  try {
+    const r = await pool.query('SELECT ver, du_lieu FROM all_data_snapshot WHERE khoa = $1', [khoa]);
+    const x = r.rows[0] as { ver: string; du_lieu: Buffer } | undefined;
+    return x ? { ver: x.ver, buf: x.du_lieu } : null;
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false; else console.error('[all-data] đọc bản nén lỗi', e);
+    return null;
+  }
+};
+
 // Khoá cũ (bộ bảng / công thức không còn dùng) không ai ghi đè nên nằm mãi (25/11/2026: 72 bản cũ, ~100 MB).
 // Bỏ bản quá hạn khi ghi bản mới, mỗi instance tối đa 1 lần / 6 giờ; bản còn cần thì lần sau dựng lại.
 const SNAPSHOT_GIU_NGAY = 14;

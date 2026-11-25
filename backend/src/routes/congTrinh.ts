@@ -3,7 +3,7 @@ import { gzipSync } from 'zlib';
 import { createHash } from 'node:crypto';
 import { gzip, gunzip } from 'node:zlib';
 import { promisify } from 'node:util';
-import { docSnapshot, luuSnapshot } from '../server/snapshot.js';
+import { docSnapshot, docSnapshotMoiNhat, luuSnapshot } from '../server/snapshot.js';
 import { giuHamSong } from '../server/sharedCache.js';
 import { timedQuery } from '../db.js';
 import { app } from '../server/app.js';
@@ -80,6 +80,13 @@ const ghiChung = async (khoa: string, body: FileCongTrinh['body']): Promise<void
   }
 };
 
+/** Phiên bản bảng sản xuất, không phụ thuộc múi giờ máy chủ (bản nén dùng chung giữa Vercel UTC và máy giờ VN) */
+const verBang = (v: unknown): string => {
+  if (v === null || v === undefined || v === '') return '';
+  const d = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(d.getTime()) ? String(v) : d.toISOString();
+};
+
 let nho: { khoa: string; kq: FileCongTrinh } | null = null;
 let dangDung: { khoa: string; p: Promise<FileCongTrinh> } | null = null;
 
@@ -97,7 +104,7 @@ export async function layFileCongTrinh(moc?: MocFile): Promise<FileCongTrinh> {
   }
   const ver = await pVer;
   const khoaFile = k.khoa;
-  const khoa = `${khoaFile}|${ver.production ?? ''}`;
+  const khoa = `${khoaFile}|${verBang(ver.production)}`;
   if (nho?.khoa === khoa) return nho.kq;
   // Chờ chung CHỈ khi cùng khoá: lượt đang dựng theo mốc cũ không được trả cho request đã thấy mốc mới
   if (dangDung?.khoa === khoa) return dangDung.p;
@@ -145,8 +152,36 @@ export async function khoaFileNho(): Promise<string> {
   return khoa;
 }
 
-app.get('/api/cong-trinh/hang-muc', async (_req: Request, res: Response) => {
+/** Phần phiên bản bảng sản xuất của khoá `${mốc file}|${phiên bản}` */
+const phanBang = (khoa: string) => khoa.slice(khoa.lastIndexOf('|') + 1);
+/**
+ * Bản của lần nạp file TRƯỚC, trả ngay để trang khỏi chờ câu nặng (file nạp vài phút / lần, người mở đầu tiên sau mỗi lần nạp
+ * chờ 5–9 giây). Chỉ khi cùng phiên bản bảng sản xuất: ô file so với bảng đó, khác bảng thì ghép lệch.
+ * null = đã có bản đúng (bộ nhớ) / chưa có bản nào dùng được => đi đường thường.
+ */
+async function layBanTruoc(): Promise<FileCongTrinh['body'] | null> {
+  const [k, ver] = await Promise.all([layMocFile(), getVersions()]);
+  if (!k.coBang) return null;
+  const bang = verBang(ver.production), khoa = `${k.khoa}|${bang}`;
+  if (nho?.khoa === khoa) return null;
+  if (nho && phanBang(nho.khoa) === bang) return nho.kq.body;
+  const x = await docSnapshotMoiNhat(KHOA_NEN);
+  if (!x || x.ver === khoa || phanBang(x.ver) !== bang) return null;
   try {
+    return JSON.parse((await giaiNen(x.buf)).toString('utf8')) as FileCongTrinh['body'];
+  } catch {
+    return null;
+  }
+}
+
+// ?cu=1: nhận bản của lần nạp trước kèm dangCapNhat = true (giao diện gọi lại không có cu để lấy bản đúng).
+// Không có cu (tab mở từ bản giao diện cũ): luôn bản đúng như trước.
+app.get('/api/cong-trinh/hang-muc', async (req: Request, res: Response) => {
+  try {
+    if (req.query.cu === '1') {
+      const truoc = await layBanTruoc().catch(() => null);
+      if (truoc) return guiGzip(res, gzipSync(JSON.stringify({ ...truoc, dangCapNhat: true })));
+    }
     const kq = await layFileCongTrinh();
     if (!kq.body.coBang) return res.json(kq.body);
     // Gói đã nhớ: nén sẵn 1 lần rồi gửi thẳng (như routes/tongQuan.ts) — nội dung y hệt res.json(body)

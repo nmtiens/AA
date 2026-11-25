@@ -15,6 +15,10 @@ export interface DuLieuFileCongTrinh {
   cot: string[];
   /** [HEX, ô file khác app | 0] — mỗi HEX 1 dòng */
   dong: [string, DoiFile][];
+  /** Số của lần nạp file trước, bản mới đang được tính (services/congTrinhFile.ts) */
+  dangCapNhat?: boolean;
+  /** Không lấy được bản mới */
+  capNhatLoi?: boolean;
 }
 
 /** Có dùng được số theo file không (đã tạo bảng và tool đã nạp file) */
