@@ -1,5 +1,6 @@
 import { Pool, types, QueryResultRow, PoolClient } from 'pg';
 import dotenv from 'dotenv';
+import { gopThamSo } from './server/gopThamSo.js';
 
 dotenv.config();
 
@@ -91,9 +92,14 @@ export interface GioiHanTruyVan {
   /** work_mem riêng (MB) cho query gộp / sắp xếp lớn: work_mem mặc định của DB thấp (4MB) nên GROUP BY /
    *  COUNT(DISTINCT) trên ~90k dòng phải sort ra đĩa. */
   workMemMb?: number;
+  /** Bật cho câu SELECT / WITH chỉ đọc có tham số: ghép tham số thành hằng SQL để cả giao dịch đi 1 lượt thay vì 3
+   *  (server/gopThamSo.ts). 'tuDong' = mặc định của timedQuery / pool.query: chỉ ghép khi mỗi tham số trần dùng đúng 1 chỗ
+   *  (tắt: DB_GOP_TU_DONG=0, hoặc gopThamSo: false cho 1 câu). Không ghép được, hoặc DB_GOP_LENH=0 => 3 lượt như cũ. Phải soát từng tham số trước khi bật. */
+  gopThamSo?: boolean | 'tuDong';
 }
 
 const GOP_LENH = process.env.DB_GOP_LENH !== '0';
+const GOP_MAC_DINH: GioiHanTruyVan['gopThamSo'] = process.env.DB_GOP_TU_DONG === '0' ? false : 'tuDong';
 export const lenhMoGiaoDich = ({ timeoutMs, workMemMb }: GioiHanTruyVan = {}) => {
   const lenh = ['BEGIN', IDLE_TX_TIMEOUT_SQL, `SET LOCAL statement_timeout = ${Math.floor(timeoutMs || STATEMENT_TIMEOUT_MS)}`];
   if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
@@ -107,11 +113,15 @@ export async function chayCoGioiHan(
   params?: unknown,
   gioiHan?: GioiHanTruyVan,
 ) {
+  if (GOP_LENH && gioiHan?.gopThamSo && typeof text === 'string' && Array.isArray(params) && params.length > 0) {
+    const daGhep = gopThamSo(text, params, gioiHan.gopThamSo === 'tuDong');
+    if (daGhep !== null) { text = daGhep; params = undefined; }
+  }
   try {
     // Câu KHÔNG tham số: gửi cả giao dịch trong 1 lệnh (giao thức simple-query) => 1 lượt đi-về thay vì 3.
     // Đã thử trên pooler thật 13/11/2026 (Layerbase PG 18, Supabase PG 17): timeout SET LOCAL có hiệu lực với câu trong
     // lô, lỗi giữa lô thì ROLLBACK ở catch như cũ, không rò timeout sang lượt mượn khác. Tắt nhanh: DB_GOP_LENH=0.
-    // Câu có tham số phải đi giao thức extended (không gộp được nhiều lệnh) => giữ 3 lượt.
+    // Câu có tham số phải đi giao thức extended (không gộp được nhiều lệnh) => giữ 3 lượt, trừ khi đã ghép ở trên (gopThamSo).
     if (GOP_LENH && typeof text === 'string' && (params == null || (Array.isArray(params) && params.length === 0))) {
       const mo = lenhMoGiaoDich(gioiHan);
       const soMo = mo.split('; ').length;
@@ -182,7 +192,7 @@ function boGioiHan(p: Pool) {
   (p as unknown as { query: unknown }).query = async (text: unknown, params?: unknown) => {
     const client = await p.connect();
     try {
-      return await chayCoGioiHan(client, text, params);
+      return await chayCoGioiHan(client, text, params, { gopThamSo: GOP_MAC_DINH });
     } finally {
       client.release();
     }
@@ -266,7 +276,7 @@ export async function timedQuery<T extends QueryResultRow = any>(
     const client = await pool.connect();
     const t1 = Date.now();
     try {
-      const result = await chayCoGioiHan(client, text, params, opts);
+      const result = await chayCoGioiHan(client, text, params, { gopThamSo: GOP_MAC_DINH, ...opts });
 
       if (debug) {
         console.log(

@@ -77,7 +77,7 @@ export async function layFileCongTrinh(moc?: MocFile): Promise<FileCongTrinh> {
   if (dangDung?.khoa === khoa) return dangDung.p;
   const p = (async () => {
     try {
-      const r = await timedQuery(SQL, [], { timeoutMs: 60_000, heavy: true });
+      const r = await timedQuery(SQL, [], { timeoutMs: 60_000, heavy: true, workMemMb: 32 });
       const kq: FileCongTrinh = {
         khoa: khoaFile,
         body: {

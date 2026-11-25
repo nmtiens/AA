@@ -87,9 +87,23 @@ describe('taoHangDoi', () => {
     for (let i = 1; i <= 4; i++) xinGhi(h, 3, `d${i}`, thuTu);
     await cho();
     expect(thuTu).toEqual(['d1', 'd2', 'd3']);
-    h.tra();
+    h.tra(3);
     await cho();
     expect(thuTu).toEqual(['d1', 'd2', 'd3', 'd4']);
+  });
+
+  it('mức 3 không chiếm hết suất: chừa 1 suất cho số của trang', async () => {
+    const h = taoHangDoi(4);
+    const thuTu: string[] = [];
+    for (let i = 1; i <= 4; i++) xinGhi(h, 3, `n${i}`, thuTu);
+    await cho();
+    expect(thuTu).toEqual(['n1', 'n2', 'n3']);
+    xinGhi(h, 2, 'trang', thuTu);
+    await cho();
+    expect(thuTu).toEqual(['n1', 'n2', 'n3', 'trang']);
+    h.tra(3);
+    await cho();
+    expect(thuTu).toEqual(['n1', 'n2', 'n3', 'trang', 'n4']);
   });
 });
 
@@ -100,19 +114,20 @@ describe('mucUuTien', () => {
   });
   it('mức 1: số màn đầu (so đúng tên, không so tiền tố)', () => {
     for (const p of ['/api/overview/summary', '/api/overview/tuy-chon-thoi-gian', '/api/trend', '/api/khsx-nam/plan-actual',
-      '/api/khsx/ke-hoach-ngay', '/api/view-project-mapping', '/api/tong-quan/cong-trinh', '/api/cong-trinh/hang-muc']) {
+      '/api/khsx/ke-hoach-ngay', '/api/view-project-mapping', '/api/tong-quan/cong-trinh', '/api/cong-trinh/hang-muc',
+      '/api/check-versions', '/api/vat-tu/v2/tong-quan', '/api/vuong-mac/all']) {
       expect(mucUuTien(p), p).toBe(1);
     }
   });
   it('mức 3: việc lùi được', () => {
     for (const p of ['/api/bot-cong-doan/quyen', '/api/bot-tong-hop/loi', '/api/data-update-log', '/api/stock/total-count',
       '/api/trend-by-congtrinh', '/api/trend-by-xuong', '/api/filters/xuong', '/api/filters/cong-trinh',
-      '/api/khsx-nhapkho/summary', '/api/bop-m2/nhieu', '/api/bot-tong-hop', '/api/khnk-sheet']) {
+      '/api/khsx-nhapkho/summary', '/api/bop-m2/nhieu', '/api/bot-tong-hop', '/api/khnk-sheet', '/api/xuong/vi-tri-bop']) {
       expect(mucUuTien(p), p).toBe(3);
     }
   });
   it('mức 2: còn lại, kể cả đường dẫn con của mục mức 1 / mức 3', () => {
-    for (const p of ['/api/bot-tong-hop/ngay-hex', '/api/bot-tong-hop/chi-tiet', '/api/check-versions', '/api/all-data',
+    for (const p of ['/api/bot-tong-hop/ngay-hex', '/api/bot-tong-hop/chi-tiet', '/api/all-data',
       '/api/stock/dates', '/api/revenue/2026', '/api/vuong-mac/by-project', '/api/view-project-mapping/luong-do',
       '/api/overview/by-group', '/api/trend-by-dvt', '/api/bot-cong-doan']) {
       expect(mucUuTien(p), p).toBe(2);

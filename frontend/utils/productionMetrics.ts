@@ -21,7 +21,18 @@ export const IPO_MAC_DINH = '01. ĐANG SẢN XUẤT';
 export const laIpoMacDinh = (ipo: unknown): boolean => /ĐANG SẢN XUẤT/i.test(String(ipo ?? ''));
 
 /** Đơn HỦY theo cột Tình trạng IPO (cả cách gõ HUỶ) */
-export const laHuy = (ipo: unknown): boolean => /H(?:ỦY|UỶ)/.test(String(ipo ?? '').normalize('NFC').toUpperCase());
+// Gọi hàng trăm nghìn lượt mỗi lần tính Tổng quan mà chỉ có vài chục giá trị khác nhau => nhớ kết quả theo chữ
+const nhoHuy = new Map<string, boolean>();
+export const laHuy = (ipo: unknown): boolean => {
+  const s = String(ipo ?? '');
+  let r = nhoHuy.get(s);
+  if (r === undefined) {
+    r = /H(?:ỦY|UỶ)/.test(s.normalize('NFC').toUpperCase());
+    if (nhoHuy.size > 2000) nhoHuy.clear();
+    nhoHuy.set(s, r);
+  }
+  return r;
+};
 
 /** Trị giá tính vào tổng (0 nếu đơn HỦY). Đơn vị giữ nguyên như dữ liệu gốc (triệu đồng). */
 export const orderValue = (total: number, cancelled: boolean): number => (cancelled ? 0 : total);
@@ -194,7 +205,17 @@ export const planAfterDue = (d: Deadline): boolean => {
 // ---------------------------------------------------------------------------
 
 /** So khớp tên không phân biệt hoa/thường, khoảng trắng. */
-export const normProjectName = (v: unknown): string => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+const nhoTenCt = new Map<string, string>();
+export const normProjectName = (v: unknown): string => {
+  const s = String(v ?? '');
+  let r = nhoTenCt.get(s);
+  if (r === undefined) {
+    r = s.trim().replace(/\s+/g, ' ').toUpperCase();
+    if (nhoTenCt.size > 20000) nhoTenCt.clear();
+    nhoTenCt.set(s, r);
+  }
+  return r;
+};
 
 let projectAlias = new Map<string, string>();
 // Tên chuẩn (khoá chuẩn hoá) -> mọi cách viết gốc của cùng công trình (để gửi lên API lọc các bảng khác)

@@ -28,17 +28,20 @@ const DUONG_ME = '/api/auth/me';
 const MUC_1 = new Set([
   '/api/overview/summary', '/api/overview/tuy-chon-thoi-gian', '/api/trend', '/api/khsx-nam/plan-actual',
   '/api/khsx/ke-hoach-ngay', '/api/view-project-mapping', '/api/tong-quan/cong-trinh', '/api/cong-trinh/hang-muc',
+  '/api/check-versions', // các trang Dữ liệu chờ phiên bản rồi mới tải bảng
+  '/api/vuong-mac/all', '/api/nhap-kho-sap/doi-chieu', '/api/ho-so-cong-trinh/danh-sach',
 ]);
 // Mức 3: không cần cho màn đầu (quyền nhập BOT, cảnh báo file lỗi, danh sách ô lọc, số cho xuất file, tải trước tab khác)
 const MUC_3 = new Set([
   '/api/bot-cong-doan/quyen', '/api/bot-tong-hop/loi', '/api/data-update-log', '/api/stock/total-count',
   '/api/trend-by-congtrinh', '/api/trend-by-xuong', '/api/khsx-nhapkho/summary', '/api/bop-m2/nhieu',
   '/api/bot-tong-hop', '/api/khnk-sheet',
+  '/api/xuong/vi-tri-bop',
 ]);
 /** Mức ưu tiên của 1 đường dẫn /api/* trong hàng đợi (0 cao nhất). So ĐÚNG TÊN: '/api/trend' khác '/api/trend-by-xuong'. */
 export const mucUuTien = (pathname: string): MucUuTien => {
   if (pathname === DUONG_ME) return 0;
-  if (MUC_1.has(pathname)) return 1;
+  if (MUC_1.has(pathname) || /^\/api\/vat-tu\/v\d\/tong-quan$/.test(pathname)) return 1;
   if (MUC_3.has(pathname) || pathname.startsWith('/api/filters/')) return 3;
   return 2;
 };
@@ -51,6 +54,40 @@ export const giuSuat = (bat: boolean): void => {
   if (henTatGiu) { clearTimeout(henTatGiu); henTatGiu = null; }
   hangDoi.giuSuat(bat);
   if (bat) henTatGiu = setTimeout(() => { henTatGiu = null; hangDoi.giuSuat(false); }, GIU_SUAT_TOI_DA_MS);
+};
+
+// ---------------------------------------------------------------------------
+// GỬI TRƯỚC (index.tsx, lúc còn đang tải / vẽ khung): request GET của trang sắp mở đi cùng lượt với /api/auth/me thay vì
+// chờ nó trả lời (1 chặng mạng Việt Nam - Mỹ). Trang gắn sau gọi đúng URL đó thì nhận lại CHÍNH response này, 1 lần duy
+// nhất, cùng token, trong hạn; không ai nhận thì bỏ.
+// ---------------------------------------------------------------------------
+const GUI_TRUOC_HAN_MS = 10_000;
+const guiTruoc = new Map<string, { luc: number; token: string; p: Promise<Response> }>();
+const khoaGet = (u: URL) => u.pathname + u.search;
+
+export function guiTruocTrang(urls: string[]): void {
+  const token = getToken();
+  if (!token) return;
+  for (const url of urls) {
+    const u = isSameOriginApi(url);
+    if (!u || guiTruoc.has(khoaGet(u))) continue;
+    const p = window.fetch(url, { cache: 'no-store' });
+    p.catch(() => {}); // không ai nhận thì lỗi mạng không thành unhandledrejection; người nhận vẫn thấy lỗi
+    guiTruoc.set(khoaGet(u), { luc: Date.now(), token, p });
+  }
+}
+
+const nhanTruoc = (u: URL, method: string, token: string | null, signal?: AbortSignal | null): Promise<Response> | null => {
+  if (method !== 'GET') return null; // 30 giây đầu mở app mọi request (kể cả bản gửi trước) đã kèm x-du-lieu-moi
+  const x = guiTruoc.get(khoaGet(u));
+  if (!x || signal?.aborted) return null;
+  guiTruoc.delete(khoaGet(u));
+  if (x.token !== token || Date.now() - x.luc > GUI_TRUOC_HAN_MS) return null;
+  if (!signal) return x.p;
+  return new Promise<Response>((ok, loi) => {
+    signal.addEventListener('abort', () => loi(new DOMException('Aborted', 'AbortError')), { once: true });
+    x.p.then(ok, loi);
+  });
 };
 
 /**
@@ -75,6 +112,14 @@ export function installAuthFetch(): void {
     if (!apiUrl) return originalFetch(input, init);
 
     const token = getToken();
+    const req = input instanceof Request ? input : null;
+    const truoc = nhanTruoc(apiUrl, (init?.method ?? req?.method ?? 'GET').toUpperCase(), token, init?.signal ?? req?.signal);
+    if (truoc) {
+      const r = await truoc;
+      // Lúc gửi trước chưa ai nghe sự kiện này: báo lại khi trang thật sự nhận
+      if (r.status === 401 && token && !apiUrl.pathname.startsWith('/api/auth/')) window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+      return r;
+    }
     let finalInit = init;
     if (token) {
       const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
@@ -84,14 +129,15 @@ export function installAuthFetch(): void {
       finalInit = { ...init, headers };
     }
 
-    await hangDoi.xin(mucUuTien(apiUrl.pathname));
+    const muc = mucUuTien(apiUrl.pathname);
+    await hangDoi.xin(muc);
     // /auth/me đã có suất => thôi để dành, trả suất thứ 4 cho các request khác
     if (apiUrl.pathname === DUONG_ME) giuSuat(false);
     let res: Response;
     try {
       res = await originalFetch(input, finalInit);
     } finally {
-      hangDoi.tra();
+      hangDoi.tra(muc);
     }
     if (res.status === 401 && token && !apiUrl.pathname.startsWith('/api/auth/')) {
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));

@@ -215,28 +215,29 @@ cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.so
 // Danh sách các giá trị xưởng distinct, dùng cho dropdown filter
 // Danh sách giá trị cho ô lọc: quét DISTINCT nhiều bảng lớn, trên Vercel có lúc > 8 giây (timeout mặc định) =>
 // 500. Kết quả đã cache theo phiên bản bảng nên chỉ lần đầu chậm — cho 25 giây.
+// Lấy DISTINCT ngay trong từng bảng rồi mới gộp: chỉ sắp vài nghìn tên thay vì ~480.000 dòng (sắp ra đĩa).
 const FILTER_TIMEOUT_MS = 25000;
 cachedGet('/api/filters/xuong', filterCache, () => ['khsx', 'order', 'inventory', 'export', 'tkbv', 'pthsp', 'production'], async () => {
     const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
-        SELECT xuong_chinh AS name FROM khsx WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh AS name FROM khsx WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM dht WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM dht WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM nhap_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM nhap_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM xuat_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM xuat_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM tkbv_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM tkbv_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM pthsp_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM pthsp_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM production_status_app WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM production_status_app WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
+    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS, workMemMb: 32 });
     // Trả tên xưởng ĐÃ GỘP (setup gộp xưởng), bỏ trùng
     const groups = [...new Set(r.rows.map(row => workshopGroupOf(row.name)).filter(Boolean))].sort();
     return groups.map(name => ({ code: name, name }));
@@ -247,23 +248,23 @@ cachedGet('/api/filters/cong-trinh', filterCache, () => ['khsx', 'order', 'inven
     const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
-        SELECT ten_cong_trinh AS name FROM khsx WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh AS name FROM khsx WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM dht WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM dht WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM nhap_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM nhap_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM xuat_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM xuat_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM tkbv_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM tkbv_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM pthsp_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM pthsp_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM ton_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM ton_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
+    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS, workMemMb: 32 });
     return r.rows.map(row => ({ code: row.name, name: row.name }));
 }, true);
 

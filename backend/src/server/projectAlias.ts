@@ -69,16 +69,16 @@ const compute = async (): Promise<AliasRows> => {
   // Tên ở bảng khác nối với mã qua HEX. Vài dòng ghi nhầm tên (1 HEX của công trình A mang tên B) từng
   // làm A và B bị gộp khi lọc => chỉ giữ cặp (tên, mã) khi: có trong chính bảng sản xuất, HOẶC mã chiếm
   // ≥ 50% số HEX của tên đó, HOẶC có từ ALIAS_MIN_HEX HEX trở lên (bỏ các dòng ghi nhầm lẻ tẻ).
-  const foreign = tables.map(t =>
-    `SELECT ${normNameSql('t.ten_cong_trinh')} AS name, t.hex
-     FROM (SELECT DISTINCT hex::text AS hex, ten_cong_trinh FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL) t`);
+  // Chuẩn hoá tên (biểu thức chính quy, đắt) 1 lần cho mỗi tên khác nhau (~vài nghìn) thay vì mỗi cặp (HEX, tên) (~270.000).
+  const foreign = tables.map(t => `SELECT DISTINCT hex::text AS hex, ten_cong_trinh::text AS ten FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL`);
   const r = await timedQuery(
     `WITH pc AS (SELECT DISTINCT hex::text AS hex, UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
                  WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
      prod AS (SELECT DISTINCT UPPER(TRIM(ma_cong_trinh)) AS code, ${normNameSql('ten_cong_trinh')} AS name
               FROM production_status_app WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
-     f AS (SELECT DISTINCT x.name, pc.code, x.hex FROM (${foreign.length ? foreign.join(' UNION ALL ') : 'SELECT NULL::text AS name, NULL::text AS hex WHERE FALSE'}) x
-           JOIN pc ON pc.hex = x.hex),
+     x AS MATERIALIZED (${foreign.length ? foreign.join(' UNION ALL ') : 'SELECT NULL::text AS hex, NULL::text AS ten WHERE FALSE'}),
+     nm AS MATERIALIZED (SELECT ten, ${normNameSql('ten')} AS name FROM (SELECT DISTINCT ten FROM x) d),
+     f AS (SELECT DISTINCT nm.name, pc.code, x.hex FROM x JOIN nm ON nm.ten = x.ten JOIN pc ON pc.hex = x.hex),
      w AS (SELECT name, code, COUNT(*) AS n FROM f GROUP BY 1, 2),
      tot AS (SELECT name, SUM(n) AS total FROM w GROUP BY 1),
      keep AS (
@@ -94,7 +94,7 @@ const compute = async (): Promise<AliasRows> => {
        AND LENGTH(name) >= 3 AND name !~ '^[0-9[:punct:][:space:]]+$' AND name !~ '^#'
      GROUP BY code`,
     [],
-    { timeoutMs: 60000 }
+    { timeoutMs: 60000, workMemMb: 32 }
   );
   const canon = await timedQuery(
     `SELECT DISTINCT ON (code) code, name FROM (

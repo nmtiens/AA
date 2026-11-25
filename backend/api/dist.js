@@ -23039,17 +23039,17 @@ var require_send = __commonJS({
       }
       var res = this.res;
       var msg = statuses.message[status] || String(status);
-      var doc = createHtmlDocument("Error", escapeHtml(msg));
+      var doc2 = createHtmlDocument("Error", escapeHtml(msg));
       clearHeaders(res);
       if (err && err.headers) {
         setHeaders(res, err.headers);
       }
       res.statusCode = status;
       res.setHeader("Content-Type", "text/html; charset=UTF-8");
-      res.setHeader("Content-Length", Buffer.byteLength(doc));
+      res.setHeader("Content-Length", Buffer.byteLength(doc2));
       res.setHeader("Content-Security-Policy", "default-src 'none'");
       res.setHeader("X-Content-Type-Options", "nosniff");
-      res.end(doc);
+      res.end(doc2);
     };
     SendStream.prototype.hasTrailingSlash = function hasTrailingSlash() {
       return this.path[this.path.length - 1] === "/";
@@ -23139,14 +23139,14 @@ var require_send = __commonJS({
         return;
       }
       var loc = encodeUrl(collapseLeadingSlashes(this.path + "/"));
-      var doc = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml(loc));
+      var doc2 = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml(loc));
       res.statusCode = 301;
       res.setHeader("Content-Type", "text/html; charset=UTF-8");
-      res.setHeader("Content-Length", Buffer.byteLength(doc));
+      res.setHeader("Content-Length", Buffer.byteLength(doc2));
       res.setHeader("Content-Security-Policy", "default-src 'none'");
       res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("Location", loc);
-      res.end(doc);
+      res.end(doc2);
     };
     SendStream.prototype.pipe = function pipe2(res) {
       var root = this._root;
@@ -24096,14 +24096,14 @@ var require_serve_static = __commonJS({
         originalUrl.path = null;
         originalUrl.pathname = collapseLeadingSlashes(originalUrl.pathname + "/");
         var loc = encodeUrl(url2.format(originalUrl));
-        var doc = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml(loc));
+        var doc2 = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml(loc));
         res.statusCode = 301;
         res.setHeader("Content-Type", "text/html; charset=UTF-8");
-        res.setHeader("Content-Length", Buffer.byteLength(doc));
+        res.setHeader("Content-Length", Buffer.byteLength(doc2));
         res.setHeader("Content-Security-Policy", "default-src 'none'");
         res.setHeader("X-Content-Type-Options", "nosniff");
         res.setHeader("Location", loc);
-        res.end(doc);
+        res.end(doc2);
       };
     }
   }
@@ -32715,13 +32715,13 @@ var require_utils4 = __commonJS({
           }
           result += "\\\\x" + item.toString("hex");
         } else {
-          result += escapeElement(prepareValue(item));
+          result += escapeElement(prepareValue2(item));
         }
       }
       result += "}";
       return result;
     }
-    var prepareValue = function(val, seen) {
+    var prepareValue2 = function(val, seen) {
       if (val == null) {
         return null;
       }
@@ -32753,7 +32753,7 @@ var require_utils4 = __commonJS({
           throw new Error('circular reference detected while preparing "' + val + '" for query');
         }
         seen.push(val);
-        return prepareValue(val.toPostgres(prepareValue), seen);
+        return prepareValue2(val.toPostgres(prepareValue2), seen);
       }
       return JSON.stringify(val);
     }
@@ -32827,7 +32827,7 @@ var require_utils4 = __commonJS({
     };
     module.exports = {
       prepareValue: function prepareValueWrapper(value) {
-        return prepareValue(value);
+        return prepareValue2(value);
       },
       normalizeQueryConfig,
       escapeIdentifier: escapeIdentifier2,
@@ -55594,9 +55594,159 @@ var escapeLiteral = import_lib.default.escapeLiteral;
 var Result = import_lib.default.Result;
 var TypeOverrides = import_lib.default.TypeOverrides;
 var defaults = import_lib.default.defaults;
+var esm_default = import_lib.default;
 
 // src/db.ts
 var import_dotenv2 = __toESM(require_main(), 1);
+
+// src/server/gopThamSo.ts
+var GOP_TOI_DA_BYTE = 200 * 1024;
+var { prepareValue } = esm_default.utils;
+var hang = (v) => {
+  if (v === null) return "(NULL)";
+  let hopLe = false;
+  if (typeof v === "string" || typeof v === "boolean") hopLe = true;
+  else if (typeof v === "number") hopLe = Number.isFinite(v);
+  else if (v instanceof Date) hopLe = !Number.isNaN(v.getTime());
+  else if (Array.isArray(v)) {
+    hopLe = true;
+    for (let i = 0; i < v.length; i++) {
+      const x = v[i];
+      if (!(x === null || typeof x === "string" || typeof x === "number" && Number.isFinite(x))) return null;
+    }
+  }
+  if (!hopLe) return null;
+  const chu = prepareValue(v);
+  if (typeof chu !== "string" || chu.includes("\0")) return null;
+  return `(${esm_default.escapeLiteral(chu).trimStart()})`;
+};
+var laKyTuTu = (c) => c !== void 0 && (/[A-Za-z0-9_$]/.test(c) || c.charCodeAt(0) >= 128);
+var TU_CAM = /* @__PURE__ */ new Set(["INSERT", "UPDATE", "DELETE", "MERGE", "INTO", "TRUNCATE", "DROP", "ALTER", "CREATE", "GRANT", "COPY", "CALL"]);
+var EP_KIEU = /\s*::\s*([\w".]+(?:\s+precision\b|\s+varying\b)?(?:\s*\([\d\s,]*\))?(?:\s+with(?:out)?\s+time\s+zone\b)?(?:\s*\[\s*\d*\s*\])*)/iy;
+var epKieuSau = (text, i) => {
+  EP_KIEU.lastIndex = i;
+  return (EP_KIEU.exec(text)?.[1] ?? "").toLowerCase().replace(/\s+/g, " ");
+};
+var TU_HET_BY = /* @__PURE__ */ new Set(["LIMIT", "OFFSET", "FETCH", "HAVING", "WINDOW", "UNION", "INTERSECT", "EXCEPT", "FOR", "SELECT", "FROM", "WHERE"]);
+var gopThamSo = (text, params, chatChe = false) => {
+  const dauCau = /^\s*(?:SELECT|WITH)/i.exec(text);
+  if (!dauCau || laKyTuTu(text[dauCau[0].length]) || text.includes("\0")) return null;
+  const n = text.length;
+  const hangDa = /* @__PURE__ */ new Map(), epDa = /* @__PURE__ */ new Map();
+  let ra = "", dau = 0, i = 0;
+  const trongBy = [false];
+  let tuTruoc = "";
+  while (i < n) {
+    const c = text[i];
+    if (c === "-" && text[i + 1] === "-") {
+      while (i < n && text[i] !== "\n" && text[i] !== "\r") i++;
+      continue;
+    }
+    if (c === "/" && text[i + 1] === "*") {
+      let cap = 1;
+      i += 2;
+      while (i < n && cap > 0) {
+        if (text[i] === "/" && text[i + 1] === "*") {
+          cap++;
+          i += 2;
+        } else if (text[i] === "*" && text[i + 1] === "/") {
+          cap--;
+          i += 2;
+        } else i++;
+      }
+      if (cap > 0) return null;
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      let j = i + 1;
+      for (; ; ) {
+        if (j >= n) return null;
+        if (text[j] !== c) {
+          j++;
+          continue;
+        }
+        if (c === "'" && text[j - 1] === "\\") return null;
+        if (text[j + 1] === c) {
+          j += 2;
+          continue;
+        }
+        break;
+      }
+      i = j + 1;
+      tuTruoc = "";
+      continue;
+    }
+    if (c === "$") {
+      let j = i + 1;
+      while (j < n && text[j] >= "0" && text[j] <= "9") j++;
+      if (j === i + 1 || text[i + 1] === "0" || laKyTuTu(text[j])) return null;
+      const so10 = Number(text.slice(i + 1, j));
+      if (so10 > params.length || trongBy.some(Boolean)) return null;
+      let h = hangDa.get(so10);
+      if (h === void 0) {
+        const x = hang(params[so10 - 1]);
+        if (x === null) return null;
+        hangDa.set(so10, h = x);
+      }
+      const ep = epKieuSau(text, j), epTruoc = epDa.get(so10);
+      if (epTruoc !== void 0 && (epTruoc !== ep || chatChe && ep === "")) return null;
+      epDa.set(so10, ep);
+      ra += text.slice(dau, i) + h;
+      dau = i = j;
+      tuTruoc = "";
+      continue;
+    }
+    if (laKyTuTu(c)) {
+      let j = i + 1;
+      while (j < n && laKyTuTu(text[j])) j++;
+      const tho = text.slice(i, j);
+      if (tho.includes("$")) return null;
+      const tu = tho.toUpperCase();
+      i = j;
+      if (tu === "E" && text[i] === "'") {
+        j = i + 1;
+        for (; ; ) {
+          if (j >= n) return null;
+          if (text[j] === "\\") {
+            j += 2;
+            continue;
+          }
+          if (text[j] !== "'") {
+            j++;
+            continue;
+          }
+          if (text[j + 1] === "'") {
+            j += 2;
+            continue;
+          }
+          break;
+        }
+        i = j + 1;
+        if (/^\s*('|--)/.test(text.slice(i))) return null;
+        tuTruoc = "";
+        continue;
+      }
+      if (TU_CAM.has(tu)) return null;
+      if (tu === "BY" || tu === "ON" && tuTruoc === "DISTINCT") trongBy[trongBy.length - 1] = true;
+      else if (TU_HET_BY.has(tu) && !(tu === "FROM" && tuTruoc === "DISTINCT")) trongBy[trongBy.length - 1] = false;
+      tuTruoc = tu;
+      continue;
+    }
+    if (c === ";") return null;
+    if (c === "(") trongBy.push(false);
+    else if (c === ")") {
+      if (trongBy.length === 1) return null;
+      trongBy.pop();
+    }
+    if (!/\s/.test(c)) tuTruoc = "";
+    i++;
+  }
+  if (trongBy.length !== 1 || hangDa.size !== params.length) return null;
+  ra += text.slice(dau);
+  return Buffer.byteLength(ra, "utf8") > GOP_TOI_DA_BYTE ? null : ra;
+};
+
+// src/db.ts
 import_dotenv2.default.config();
 types.setTypeParser(1082, (val) => val);
 var boSslmode = (raw) => {
@@ -55650,12 +55800,20 @@ var pool = new Pool({
 var STATEMENT_TIMEOUT_MS = 8e3;
 var IDLE_TX_TIMEOUT_SQL = `SET LOCAL idle_in_transaction_session_timeout = 30000`;
 var GOP_LENH = process.env.DB_GOP_LENH !== "0";
+var GOP_MAC_DINH = process.env.DB_GOP_TU_DONG === "0" ? false : "tuDong";
 var lenhMoGiaoDich = ({ timeoutMs, workMemMb } = {}) => {
   const lenh = ["BEGIN", IDLE_TX_TIMEOUT_SQL, `SET LOCAL statement_timeout = ${Math.floor(timeoutMs || STATEMENT_TIMEOUT_MS)}`];
   if (workMemMb) lenh.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(workMemMb))}MB'`);
   return lenh.join("; ");
 };
 async function chayCoGioiHan(client, text, params, gioiHan) {
+  if (GOP_LENH && gioiHan?.gopThamSo && typeof text === "string" && Array.isArray(params) && params.length > 0) {
+    const daGhep = gopThamSo(text, params, gioiHan.gopThamSo === "tuDong");
+    if (daGhep !== null) {
+      text = daGhep;
+      params = void 0;
+    }
+  }
   try {
     if (GOP_LENH && typeof text === "string" && (params == null || Array.isArray(params) && params.length === 0)) {
       const mo = lenhMoGiaoDich(gioiHan);
@@ -55714,7 +55872,7 @@ function boGioiHan(p) {
   p.query = async (text, params) => {
     const client = await p.connect();
     try {
-      return await chayCoGioiHan(client, text, params);
+      return await chayCoGioiHan(client, text, params, { gopThamSo: GOP_MAC_DINH });
     } finally {
       client.release();
     }
@@ -55776,7 +55934,7 @@ async function timedQuery(text, params, opts = {}) {
     const client = await pool.connect();
     const t1 = Date.now();
     try {
-      const result = await chayCoGioiHan(client, text, params, opts);
+      const result = await chayCoGioiHan(client, text, params, { gopThamSo: GOP_MAC_DINH, ...opts });
       if (debug) {
         console.log(
           `[db timing] wait: ${t1 - t0}ms | query: ${Date.now() - t1}ms | sql: ${text.slice(0, 80)}`
@@ -56158,15 +56316,15 @@ var compute = async () => {
     [NAME_SOURCES]
   );
   const tables = exist.rows.map((r2) => r2.table_name);
-  const foreign = tables.map((t) => `SELECT ${normNameSql("t.ten_cong_trinh")} AS name, t.hex
-     FROM (SELECT DISTINCT hex::text AS hex, ten_cong_trinh FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL) t`);
+  const foreign = tables.map((t) => `SELECT DISTINCT hex::text AS hex, ten_cong_trinh::text AS ten FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL`);
   const r = await timedQuery(
     `WITH pc AS (SELECT DISTINCT hex::text AS hex, UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
                  WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
      prod AS (SELECT DISTINCT UPPER(TRIM(ma_cong_trinh)) AS code, ${normNameSql("ten_cong_trinh")} AS name
               FROM production_status_app WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
-     f AS (SELECT DISTINCT x.name, pc.code, x.hex FROM (${foreign.length ? foreign.join(" UNION ALL ") : "SELECT NULL::text AS name, NULL::text AS hex WHERE FALSE"}) x
-           JOIN pc ON pc.hex = x.hex),
+     x AS MATERIALIZED (${foreign.length ? foreign.join(" UNION ALL ") : "SELECT NULL::text AS hex, NULL::text AS ten WHERE FALSE"}),
+     nm AS MATERIALIZED (SELECT ten, ${normNameSql("ten")} AS name FROM (SELECT DISTINCT ten FROM x) d),
+     f AS (SELECT DISTINCT nm.name, pc.code, x.hex FROM x JOIN nm ON nm.ten = x.ten JOIN pc ON pc.hex = x.hex),
      w AS (SELECT name, code, COUNT(*) AS n FROM f GROUP BY 1, 2),
      tot AS (SELECT name, SUM(n) AS total FROM w GROUP BY 1),
      keep AS (
@@ -56182,7 +56340,7 @@ var compute = async () => {
        AND LENGTH(name) >= 3 AND name !~ '^[0-9[:punct:][:space:]]+$' AND name !~ '^#'
      GROUP BY code`,
     [],
-    { timeoutMs: 6e4 }
+    { timeoutMs: 6e4, workMemMb: 32 }
   );
   const canon = await timedQuery(
     `SELECT DISTINCT ON (code) code, name FROM (
@@ -56198,9 +56356,9 @@ var compute = async () => {
   return { r: r.rows, canon: canon.rows };
 };
 var load = async () => {
-  const doc = await docChungTheoBang(ALIAS_SHARED_KEY, ALIAS_VERSION_TABLES);
-  const versions = doc.versions;
-  let data = versions ? doc.data : void 0;
+  const doc2 = await docChungTheoBang(ALIAS_SHARED_KEY, ALIAS_VERSION_TABLES);
+  const versions = doc2.versions;
+  let data = versions ? doc2.data : void 0;
   if (!data) {
     data = await compute();
     if (versions) await writeShared(ALIAS_SHARED_KEY, versions, data);
@@ -60561,7 +60719,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
   const generateFastpass = (shape) => {
     const normalized = _normalized.value;
     const syms = normalized.symbolKeys;
-    const doc = new Doc(["payload", "ctx"], { shape, inst, memo: memo2, syms });
+    const doc2 = new Doc(["payload", "ctx"], { shape, inst, memo: memo2, syms });
     const parseStr = (k) => `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
     const prefixStr = (id, k) => `
           for (let i = 0; i < ${id}.issues.length; i++) {
@@ -60569,13 +60727,13 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
             iss.path = iss.path ? [${k}, ...iss.path] : [${k}];
             payload.issues.push(iss);
           }`;
-    doc.write(`const input = payload.value;`);
+    doc2.write(`const input = payload.value;`);
     const ids = /* @__PURE__ */ Object.create(null);
     let counter = 0;
     for (const key of normalized.allKeys) {
       ids[key] = `key_${counter++}`;
     }
-    doc.write(memo2 ? `const newResult = memo.alloc(inst, payload, {}, ctx);` : `const newResult = {};`);
+    doc2.write(memo2 ? `const newResult = memo.alloc(inst, payload, {}, ctx);` : `const newResult = {};`);
     for (const key of normalized.allKeys) {
       if (key === "__proto__")
         continue;
@@ -60586,10 +60744,10 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
       const optin = schema?._zod?.optin;
       const isOptionalIn = optin !== void 0;
       const isOptionalOut = schema?._zod?.optout === "optional";
-      doc.write(`const ${id} = ${parseStr(k)};`);
+      doc2.write(`const ${id} = ${parseStr(k)};`);
       if (isOptionalIn && isOptionalOut) {
         const assign = optin === "optional" ? `${id}_present` : `${id}.value !== undefined || ${id}_present`;
-        doc.write(`
+        doc2.write(`
         const ${id}_present = ${isPresent};
         if (!${id}.issues.length || ${id}_present) {
           if (${id}.issues.length) {${prefixStr(id, k)}
@@ -60602,7 +60760,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
 
       `);
       } else if (!isOptionalIn) {
-        doc.write(`
+        doc2.write(`
         const ${id}_present = ${isPresent};
         if (${id}.issues.length) {${prefixStr(id, k)}
         }
@@ -60621,7 +60779,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
 
       `);
       } else {
-        doc.write(`
+        doc2.write(`
         if (${id}.issues.length) {${prefixStr(id, k)}
         }
         
@@ -60636,9 +60794,9 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
       `);
       }
     }
-    doc.write(`payload.value = newResult;`);
-    doc.write(`return payload;`);
-    return doc.compile();
+    doc2.write(`payload.value = newResult;`);
+    doc2.write(`return payload;`);
+    return doc2.compile();
   };
   let fastpass;
   const isObject2 = isObject;
@@ -69620,12 +69778,12 @@ function compileFn(schema, options) {
     constantCounter: 0,
     varCounter: 0
   };
-  const doc = new Doc(["input"]);
-  const outputAccessor = generateCheck(doc, ctx, schema, "input", !options?.assertOnly);
-  doc.write(outputAccessor === null ? `return true;` : `return ${outputAccessor};`);
+  const doc2 = new Doc(["input"]);
+  const outputAccessor = generateCheck(doc2, ctx, schema, "input", !options?.assertOnly);
+  doc2.write(outputAccessor === null ? `return true;` : `return ${outputAccessor};`);
   const constantNames = ["INVALID", ...ctx.constants.keys()];
   const constantValues = [INVALID, ...ctx.constants.values()];
-  const code = doc.content.join("\n");
+  const code = doc2.content.join("\n");
   const fullCode = options?.debug ? constantNames.length > 0 ? `// Constants: ${constantNames.join(", ")}
 ${code}` : code : "";
   const F = Function;
@@ -69663,17 +69821,17 @@ function runtimeRun(schema, value) {
   const r = result;
   return r.issues.length === 0 ? r.value : INVALID;
 }
-function compileChild(doc, ctx, schema, accessor, needsValue = true) {
-  const contentLen = doc.content.length;
+function compileChild(doc2, ctx, schema, accessor, needsValue = true) {
+  const contentLen = doc2.content.length;
   const constantCount = ctx.constants.size;
   const constantCounter = ctx.constantCounter;
   const varCounter = ctx.varCounter;
   try {
-    return generateCheck(doc, ctx, schema, accessor, needsValue);
+    return generateCheck(doc2, ctx, schema, accessor, needsValue);
   } catch (err) {
     if (!(err instanceof ZodCompileUnsupportedError) || !err.islandable)
       throw err;
-    doc.content.length = contentLen;
+    doc2.content.length = contentLen;
     if (ctx.constants.size > constantCount) {
       const trailing = Array.from(ctx.constants.keys()).slice(constantCount);
       for (const k of trailing)
@@ -69681,15 +69839,15 @@ function compileChild(doc, ctx, schema, accessor, needsValue = true) {
     }
     ctx.constantCounter = constantCounter;
     ctx.varCounter = varCounter;
-    return emitRuntimeIsland(doc, ctx, schema, accessor);
+    return emitRuntimeIsland(doc2, ctx, schema, accessor);
   }
 }
-function emitRuntimeIsland(doc, ctx, schema, accessor) {
+function emitRuntimeIsland(doc2, ctx, schema, accessor) {
   const schemaConst = addConstant(ctx, schema);
   const runConst = addConstant(ctx, runtimeRun);
   const outVar = newVar(ctx);
-  doc.write(`const ${outVar} = ${runConst}(${schemaConst}, ${accessor});`);
-  doc.write(`if (${outVar} === INVALID) return INVALID;`);
+  doc2.write(`const ${outVar} = ${runConst}(${schemaConst}, ${accessor});`);
+  doc2.write(`if (${outVar} === INVALID) return INVALID;`);
   return outVar;
 }
 var WHEN_DEFAULTED_CHECKS = /* @__PURE__ */ new Set([
@@ -69700,7 +69858,7 @@ var WHEN_DEFAULTED_CHECKS = /* @__PURE__ */ new Set([
   "min_length",
   "length_equals"
 ]);
-function generateChecks(doc, ctx, schema, accessor) {
+function generateChecks(doc2, ctx, schema, accessor) {
   const schemaChecks = schema._zod.def.checks;
   if (!schemaChecks || schemaChecks.length === 0)
     return accessor;
@@ -69712,62 +69870,62 @@ function generateChecks(doc, ctx, schema, accessor) {
     }
     switch (def.check) {
       case "greater_than":
-        generateGreaterThanCheck(doc, ctx, def, currentAccessor);
+        generateGreaterThanCheck(doc2, ctx, def, currentAccessor);
         break;
       case "less_than":
-        generateLessThanCheck(doc, ctx, def, currentAccessor);
+        generateLessThanCheck(doc2, ctx, def, currentAccessor);
         break;
       case "multiple_of":
-        generateMultipleOfCheck(doc, ctx, def, currentAccessor);
+        generateMultipleOfCheck(doc2, ctx, def, currentAccessor);
         break;
       case "number_format":
-        generateNumberFormatCheck(doc, def, currentAccessor);
+        generateNumberFormatCheck(doc2, def, currentAccessor);
         break;
       case "min_length": {
         const min = numericOperand(def.minimum, "min_length");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${min} && ${currentAccessor}.length < ${def.minimum * 2}`);
-        doc.write(`if (${len} < ${min}) return INVALID;`);
+        const len = codePointLengthVar(doc2, ctx, currentAccessor, `${currentAccessor}.length >= ${min} && ${currentAccessor}.length < ${def.minimum * 2}`);
+        doc2.write(`if (${len} < ${min}) return INVALID;`);
         break;
       }
       case "max_length": {
         const max = numericOperand(def.maximum, "max_length");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length > ${max}`);
-        doc.write(`if (${len} > ${max}) return INVALID;`);
+        const len = codePointLengthVar(doc2, ctx, currentAccessor, `${currentAccessor}.length > ${max}`);
+        doc2.write(`if (${len} > ${max}) return INVALID;`);
         break;
       }
       case "length_equals": {
         const exact = numericOperand(def.length, "length_equals");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${exact} && ${currentAccessor}.length <= ${def.length * 2}`);
-        doc.write(`if (${len} !== ${exact}) return INVALID;`);
+        const len = codePointLengthVar(doc2, ctx, currentAccessor, `${currentAccessor}.length >= ${exact} && ${currentAccessor}.length <= ${def.length * 2}`);
+        doc2.write(`if (${len} !== ${exact}) return INVALID;`);
         break;
       }
       case "min_size":
-        doc.write(`if (${currentAccessor}.size < ${numericOperand(def.minimum, "min_size")}) return INVALID;`);
+        doc2.write(`if (${currentAccessor}.size < ${numericOperand(def.minimum, "min_size")}) return INVALID;`);
         break;
       case "max_size":
-        doc.write(`if (${currentAccessor}.size > ${numericOperand(def.maximum, "max_size")}) return INVALID;`);
+        doc2.write(`if (${currentAccessor}.size > ${numericOperand(def.maximum, "max_size")}) return INVALID;`);
         break;
       case "size_equals":
-        doc.write(`if (${currentAccessor}.size !== ${numericOperand(def.size, "size_equals")}) return INVALID;`);
+        doc2.write(`if (${currentAccessor}.size !== ${numericOperand(def.size, "size_equals")}) return INVALID;`);
         break;
       case "string_format":
-        currentAccessor = generateStringFormatCheck(doc, ctx, def, currentAccessor);
+        currentAccessor = generateStringFormatCheck(doc2, ctx, def, currentAccessor);
         break;
       case "custom":
-        currentAccessor = generateCustomRefineCheck(doc, ctx, check2, currentAccessor);
+        currentAccessor = generateCustomRefineCheck(doc2, ctx, check2, currentAccessor);
         break;
       case "bigint_format":
-        generateBigIntFormatCheck(doc, def, currentAccessor);
+        generateBigIntFormatCheck(doc2, def, currentAccessor);
         break;
       case "mime_type":
-        generateMimeTypeCheck(doc, ctx, def, currentAccessor);
+        generateMimeTypeCheck(doc2, ctx, def, currentAccessor);
         break;
       case "property":
-        generatePropertyCheck(doc, ctx, def, currentAccessor);
+        generatePropertyCheck(doc2, ctx, def, currentAccessor);
         break;
       case "overwrite": {
         const newAccessor = newVar(ctx);
-        generateOverwriteCheck(doc, ctx, check2, currentAccessor, newAccessor);
+        generateOverwriteCheck(doc2, ctx, check2, currentAccessor, newAccessor);
         currentAccessor = newAccessor;
         break;
       }
@@ -69779,10 +69937,10 @@ function generateChecks(doc, ctx, schema, accessor) {
   }
   return currentAccessor;
 }
-function codePointLengthVar(doc, ctx, accessor, inDoubt) {
+function codePointLengthVar(doc2, ctx, accessor, inDoubt) {
   const cpLen = addConstant(ctx, codePointLength);
   const v = newVar(ctx);
-  doc.write(`const ${v} = typeof ${accessor} === "string" && ${inDoubt} ? ${cpLen}(${accessor}) : ${accessor}.length;`);
+  doc2.write(`const ${v} = typeof ${accessor} === "string" && ${inDoubt} ? ${cpLen}(${accessor}) : ${accessor}.length;`);
   return v;
 }
 function numericOperand(value, label) {
@@ -69807,41 +69965,41 @@ function comparisonOperand(ctx, value) {
   }
   throw new ZodCompileUnsupportedError(`comparison check bound of type ${typeof value}`);
 }
-function generateGreaterThanCheck(doc, ctx, def, accessor) {
+function generateGreaterThanCheck(doc2, ctx, def, accessor) {
   const op = def.inclusive ? "<" : "<=";
-  doc.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def.value)}) return INVALID;`);
+  doc2.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def.value)}) return INVALID;`);
 }
-function generateLessThanCheck(doc, ctx, def, accessor) {
+function generateLessThanCheck(doc2, ctx, def, accessor) {
   const op = def.inclusive ? ">" : ">=";
-  doc.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def.value)}) return INVALID;`);
+  doc2.write(`if (${accessor} ${op} ${comparisonOperand(ctx, def.value)}) return INVALID;`);
 }
-function generateMultipleOfCheck(doc, ctx, def, accessor) {
+function generateMultipleOfCheck(doc2, ctx, def, accessor) {
   if (typeof def.value === "bigint") {
     if (def.value === BigInt(0))
       throw new ZodCompileUnsupportedError("multiple_of check with a zero divisor");
-    doc.write(`if (${accessor} % ${def.value}n !== 0n) return INVALID;`);
+    doc2.write(`if (${accessor} % ${def.value}n !== 0n) return INVALID;`);
   } else {
     const remainder = addConstant(ctx, floatSafeRemainder);
-    doc.write(`if (${remainder}(${accessor}, ${numericOperand(def.value, "multiple_of")}) !== 0) return INVALID;`);
+    doc2.write(`if (${remainder}(${accessor}, ${numericOperand(def.value, "multiple_of")}) !== 0) return INVALID;`);
   }
 }
-function generateNumberFormatCheck(doc, def, accessor) {
+function generateNumberFormatCheck(doc2, def, accessor) {
   const format = def.format;
   switch (format) {
     case "safeint":
-      doc.write(`if (!Number.isSafeInteger(${accessor})) return INVALID;`);
+      doc2.write(`if (!Number.isSafeInteger(${accessor})) return INVALID;`);
       break;
     case "int32":
-      doc.write(`if (!Number.isInteger(${accessor}) || ${accessor} < -2147483648 || ${accessor} > 2147483647) return INVALID;`);
+      doc2.write(`if (!Number.isInteger(${accessor}) || ${accessor} < -2147483648 || ${accessor} > 2147483647) return INVALID;`);
       break;
     case "uint32":
-      doc.write(`if (!Number.isInteger(${accessor}) || ${accessor} < 0 || ${accessor} > 4294967295) return INVALID;`);
+      doc2.write(`if (!Number.isInteger(${accessor}) || ${accessor} < 0 || ${accessor} > 4294967295) return INVALID;`);
       break;
     case "float32":
-      doc.write(`if (!Number.isFinite(${accessor}) || ${accessor} < -3.4028234663852886e38 || ${accessor} > 3.4028234663852886e38) return INVALID;`);
+      doc2.write(`if (!Number.isFinite(${accessor}) || ${accessor} < -3.4028234663852886e38 || ${accessor} > 3.4028234663852886e38) return INVALID;`);
       break;
     case "float64":
-      doc.write(`if (!Number.isFinite(${accessor})) return INVALID;`);
+      doc2.write(`if (!Number.isFinite(${accessor})) return INVALID;`);
       break;
     default: {
       void format;
@@ -69849,16 +70007,16 @@ function generateNumberFormatCheck(doc, def, accessor) {
     }
   }
 }
-function generateBigIntFormatCheck(doc, def, accessor) {
+function generateBigIntFormatCheck(doc2, def, accessor) {
   const format = def.format;
   if (!format)
     return;
   switch (format) {
     case "int64":
-      doc.write(`if (${accessor} < -9223372036854775808n || ${accessor} > 9223372036854775807n) return INVALID;`);
+      doc2.write(`if (${accessor} < -9223372036854775808n || ${accessor} > 9223372036854775807n) return INVALID;`);
       break;
     case "uint64":
-      doc.write(`if (${accessor} < 0n || ${accessor} > 18446744073709551615n) return INVALID;`);
+      doc2.write(`if (${accessor} < 0n || ${accessor} > 18446744073709551615n) return INVALID;`);
       break;
     default: {
       void format;
@@ -69866,18 +70024,18 @@ function generateBigIntFormatCheck(doc, def, accessor) {
     }
   }
 }
-function generateMimeTypeCheck(doc, ctx, def, accessor) {
+function generateMimeTypeCheck(doc2, ctx, def, accessor) {
   const mimeTypes = def.mime;
   if (mimeTypes && mimeTypes.length > 0) {
     const mimeSet = addConstant(ctx, new Set(mimeTypes));
-    doc.write(`if (!${mimeSet}.has(${accessor}.type)) return INVALID;`);
+    doc2.write(`if (!${mimeSet}.has(${accessor}.type)) return INVALID;`);
   }
 }
-function generatePropertyCheck(doc, ctx, def, accessor) {
+function generatePropertyCheck(doc2, ctx, def, accessor) {
   const propAccessor = `${accessor}[${JSON.stringify(def.property)}]`;
-  generateCheck(doc, ctx, def.schema, propAccessor);
+  generateCheck(doc2, ctx, def.schema, propAccessor);
 }
-function generateOverwriteCheck(doc, ctx, check2, currentAccessor, newAccessor) {
+function generateOverwriteCheck(doc2, ctx, check2, currentAccessor, newAccessor) {
   const tx = check2._zod.def.tx;
   if (!tx) {
     throw new ZodCompileUnsupportedError("overwrite check without a transform function");
@@ -69886,7 +70044,7 @@ function generateOverwriteCheck(doc, ctx, check2, currentAccessor, newAccessor) 
     throw new ZodCompileAsyncError("z.compile: async overwrite transforms are not supported");
   }
   const txConst = addConstant(ctx, tx);
-  doc.write(`const ${newAccessor} = ${txConst}(${currentAccessor});`);
+  doc2.write(`const ${newAccessor} = ${txConst}(${currentAccessor});`);
 }
 function throwAsync() {
   throw new $ZodAsyncError();
@@ -69894,7 +70052,7 @@ function throwAsync() {
 function pushIssue(issue2) {
   this.issues.push(issue2);
 }
-function generateCustomRefineCheck(doc, ctx, check2, accessor) {
+function generateCustomRefineCheck(doc2, ctx, check2, accessor) {
   const def = check2._zod.def;
   if (def.fn) {
     if (isAsyncFunction(def.fn)) {
@@ -69903,9 +70061,9 @@ function generateCustomRefineCheck(doc, ctx, check2, accessor) {
     const fnConst = addConstant(ctx, def.fn);
     const throwAsyncConst = addConstant(ctx, throwAsync);
     const resVar = newVar(ctx);
-    doc.write(`const ${resVar} = ${fnConst}(${accessor});`);
-    doc.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}();`);
-    doc.write(`if (!${resVar}) return INVALID;`);
+    doc2.write(`const ${resVar} = ${fnConst}(${accessor});`);
+    doc2.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}();`);
+    doc2.write(`if (!${resVar}) return INVALID;`);
     return accessor;
   }
   if (check2._zod.check) {
@@ -69922,8 +70080,8 @@ function generateCustomRefineCheck(doc, ctx, check2, accessor) {
     };
     const helperConst = addConstant(ctx, helperFn);
     const outVar = newVar(ctx);
-    doc.write(`const ${outVar} = ${helperConst}(${accessor});`);
-    doc.write(`if (${outVar} === INVALID) return INVALID;`);
+    doc2.write(`const ${outVar} = ${helperConst}(${accessor});`);
+    doc2.write(`if (${outVar} === INVALID) return INVALID;`);
     return outVar;
   }
   throw new ZodCompileUnsupportedError("custom check without a predicate or check function");
@@ -69954,37 +70112,37 @@ var PATTERN_IS_COMPLETE = /* @__PURE__ */ new Set([
   "uuid",
   "xid"
 ]);
-function generateStringFormatCheck(doc, ctx, def, accessor) {
+function generateStringFormatCheck(doc2, ctx, def, accessor) {
   const fmt = def.format;
   if (fmt === "base64") {
     const validator = addConstant(ctx, isValidBase64);
-    doc.write(`if (!${validator}(${accessor})) return INVALID;`);
+    doc2.write(`if (!${validator}(${accessor})) return INVALID;`);
     return accessor;
   }
   if (fmt === "base64url") {
     const validator = addConstant(ctx, isValidBase64URL);
-    doc.write(`if (!${validator}(${accessor})) return INVALID;`);
+    doc2.write(`if (!${validator}(${accessor})) return INVALID;`);
     return accessor;
   }
   if (fmt === "jwt") {
     const validator = addConstant(ctx, isValidJWT);
     const alg = addConstant(ctx, def.alg ?? null);
-    doc.write(`if (!${validator}(${accessor}, ${alg})) return INVALID;`);
+    doc2.write(`if (!${validator}(${accessor}, ${alg})) return INVALID;`);
     return accessor;
   }
   if (fmt === "ipv6") {
     const validator = addConstant(ctx, isValidIPv6);
-    doc.write(`if (!${validator}(${accessor})) return INVALID;`);
+    doc2.write(`if (!${validator}(${accessor})) return INVALID;`);
     return accessor;
   }
   if (fmt === "cidrv6") {
     const validator = addConstant(ctx, isValidCIDRv6);
-    doc.write(`if (!${validator}(${accessor})) return INVALID;`);
+    doc2.write(`if (!${validator}(${accessor})) return INVALID;`);
     return accessor;
   }
   if (fmt === "credit_card") {
     const validator = addConstant(ctx, isValidCreditCard);
-    doc.write(`if (!${validator}(${accessor})) return INVALID;`);
+    doc2.write(`if (!${validator}(${accessor})) return INVALID;`);
     return accessor;
   }
   const formatDef = def;
@@ -69993,20 +70151,20 @@ function generateStringFormatCheck(doc, ctx, def, accessor) {
     const defConst = addConstant(ctx, def);
     const trimVar = newVar(ctx);
     const urlVar = newVar(ctx);
-    doc.write(`const ${trimVar} = ${accessor}.trim();`);
-    doc.write(`const ${urlVar} = ${parseConst}(${trimVar}, ${defConst});`);
-    doc.write(`if (typeof ${urlVar} === "number") return INVALID;`);
+    doc2.write(`const ${trimVar} = ${accessor}.trim();`);
+    doc2.write(`const ${urlVar} = ${parseConst}(${trimVar}, ${defConst});`);
+    doc2.write(`if (typeof ${urlVar} === "number") return INVALID;`);
     if (formatDef.hostname !== void 0) {
       const hostnameConst = addConstant(ctx, urlHostnameOk);
-      doc.write(`if (!${hostnameConst}(${urlVar}, ${defConst}.hostname)) return INVALID;`);
+      doc2.write(`if (!${hostnameConst}(${urlVar}, ${defConst}.hostname)) return INVALID;`);
     }
     if (formatDef.protocol !== void 0) {
       const protocolConst = addConstant(ctx, urlProtocolOk);
-      doc.write(`if (!${protocolConst}(${urlVar}, ${defConst}.protocol)) return INVALID;`);
+      doc2.write(`if (!${protocolConst}(${urlVar}, ${defConst}.protocol)) return INVALID;`);
     }
     const outputVar = newVar(ctx);
     const outputExpr = formatDef.normalize ? `${urlVar}.href` : `${addConstant(ctx, stripTabAndNewline)}(${trimVar})`;
-    doc.write(`const ${outputVar} = ${outputExpr};`);
+    doc2.write(`const ${outputVar} = ${outputExpr};`);
     return outputVar;
   }
   const customFn = def.fn;
@@ -70014,13 +70172,13 @@ function generateStringFormatCheck(doc, ctx, def, accessor) {
     if (isAsyncFunction(customFn))
       throw new ZodCompileUnsupportedError(`async string format ${fmt}`);
     const fnConst = addConstant(ctx, customFn);
-    doc.write(`if (!${fnConst}(${accessor})) return INVALID;`);
+    doc2.write(`if (!${fnConst}(${accessor})) return INVALID;`);
     return accessor;
   }
   if (PATTERN_IS_COMPLETE.has(fmt) && def.pattern) {
     const patternConst = addConstant(ctx, def.pattern);
-    doc.write(`${patternConst}.lastIndex = 0;`);
-    doc.write(`if (!${patternConst}.test(${accessor})) return INVALID;`);
+    doc2.write(`${patternConst}.lastIndex = 0;`);
+    doc2.write(`if (!${patternConst}.test(${accessor})) return INVALID;`);
     return accessor;
   }
   const format = def.format;
@@ -70028,22 +70186,22 @@ function generateStringFormatCheck(doc, ctx, def, accessor) {
     case "regex":
       throw new ZodCompileUnsupportedError("regex format without a pattern");
     case "lowercase":
-      doc.write(`if (${accessor} !== ${accessor}.toLowerCase()) return INVALID;`);
+      doc2.write(`if (${accessor} !== ${accessor}.toLowerCase()) return INVALID;`);
       break;
     case "uppercase":
-      doc.write(`if (${accessor} !== ${accessor}.toUpperCase()) return INVALID;`);
+      doc2.write(`if (${accessor} !== ${accessor}.toUpperCase()) return INVALID;`);
       break;
     case "includes":
-      doc.write(`if (!${accessor}.includes(${esc(def.includes)})) return INVALID;`);
+      doc2.write(`if (!${accessor}.includes(${esc(def.includes)})) return INVALID;`);
       break;
     case "starts_with": {
       const prefix = def.prefix;
-      doc.write(`if (${accessor}.slice(0, ${prefix.length}) !== ${esc(prefix)}) return INVALID;`);
+      doc2.write(`if (${accessor}.slice(0, ${prefix.length}) !== ${esc(prefix)}) return INVALID;`);
       break;
     }
     case "ends_with": {
       const suffix = def.suffix;
-      doc.write(`if (${accessor}.slice(-${suffix.length}) !== ${esc(suffix)}) return INVALID;`);
+      doc2.write(`if (${accessor}.slice(-${suffix.length}) !== ${esc(suffix)}) return INVALID;`);
       break;
     }
     default: {
@@ -70053,7 +70211,7 @@ function generateStringFormatCheck(doc, ctx, def, accessor) {
   }
   return accessor;
 }
-function generateCheck(doc, ctx, schema, accessor, needsValue = true) {
+function generateCheck(doc2, ctx, schema, accessor, needsValue = true) {
   const def = schema._zod.def;
   const type = def.type;
   if (def.coerce) {
@@ -70063,117 +70221,117 @@ function generateCheck(doc, ctx, schema, accessor, needsValue = true) {
   let typeAccessor;
   switch (type) {
     case "string":
-      typeAccessor = generateStringCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateStringCheck(doc2, ctx, schema, accessor);
       break;
     case "number":
-      typeAccessor = generateNumberCheck(doc, schema, accessor);
+      typeAccessor = generateNumberCheck(doc2, schema, accessor);
       break;
     case "boolean":
-      typeAccessor = generateBooleanCheck(doc, accessor);
+      typeAccessor = generateBooleanCheck(doc2, accessor);
       break;
     case "bigint":
-      typeAccessor = generateBigIntCheck(doc, schema, accessor);
+      typeAccessor = generateBigIntCheck(doc2, schema, accessor);
       break;
     case "symbol":
-      typeAccessor = generateSymbolCheck(doc, accessor);
+      typeAccessor = generateSymbolCheck(doc2, accessor);
       break;
     case "undefined":
-      typeAccessor = generateUndefinedCheck(doc, accessor);
+      typeAccessor = generateUndefinedCheck(doc2, accessor);
       break;
     case "null":
-      typeAccessor = generateNullCheck(doc, accessor);
+      typeAccessor = generateNullCheck(doc2, accessor);
       break;
     case "any":
     case "unknown":
       typeAccessor = accessor;
       break;
     case "never":
-      doc.write("return INVALID;");
+      doc2.write("return INVALID;");
       typeAccessor = accessor;
       break;
     case "void":
-      typeAccessor = generateVoidCheck(doc, accessor);
+      typeAccessor = generateVoidCheck(doc2, accessor);
       break;
     case "nan":
-      typeAccessor = generateNaNCheck(doc, accessor);
+      typeAccessor = generateNaNCheck(doc2, accessor);
       break;
     case "date":
-      typeAccessor = generateDateCheck(doc, accessor);
+      typeAccessor = generateDateCheck(doc2, accessor);
       break;
     case "object":
-      typeAccessor = generateObjectCheck(doc, ctx, schema, accessor, buildsValue);
+      typeAccessor = generateObjectCheck(doc2, ctx, schema, accessor, buildsValue);
       break;
     case "optional":
-      typeAccessor = generateOptionalCheck(doc, ctx, schema, accessor, buildsValue);
+      typeAccessor = generateOptionalCheck(doc2, ctx, schema, accessor, buildsValue);
       break;
     case "nullable":
-      typeAccessor = generateNullableCheck(doc, ctx, schema, accessor, buildsValue);
+      typeAccessor = generateNullableCheck(doc2, ctx, schema, accessor, buildsValue);
       break;
     case "array":
-      typeAccessor = generateArrayCheck(doc, ctx, schema, accessor, buildsValue);
+      typeAccessor = generateArrayCheck(doc2, ctx, schema, accessor, buildsValue);
       break;
     case "literal":
-      typeAccessor = generateLiteralCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateLiteralCheck(doc2, ctx, schema, accessor);
       break;
     case "enum":
-      typeAccessor = generateEnumCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateEnumCheck(doc2, ctx, schema, accessor);
       break;
     case "readonly": {
-      const innerOut = generateWrapperCheck(doc, ctx, schema, accessor);
+      const innerOut = generateWrapperCheck(doc2, ctx, schema, accessor);
       const frozenVar = newVar(ctx);
-      doc.write(`const ${frozenVar} = Object.freeze(${innerOut});`);
+      doc2.write(`const ${frozenVar} = Object.freeze(${innerOut});`);
       typeAccessor = frozenVar;
       break;
     }
     case "success":
-      generateWrapperCheck(doc, ctx, schema, accessor);
+      generateWrapperCheck(doc2, ctx, schema, accessor);
       typeAccessor = "true";
       break;
     case "default":
     case "prefault":
-      typeAccessor = generateDefaultCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateDefaultCheck(doc2, ctx, schema, accessor);
       break;
     case "nonoptional":
-      typeAccessor = generateNonOptionalCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateNonOptionalCheck(doc2, ctx, schema, accessor);
       break;
     case "tuple":
-      typeAccessor = generateTupleCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateTupleCheck(doc2, ctx, schema, accessor);
       break;
     case "union":
-      typeAccessor = generateUnionCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateUnionCheck(doc2, ctx, schema, accessor);
       break;
     case "intersection":
-      typeAccessor = generateIntersectionCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateIntersectionCheck(doc2, ctx, schema, accessor);
       break;
     case "record":
-      typeAccessor = generateRecordCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateRecordCheck(doc2, ctx, schema, accessor);
       break;
     case "map":
-      typeAccessor = generateMapCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateMapCheck(doc2, ctx, schema, accessor);
       break;
     case "set":
-      typeAccessor = generateSetCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateSetCheck(doc2, ctx, schema, accessor);
       break;
     case "file":
-      typeAccessor = generateFileCheck(doc, accessor);
+      typeAccessor = generateFileCheck(doc2, accessor);
       break;
     case "template_literal":
-      typeAccessor = generateTemplateLiteralCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateTemplateLiteralCheck(doc2, ctx, schema, accessor);
       break;
     case "lazy":
-      typeAccessor = generateLazyCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateLazyCheck(doc2, ctx, schema, accessor);
       break;
     case "pipe":
-      typeAccessor = generatePipeCheck(doc, ctx, schema, accessor);
+      typeAccessor = generatePipeCheck(doc2, ctx, schema, accessor);
       break;
     case "custom":
-      typeAccessor = generateCustomCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateCustomCheck(doc2, ctx, schema, accessor);
       break;
     case "transform":
-      typeAccessor = generateTransformCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateTransformCheck(doc2, ctx, schema, accessor);
       break;
     case "catch":
-      typeAccessor = generateCatchCheck(doc, ctx, schema, accessor);
+      typeAccessor = generateCatchCheck(doc2, ctx, schema, accessor);
       break;
     default: {
       void type;
@@ -70182,69 +70340,69 @@ function generateCheck(doc, ctx, schema, accessor, needsValue = true) {
   }
   if (typeAccessor === null)
     return null;
-  return generateChecks(doc, ctx, schema, typeAccessor);
+  return generateChecks(doc2, ctx, schema, typeAccessor);
 }
-function generateStringCheck(doc, ctx, schema, accessor) {
-  doc.write(`if (typeof ${accessor} !== "string") return INVALID;`);
+function generateStringCheck(doc2, ctx, schema, accessor) {
+  doc2.write(`if (typeof ${accessor} !== "string") return INVALID;`);
   const def = schema._zod.def;
   if (def.format === void 0)
     return accessor;
-  return generateStringFormatCheck(doc, ctx, def, accessor);
+  return generateStringFormatCheck(doc2, ctx, def, accessor);
 }
-function generateNumberCheck(doc, schema, accessor) {
-  doc.write(`if (typeof ${accessor} !== "number" || !Number.isFinite(${accessor})) return INVALID;`);
+function generateNumberCheck(doc2, schema, accessor) {
+  doc2.write(`if (typeof ${accessor} !== "number" || !Number.isFinite(${accessor})) return INVALID;`);
   const def = schema._zod.def;
   if (def.check === "number_format" && def.format) {
-    generateNumberFormatCheck(doc, { format: def.format }, accessor);
+    generateNumberFormatCheck(doc2, { format: def.format }, accessor);
   }
   return accessor;
 }
-function generateBooleanCheck(doc, accessor) {
-  doc.write(`if (typeof ${accessor} !== "boolean") return INVALID;`);
+function generateBooleanCheck(doc2, accessor) {
+  doc2.write(`if (typeof ${accessor} !== "boolean") return INVALID;`);
   return accessor;
 }
-function generateBigIntCheck(doc, schema, accessor) {
-  doc.write(`if (typeof ${accessor} !== "bigint") return INVALID;`);
+function generateBigIntCheck(doc2, schema, accessor) {
+  doc2.write(`if (typeof ${accessor} !== "bigint") return INVALID;`);
   const def = schema._zod.def;
   if (def.format) {
     switch (def.format) {
       case "int64":
-        doc.write(`if (${accessor} < -9223372036854775808n || ${accessor} > 9223372036854775807n) return INVALID;`);
+        doc2.write(`if (${accessor} < -9223372036854775808n || ${accessor} > 9223372036854775807n) return INVALID;`);
         break;
       case "uint64":
-        doc.write(`if (${accessor} < 0n || ${accessor} > 18446744073709551615n) return INVALID;`);
+        doc2.write(`if (${accessor} < 0n || ${accessor} > 18446744073709551615n) return INVALID;`);
         break;
     }
   }
   return accessor;
 }
-function generateSymbolCheck(doc, accessor) {
-  doc.write(`if (typeof ${accessor} !== "symbol") return INVALID;`);
+function generateSymbolCheck(doc2, accessor) {
+  doc2.write(`if (typeof ${accessor} !== "symbol") return INVALID;`);
   return accessor;
 }
-function generateUndefinedCheck(doc, accessor) {
-  doc.write(`if (${accessor} !== undefined) return INVALID;`);
+function generateUndefinedCheck(doc2, accessor) {
+  doc2.write(`if (${accessor} !== undefined) return INVALID;`);
   return accessor;
 }
-function generateNullCheck(doc, accessor) {
-  doc.write(`if (${accessor} !== null) return INVALID;`);
+function generateNullCheck(doc2, accessor) {
+  doc2.write(`if (${accessor} !== null) return INVALID;`);
   return accessor;
 }
-function generateVoidCheck(doc, accessor) {
-  doc.write(`if (${accessor} !== undefined) return INVALID;`);
+function generateVoidCheck(doc2, accessor) {
+  doc2.write(`if (${accessor} !== undefined) return INVALID;`);
   return accessor;
 }
-function generateNaNCheck(doc, accessor) {
-  doc.write(`if (typeof ${accessor} !== "number" || !Number.isNaN(${accessor})) return INVALID;`);
+function generateNaNCheck(doc2, accessor) {
+  doc2.write(`if (typeof ${accessor} !== "number" || !Number.isNaN(${accessor})) return INVALID;`);
   return accessor;
 }
-function generateDateCheck(doc, accessor) {
-  doc.write(`if (!(${accessor} instanceof Date) || Number.isNaN(${accessor}.getTime())) return INVALID;`);
+function generateDateCheck(doc2, accessor) {
+  doc2.write(`if (!(${accessor} instanceof Date) || Number.isNaN(${accessor}.getTime())) return INVALID;`);
   return accessor;
 }
-function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
+function generateObjectCheck(doc2, ctx, schema, accessor, buildsValue = true) {
   const def = schema._zod.def;
-  doc.write(`if (typeof ${accessor} !== "object" || ${accessor} === null || Array.isArray(${accessor})) return INVALID;`);
+  doc2.write(`if (typeof ${accessor} !== "object" || ${accessor} === null || Array.isArray(${accessor})) return INVALID;`);
   const shape = def.shape;
   const keys = Object.keys(shape);
   const symbolKeys = Object.getOwnPropertySymbols(shape);
@@ -70260,31 +70418,31 @@ function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
     const propSchema = propShape[key];
     const kx = keyExpr(key);
     const inputVar = newVar(ctx);
-    doc.write(`const ${inputVar} = ${accessor}[${kx}];`);
+    doc2.write(`const ${inputVar} = ${accessor}[${kx}];`);
     if (propSchema._zod.optin !== void 0) {
       const outputVar2 = newVar(ctx);
-      doc.write(`let ${outputVar2} = (() => {`);
-      doc.indented((d) => {
+      doc2.write(`let ${outputVar2} = (() => {`);
+      doc2.indented((d) => {
         const outputAccessor = compileChild(d, ctx, propSchema, inputVar);
         d.write(`return ${outputAccessor};`);
       });
-      doc.write(`})();`);
+      doc2.write(`})();`);
       if (propSchema._zod.optout === "optional") {
-        doc.write(`if (${outputVar2} === INVALID) {`);
-        doc.indented((d) => {
+        doc2.write(`if (${outputVar2} === INVALID) {`);
+        doc2.indented((d) => {
           d.write(`if (${kx} in ${accessor}) return INVALID;`);
           d.write(`${outputVar2} = undefined;`);
         });
-        doc.write(`}`);
+        doc2.write(`}`);
       } else {
-        doc.write(`if (${outputVar2} === INVALID) return INVALID;`);
+        doc2.write(`if (${outputVar2} === INVALID) return INVALID;`);
       }
       propOutputs.set(key, outputVar2);
     } else {
       if (requiresPresenceCheck(propSchema)) {
-        doc.write(`if (!(${kx} in ${accessor})) return INVALID;`);
+        doc2.write(`if (!(${kx} in ${accessor})) return INVALID;`);
       }
-      const outputAccessor = compileChild(doc, ctx, propSchema, inputVar, buildsValue);
+      const outputAccessor = compileChild(doc2, ctx, propSchema, inputVar, buildsValue);
       if (outputAccessor !== null)
         propOutputs.set(key, outputAccessor);
     }
@@ -70295,11 +70453,11 @@ function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
     const catchallType = catchall._zod.def.type;
     if (catchallType === "never") {
       const condition = keys.map((k) => `k !== ${esc(k)}`).join(" && ") || "true";
-      doc.write(`for (const k in ${accessor}) {`);
-      doc.indented((d) => {
+      doc2.write(`for (const k in ${accessor}) {`);
+      doc2.indented((d) => {
         d.write(`if (${condition}) return INVALID;`);
       });
-      doc.write(`}`);
+      doc2.write(`}`);
     } else if ((catchallType === "unknown" || catchallType === "any") && !catchall._zod.def.checks?.length) {
       unknownKeysMode = "passthrough";
     } else {
@@ -70311,8 +70469,8 @@ function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
   if (!buildsValue) {
     if (unknownKeysMode === "schema") {
       const knownSet = keys.length > 0 ? addConstant(ctx, new Set(keys)) : null;
-      doc.write(`for (const k in ${accessor}) {`);
-      doc.indented((d) => {
+      doc2.write(`for (const k in ${accessor}) {`);
+      doc2.indented((d) => {
         d.write(`if (k === "__proto__") continue;`);
         if (knownSet)
           d.write(`if (${knownSet}.has(k)) continue;`);
@@ -70320,31 +70478,31 @@ function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
         d.write(`const ${valVar} = ${accessor}[k];`);
         compileChild(d, ctx, catchall, valVar, false);
       });
-      doc.write(`}`);
+      doc2.write(`}`);
     }
     return null;
   }
   if (!hasConditionalKeys) {
     const propLiterals = allKeys.map((k) => `${propKey(k)}: ${propOutputs.get(k)}`).join(", ");
-    doc.write(`const ${outputVar} = { ${propLiterals} };`);
+    doc2.write(`const ${outputVar} = { ${propLiterals} };`);
   } else {
-    doc.write(`const ${outputVar} = {};`);
+    doc2.write(`const ${outputVar} = {};`);
     for (const k of allKeys) {
       const kx = keyExpr(k);
       const out = propOutputs.get(k);
       if (dropsWhenAbsent(propShape[k])) {
-        doc.write(`if (${kx} in ${accessor}) ${outputVar}[${kx}] = ${out};`);
+        doc2.write(`if (${kx} in ${accessor}) ${outputVar}[${kx}] = ${out};`);
       } else if (mayOutputUndefined(propShape[k])) {
-        doc.write(`if (${out} !== undefined || ${kx} in ${accessor}) ${outputVar}[${kx}] = ${out};`);
+        doc2.write(`if (${out} !== undefined || ${kx} in ${accessor}) ${outputVar}[${kx}] = ${out};`);
       } else {
-        doc.write(`${outputVar}[${kx}] = ${out};`);
+        doc2.write(`${outputVar}[${kx}] = ${out};`);
       }
     }
   }
   if (unknownKeysMode !== "none") {
     const knownSet = keys.length > 0 ? addConstant(ctx, new Set(keys)) : null;
-    doc.write(`for (const k in ${accessor}) {`);
-    doc.indented((d) => {
+    doc2.write(`for (const k in ${accessor}) {`);
+    doc2.indented((d) => {
       d.write(`if (k === "__proto__") continue;`);
       if (knownSet)
         d.write(`if (${knownSet}.has(k)) continue;`);
@@ -70357,21 +70515,21 @@ function generateObjectCheck(doc, ctx, schema, accessor, buildsValue = true) {
         d.write(`${outputVar}[k] = ${catchallOut};`);
       }
     });
-    doc.write(`}`);
+    doc2.write(`}`);
   }
   return outputVar;
 }
-function generateOptionalCheck(doc, ctx, schema, accessor, buildsValue = true) {
+function generateOptionalCheck(doc2, ctx, schema, accessor, buildsValue = true) {
   const def = schema._zod.def;
   if (isExactOptional(schema)) {
-    return generateCheck(doc, ctx, def.innerType, accessor, buildsValue);
+    return generateCheck(doc2, ctx, def.innerType, accessor, buildsValue);
   }
   if (def.innerType._zod.optin === "defaulted") {
     const outputVar2 = newVar(ctx);
     const branchVar = newVar(ctx);
-    doc.write(`let ${outputVar2};`);
-    doc.write(`if (${accessor} === undefined) {`);
-    doc.indented((d) => {
+    doc2.write(`let ${outputVar2};`);
+    doc2.write(`if (${accessor} === undefined) {`);
+    doc2.indented((d) => {
       d.write(`const ${branchVar} = (() => {`);
       d.indented((d2) => {
         const innerOutput = generateCheck(d2, ctx, def.innerType, accessor);
@@ -70380,24 +70538,24 @@ function generateOptionalCheck(doc, ctx, schema, accessor, buildsValue = true) {
       d.write(`})();`);
       d.write(`if (${branchVar} !== INVALID) ${outputVar2} = ${branchVar};`);
     });
-    doc.write(`} else {`);
-    doc.indented((d) => {
+    doc2.write(`} else {`);
+    doc2.indented((d) => {
       const innerOutput = generateCheck(d, ctx, def.innerType, accessor);
       d.write(`${outputVar2} = ${innerOutput};`);
     });
-    doc.write(`}`);
+    doc2.write(`}`);
     return outputVar2;
   }
   const outputVar = buildsValue ? newVar(ctx) : null;
   if (outputVar)
-    doc.write(`let ${outputVar};`);
-  doc.write(`if (${accessor} !== undefined) {`);
-  doc.indented((d) => {
+    doc2.write(`let ${outputVar};`);
+  doc2.write(`if (${accessor} !== undefined) {`);
+  doc2.indented((d) => {
     const innerOutput = generateCheck(d, ctx, def.innerType, accessor, buildsValue);
     if (outputVar && innerOutput !== null)
       d.write(`${outputVar} = ${innerOutput};`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   return outputVar;
 }
 function isExactOptional(schema) {
@@ -70509,147 +70667,147 @@ function mayOutputUndefined(schema) {
       return true;
   }
 }
-function generateNullableCheck(doc, ctx, schema, accessor, buildsValue = true) {
+function generateNullableCheck(doc2, ctx, schema, accessor, buildsValue = true) {
   const def = schema._zod.def;
   const outputVar = buildsValue ? newVar(ctx) : null;
   if (outputVar)
-    doc.write(`let ${outputVar} = null;`);
-  doc.write(`if (${accessor} !== null) {`);
-  doc.indented((d) => {
+    doc2.write(`let ${outputVar} = null;`);
+  doc2.write(`if (${accessor} !== null) {`);
+  doc2.indented((d) => {
     const innerOutput = generateCheck(d, ctx, def.innerType, accessor, buildsValue);
     if (outputVar && innerOutput !== null)
       d.write(`${outputVar} = ${innerOutput};`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   return outputVar;
 }
-function generateArrayCheck(doc, ctx, schema, accessor, buildsValue = true) {
+function generateArrayCheck(doc2, ctx, schema, accessor, buildsValue = true) {
   const def = schema._zod.def;
-  doc.write(`if (!Array.isArray(${accessor})) return INVALID;`);
+  doc2.write(`if (!Array.isArray(${accessor})) return INVALID;`);
   const outputVar = buildsValue ? newVar(ctx) : null;
   const iVar = newVar(ctx);
   const elemVar = newVar(ctx);
   if (outputVar)
-    doc.write(`const ${outputVar} = new Array(${accessor}.length);`);
-  doc.write(`for (let ${iVar} = 0; ${iVar} < ${accessor}.length; ${iVar}++) {`);
-  doc.indented((d) => {
+    doc2.write(`const ${outputVar} = new Array(${accessor}.length);`);
+  doc2.write(`for (let ${iVar} = 0; ${iVar} < ${accessor}.length; ${iVar}++) {`);
+  doc2.indented((d) => {
     d.write(`const ${elemVar} = ${accessor}[${iVar}];`);
     const elemOutput = compileChild(d, ctx, def.element, elemVar, buildsValue);
     if (outputVar && elemOutput !== null)
       d.write(`${outputVar}[${iVar}] = ${elemOutput};`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   return outputVar;
 }
-function generateLiteralCheck(doc, ctx, schema, accessor) {
+function generateLiteralCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   const values = def.values;
   if (values.length !== 1) {
     const literalSet = addConstant(ctx, new Set(values));
-    doc.write(`if (!${literalSet}.has(${accessor})) return INVALID;`);
+    doc2.write(`if (!${literalSet}.has(${accessor})) return INVALID;`);
     return accessor;
   }
   const value = values[0];
   if (typeof value === "number" && Number.isNaN(value)) {
     const literalSet = addConstant(ctx, new Set(values));
-    doc.write(`if (!${literalSet}.has(${accessor})) return INVALID;`);
+    doc2.write(`if (!${literalSet}.has(${accessor})) return INVALID;`);
     return accessor;
   }
   if (typeof value === "string") {
-    doc.write(`if (${accessor} !== ${esc(value)}) return INVALID;`);
+    doc2.write(`if (${accessor} !== ${esc(value)}) return INVALID;`);
   } else if (typeof value === "number" || typeof value === "boolean") {
-    doc.write(`if (${accessor} !== ${value}) return INVALID;`);
+    doc2.write(`if (${accessor} !== ${value}) return INVALID;`);
   } else if (value === null) {
-    doc.write(`if (${accessor} !== null) return INVALID;`);
+    doc2.write(`if (${accessor} !== null) return INVALID;`);
   } else if (value === void 0) {
-    doc.write(`if (${accessor} !== undefined) return INVALID;`);
+    doc2.write(`if (${accessor} !== undefined) return INVALID;`);
   } else if (typeof value === "bigint") {
-    doc.write(`if (${accessor} !== ${value}n) return INVALID;`);
+    doc2.write(`if (${accessor} !== ${value}n) return INVALID;`);
   } else {
     throw new ZodCompileUnsupportedError(`literal type ${typeof value}`);
   }
   return accessor;
 }
-function generateEnumCheck(doc, ctx, schema, accessor) {
+function generateEnumCheck(doc2, ctx, schema, accessor) {
   const values = schema._zod.values;
   if (!values) {
     throw new ZodCompileUnsupportedError("enum schema without enumerated values");
   }
   const enumSet = addConstant(ctx, values);
-  doc.write(`if (!${enumSet}.has(${accessor})) return INVALID;`);
+  doc2.write(`if (!${enumSet}.has(${accessor})) return INVALID;`);
   return accessor;
 }
-function generateWrapperCheck(doc, ctx, schema, accessor) {
+function generateWrapperCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
-  return generateCheck(doc, ctx, def.innerType, accessor);
+  return generateCheck(doc2, ctx, def.innerType, accessor);
 }
-function generateDefaultCheck(doc, ctx, schema, accessor) {
+function generateDefaultCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   const descriptor = Object.getOwnPropertyDescriptor(schema._zod.def, "defaultValue");
   const defaultGetter = descriptor ? () => schema._zod.def.defaultValue : void 0;
   if (schema._zod.def.type === "prefault") {
     if (!defaultGetter) {
-      return generateCheck(doc, ctx, def.innerType, accessor);
+      return generateCheck(doc2, ctx, def.innerType, accessor);
     }
     const defaultFn = addConstant(ctx, defaultGetter);
     const inputVar = newVar(ctx);
-    doc.write(`let ${inputVar} = ${accessor};`);
-    doc.write(`if (${accessor} === undefined) ${inputVar} = ${defaultFn}();`);
-    return generateCheck(doc, ctx, def.innerType, inputVar);
+    doc2.write(`let ${inputVar} = ${accessor};`);
+    doc2.write(`if (${accessor} === undefined) ${inputVar} = ${defaultFn}();`);
+    return generateCheck(doc2, ctx, def.innerType, inputVar);
   }
   const outputVar = newVar(ctx);
   if (defaultGetter) {
     const defaultFn = addConstant(ctx, defaultGetter);
     const cloneFn = addConstant(ctx, shallowClone);
-    doc.write(`let ${outputVar};`);
-    doc.write(`if (${accessor} === undefined) {`);
-    doc.indented((d) => {
+    doc2.write(`let ${outputVar};`);
+    doc2.write(`if (${accessor} === undefined) {`);
+    doc2.indented((d) => {
       d.write(`${outputVar} = ${cloneFn}(${defaultFn}());`);
     });
-    doc.write(`} else {`);
-    doc.indented((d) => {
+    doc2.write(`} else {`);
+    doc2.indented((d) => {
       const innerOutput = generateCheck(d, ctx, def.innerType, accessor);
       d.write(`${outputVar} = ${innerOutput} === undefined ? ${cloneFn}(${defaultFn}()) : ${innerOutput};`);
     });
-    doc.write(`}`);
+    doc2.write(`}`);
   } else {
-    doc.write(`let ${outputVar};`);
-    doc.write(`if (${accessor} !== undefined) {`);
-    doc.indented((d) => {
+    doc2.write(`let ${outputVar};`);
+    doc2.write(`if (${accessor} !== undefined) {`);
+    doc2.indented((d) => {
       const innerOutput = generateCheck(d, ctx, def.innerType, accessor);
       d.write(`${outputVar} = ${innerOutput};`);
     });
-    doc.write(`}`);
+    doc2.write(`}`);
   }
   return outputVar;
 }
-function generateNonOptionalCheck(doc, ctx, schema, accessor) {
+function generateNonOptionalCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
-  const innerOutput = generateCheck(doc, ctx, def.innerType, accessor);
+  const innerOutput = generateCheck(doc2, ctx, def.innerType, accessor);
   const outputVar = newVar(ctx);
-  doc.write(`const ${outputVar} = ${innerOutput};`);
-  doc.write(`if (${outputVar} === undefined) return INVALID;`);
+  doc2.write(`const ${outputVar} = ${innerOutput};`);
+  doc2.write(`if (${outputVar} === undefined) return INVALID;`);
   return outputVar;
 }
-function generateTupleCheck(doc, ctx, schema, accessor) {
+function generateTupleCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   const items = def.items;
   const rest = def.rest;
-  doc.write(`if (!Array.isArray(${accessor})) return INVALID;`);
+  doc2.write(`if (!Array.isArray(${accessor})) return INVALID;`);
   const optinStart = getTupleOptStart2(items, "optin");
   const optoutStart = getTupleOptStart2(items, "optout");
   if (rest) {
-    doc.write(`if (${accessor}.length < ${optinStart}) return INVALID;`);
+    doc2.write(`if (${accessor}.length < ${optinStart}) return INVALID;`);
   } else {
-    doc.write(`if (${accessor}.length < ${optinStart} || ${accessor}.length > ${items.length}) return INVALID;`);
+    doc2.write(`if (${accessor}.length < ${optinStart} || ${accessor}.length > ${items.length}) return INVALID;`);
   }
   const outputVar = newVar(ctx);
-  doc.write(`const ${outputVar} = [];`);
+  doc2.write(`const ${outputVar} = [];`);
   for (let i = 0; i < items.length; i++) {
     const itemSchema = items[i];
     if (i >= optoutStart) {
-      doc.write(`if (${outputVar}.length === ${i}) {`);
-      doc.indented((d) => {
+      doc2.write(`if (${outputVar}.length === ${i}) {`);
+      doc2.indented((d) => {
         d.write(`if (${i} < ${accessor}.length) {`);
         d.indented((d2) => {
           const elemVar = newVar(ctx);
@@ -70677,24 +70835,24 @@ function generateTupleCheck(doc, ctx, schema, accessor) {
         });
         d.write(`}`);
       });
-      doc.write(`}`);
+      doc2.write(`}`);
     } else {
       const elemVar = newVar(ctx);
-      doc.write(`const ${elemVar} = ${accessor}[${i}];`);
-      const elemOutput = compileChild(doc, ctx, itemSchema, elemVar);
-      doc.write(`${outputVar}[${i}] = ${elemOutput};`);
+      doc2.write(`const ${elemVar} = ${accessor}[${i}];`);
+      const elemOutput = compileChild(doc2, ctx, itemSchema, elemVar);
+      doc2.write(`${outputVar}[${i}] = ${elemOutput};`);
     }
   }
   if (rest) {
     const iVar = newVar(ctx);
     const elemVar = newVar(ctx);
-    doc.write(`for (let ${iVar} = ${items.length}; ${iVar} < ${accessor}.length; ${iVar}++) {`);
-    doc.indented((d) => {
+    doc2.write(`for (let ${iVar} = ${items.length}; ${iVar} < ${accessor}.length; ${iVar}++) {`);
+    doc2.indented((d) => {
       d.write(`const ${elemVar} = ${accessor}[${iVar}];`);
       const elemOutput = compileChild(d, ctx, rest, elemVar);
       d.write(`${outputVar}[${iVar}] = ${elemOutput};`);
     });
-    doc.write(`}`);
+    doc2.write(`}`);
   }
   return outputVar;
 }
@@ -70706,59 +70864,59 @@ function getTupleOptStart2(items, key) {
   }
   return 0;
 }
-function generateUnionCheck(doc, ctx, schema, accessor) {
+function generateUnionCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   const options = def.options;
   if (def.discriminator) {
-    return generateDiscriminatedUnionCheck(doc, ctx, def, accessor);
+    return generateDiscriminatedUnionCheck(doc2, ctx, def, accessor);
   }
   if (def.inclusive === false) {
     throw new ZodCompileUnsupportedError("exclusive unions (z.xor)");
   }
   if (options.length === 0) {
-    doc.write("return INVALID;");
+    doc2.write("return INVALID;");
     return accessor;
   }
   if (options.length === 1) {
-    return generateCheck(doc, ctx, options[0], accessor);
+    return generateCheck(doc2, ctx, options[0], accessor);
   }
   const allLiterals = options.every((opt) => opt._zod.def.type === "literal" && !opt._zod.def.checks?.length);
   if (allLiterals) {
     const values = new Set(options.flatMap((opt) => opt._zod.def.values));
     const valuesConst = addConstant(ctx, values);
-    doc.write(`if (!${valuesConst}.has(${accessor})) return INVALID;`);
+    doc2.write(`if (!${valuesConst}.has(${accessor})) return INVALID;`);
     return accessor;
   }
   const outputVar = newVar(ctx);
-  doc.write(`let ${outputVar};`);
+  doc2.write(`let ${outputVar};`);
   for (let i = 0; i < options.length; i++) {
     const opt = options[i];
     if (i === 0) {
-      doc.write(`${outputVar} = (() => {`);
+      doc2.write(`${outputVar} = (() => {`);
     } else {
-      doc.write(`if (${outputVar} === INVALID) ${outputVar} = (() => {`);
+      doc2.write(`if (${outputVar} === INVALID) ${outputVar} = (() => {`);
     }
-    doc.indented((d) => {
+    doc2.indented((d) => {
       const branchOutput = generateCheck(d, ctx, opt, accessor);
       d.write(`return ${branchOutput};`);
     });
-    doc.write(`})();`);
+    doc2.write(`})();`);
   }
-  doc.write(`if (${outputVar} === INVALID) return INVALID;`);
+  doc2.write(`if (${outputVar} === INVALID) return INVALID;`);
   return outputVar;
 }
-function generateDiscriminatedUnionCheck(doc, ctx, def, accessor) {
+function generateDiscriminatedUnionCheck(doc2, ctx, def, accessor) {
   if (def.unionFallback) {
     throw new ZodCompileUnsupportedError("discriminated union with unionFallback");
   }
   if (def.options.length === 0) {
-    doc.write("return INVALID;");
+    doc2.write("return INVALID;");
     return accessor;
   }
   const discVar = newVar(ctx);
   const outputVar = newVar(ctx);
-  doc.write(`const ${discVar} = ${accessor}?.[${esc(def.discriminator)}];`);
-  doc.write(`let ${outputVar};`);
+  doc2.write(`const ${discVar} = ${accessor}?.[${esc(def.discriminator)}];`);
+  doc2.write(`let ${outputVar};`);
   let firstBranch = true;
   const claimed = /* @__PURE__ */ new Set();
   for (const option of def.options) {
@@ -70774,15 +70932,15 @@ function generateDiscriminatedUnionCheck(doc, ctx, def, accessor) {
     }
     const conditions = Array.from(values, (value) => literalEquality(ctx, discVar, value));
     const prefix = firstBranch ? "if" : "else if";
-    doc.write(`${prefix} (${conditions.join(" || ")}) {`);
-    doc.indented((d) => {
+    doc2.write(`${prefix} (${conditions.join(" || ")}) {`);
+    doc2.indented((d) => {
       const branchOutput = generateCheck(d, ctx, option, accessor);
       d.write(`${outputVar} = ${branchOutput};`);
     });
-    doc.write(`}`);
+    doc2.write(`}`);
     firstBranch = false;
   }
-  doc.write(`else { return INVALID; }`);
+  doc2.write(`else { return INVALID; }`);
   return outputVar;
 }
 function literalEquality(ctx, accessor, value) {
@@ -70807,24 +70965,24 @@ function literalEquality(ctx, accessor, value) {
   }
   throw new ZodCompileUnsupportedError(`literal discriminator value ${String(value)}`);
 }
-function generateIntersectionCheck(doc, ctx, schema, accessor) {
+function generateIntersectionCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
-  const leftOutput = compileChild(doc, ctx, def.left, accessor);
-  const rightOutput = compileChild(doc, ctx, def.right, accessor);
+  const leftOutput = compileChild(doc2, ctx, def.left, accessor);
+  const rightOutput = compileChild(doc2, ctx, def.right, accessor);
   const mergeConst = addConstant(ctx, mergeValues);
   const mergedVar = newVar(ctx);
-  doc.write(`const ${mergedVar} = ${mergeConst}(${leftOutput}, ${rightOutput});`);
-  doc.write(`if (!${mergedVar}.valid) return INVALID;`);
+  doc2.write(`const ${mergedVar} = ${mergeConst}(${leftOutput}, ${rightOutput});`);
+  doc2.write(`if (!${mergedVar}.valid) return INVALID;`);
   return `${mergedVar}.data`;
 }
-function generateRecordCheck(doc, ctx, schema, accessor) {
+function generateRecordCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   const isPlainObjectConst = addConstant(ctx, isPlainObject);
-  doc.write(`if (!${isPlainObjectConst}(${accessor})) return INVALID;`);
+  doc2.write(`if (!${isPlainObjectConst}(${accessor})) return INVALID;`);
   const outputVar = newVar(ctx);
   const kVar = newVar(ctx);
   const valVar = newVar(ctx);
-  doc.write(`const ${outputVar} = {};`);
+  doc2.write(`const ${outputVar} = {};`);
   const recordDef = def;
   const keyValues = recordDef.partial ? void 0 : def.keyType._zod.values;
   if (keyValues) {
@@ -70839,15 +70997,15 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
       }
       inputKeys.push(inputKey);
       const keyConst = addConstant(ctx, key);
-      const outKey = generateCheck(doc, ctx, def.keyType, keyConst);
+      const outKey = generateCheck(doc2, ctx, def.keyType, keyConst);
       const valueVar = newVar(ctx);
-      doc.write(`const ${valueVar} = ${accessor}[${literalPropertyKey(ctx, inputKey)}];`);
-      const valOutput = compileChild(doc, ctx, def.valueType, valueVar);
-      doc.write(`${outputVar}[${outKey}] = ${valOutput};`);
+      doc2.write(`const ${valueVar} = ${accessor}[${literalPropertyKey(ctx, inputKey)}];`);
+      const valOutput = compileChild(doc2, ctx, def.valueType, valueVar);
+      doc2.write(`${outputVar}[${outKey}] = ${valOutput};`);
     }
     const knownKeysConst = addConstant(ctx, new Set(inputKeys));
-    doc.write(`for (const ${kVar} in ${accessor}) {`);
-    doc.indented((d) => {
+    doc2.write(`for (const ${kVar} in ${accessor}) {`);
+    doc2.indented((d) => {
       d.write(`if (${knownKeysConst}.has(${kVar})) continue;`);
       if (recordDef.mode === "loose") {
         d.write(`if (${kVar} !== "__proto__") ${outputVar}[${kVar}] = ${accessor}[${kVar}];`);
@@ -70855,7 +71013,7 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
         d.write(`return INVALID;`);
       }
     });
-    doc.write(`}`);
+    doc2.write(`}`);
     return outputVar;
   }
   const keyDef = def.keyType._zod.def;
@@ -70866,8 +71024,8 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
     const numericConst = addConstant(ctx, number);
     const propIsEnumerableConst = addConstant(ctx, Object.prototype.propertyIsEnumerable);
     const outKeyVar = newVar(ctx);
-    doc.write(`for (const ${kVar} of Reflect.ownKeys(${accessor})) {`);
-    doc.indented((d) => {
+    doc2.write(`for (const ${kVar} of Reflect.ownKeys(${accessor})) {`);
+    doc2.indented((d) => {
       d.write(`if (${kVar} === "__proto__") continue;`);
       d.write(`if (!${propIsEnumerableConst}.call(${accessor}, ${kVar})) continue;`);
       d.write(`let ${outKeyVar} = ${keyFast}(${kVar});`);
@@ -70883,12 +71041,12 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
       const valOutput = compileChild(d, ctx, def.valueType, valueVar);
       d.write(`${outputVar}[${outKeyVar}] = ${valOutput};`);
     });
-    doc.write(`}`);
+    doc2.write(`}`);
     return outputVar;
   }
   const propIsEnumerable = addConstant(ctx, Object.prototype.propertyIsEnumerable);
-  doc.write(`for (const ${kVar} of Reflect.ownKeys(${accessor})) {`);
-  doc.indented((d) => {
+  doc2.write(`for (const ${kVar} of Reflect.ownKeys(${accessor})) {`);
+  doc2.indented((d) => {
     d.write(`if (${kVar} === "__proto__") continue;`);
     d.write(`if (!${propIsEnumerable}.call(${accessor}, ${kVar})) continue;`);
     d.write(`if (typeof ${kVar} !== "string") return INVALID;`);
@@ -70896,7 +71054,7 @@ function generateRecordCheck(doc, ctx, schema, accessor) {
     const valOutput = compileChild(d, ctx, def.valueType, valVar);
     d.write(`${outputVar}[${kVar}] = ${valOutput};`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   return outputVar;
 }
 function literalPropertyKey(ctx, key) {
@@ -70904,56 +71062,56 @@ function literalPropertyKey(ctx, key) {
     return esc(key);
   return addConstant(ctx, key);
 }
-function generateMapCheck(doc, ctx, schema, accessor) {
+function generateMapCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
-  doc.write(`if (!(${accessor} instanceof Map)) return INVALID;`);
+  doc2.write(`if (!(${accessor} instanceof Map)) return INVALID;`);
   const outputVar = newVar(ctx);
   const kVar = newVar(ctx);
   const valVar = newVar(ctx);
-  doc.write(`const ${outputVar} = new Map();`);
-  doc.write(`for (const [${kVar}, ${valVar}] of ${accessor}) {`);
-  doc.indented((d) => {
+  doc2.write(`const ${outputVar} = new Map();`);
+  doc2.write(`for (const [${kVar}, ${valVar}] of ${accessor}) {`);
+  doc2.indented((d) => {
     const keyOutput = generateCheck(d, ctx, def.keyType, kVar);
     const valOutput = generateCheck(d, ctx, def.valueType, valVar);
     d.write(`${outputVar}.set(${keyOutput}, ${valOutput});`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   return outputVar;
 }
-function generateSetCheck(doc, ctx, schema, accessor) {
+function generateSetCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
-  doc.write(`if (!(${accessor} instanceof Set)) return INVALID;`);
+  doc2.write(`if (!(${accessor} instanceof Set)) return INVALID;`);
   const outputVar = newVar(ctx);
   const valVar = newVar(ctx);
-  doc.write(`const ${outputVar} = new Set();`);
-  doc.write(`for (const ${valVar} of ${accessor}) {`);
-  doc.indented((d) => {
+  doc2.write(`const ${outputVar} = new Set();`);
+  doc2.write(`for (const ${valVar} of ${accessor}) {`);
+  doc2.indented((d) => {
     const valOutput = generateCheck(d, ctx, def.valueType, valVar);
     d.write(`${outputVar}.add(${valOutput});`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   return outputVar;
 }
-function generateFileCheck(doc, accessor) {
-  doc.write(`if (!(${accessor} instanceof File)) return INVALID;`);
+function generateFileCheck(doc2, accessor) {
+  doc2.write(`if (!(${accessor} instanceof File)) return INVALID;`);
   return accessor;
 }
-function generateTemplateLiteralCheck(doc, ctx, schema, accessor) {
-  doc.write(`if (typeof ${accessor} !== "string") return INVALID;`);
+function generateTemplateLiteralCheck(doc2, ctx, schema, accessor) {
+  doc2.write(`if (typeof ${accessor} !== "string") return INVALID;`);
   const pattern = schema._zod.pattern;
   if (pattern) {
     const patternConst = addConstant(ctx, pattern);
-    doc.write(`${patternConst}.lastIndex = 0;`);
-    doc.write(`if (!${patternConst}.test(${accessor})) return INVALID;`);
+    doc2.write(`${patternConst}.lastIndex = 0;`);
+    doc2.write(`if (!${patternConst}.test(${accessor})) return INVALID;`);
   }
   return accessor;
 }
-function generateLazyCheck(doc, ctx, schema, accessor) {
+function generateLazyCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   const getterConst = addConstant(ctx, def.getter);
   const cacheConst = addConstant(ctx, { parser: null });
-  doc.write(`if (!${cacheConst}.parser) {`);
-  doc.indented((d) => {
+  doc2.write(`if (!${cacheConst}.parser) {`);
+  doc2.indented((d) => {
     d.write(`const inner = ${getterConst}();`);
     d.write(`${cacheConst}.parser = function(input) {`);
     d.indented((d2) => {
@@ -70962,15 +71120,15 @@ function generateLazyCheck(doc, ctx, schema, accessor) {
     });
     d.write(`};`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   const outputVar = newVar(ctx);
-  doc.write(`const ${outputVar} = ${cacheConst}.parser(${accessor});`);
-  doc.write(`if (${outputVar} === INVALID) return INVALID;`);
+  doc2.write(`const ${outputVar} = ${cacheConst}.parser(${accessor});`);
+  doc2.write(`if (${outputVar} === INVALID) return INVALID;`);
   return outputVar;
 }
-function generatePipeCheck(doc, ctx, schema, accessor) {
+function generatePipeCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
-  const inputOutput = generateCheck(doc, ctx, def.in, accessor);
+  const inputOutput = generateCheck(doc2, ctx, def.in, accessor);
   if (def.transform) {
     if (isAsyncFunction(def.transform)) {
       throw new ZodCompileAsyncError("z.compile: async transforms in pipes are not supported");
@@ -70985,17 +71143,17 @@ function generatePipeCheck(doc, ctx, schema, accessor) {
     };
     const helperConst = addConstant(ctx, helperFn);
     const transformedVar = newVar(ctx);
-    doc.write(`const ${transformedVar} = ${helperConst}(${inputOutput});`);
-    doc.write(`if (${transformedVar} === INVALID) return INVALID;`);
-    return generateCheck(doc, ctx, def.out, transformedVar);
+    doc2.write(`const ${transformedVar} = ${helperConst}(${inputOutput});`);
+    doc2.write(`if (${transformedVar} === INVALID) return INVALID;`);
+    return generateCheck(doc2, ctx, def.out, transformedVar);
   } else {
-    return generateCheck(doc, ctx, def.out, inputOutput);
+    return generateCheck(doc2, ctx, def.out, inputOutput);
   }
 }
 function isAsyncFunction(fn) {
   return typeof fn === "function" && (fn.constructor.name === "AsyncFunction" || fn[Symbol.toStringTag] === "AsyncFunction");
 }
-function generateCustomCheck(doc, ctx, schema, accessor) {
+function generateCustomCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   if (def.fn) {
     if (isAsyncFunction(def.fn)) {
@@ -71004,9 +71162,9 @@ function generateCustomCheck(doc, ctx, schema, accessor) {
     const fnConst = addConstant(ctx, def.fn);
     const throwAsyncConst = addConstant(ctx, throwAsync);
     const resVar = newVar(ctx);
-    doc.write(`const ${resVar} = ${fnConst}(${accessor});`);
-    doc.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}();`);
-    doc.write(`if (!${resVar}) return INVALID;`);
+    doc2.write(`const ${resVar} = ${fnConst}(${accessor});`);
+    doc2.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}();`);
+    doc2.write(`if (!${resVar}) return INVALID;`);
   } else {
     throw new ZodCompileUnsupportedError("custom schema without a predicate function");
   }
@@ -71021,30 +71179,30 @@ function runtimeCatch(innerSchema, catchValue, value) {
     return r.value;
   return catchValue();
 }
-function generateCatchCheck(doc, ctx, schema, accessor) {
+function generateCatchCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   if (!def.catchValue[CONSTANT_CATCH]) {
     throw new ZodCompileUnsupportedError("catch with a callback (only a constant catch value compiles)", false);
   }
   const outputVar = newVar(ctx);
-  doc.write(`let ${outputVar} = (() => {`);
-  doc.indented((d) => {
+  doc2.write(`let ${outputVar} = (() => {`);
+  doc2.indented((d) => {
     const innerOut = compileChild(d, ctx, def.innerType, accessor);
     d.write(`return ${innerOut};`);
   });
-  doc.write(`})();`);
+  doc2.write(`})();`);
   const innerConst = addConstant(ctx, def.innerType);
   const catchConst = addConstant(ctx, def.catchValue);
   const catchHelperConst = addConstant(ctx, runtimeCatch);
-  doc.write(`if (${outputVar} === INVALID) {`);
-  doc.indented((d) => {
+  doc2.write(`if (${outputVar} === INVALID) {`);
+  doc2.indented((d) => {
     d.write(`${outputVar} = ${catchHelperConst}(${innerConst}, ${catchConst}, ${accessor});`);
     d.write(`if (${outputVar} === INVALID) return INVALID;`);
   });
-  doc.write(`}`);
+  doc2.write(`}`);
   return outputVar;
 }
-function generateTransformCheck(doc, ctx, schema, accessor) {
+function generateTransformCheck(doc2, ctx, schema, accessor) {
   const def = schema._zod.def;
   if (def.transform) {
     if (isAsyncFunction(def.transform)) {
@@ -71060,8 +71218,8 @@ function generateTransformCheck(doc, ctx, schema, accessor) {
     };
     const helperConst = addConstant(ctx, helperFn);
     const outputVar = newVar(ctx);
-    doc.write(`const ${outputVar} = ${helperConst}(${accessor});`);
-    doc.write(`if (${outputVar} === INVALID) return INVALID;`);
+    doc2.write(`const ${outputVar} = ${helperConst}(${accessor});`);
+    doc2.write(`if (${outputVar} === INVALID) return INVALID;`);
     return outputVar;
   }
   return accessor;
@@ -76527,6 +76685,18 @@ var docSnapshot = async (khoa, ver, nguon) => {
     return null;
   }
 };
+var SNAPSHOT_GIU_NGAY = 14;
+var SNAPSHOT_DON_MS = 6 * 36e5;
+var donLuc = 0;
+var donSnapshotCu = async () => {
+  if (Date.now() - donLuc < SNAPSHOT_DON_MS) return;
+  donLuc = Date.now();
+  try {
+    await pool.query(`DELETE FROM all_data_snapshot WHERE cap_nhat < now() - interval '${SNAPSHOT_GIU_NGAY} days'`);
+  } catch (e) {
+    console.error("[all-data] d\u1ECDn b\u1EA3n n\xE9n c\u0169 l\u1ED7i", e);
+  }
+};
 var luuSnapshot = async (khoa, ver, buf) => {
   snapshotNho.set(khoa, { ver, buf });
   while (snapshotNho.size > SNAPSHOT_NHO_MAX) {
@@ -76541,6 +76711,7 @@ var luuSnapshot = async (khoa, ver, buf) => {
        ON CONFLICT (khoa) DO UPDATE SET ver = EXCLUDED.ver, du_lieu = EXCLUDED.du_lieu, cap_nhat = now()`,
       [khoa, ver, buf]
     );
+    await donSnapshotCu();
   } catch (e) {
     if (isMissingSchema(e)) snapshotBat = false;
     else console.error("[all-data] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
@@ -76874,14 +77045,14 @@ function moDoi(doi) {
   }
   return co2 ? ra : 0;
 }
-function taoNhoCoHan(hanMs, doc, bayGio = Date.now) {
+function taoNhoCoHan(hanMs, doc2, bayGio = Date.now) {
   let nho5 = null;
   let dangDoc = null;
   let luot = 0;
   const docMoi = () => {
     if (dangDoc) return dangDoc;
     const l = luot;
-    const p = doc().then((v) => {
+    const p = doc2().then((v) => {
       if (l === luot) nho5 = { luc: bayGio(), v };
       return v;
     }).finally(() => {
@@ -76943,7 +77114,7 @@ async function layFileCongTrinh(moc2) {
   if (dangDung?.khoa === khoa) return dangDung.p;
   const p = (async () => {
     try {
-      const r = await timedQuery(SQL, [], { timeoutMs: 6e4, heavy: true });
+      const r = await timedQuery(SQL, [], { timeoutMs: 6e4, heavy: true, workMemMb: 32 });
       const kq = {
         khoa: khoaFile,
         body: {
@@ -77255,8 +77426,8 @@ function chonViTri(vao, opt = {}) {
     ung.push({ d, ma, tu });
   }
   if (!ung.length) return null;
-  const hang = Math.min(...ung.map((u) => hangBop(u.ma)));
-  const chon = ung.filter((u) => hangBop(u.ma) === hang).sort((a, b) => msCua(a.tu) - msCua(b.tu));
+  const hang2 = Math.min(...ung.map((u) => hangBop(u.ma)));
+  const chon = ung.filter((u) => hangBop(u.ma) === hang2).sort((a, b) => msCua(a.tu) - msCua(b.tu));
   return { ma: chon[0].ma, tu: chon[0].tu, cd: [...new Set(chon.map((u) => tenCua(u.d)))], trangThai: chon[0].d.trangThai };
 }
 function dungBanDo(dong2, suKien, cd, opt = {}) {
@@ -77387,9 +77558,9 @@ function taoNguonBanDo(deps) {
     const now = bayGio();
     lucDo = now;
     if (ban && dauMoi === dau && now - lucDung < DUNG_LAI_MS) return ban;
-    const [doc, coCot, giu] = await Promise.all([docTrangThaiMra("tat-ca", deps.q), coCotMaBop(deps.q), deps.q(SQL_GIU_PC)]);
+    const [doc2, coCot, giu] = await Promise.all([docTrangThaiMra("tat-ca", deps.q), coCotMaBop(deps.q), deps.q(SQL_GIU_PC)]);
     const dm = await deps.q(`SELECT id, xuong, ten_cd, cd_chi_tiet, thu_tu, la_bao_bi${coCot ? ", ma_bop" : ""} FROM xuong_cong_doan`);
-    const dung2 = dungBanDo(doc.dong.map(thanhDong), doc.suKien.map(thanhSuKien), dm.rows.map(thanhCongDoan), deps.opt);
+    const dung2 = dungBanDo(doc2.dong.map(thanhDong), doc2.suKien.map(thanhSuKien), dm.rows.map(thanhCongDoan), deps.opt);
     const { map: map2 } = dung2;
     const thongKe = { ...dung2.thongKe, giuPc: dung2.thongKe.giuPc + (Number(giu.rows[0]?.so_giu) || 0) };
     const ver = verBanDo(map2);
@@ -77801,7 +77972,17 @@ var parseVNDate = (dateStr) => {
 
 // ../frontend/utils/productionMetrics.ts
 var IPO_MAC_DINH = "01. \u0110ANG S\u1EA2N XU\u1EA4T";
-var laHuy = (ipo) => /H(?:ỦY|UỶ)/.test(String(ipo ?? "").normalize("NFC").toUpperCase());
+var nhoHuy = /* @__PURE__ */ new Map();
+var laHuy = (ipo) => {
+  const s = String(ipo ?? "");
+  let r = nhoHuy.get(s);
+  if (r === void 0) {
+    r = /H(?:ỦY|UỶ)/.test(s.normalize("NFC").toUpperCase());
+    if (nhoHuy.size > 2e3) nhoHuy.clear();
+    nhoHuy.set(s, r);
+  }
+  return r;
+};
 var doneValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.min(Math.max(nhapKho, 0), Math.max(total, 0));
 var remainValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.max(total - Math.max(nhapKho, 0), 0);
 var QTY_ORDER_KEY = "so_luong_don_hang_tong";
@@ -77862,7 +78043,17 @@ var deadlineOf = (row, k) => {
   const source = tuan ? "tu\u1EA7n" : thang2 ? "th\xE1ng" : null;
   return { date: date5, source, khnkTuan, khnkThang, canGiao, canPm, botDuAn, tuanMet, thangMet };
 };
-var normProjectName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+var nhoTenCt = /* @__PURE__ */ new Map();
+var normProjectName = (v) => {
+  const s = String(v ?? "");
+  let r = nhoTenCt.get(s);
+  if (r === void 0) {
+    r = s.trim().replace(/\s+/g, " ").toUpperCase();
+    if (nhoTenCt.size > 2e4) nhoTenCt.clear();
+    nhoTenCt.set(s, r);
+  }
+  return r;
+};
 var projectAlias = /* @__PURE__ */ new Map();
 var projectVariants = /* @__PURE__ */ new Map();
 var serverAlias = /* @__PURE__ */ new Map();
@@ -82010,12 +82201,12 @@ var thamSoHealth = (date5, filters, cuoiThang) => ({
   phamViTon: (ps) => stockScopeConds(filters, ps, "s"),
   phamViPsa: healthCoLoc(filters) ? (ps) => productionConds(filters, ps) : null
 });
-var docLaiKhiDutKetNoi = async (doc) => {
+var docLaiKhiDutKetNoi = async (doc2) => {
   try {
-    return await doc();
+    return await doc2();
   } catch (e) {
     if (!/idle-in-transaction|Connection terminated|conn crashed/i.test(String(e?.message))) throw e;
-    return doc();
+    return doc2();
   }
 };
 var docDauVaoHealth = (date5, filters) => cachedByVersions(stockHealthInputCache, `${date5}|${JSON.stringify(filters)}`, stockHealthVersionKeys, () => docLaiKhiDutKetNoi(async () => {
@@ -82079,12 +82270,12 @@ app.get("/api/stock/health/chi-tiet", async (req, res) => {
       const [input2, moTa] = await Promise.all([docDauVaoHealth(date5, filters), docMoTaHealth()]);
       const can = canDocChiTiet(input2, yc);
       const t = thamSoHealth(date5, filters, []);
-      const doc = (c) => docLaiKhiDutKetNoi(async () => (await timedQuery(c.sql, c.params)).rows);
+      const doc2 = (c) => docLaiKhiDutKetNoi(async () => (await timedQuery(c.sql, c.params)).rows);
       const [tonNgay, nhap, xuat, don] = await Promise.all([
-        can.tonNgay.length ? doc(sqlTonNgay(t, can.tonNgay)) : null,
-        can.nhap ? doc(sqlDongLuong(t, { loai: "n", ...can.nhap })) : null,
-        can.xuat ? doc(sqlDongLuong(t, { loai: "x", ...can.xuat })) : null,
-        can.don ? doc(sqlDonPsa(t, can.don)) : null
+        can.tonNgay.length ? doc2(sqlTonNgay(t, can.tonNgay)) : null,
+        can.nhap ? doc2(sqlDongLuong(t, { loai: "n", ...can.nhap })) : null,
+        can.xuat ? doc2(sqlDongLuong(t, { loai: "x", ...can.xuat })) : null,
+        can.don ? doc2(sqlDonPsa(t, can.don)) : null
       ]);
       return chiTietTonKhoV5(input2, yc, { moTa, ...ghepDocThem(can.tonNgay, tonNgay, nhap, xuat, don) });
     }, workshopGroupsVersion());
@@ -82688,10 +82879,10 @@ var timHang = (s) => {
 };
 var thuongHieuTuNcc = (ncc, tenVatTu) => {
   if (typeof ncc !== "string" || !ncc.trim()) return null;
-  const hang = timHang(ncc.replace(/^\s*\d+\s*-\s*/, ""))[0];
-  if (!hang) return null;
-  if (typeof tenVatTu === "string" && timHang(tenVatTu).some((h) => h !== hang)) return null;
-  return hang;
+  const hang2 = timHang(ncc.replace(/^\s*\d+\s*-\s*/, ""))[0];
+  if (!hang2) return null;
+  if (typeof tenVatTu === "string" && timHang(tenVatTu).some((h) => h !== hang2)) return null;
+  return hang2;
 };
 var tenNcc = (v) => {
   if (typeof v !== "string") return null;
@@ -84876,10 +85067,21 @@ app.get("/api/khnk-sheet/thong-tin", async (_req, res) => {
 // src/routes/hoSoCongTrinh.ts
 var MA = /^[A-Z]{2,3}\d{2}-[0-9A-Z]{1,12}$/;
 var HUY = `(UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%H\u1EE6Y%' OR UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%HU\u1EF6%')`;
+var doc = (text, params) => timedQuery(text, params, { gopThamSo: true });
+var neuCoBang = async (viec) => {
+  try {
+    return await viec();
+  } catch (e) {
+    if (e.code === "42P01") return null;
+    throw e;
+  }
+};
 var so6 = (v) => v == null ? 0 : Number(v) || 0;
+var cacheDs = createCache(1);
 app.get("/api/ho-so-cong-trinh/danh-sach", async (_req, res) => {
   try {
-    const r = await timedQuery(`
+    res.json(await cachedByVersions(cacheDs, "ds", ["production"], async () => {
+      const r = await timedQuery(`
       SELECT x.ma, (array_agg(ten ORDER BY n DESC))[1] AS ten, MAX(pc.pcs) AS pcs, (array_agg(pm ORDER BY npm DESC) FILTER (WHERE pm IS NOT NULL))[1] AS pm,
              SUM(n)::int AS so_hex, SUM(gt)::float8 AS gia_tri, MAX(bot)::text AS bot
         FROM (
@@ -84892,7 +85094,8 @@ app.get("/api/ho-so-cong-trinh/danh-sach", async (_req, res) => {
         LEFT JOIN (SELECT UPPER(TRIM(ma_cong_trinh)) AS ma, string_agg(DISTINCT TRIM(ten_pc), '|') AS pcs
                      FROM production_status_app WHERE COALESCE(TRIM(ten_pc), '') <> '' GROUP BY 1) pc ON pc.ma = x.ma
        GROUP BY x.ma ORDER BY x.ma DESC`);
-    res.json({ ds: r.rows.map((x) => ({ ma: x.ma, ten: x.ten, pm: x.pm, pcs: x.pcs ? String(x.pcs).split("|") : [], soHex: x.so_hex, giaTri: so6(x.gia_tri), bot: x.bot })) });
+      return { ds: r.rows.map((x) => ({ ma: x.ma, ten: x.ten, pm: x.pm, pcs: x.pcs ? String(x.pcs).split("|") : [], soHex: x.so_hex, giaTri: so6(x.gia_tri), bot: x.bot })) };
+    }, "", "ho-so-ct/danh-sach", false));
   } catch (e) {
     console.error("[ho-so-cong-trinh/danh-sach]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c danh s\xE1ch c\xF4ng tr\xECnh" });
@@ -84933,9 +85136,9 @@ app.get("/api/ho-so-cong-trinh/:ma", async (req, res) => {
   try {
     const coGia = await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
     const W = `UPPER(TRIM(ma_cong_trinh)) = $1`;
-    const [dau, nguoi, ipo, bop, kho, khsx, nhapThang, tkbv, botTh, botCd, khnk, pr, prDong, tonVt, bopM2, nvl, vm, khsxDong] = await Promise.all([
+    const [dau, nguoi, ipo, bop, kho, khsx, nhapThang, tkbv, botTh, botCd, khnk, pr, prDong, tonVt, bopM2, nvl, vm, khsxDong, danhMucVl, bienBan, hm, tl] = await Promise.all([
       // 1. Thông tin chung (mode các cột lặp theo HEX)
-      timedQuery(`SELECT
+      doc(`SELECT
           (SELECT ten_cong_trinh FROM production_status_app WHERE ${W} GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS ten,
           (SELECT khach_hang FROM production_status_app WHERE ${W} AND COALESCE(TRIM(khach_hang), '') <> '' GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS khach_hang,
           (SELECT khu_vuc_du_an FROM production_status_app WHERE ${W} AND COALESCE(TRIM(khu_vuc_du_an), '') <> '' GROUP BY 1 ORDER BY count(*) DESC LIMIT 1) AS khu_vuc,
@@ -84950,81 +85153,122 @@ app.get("/api/ho-so-cong-trinh/:ma", async (req, res) => {
              FROM production_status_app WHERE ${W})::float8 AS da_nhap_hm,
           (SELECT COALESCE(SUM(CASE WHEN ${HUY} THEN 0 ELSE thanh_tien_tinh_phieu END), 0) FROM production_status_app WHERE ${W})::float8 AS tinh_phieu`, [ma]),
       // PM / PC (mọi cách ghi + số hạng mục)
-      timedQuery(`SELECT 'pm' AS vai, TRIM(ten_pm) AS ten, count(*)::int AS n FROM production_status_app WHERE ${W} AND COALESCE(TRIM(ten_pm), '') <> '' GROUP BY 2
+      doc(`SELECT 'pm' AS vai, TRIM(ten_pm) AS ten, count(*)::int AS n FROM production_status_app WHERE ${W} AND COALESCE(TRIM(ten_pm), '') <> '' GROUP BY 2
                   UNION ALL
                   SELECT 'pc', TRIM(ten_pc), count(*)::int FROM production_status_app WHERE ${W} AND COALESCE(TRIM(ten_pc), '') <> '' GROUP BY 2
                   ORDER BY 1, 3 DESC`, [ma]),
       // Theo tình trạng IPO: số HEX, giá trị, số lượng (đơn vị khác nhau => chỉ để tham khảo theo ĐVT)
-      timedQuery(`SELECT COALESCE(NULLIF(TRIM(tinh_trang_ipo), ''), '(tr\u1ED1ng)') AS ipo, count(*)::int AS so_hex,
+      doc(`SELECT COALESCE(NULLIF(TRIM(tinh_trang_ipo), ''), '(tr\u1ED1ng)') AS ipo, count(*)::int AS so_hex,
                          COALESCE(SUM(tri_gia_don_hang_tong), 0)::float8 AS gia_tri
                     FROM production_status_app WHERE ${W} GROUP BY 1 ORDER BY 1`, [ma]),
       // 5. BOP: công đoạn hiện tại của hạng mục (bỏ HỦY), giá trị còn lại
-      timedQuery(`SELECT COALESCE(NULLIF(TRIM(bop), ''), '(tr\u1ED1ng)') AS bop, count(*)::int AS so_hex,
+      doc(`SELECT COALESCE(NULLIF(TRIM(bop), ''), '(tr\u1ED1ng)') AS bop, count(*)::int AS so_hex,
                          COALESCE(SUM(tri_gia_don_hang_tong), 0)::float8 AS gia_tri,
                          COALESCE(SUM(GREATEST(COALESCE(tri_gia_don_hang_tong, 0) - LEAST(GREATEST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), 0), GREATEST(COALESCE(tri_gia_don_hang_tong, 0), 0)), 0)), 0)::float8 AS con_lai
                     FROM production_status_app WHERE ${W} AND NOT ${HUY} GROUP BY 1 ORDER BY 1`, [ma]),
       // Nhập / xuất / tồn theo 3 bảng kho (như Bảng KHNK)
-      timedQuery(`SELECT
+      doc(`SELECT
           (SELECT COALESCE(SUM(thanh_tien_nhap_kho), 0) FROM nhap_kho WHERE ${W})::float8 AS nhap,
           (SELECT COALESCE(SUM(thanh_tien_xuat_kho), 0) FROM xuat_kho WHERE ${W})::float8 AS xuat,
           (SELECT COALESCE(SUM(gia_tri_num), 0) FROM ton_kho WHERE ${W} AND date_parsed = (SELECT max(date_parsed) FROM ton_kho))::float8 AS ton,
           (SELECT max(date_parsed)::text FROM ton_kho) AS ngay_ton`, [ma]),
       // 4. Masterplan: KH sản xuất tháng / tuần
-      timedQuery(`SELECT UPPER(TRIM(phan_loai_kh)) AS loai, nam::int AS nam, thang::int AS thang, tuan::int AS tuan,
+      doc(`SELECT UPPER(TRIM(phan_loai_kh)) AS loai, nam::int AS nam, thang::int AS thang, tuan::int AS tuan,
                          count(DISTINCT hex)::int AS so_hex, COALESCE(SUM(thanh_tien_ke_hoach_num), 0)::float8 AS gia_tri
                     FROM khsx k WHERE UPPER(TRIM(k.ma_cong_trinh)) = $1
                      AND NOT EXISTS (SELECT 1 FROM production_status_app p WHERE p.hex = k.hex AND ${HUY.replace(/tinh_trang_ipo/g, "p.tinh_trang_ipo")})
                    GROUP BY 1, 2, 3, 4 ORDER BY 2, 3, 4`, [ma]),
-      timedQuery(`SELECT to_char(date_parsed, 'YYYY-MM') AS thang, COALESCE(SUM(thanh_tien_nhap_kho), 0)::float8 AS gia_tri, count(DISTINCT hex)::int AS so_hex
+      doc(`SELECT to_char(date_parsed, 'YYYY-MM') AS thang, COALESCE(SUM(thanh_tien_nhap_kho), 0)::float8 AS gia_tri, count(DISTINCT hex)::int AS so_hex
                     FROM nhap_kho WHERE ${W} AND date_parsed IS NOT NULL GROUP BY 1 ORDER BY 1`, [ma]),
       // 2/4. Triển khai bản vẽ
-      timedQuery(`SELECT COALESCE(NULLIF(TRIM(tinh_trang_trien_khai_ban_ve), ''), '(tr\u1ED1ng)') AS tt, count(*)::int AS so_hex,
+      doc(`SELECT COALESCE(NULLIF(TRIM(tinh_trang_trien_khai_ban_ve), ''), '(tr\u1ED1ng)') AS tt, count(*)::int AS so_hex,
                          to_char(MIN(ngay_trien_khai_ban_ve), 'YYYY-MM-DD') AS tu, to_char(MAX(ngay_trien_khai_ban_ve), 'YYYY-MM-DD') AS den
                     FROM production_status_app WHERE ${W} AND NOT ${HUY} GROUP BY 1 ORDER BY 2 DESC`, [ma]),
       // 5. BOT: ngày cần giao (file tổng hợp BOT)
-      timedQuery(`SELECT to_char(MIN(ngay_can_giao), 'YYYY-MM-DD') AS tu, to_char(MAX(ngay_can_giao), 'YYYY-MM-DD') AS den, count(*)::int AS so_hex,
+      doc(`SELECT to_char(MIN(ngay_can_giao), 'YYYY-MM-DD') AS tu, to_char(MAX(ngay_can_giao), 'YYYY-MM-DD') AS den, count(*)::int AS so_hex,
                          COALESCE(SUM(tt_con_lai), 0)::float8 AS con_lai
                     FROM bot_tong_hop WHERE UPPER(TRIM(ma_ct)) = $1
                      AND UPPER(COALESCE(ipo, '')) NOT LIKE '%H\u1EE6Y%' AND UPPER(COALESCE(ipo, '')) NOT LIKE '%HU\u1EF6%'`, [ma]),
       // BOT công đoạn (BOT nhập theo công đoạn)
-      timedQuery(`SELECT b.cong_doan, count(DISTINCT b.hex)::int AS so_hex, to_char(MIN(b.ngay), 'YYYY-MM-DD') AS tu, to_char(MAX(b.ngay), 'YYYY-MM-DD') AS den
+      doc(`SELECT b.cong_doan, count(DISTINCT b.hex)::int AS so_hex, to_char(MIN(b.ngay), 'YYYY-MM-DD') AS tu, to_char(MAX(b.ngay), 'YYYY-MM-DD') AS den
                     FROM bot_cong_doan b JOIN (SELECT DISTINCT hex::text AS hex FROM production_status_app WHERE ${W} AND NOT ${HUY}) p ON p.hex = b.hex::text
                    GROUP BY 1 ORDER BY 1`, [ma]),
       // KHNK theo tháng (sheet năm của PRODUCTION STATUS.xlsx)
-      timedQuery(`SELECT sheet, tieu_de, dong FROM khnk_sheet ORDER BY nap_luc DESC LIMIT 1`),
+      doc(`SELECT sheet, tieu_de, dong FROM khnk_sheet ORDER BY nap_luc DESC LIMIT 1`),
       // 3. Danh mục vật liệu: PR / PO (vat_tu, khớp trackingno = mã CT)
-      timedQuery(`SELECT COALESCE(NULLIF(TRIM(trang_thai), ''), '(tr\u1ED1ng)') AS tt, count(*)::int AS so_dong, count(DISTINCT so_pr)::int AS so_pr,
+      doc(`SELECT COALESCE(NULLIF(TRIM(trang_thai), ''), '(tr\u1ED1ng)') AS tt, count(*)::int AS so_dong, count(DISTINCT so_pr)::int AS so_pr,
                          COALESCE(SUM(thanh_tien), 0)::float8 AS thanh_tien, count(*) FILTER (WHERE COALESCE(thanh_tien, 0) > 0)::int AS co_gia
                     FROM vat_tu WHERE UPPER(TRIM(trackingno)) = $1 GROUP BY 1 ORDER BY 1`, [ma]),
-      timedQuery(`SELECT trang_thai, so_pr, pr_line, ma_vat_tu_sap, ten_vat_tu, nhom_vt, dvt, so_luong_yeu_cau, so_luong_con_lai, so_po, nha_cung_cap,
+      doc(`SELECT trang_thai, so_pr, pr_line, ma_vat_tu_sap, ten_vat_tu, nhom_vt, dvt, so_luong_yeu_cau, so_luong_con_lai, so_po, nha_cung_cap,
                          to_char(ngay_pr, 'YYYY-MM-DD') AS ngay_pr, to_char(ngay_can_vat_tu, 'YYYY-MM-DD') AS ngay_can,
                          to_char(ngay_du_kien_giao_hang_pmh_nhap, 'YYYY-MM-DD') AS ngay_du_kien, to_char(ngay_thuc_te_ve, 'YYYY-MM-DD') AS ngay_ve,
                          code_vat_lieu, team_pr_note, thanh_tien
                     FROM vat_tu WHERE UPPER(TRIM(trackingno)) = $1 ORDER BY trang_thai, ngay_pr DESC NULLS LAST LIMIT 500`, [ma]),
-      timedQuery(`SELECT to_char(date, 'YYYY-MM-DD') AS ngay, ma_vat_tu, ten_vat_tu, nhom_vat_tu, so_luong::float8 AS so_luong, dvt, gia_tri::float8 AS gia_tri
+      doc(`SELECT to_char(date, 'YYYY-MM-DD') AS ngay, ma_vat_tu, ten_vat_tu, nhom_vat_tu, so_luong::float8 AS so_luong, dvt, gia_tri::float8 AS gia_tri
                     FROM ton_kho_vt WHERE ${W} AND date = (SELECT max(date) FROM ton_kho_vt)
                    ORDER BY ${coGia ? "gia_tri" : "so_luong"} DESC NULLS LAST LIMIT 300`, [ma]),
-      timedQuery(`SELECT (SELECT count(*) FROM bop_m2_vat_lieu WHERE UPPER(TRIM(ma_ct)) = $1)::int AS vat_lieu,
+      doc(`SELECT (SELECT count(*) FROM bop_m2_vat_lieu WHERE UPPER(TRIM(ma_ct)) = $1)::int AS vat_lieu,
                          (SELECT count(*) FROM bop_m2_hex WHERE UPPER(TRIM(ma_ct)) = $1)::int AS hex`, [ma]),
       // 7. Rủi ro: tình trạng NVL theo hạng mục (giao diện tách dòng bằng nvlParse)
-      timedQuery(`SELECT hex::text AS hex, ten_hang_muc, bop, tinh_trang_nvl_khac_item_by_item, tinh_trang_nvl_kinh_da_item_by_item,
+      doc(`SELECT hex::text AS hex, ten_hang_muc, bop, tinh_trang_nvl_khac_item_by_item, tinh_trang_nvl_kinh_da_item_by_item,
                          tinh_trang_nvl_sofa_item_by_item, tinh_trang_gcn_chua_ve
                     FROM production_status_app WHERE ${W} AND NOT ${HUY}
                      AND (COALESCE(tinh_trang_nvl_khac_item_by_item, '') <> '' OR COALESCE(tinh_trang_nvl_kinh_da_item_by_item, '') <> ''
                        OR COALESCE(tinh_trang_nvl_sofa_item_by_item, '') <> '' OR COALESCE(tinh_trang_gcn_chua_ve, '') <> '')`, [ma]),
-      timedQuery(`SELECT v.id, v.hex, v.category, v.content, v.status, v.priority, v.stage, v.handler, v.bot, v.ten_hang_muc,
+      doc(`SELECT v.id, v.hex, v.category, v.content, v.status, v.priority, v.stage, v.handler, v.bot, v.ten_hang_muc,
                          to_char(v.created_at, 'YYYY-MM-DD') AS ngay, v.is_resolved
                     FROM vuong_mac v
                    WHERE UPPER(TRIM(v.ma_cong_trinh)) = $1
                       OR v.hex IN (SELECT hex::text FROM production_status_app WHERE ${W})
                    ORDER BY v.is_resolved, v.created_at DESC LIMIT 200`, [ma]),
       // 4. Chi tiết KH sản xuất (tháng + tuần) — bấm số ở Masterplan
-      timedQuery(`SELECT UPPER(TRIM(phan_loai_kh)) AS loai, nam::int AS nam, thang::int AS thang, tuan::int AS tuan, ngay::text AS ngay,
+      doc(`SELECT UPPER(TRIM(phan_loai_kh)) AS loai, nam::int AS nam, thang::int AS thang, tuan::int AS tuan, ngay::text AS ngay,
                          hex::text AS hex, ten_hang_muc, NULLIF(TRIM(xuong_chinh), '') AS xuong, dvt, so_luong_kh::text AS sl,
                          COALESCE(thanh_tien_ke_hoach_num, 0)::float8 AS gia_tri
                     FROM khsx k WHERE UPPER(TRIM(k.ma_cong_trinh)) = $1
                      AND NOT EXISTS (SELECT 1 FROM production_status_app p WHERE p.hex = k.hex AND ${HUY.replace(/tinh_trang_ipo/g, "p.tinh_trang_ipo")})
-                   ORDER BY nam, thang, tuan NULLS FIRST, ngay, hex LIMIT 5000`, [ma])
+                   ORDER BY nam, thang, tuan NULLS FIRST, ngay, hex LIMIT 5000`, [ma]),
+      // 3. Danh mục vật liệu (sheet 03_MATERIALS + ảnh mẫu — tool nap_danh_muc_vl.py). Chưa tạo bảng => null
+      neuCoBang(async () => {
+        const [vl, f] = await Promise.all([
+          doc(`SELECT v.dong, v.nhom, v.code, v.mo_ta, v.tt_mau, v.ngay_duyet, v.nhu_cau, v.vi_tri, v.dvt_qs, v.sl_qs, v.ma_sap, v.ten_vt,
+                             v.tt_pr, v.tt_vat_tu, v.bop_m2,
+                             COALESCE((SELECT array_agg(a.hash ORDER BY a.thu_tu) FROM ct_vl_anh_dong a WHERE a.ma_ct = v.ma_ct AND a.dong = v.dong), '{}') AS anh
+                        FROM ct_vl v WHERE v.ma_ct = $1 ORDER BY v.dong`, [ma]),
+          doc(`SELECT ten_file, to_char(mtime, 'YYYY-MM-DD HH24:MI') AS sua_luc, to_char(nap_luc, 'YYYY-MM-DD HH24:MI') AS nap_luc, loi
+                        FROM ct_vl_file WHERE ma_ct = $1`, [ma])
+        ]);
+        return { rows: vl.rows, file: f.rows[0] ?? null };
+      }),
+      // 6. Biên bản họp (bảng bien_ban_hop — tool nap_bien_ban_hop.py). Chưa tạo bảng => null
+      neuCoBang(async () => (await doc(`SELECT loai, to_char(ngay, 'YYYY-MM-DD') AS ngay, ten_file, drive_id, y_id, chu_de, noi_dung, de_xuat, nguoi, han, khop
+                                     FROM bien_ban_hop WHERE ma_ct = $1 ORDER BY ngay DESC NULLS LAST, ten_file, y_id LIMIT 2000`, [ma])).rows),
+      // 5. BOP-BOM-BOT dạng pivot như file PRODUCTION STATUS (người dùng 20/11/2026): mỗi HEX 1 dòng — IPO / BOP / phân loại /
+      // ĐVT / BOP-M2 / ngày cần giao PC đề xuất lấy theo FILE công trình (cong_trinh_hang_muc, như trang Tổng quan công trình),
+      // thiếu thì theo bảng sản xuất; tình trạng phiếu theo bảng sản xuất
+      doc(`
+      SELECT p.hex::text AS hex,
+             COALESCE(NULLIF(TRIM(c.tinh_trang_ipo), ''), NULLIF(TRIM(p.tinh_trang_ipo), ''), '(tr\u1ED1ng)') AS ipo,
+             COALESCE(NULLIF(TRIM(c.bop), ''), NULLIF(TRIM(p.bop), ''), '(tr\u1ED1ng)') AS bop,
+             COALESCE(NULLIF(TRIM(c.phan_loai_nhom_san_pham), ''), NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), '(tr\u1ED1ng)') AS pl,
+             COALESCE(NULLIF(TRIM(c.dvt), ''), NULLIF(TRIM(p.dvt), ''), '(tr\u1ED1ng)') AS dvt,
+             COALESCE(NULLIF(TRIM(p.tinh_trang_phieu), ''), '(tr\u1ED1ng)') AS phieu,
+             COALESCE(NULLIF(TRIM(c.tinh_trang_bop_m2), ''), '(blank)') AS bom,
+             to_char(c.ngay_can_giao_pc, 'YYYY-MM-DD') AS ngay_giao,
+             p.ten_hang_muc AS ten, NULLIF(TRIM(p.ten_pc), '') AS pc, NULLIF(TRIM(p.xuong_chinh), '') AS xuong,
+             COALESCE(p.tri_gia_don_hang_tong, 0)::float8 AS tri_gia, COALESCE(p.thanh_tien_nhap_kho_luy_ke, 0)::float8 AS da_nhap,
+             COALESCE(p.thanh_tien_tinh_phieu, 0)::float8 AS tinh_phieu
+        FROM production_status_app p
+        LEFT JOIN (SELECT DISTINCT ON (hex) hex, tinh_trang_ipo, bop, phan_loai_nhom_san_pham, dvt, tinh_trang_bop_m2, ngay_can_giao_pc
+                     FROM cong_trinh_hang_muc WHERE UPPER(TRIM(ma_cong_trinh)) = $1
+                    ORDER BY hex, (COALESCE(tinh_trang_ipo, '') LIKE '04%'), nguon DESC, stt) c ON c.hex = p.hex::text
+       WHERE UPPER(TRIM(p.ma_cong_trinh)) = $1`, [ma]),
+      // Tài liệu thư mục dự án trên Drive (bảng cong_trinh_tai_lieu). Chưa tạo bảng => null
+      neuCoBang(() => doc(`SELECT thu_muc_ct, duong_dan, nhom, ten, la_thu_muc, drive_id, mime, kich_thuoc,
+                                          to_char(sua_luc, 'YYYY-MM-DD') AS sua, to_char(quet_luc, 'YYYY-MM-DD HH24:MI') AS quet
+                                     FROM cong_trinh_tai_lieu WHERE ma_ct = $1
+                                      AND (duong_dan = '' OR NOT la_thu_muc OR array_length(string_to_array(duong_dan, '/'), 1) <= 3)
+                                    ORDER BY duong_dan`, [ma]))
     ]);
     const d = dau.rows[0] ?? {};
     if (!d.so_hex) {
@@ -85046,28 +85290,14 @@ app.get("/api/ho-so-cong-trinh/:ma", async (req, res) => {
       }
     }
     const k = kho.rows[0] ?? {};
-    let danhMucVl = null;
-    try {
-      const [vl, f] = await Promise.all([
-        timedQuery(`SELECT v.dong, v.nhom, v.code, v.mo_ta, v.tt_mau, v.ngay_duyet, v.nhu_cau, v.vi_tri, v.dvt_qs, v.sl_qs, v.ma_sap, v.ten_vt,
-                           v.tt_pr, v.tt_vat_tu, v.bop_m2,
-                           COALESCE((SELECT array_agg(a.hash ORDER BY a.thu_tu) FROM ct_vl_anh_dong a WHERE a.ma_ct = v.ma_ct AND a.dong = v.dong), '{}') AS anh
-                      FROM ct_vl v WHERE v.ma_ct = $1 ORDER BY v.dong`, [ma]),
-        timedQuery(`SELECT ten_file, to_char(mtime, 'YYYY-MM-DD HH24:MI') AS sua_luc, to_char(nap_luc, 'YYYY-MM-DD HH24:MI') AS nap_luc, loi
-                      FROM ct_vl_file WHERE ma_ct = $1`, [ma])
-      ]);
-      danhMucVl = { rows: vl.rows, file: f.rows[0] ?? null };
-    } catch (e) {
-      if (e.code !== "42P01") throw e;
-    }
     const anhTheoMa = {}, anhTheoCode = {};
     try {
       const dsMa = [...new Set([...prDong.rows.map((x) => x.ma_vat_tu_sap), ...tonVt.rows.map((x) => x.ma_vat_tu)].filter((x) => x != null && String(x).trim() !== "").map((x) => String(x).trim()))];
-      const an = await timedQuery(`
+      const an = await doc(`
         SELECT id::text AS id, ma_vat_tu, cong_trinh, code_vat_lieu, chac_chan, trang_thai, (UPPER(TRIM(cong_trinh)) = $1) AS cung_ct
           FROM ban_vt_anh
          WHERE trang_thai <> 'an' AND (ma_vat_tu = ANY($2::text[]) OR (UPPER(TRIM(cong_trinh)) = $1 AND COALESCE(TRIM(code_vat_lieu), '') <> ''))
-         ORDER BY (UPPER(TRIM(cong_trinh)) = $1) DESC, (trang_thai = 'da_duyet') DESC, chac_chan DESC, created_at DESC, id DESC`, [ma, dsMa]);
+         ORDER BY cung_ct DESC, (trang_thai = 'da_duyet') DESC, chac_chan DESC, created_at DESC, id DESC`, [ma, dsMa]);
       for (const a of an.rows) {
         const anh = {
           id: Number(a.id),
@@ -85091,38 +85321,8 @@ app.get("/api/ho-so-cong-trinh/:ma", async (req, res) => {
       const code = e.code;
       if (code !== "42P01" && code !== "42703") throw e;
     }
-    let bienBan = null;
-    try {
-      const bb = await timedQuery(`SELECT loai, to_char(ngay, 'YYYY-MM-DD') AS ngay, ten_file, drive_id, y_id, chu_de, noi_dung, de_xuat, nguoi, han, khop
-                                     FROM bien_ban_hop WHERE ma_ct = $1 ORDER BY ngay DESC NULLS LAST, ten_file, y_id LIMIT 2000`, [ma]);
-      bienBan = bb.rows;
-    } catch (e) {
-      if (e.code !== "42P01") throw e;
-    }
-    const hm = await timedQuery(`
-      SELECT p.hex::text AS hex,
-             COALESCE(NULLIF(TRIM(c.tinh_trang_ipo), ''), NULLIF(TRIM(p.tinh_trang_ipo), ''), '(tr\u1ED1ng)') AS ipo,
-             COALESCE(NULLIF(TRIM(c.bop), ''), NULLIF(TRIM(p.bop), ''), '(tr\u1ED1ng)') AS bop,
-             COALESCE(NULLIF(TRIM(c.phan_loai_nhom_san_pham), ''), NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), '(tr\u1ED1ng)') AS pl,
-             COALESCE(NULLIF(TRIM(c.dvt), ''), NULLIF(TRIM(p.dvt), ''), '(tr\u1ED1ng)') AS dvt,
-             COALESCE(NULLIF(TRIM(p.tinh_trang_phieu), ''), '(tr\u1ED1ng)') AS phieu,
-             COALESCE(NULLIF(TRIM(c.tinh_trang_bop_m2), ''), '(blank)') AS bom,
-             to_char(c.ngay_can_giao_pc, 'YYYY-MM-DD') AS ngay_giao,
-             p.ten_hang_muc AS ten, NULLIF(TRIM(p.ten_pc), '') AS pc, NULLIF(TRIM(p.xuong_chinh), '') AS xuong,
-             COALESCE(p.tri_gia_don_hang_tong, 0)::float8 AS tri_gia, COALESCE(p.thanh_tien_nhap_kho_luy_ke, 0)::float8 AS da_nhap,
-             COALESCE(p.thanh_tien_tinh_phieu, 0)::float8 AS tinh_phieu
-        FROM production_status_app p
-        LEFT JOIN (SELECT DISTINCT ON (hex) hex, tinh_trang_ipo, bop, phan_loai_nhom_san_pham, dvt, tinh_trang_bop_m2, ngay_can_giao_pc
-                     FROM cong_trinh_hang_muc WHERE UPPER(TRIM(ma_cong_trinh)) = $1
-                    ORDER BY hex, (COALESCE(tinh_trang_ipo, '') LIKE '04%'), nguon DESC, stt) c ON c.hex = p.hex::text
-       WHERE UPPER(TRIM(p.ma_cong_trinh)) = $1`, [ma]);
     let taiLieu = null;
-    try {
-      const tl = await timedQuery(`SELECT thu_muc_ct, duong_dan, nhom, ten, la_thu_muc, drive_id, mime, kich_thuoc,
-                                          to_char(sua_luc, 'YYYY-MM-DD') AS sua, to_char(quet_luc, 'YYYY-MM-DD HH24:MI') AS quet
-                                     FROM cong_trinh_tai_lieu WHERE ma_ct = $1
-                                      AND (duong_dan = '' OR NOT la_thu_muc OR array_length(string_to_array(duong_dan, '/'), 1) <= 3)
-                                    ORDER BY duong_dan`, [ma]);
+    if (tl) {
       const goc2 = tl.rows.find((x) => x.duong_dan === "");
       taiLieu = {
         thuMuc: goc2?.thu_muc_ct ?? null,
@@ -85139,8 +85339,6 @@ app.get("/api/ho-so-cong-trinh/:ma", async (req, res) => {
           sua: x.sua
         }))
       };
-    } catch (e) {
-      if (e.code !== "42P01") throw e;
     }
     res.json({
       ma,
@@ -86724,23 +86922,23 @@ cachedGet("/api/filters/xuong", filterCache, () => ["khsx", "order", "inventory"
   const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
-        SELECT xuong_chinh AS name FROM khsx WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh AS name FROM khsx WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM dht WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM dht WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM nhap_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM nhap_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM xuat_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM xuat_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM tkbv_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM tkbv_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM pthsp_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM pthsp_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
         UNION ALL
-        SELECT xuong_chinh FROM production_status_app WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        SELECT DISTINCT xuong_chinh FROM production_status_app WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-  const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
+  const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS, workMemMb: 32 });
   const groups = [...new Set(r.rows.map((row) => workshopGroupOf(row.name)).filter(Boolean))].sort();
   return groups.map((name) => ({ code: name, name }));
 }, true);
@@ -86748,23 +86946,23 @@ cachedGet("/api/filters/cong-trinh", filterCache, () => ["khsx", "order", "inven
   const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
-        SELECT ten_cong_trinh AS name FROM khsx WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh AS name FROM khsx WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM dht WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM dht WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM nhap_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM nhap_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM xuat_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM xuat_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM tkbv_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM tkbv_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM pthsp_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM pthsp_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
         UNION ALL
-        SELECT ten_cong_trinh FROM ton_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        SELECT DISTINCT ten_cong_trinh FROM ton_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-  const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
+  const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS, workMemMb: 32 });
   return r.rows.map((row) => ({ code: row.name, name: row.name }));
 }, true);
 cachedGet("/api/filters/dvt", filterCache, () => ["order", "stock"], async () => {
@@ -94054,8 +94252,8 @@ app.post("/api/xuong/hex-tom-tat", async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? [...new Set(req.body.hexes.map(String).filter((h) => HEX_RE.test(h)))].slice(0, 1e3) : [];
     if (!hexes.length) return res.json({ success: true, available: true, tomTat: {} });
-    const doc = await docTrangThaiMra(hexes);
-    const r = { rows: doc.dong }, ev = { rows: doc.suKien };
+    const doc2 = await docTrangThaiMra(hexes);
+    const r = { rows: doc2.dong }, ev = { rows: doc2.suKien };
     const tomTat = {};
     const thuTu = /* @__PURE__ */ new Map();
     const slHoanThanh = /* @__PURE__ */ new Map();
@@ -95890,7 +96088,7 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     const coMat = new Set(vao.rows.flatMap((x) => nguoiTrongSuKien(x.du_lieu).map((n) => n.mnv)));
     const tenCd = new Map(cdRows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
     const conLam = new Set(hm.rows.map((x) => pairKey(String(x.hex), String(x.cong_doan_id))));
-    const hang = (d) => ({ key: d.key, hex: d.hex, congDoanId: d.congDoanId, ...d.nguon ? { nguon: d.nguon } : {} });
+    const hang2 = (d) => ({ key: d.key, hex: d.hex, congDoanId: d.congDoanId, ...d.nguon ? { nguon: d.nguon } : {} });
     const mnvs = [.../* @__PURE__ */ new Set([...cn.rows.map((x) => String(x.mnv)), ...coMat, ...doan.filter((d) => d.end === null).map((d) => d.mnv)])];
     const tenThem = mnvs.filter((m) => !cn.rows.some((x) => String(x.mnv) === m));
     const hoTen = new Map(cn.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
@@ -95913,10 +96111,10 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
           mnv: m,
           hoTen: hoTen.get(m) ?? m,
           coMat: coMat.has(m),
-          dangO: dang2 ? hang(dang2) : null,
+          dangO: dang2 ? hang2(dang2) : null,
           // Hàng làm dở lần trước — chỉ gợi ý nếu hàng đó còn làm được
-          homQua: truoc && conLam.has(truoc.key) ? hang(truoc) : null,
-          lanCuoi: roi ? hang(roi) : null
+          homQua: truoc && conLam.has(truoc.key) ? hang2(truoc) : null,
+          lanCuoi: roi ? hang2(roi) : null
         };
       }).sort((a, b) => Number(b.coMat) - Number(a.coMat) || a.hoTen.localeCompare(b.hoTen)),
       hangMuc: hm.rows.map((x) => ({

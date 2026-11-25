@@ -1,10 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { installAuthFetch, giuSuat } from './services/authFetch';
+import { installAuthFetch, giuSuat, guiTruocTrang } from './services/authFetch';
 import { getToken } from './services/userService';
 import { napNho, goiTruoc, docChuDangNhap } from './services/nhoApi';
-import { urlGuiTruoc } from './services/urlTongQuan';
+import { urlGuiTruoc, urlGuiTruocTrang } from './services/urlTongQuan';
 import { apDungMayTinhBang } from './services/mayTinhBang';
 import { reloadForNewVersion } from './utils/chunkReload';
 
@@ -29,6 +29,9 @@ try {
     let u: { role?: unknown; permissions?: unknown } | null = null;
     try { u = JSON.parse(localStorage.getItem('app_user_persist') || sessionStorage.getItem('app_user_session') || 'null'); } catch { /* bỏ qua */ }
     const urls = urlGuiTruoc(window.location.pathname, window.location.hash, u, new Date());
+    // Trang Tổng quan đã có 3 số màn đầu đi cùng lượt: chỉ gửi trước /auth/me, phiên bản dữ liệu chờ lượt sau
+    const trang = urlGuiTruocTrang(window.location.pathname, window.location.hash, u);
+    guiTruocTrang(urls.length ? trang.slice(0, 1) : trang);
     if (urls.length) goiTruoc(urls);
   }
 } catch { /* gửi trước chỉ để nhanh hơn: lỗi thì trang tự gọi như cũ */ }

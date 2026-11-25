@@ -118,3 +118,30 @@ export const urlGuiTruoc = (
   if (hash === '#/cong-trinh/tong-quan') return coQuyen('construction_overview') ? [urlVuongMacTheoCongTrinh()] : [];
   return [];
 };
+
+/** Trang -> quyền cần có + URL đầu tiên trang đó gọi (cố định, không phụ thuộc bộ lọc) */
+const TRANG_GUI_TRUOC: Record<string, { quyen: string; url: string }> = {
+  '/cong-trinh/ho-so': { quyen: 'construction_overview', url: `${API}/ho-so-cong-trinh/danh-sach` },
+  '/users': { quyen: 'users', url: `${API}/users?page=1&pageSize=100` },
+};
+
+/**
+ * Request gửi trước cho bản máy tính (services/authFetch.guiTruocTrang): phiên đăng nhập, phiên bản dữ liệu, và URL đầu
+ * tiên của trang đang mở nếu tài khoản lưu trên máy có quyền.
+ */
+export const urlGuiTruocTrang = (
+  pathname: string, hash: string, u: { role?: unknown; permissions?: unknown } | null | undefined,
+): string[] => {
+  if (pathname.startsWith('/m') || /^\/xuong(\/|$)/.test(pathname) || !u) return [];
+  const [trang, qs = ''] = hash.replace(/^#/, '').split('?');
+  if (trang === '/login') return [];
+  const ra = [`${API}/auth/me`, `${API}/check-versions`];
+  const t = Object.prototype.hasOwnProperty.call(TRANG_GUI_TRUOC, trang) ? TRANG_GUI_TRUOC[trang] : undefined;
+  if (!t || !(u.role === 'ADMIN' || (Array.isArray(u.permissions) && u.permissions.includes(t.quyen)))) return ra;
+  ra.push(t.url);
+  if (trang === '/cong-trinh/ho-so') {
+    const ma = new URLSearchParams(qs).get('ma') ?? '';
+    if (/^[A-Z]{2,3}\d{2}-[0-9A-Z]{1,12}$/.test(ma)) ra.push(`${API}/ho-so-cong-trinh/${ma}`);
+  }
+  return ra;
+};

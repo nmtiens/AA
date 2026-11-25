@@ -8,13 +8,16 @@ export interface HangDoi {
   /** Xin 1 suất; promise xong khi được phát. Còn suất và không ai mức cao hơn đang chờ thì được ngay. */
   xin(muc: MucUuTien): Promise<void>;
   /** Trả suất sau khi request xong (kể cả lỗi) */
-  tra(): void;
+  tra(muc?: MucUuTien): void;
   /** Bật: mức 1-3 chỉ được dùng (tổng − 1) suất, suất cuối để dành cho mức 0. Tắt: phát ngay cho người đang chờ. */
   giuSuat(bat: boolean): void;
 }
 
 export function taoHangDoi(tong = 4): HangDoi {
   let dangChay = 0;
+  // Mức 3 (việc lùi được) không chiếm hết suất: luôn chừa 1 suất để số của trang đi ngay
+  let dangChay3 = 0;
+  const TOI_DA_3 = Math.max(1, tong - 1);
   let giu = false;
   const cho: Array<Array<() => void>> = [[], [], [], []];
 
@@ -27,7 +30,9 @@ export function taoHangDoi(tong = 4): HangDoi {
         if (cho[muc].length === 0) continue;
         // Mức này không còn suất (đang giữ suất cho mức 0) thì các mức thấp hơn cũng không: dừng lượt
         if (!conSuat(muc)) break;
+        if (muc === 3 && dangChay3 >= TOI_DA_3) break;
         dangChay++;
+        if (muc === 3) dangChay3++;
         cho[muc].shift()!();
         daPhat = true;
         break;
@@ -38,7 +43,11 @@ export function taoHangDoi(tong = 4): HangDoi {
 
   return {
     xin: muc => new Promise<void>(resolve => { cho[muc].push(resolve); phat(); }),
-    tra: () => { if (dangChay > 0) dangChay--; phat(); },
+    tra: muc => {
+      if (dangChay > 0) dangChay--;
+      if (muc === 3 && dangChay3 > 0) dangChay3--;
+      phat();
+    },
     giuSuat: bat => { giu = bat; if (!bat) phat(); },
   };
 }

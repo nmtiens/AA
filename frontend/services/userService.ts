@@ -78,12 +78,19 @@ export const userService = {
     const PAGE_SIZE = 100;
     const all: User[] = [];
     const seen = new Set<string>();
+    const xin = (page: number) => request<User[]>(`${API_BASE}/users?page=${page}&pageSize=${PAGE_SIZE}`, {
+      method: 'GET',
+      headers: authHeaders(),
+    });
+    // Trang 1 cho biết tổng số => các trang sau xin song song
+    const sau = new Map<number, ReturnType<typeof xin>>();
     for (let page = 1; page <= 100; page++) {
-      const res = await request<User[]>(`${API_BASE}/users?page=${page}&pageSize=${PAGE_SIZE}`, {
-        method: 'GET',
-        headers: authHeaders(),
-      });
+      const res = await (sau.get(page) ?? xin(page));
       if (!res.success || !Array.isArray(res.data)) return page === 1 ? res : { ...res, data: all };
+      if (page === 1 && res.data.length > 0 && res.pagination?.total !== undefined) {
+        const soTrang = Math.min(100, Math.ceil(res.pagination.total / res.data.length));
+        for (let k = 2; k <= soTrang; k++) sau.set(k, xin(k));
+      }
       // Gộp theo id (phòng trùng dòng giữa 2 trang khi có người dùng mới được thêm lúc đang tải).
       // Chỉ dừng khi trang rỗng hoặc đã đủ tổng số — KHÔNG dựa vào "trang ít hơn PAGE_SIZE" vì server
       // có thể giới hạn pageSize nhỏ hơn số xin (trước đây chỉ lấy được 50 người).

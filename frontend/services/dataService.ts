@@ -5,6 +5,7 @@ import type { DashboardFiltersState, TuyChonTongQuan, TongQuanSanXuat } from '..
 import type { BanGhiNen } from '../components/Construction/core/banGhiCongTrinh';
 import { getToken } from './userService';
 import { goiNho } from './nhoApi';
+import { nenBang, giaiBangCot, laBangCot } from './bangCot';
 import { urlOverviewSummary, urlStockDates, urlRevenue, urlTuyChonThoiGian, themLoc } from './urlTongQuan';
 
 // Bảng ánh xạ tên cột kỹ thuật (snake_case từ DB) sang tên hiển thị tiếng Việt.
@@ -166,7 +167,13 @@ export const getCachedData = async (endpoint: string): Promise<any> => {
       const tx = db.transaction('ops_cache', 'readonly');
       const store = tx.objectStore('ops_cache');
       const req = store.get(`data_${endpoint}`);
-      req.onsuccess = () => resolve(req.result || null);
+      req.onsuccess = () => {
+        const r = req.result;
+        if (!r) { resolve(null); return; }
+        if (!laBangCot(r.bang)) { resolve(r); return; } // bản lưu kiểu cũ: mảng dòng
+        const { bang, ...con } = r;
+        giaiBangCot(bang).then(data => resolve({ ...con, data }), () => resolve(null));
+      };
       req.onerror = () => resolve(null);
     });
   } catch {
@@ -198,12 +205,15 @@ export const getCacheGeneration = () => cacheGeneration;
 export const saveToCache = async (endpoint: string, version: string, result: any, generation?: number): Promise<void> => {
   if (generation !== undefined && generation !== cacheGeneration) return;
   try {
+    const bang = Array.isArray(result?.data) ? nenBang(result.data) : null;
+    let luu = result;
+    if (bang) { const { data: _bo, ...con } = result; luu = { ...con, bang }; }
     const db = await initDB();
     if (generation !== undefined && generation !== cacheGeneration) return;
     return new Promise((resolve) => {
       const tx = db.transaction('ops_cache', 'readwrite');
       const store = tx.objectStore('ops_cache');
-      store.put(result, `data_${endpoint}`);
+      store.put(luu, `data_${endpoint}`);
       store.put(String(version), `version_${endpoint}`);
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
