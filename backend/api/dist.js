@@ -36013,7 +36013,7 @@ var require_pg_pool = __commonJS({
     function throwOnDoubleRelease() {
       throw new Error("Release called on client which has already been released to the pool.");
     }
-    function promisify2(Promise2, callback) {
+    function promisify3(Promise2, callback) {
       if (callback) {
         return { callback, result: void 0 };
       }
@@ -36151,7 +36151,7 @@ var require_pg_pool = __commonJS({
           const err = new Error("Cannot use a pool after calling end on the pool");
           return cb ? cb(err) : this.Promise.reject(err);
         }
-        const response = promisify2(this.Promise, cb);
+        const response = promisify3(this.Promise, cb);
         const result = response.result;
         if (this._isFull() || this._idle.length) {
           if (this._idle.length) {
@@ -36336,7 +36336,7 @@ var require_pg_pool = __commonJS({
       }
       query(text, values, cb) {
         if (typeof text === "function") {
-          const response2 = promisify2(this.Promise, text);
+          const response2 = promisify3(this.Promise, text);
           setImmediate(function() {
             return response2.callback(new Error("Passing a function as the first parameter to pool.query is not supported"));
           });
@@ -36346,7 +36346,7 @@ var require_pg_pool = __commonJS({
           cb = values;
           values = void 0;
         }
-        const response = promisify2(this.Promise, cb);
+        const response = promisify3(this.Promise, cb);
         cb = response.callback;
         this.connect((err, client) => {
           if (err) {
@@ -36391,7 +36391,7 @@ var require_pg_pool = __commonJS({
           return cb ? cb(err) : this.Promise.reject(err);
         }
         this.ending = true;
-        const promised = promisify2(this.Promise, cb);
+        const promised = promisify3(this.Promise, cb);
         this._endCallback = promised.callback;
         this._pulseQueue();
         return promised.result;
@@ -76903,6 +76903,9 @@ function kichLamNong(versions) {
 
 // src/routes/congTrinh.ts
 import { gzipSync } from "zlib";
+import { createHash as createHash4 } from "node:crypto";
+import { gzip as gzip2, gunzip as gunzip2 } from "node:zlib";
+import { promisify as promisify2 } from "node:util";
 
 // src/server/botTongHop.ts
 var KHOA_HOP_LE = /^(CHUA|\d{4}|\d{4}-\d{2}|\d{4}-\d{2}-\d{2})$/;
@@ -77095,6 +77098,25 @@ var mocFile = taoNhoCoHan(2e3, async () => {
   }
 });
 var layMocFile = () => mocFile.lay();
+var KHOA_NEN = `hang-muc-file|${createHash4("sha1").update(SQL).update(JSON.stringify(COT_CT)).digest("hex").slice(0, 10)}`;
+var nen = promisify2(gzip2);
+var giaiNen = promisify2(gunzip2);
+var docChung = async (khoa) => {
+  try {
+    const buf = await docSnapshot(KHOA_NEN, khoa, { v: "" });
+    return buf ? JSON.parse((await giaiNen(buf)).toString("utf8")) : null;
+  } catch (e) {
+    console.error("[cong-trinh/hang-muc] \u0111\u1ECDc b\u1EA3n n\xE9n l\u1ED7i", e);
+    return null;
+  }
+};
+var ghiChung = async (khoa, body) => {
+  try {
+    await luuSnapshot(KHOA_NEN, khoa, await nen(Buffer.from(JSON.stringify(body))));
+  } catch (e) {
+    console.error("[cong-trinh/hang-muc] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
+  }
+};
 var nho2 = null;
 var dangDung = null;
 async function layFileCongTrinh(moc2) {
@@ -77114,6 +77136,12 @@ async function layFileCongTrinh(moc2) {
   if (dangDung?.khoa === khoa) return dangDung.p;
   const p = (async () => {
     try {
+      const chung = await docChung(khoa);
+      if (chung) {
+        const kq2 = { khoa: khoaFile, body: chung };
+        nho2 = { khoa, kq: kq2 };
+        return kq2;
+      }
       const r = await timedQuery(SQL, [], { timeoutMs: 6e4, heavy: true, workMemMb: 32 });
       const kq = {
         khoa: khoaFile,
@@ -77126,6 +77154,8 @@ async function layFileCongTrinh(moc2) {
         }
       };
       nho2 = { khoa, kq };
+      const ghi = ghiChung(khoa, kq.body);
+      giuHamSong(ghi);
       return kq;
     } catch (e) {
       if (e?.code === "42P01") return { khoa: "khong-bang", body: RONG };
@@ -89692,7 +89722,7 @@ app.post("/api/notifications/test", async (req, res) => {
 
 // src/routes/xuong.ts
 var import_express4 = __toESM(require_express2(), 1);
-import { createHash as createHash4 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 
 // src/server/xuong/clock.ts
 var NGUONG_LECH_MS = 5 * 6e4;
@@ -92072,7 +92102,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
 var PHIEN_BAN_TINH2 = "pb9";
-var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
+var dauLichCa = (lichCa) => createHash5("sha1").update(PHIEN_BAN_TINH2 + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
 async function lichCaCuaXuong(xuong, db = poolMra) {
@@ -96214,7 +96244,7 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
 });
 
 // src/routes/tongQuan.ts
-import { createHash as createHash5 } from "crypto";
+import { createHash as createHash6 } from "crypto";
 import { gzipSync as gzipSync3, gunzipSync } from "zlib";
 var dsChuoi2 = external_exports.array(external_exports.string().max(300)).max(3e3);
 var BodySchema = external_exports.object({
@@ -96348,7 +96378,7 @@ function layHoacDung(khoa, ver, luuDb, dung2) {
 }
 async function tongQuanSanXuat(filters, tuy) {
   const { verSanXuat, verChuan, ban, verMra, ngayVN } = await phienBanChuan();
-  const khoa = `tongquan|${createHash5("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
+  const khoa = `tongquan|${createHash6("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
   const macDinh = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
   const ver = JSON.stringify([verChuan, verMra, verMra ? ngayVN : ""]);
   return layHoacDung(khoa, ver, macDinh && !verMra, async () => {

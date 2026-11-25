@@ -1,5 +1,10 @@
 import type { Request, Response } from 'express';
 import { gzipSync } from 'zlib';
+import { createHash } from 'node:crypto';
+import { gzip, gunzip } from 'node:zlib';
+import { promisify } from 'node:util';
+import { docSnapshot, luuSnapshot } from '../server/snapshot.js';
+import { giuHamSong } from '../server/sharedCache.js';
 import { timedQuery } from '../db.js';
 import { app } from '../server/app.js';
 import { chuoi } from '../server/botTongHop.js';
@@ -54,6 +59,27 @@ const mocFile = taoNhoCoHan<MocFile>(2000, async () => {
 });
 export const layMocFile = (): Promise<MocFile> => mocFile.lay();
 
+// Bản nén dùng chung mọi instance (all_data_snapshot): instance mới đọc 1 dòng ~100 KB thay vì chạy lại câu nặng (5–8 giây
+// trên web thật 25/11/2026). Khoá kèm dấu vân tay câu SQL: bản code khác (bản xem trước, đổi cột) không đọc nhầm nhau.
+const KHOA_NEN = `hang-muc-file|${createHash('sha1').update(SQL).update(JSON.stringify(COT_CT)).digest('hex').slice(0, 10)}`;
+const nen = promisify(gzip), giaiNen = promisify(gunzip);
+const docChung = async (khoa: string): Promise<FileCongTrinh['body'] | null> => {
+  try {
+    const buf = await docSnapshot(KHOA_NEN, khoa, { v: '' });
+    return buf ? JSON.parse((await giaiNen(buf)).toString('utf8')) as FileCongTrinh['body'] : null;
+  } catch (e) {
+    console.error('[cong-trinh/hang-muc] đọc bản nén lỗi', e);
+    return null;
+  }
+};
+const ghiChung = async (khoa: string, body: FileCongTrinh['body']): Promise<void> => {
+  try {
+    await luuSnapshot(KHOA_NEN, khoa, await nen(Buffer.from(JSON.stringify(body))));
+  } catch (e) {
+    console.error('[cong-trinh/hang-muc] lưu bản nén lỗi', e);
+  }
+};
+
 let nho: { khoa: string; kq: FileCongTrinh } | null = null;
 let dangDung: { khoa: string; p: Promise<FileCongTrinh> } | null = null;
 
@@ -77,6 +103,12 @@ export async function layFileCongTrinh(moc?: MocFile): Promise<FileCongTrinh> {
   if (dangDung?.khoa === khoa) return dangDung.p;
   const p = (async () => {
     try {
+      const chung = await docChung(khoa);
+      if (chung) {
+        const kq: FileCongTrinh = { khoa: khoaFile, body: chung };
+        nho = { khoa, kq };
+        return kq;
+      }
       const r = await timedQuery(SQL, [], { timeoutMs: 60_000, heavy: true, workMemMb: 32 });
       const kq: FileCongTrinh = {
         khoa: khoaFile,
@@ -89,6 +121,8 @@ export async function layFileCongTrinh(moc?: MocFile): Promise<FileCongTrinh> {
         },
       };
       nho = { khoa, kq };
+      const ghi = ghiChung(khoa, kq.body); // trả lời trước, ghi sau
+      giuHamSong(ghi);
       return kq;
     } catch (e) {
       if ((e as { code?: string })?.code === '42P01') return { khoa: 'khong-bang', body: RONG };
