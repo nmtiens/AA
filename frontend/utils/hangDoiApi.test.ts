@@ -119,6 +119,11 @@ describe('mucUuTien', () => {
       expect(mucUuTien(p), p).toBe(1);
     }
   });
+  it('trang Biểu đồ: biểu đồ theo xưởng / công trình là số chính', () => {
+    expect(mucUuTien('/api/trend-by-xuong', '#/charts/order')).toBe(1);
+    expect(mucUuTien('/api/trend-by-xuong', '#/')).toBe(3);
+    expect(mucUuTien('/api/filters/xuong', '#/charts/order')).toBe(3);
+  });
   it('mức 3: việc lùi được', () => {
     for (const p of ['/api/bot-cong-doan/quyen', '/api/bot-tong-hop/loi', '/api/data-update-log', '/api/stock/total-count',
       '/api/trend-by-congtrinh', '/api/trend-by-xuong', '/api/filters/xuong', '/api/filters/cong-trinh',

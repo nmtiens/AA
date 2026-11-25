@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   urlOverviewSummary, urlNkNgay, urlPlanActual, urlKhNgay, urlStockDates, urlRevenue, urlManDau, urlTuyChonThoiGian,
-  urlVuongMacTheoCongTrinh, urlGuiTruoc, type LocTongQuan,
+  urlVuongMacTheoCongTrinh, urlGuiTruoc, urlGuiTruocTrang, type LocTongQuan,
 } from './urlTongQuan';
 import { expandProjectNames } from '../utils/productionMetrics';
 import { toISODateLocal } from '../components/Dashboard/utils/dateHelpers';
@@ -193,5 +193,20 @@ describe('urlGuiTruoc', () => {
   it('trang khác (đăng nhập, người dùng…): không gửi gì', () => {
     expect(urlGuiTruoc('/', '#/login', admin, now)).toEqual([]);
     expect(urlGuiTruoc('/', '#/users', admin, now)).toEqual([]);
+  });
+});
+
+describe('urlGuiTruocTrang', () => {
+  const coCt = { role: 'USER', permissions: ['construction_overview'] };
+  it('Tổng quan công trình: đăng nhập, phiên bản, bản ghi gọn + hạng mục theo file', () => {
+    expect(urlGuiTruocTrang('/', '#/cong-trinh/tong-quan', coCt)).toEqual(
+      ['/api/auth/me', '/api/check-versions', '/api/cong-trinh/hang-muc', '/api/tong-quan/cong-trinh']);
+    expect(urlGuiTruocTrang('/', '#/cong-trinh/tong-quan', coCt, true)).toEqual( // máy đã lưu bảng: khỏi tải bản dựng sẵn
+      ['/api/auth/me', '/api/check-versions', '/api/cong-trinh/hang-muc']);
+  });
+  it('không có quyền trang đó: chỉ đăng nhập + phiên bản; app điện thoại / đăng nhập: không gửi', () => {
+    expect(urlGuiTruocTrang('/', '#/users', coCt)).toEqual(['/api/auth/me', '/api/check-versions']);
+    expect(urlGuiTruocTrang('/m/', '', coCt)).toEqual([]);
+    expect(urlGuiTruocTrang('/', '#/login', coCt)).toEqual([]);
   });
 });

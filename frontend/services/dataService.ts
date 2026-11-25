@@ -169,6 +169,7 @@ export const getCachedData = async (endpoint: string): Promise<any> => {
       const req = store.get(`data_${endpoint}`);
       req.onsuccess = () => {
         const r = req.result;
+        if (endpoint === 'production') ghiCoBangSx(!!r);
         if (!r) { resolve(null); return; }
         if (!laBangCot(r.bang)) { resolve(r); return; } // bản lưu kiểu cũ: mảng dòng
         const { bang, ...con } = r;
@@ -197,6 +198,16 @@ export const getCachedVersion = async (endpoint: string): Promise<string> => {
   }
 };
 
+// Máy này đang lưu bảng sản xuất hay chưa — biết ngay lúc mở app (IndexedDB chỉ đọc được sau): trang Tổng quan công trình
+// có bảng lưu thì khỏi tải bản ghi dựng sẵn ~545 KB. Sai thì chỉ chậm 2 giây hoặc tải thừa, không sai số.
+const CO_BANG_SX_KEY = 'ops_co_bang_sx';
+const ghiCoBangSx = (co: boolean) => {
+  try { if (co) localStorage.setItem(CO_BANG_SX_KEY, '1'); else localStorage.removeItem(CO_BANG_SX_KEY); } catch { /* bỏ qua */ }
+};
+export const coBangSanXuatLuu = (): boolean => {
+  try { return localStorage.getItem(CO_BANG_SX_KEY) === '1'; } catch { return false; }
+};
+
 // LƯU DỮ LIỆU VÀO CACHE
 // Tăng mỗi lần xoá cache (đăng xuất / đổi người dùng): lượt tải bắt đầu trước đó không được ghi đè vào cache mới
 let cacheGeneration = 0;
@@ -215,7 +226,7 @@ export const saveToCache = async (endpoint: string, version: string, result: any
       const store = tx.objectStore('ops_cache');
       store.put(luu, `data_${endpoint}`);
       store.put(String(version), `version_${endpoint}`);
-      tx.oncomplete = () => resolve();
+      tx.oncomplete = () => { if (endpoint === 'production') ghiCoBangSx(true); resolve(); };
       tx.onerror = () => resolve();
     });
   } catch (e) {
@@ -242,6 +253,7 @@ export const cacheCoGia = (): boolean => {
 
 export const clearDataCache = async (): Promise<void> => {
   cacheGeneration++;
+  ghiCoBangSx(false);
   try { localStorage.removeItem(CACHE_OWNER_KEY); } catch { /* bỏ qua */ }
   try {
     const db = await initDB();

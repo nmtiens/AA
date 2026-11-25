@@ -7,7 +7,7 @@ import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Settings, Columns, Smartphone, Search, Factory, Hammer, Database, CalendarClock, FolderOpen } from 'lucide-react';
 import { dangKyNapBang } from './services/napBang';
-import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinhDu, luuKhiRanh, API_BASE_URL, type NguonBanGhiCongTrinh } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinhDu, coBangSanXuatLuu, luuKhiRanh, API_BASE_URL, type NguonBanGhiCongTrinh } from './services/dataService';
 import { boNho, baoMocDoi, ngayVN as ngayVNNho } from './services/nhoApi';
 import { taiFileCongTrinh, fileCongTrinhDaCo, fileCongTrinhCu, coSoFile, ghepDongFile, type DuLieuFileCongTrinh } from './services/congTrinhFile';
 import { findColumnKey } from './components/Dashboard/utils/columnKeyResolver';
@@ -319,13 +319,15 @@ const ConstructionOverviewWrapper = () => {
     if (coBang || (banGhiSan && mocSan.current === mocFile)) return;
     mocSan.current = mocFile;
     let on = true;
-    fetchTongQuanCongTrinhDu().then(z => {
+    const tai = () => fetchTongQuanCongTrinhDu().then(z => {
       if (!on || !z) return;
       const homNay = new Date(); homNay.setHours(0, 0, 0, 0);
       setBanGhiSan(giaiNenBanGhi(z.banGhi, homNay.getTime()));
       setNguonSan(z.nguon);
     });
-    return () => { on = false; };
+    // Máy đã lưu bảng sản xuất: đang đọc, thường xong trong 1 giây => chỉ lấy bản dựng sẵn khi đọc lâu
+    const hen = coBangSanXuatLuu() ? setTimeout(tai, 2000) : (void tai(), undefined);
+    return () => { on = false; clearTimeout(hen); };
   }, [coBang, mocFile]); // eslint-disable-line react-hooks/exhaustive-deps
   // Số theo FILE CÔNG TRÌNH (services/congTrinhFile.ts): HEX của file + ô file khác dữ liệu app, ghép vào dòng app cùng HEX.
   // Chưa tạo bảng / tool chưa nạp / lỗi => dùng dữ liệu app như cũ (ghi rõ trên trang).

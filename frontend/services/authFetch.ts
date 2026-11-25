@@ -39,7 +39,9 @@ const MUC_3 = new Set([
   '/api/xuong/vi-tri-bop',
 ]);
 /** Mức ưu tiên của 1 đường dẫn /api/* trong hàng đợi (0 cao nhất). So ĐÚNG TÊN: '/api/trend' khác '/api/trend-by-xuong'. */
-export const mucUuTien = (pathname: string): MucUuTien => {
+// Trang Biểu đồ: các biểu đồ theo xưởng / công trình LÀ số chính của trang (ở Tổng quan chúng là việc lùi được)
+export const mucUuTien = (pathname: string, hash = ''): MucUuTien => {
+  if (hash.startsWith('#/charts/') && pathname.startsWith('/api/trend')) return 1;
   if (pathname === DUONG_ME) return 0;
   if (MUC_1.has(pathname) || /^\/api\/vat-tu\/v\d\/tong-quan$/.test(pathname)) return 1;
   if (MUC_3.has(pathname) || pathname.startsWith('/api/filters/')) return 3;
@@ -129,7 +131,7 @@ export function installAuthFetch(): void {
       finalInit = { ...init, headers };
     }
 
-    const muc = mucUuTien(apiUrl.pathname);
+    const muc = mucUuTien(apiUrl.pathname, window.location.hash);
     await hangDoi.xin(muc);
     // /auth/me đã có suất => thôi để dành, trả suất thứ 4 cho các request khác
     if (apiUrl.pathname === DUONG_ME) giuSuat(false);
