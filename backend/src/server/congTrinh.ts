@@ -30,32 +30,39 @@ const TEN_HOP_LE = /^[a-z0-9_]+$/;
 
 /** Biểu thức SQL (jsonb hoặc NULL) cho 1 cột: [giá trị file] khi khác dữ liệu app. c = dòng file, p = dòng app.
  *  Cột file không có (c.ct_thieu — đổi tên / xoá cột) => NULL: giữ số app, không coi ô trống của file là số đúng. */
-export function bieuThucKhac(k: string, kieu: KieuCot): string {
+/** Kiểu cột của production_status_app ('so' = cột số, 'ngay' = date, còn lại chữ). Biết kiểu thì so trực tiếp, khỏi dò chữ số
+ *  bằng biểu thức chính quy mỗi ô (31 nghìn dòng × 18 cột số: 2 giây CPU DB còn 1 giây, đo 26/11/2026, kết quả y hệt). */
+export type KieuApp = 'so' | 'ngay' | 'chu';
+const KIEU_SO = new Set(['double precision', 'numeric', 'real', 'integer', 'bigint', 'smallint']);
+export const kieuAppTuCsdl = (dataType: string): KieuApp => (KIEU_SO.has(dataType) ? 'so' : dataType === 'date' ? 'ngay' : 'chu');
+
+export function bieuThucKhac(k: string, kieu: KieuCot, app: KieuApp = 'chu'): string {
   if (!TEN_HOP_LE.test(k)) throw new Error(`Tên cột lạ: ${k}`);
-  const bt = bieuThucKhacGoc(k, kieu);
+  const bt = bieuThucKhacGoc(k, kieu, app);
   return kieu === 'g' ? bt : `CASE WHEN '${k}' = ANY(COALESCE(c.ct_thieu, '{}'::text[])) THEN NULL ELSE ${bt} END`;
 }
 
-function bieuThucKhacGoc(k: string, kieu: KieuCot): string {
+function bieuThucKhacGoc(k: string, kieu: KieuCot, app: KieuApp): string {
   const c = `c.${k}`, p = `p.${k}`;
   switch (kieu) {
     case 'f': return `CASE WHEN ${c} IS DISTINCT FROM ${p}::text THEN jsonb_build_array(${c}) END`;
     case 'g': return `CASE WHEN NULLIF(${c}, '') IS NOT NULL AND ${c} IS DISTINCT FROM ${p}::text THEN jsonb_build_array(${c}) END`;
     case 'n': {
       // cột app có thể là chữ (thanh_tien_xuat_kho_luy_ke): chỉ đổi sang số khi đúng dạng số
-      const pv = `(CASE WHEN ${p}::text ~ '^\\s*-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\s*$' THEN ${p}::text::float8 END)`;
+      const pv = app === 'so' ? `${p}::float8` : `(CASE WHEN ${p}::text ~ '^\\s*-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\s*$' THEN ${p}::text::float8 END)`;
       return `CASE WHEN (${c} IS NULL) <> (${pv} IS NULL) OR abs(${c} - ${pv}) > 1e-6 * greatest(1, abs(${c})) THEN jsonb_build_array(${c}) END`;
     }
     case 'd': {
       const cd = `to_char(${c}, 'YYYY-MM-DD')`;
+      if (app === 'ngay') return `CASE WHEN ${c} IS DISTINCT FROM ${p} THEN jsonb_build_array(${cd}) END`;
       return `CASE WHEN ${cd} IS DISTINCT FROM left(${p}::text, 10) THEN jsonb_build_array(${cd}) END`;
     }
   }
 }
 
 /** Mỗi HEX 1 dòng (HEX chuyển công trình: HỦY ở file cũ, đang SX ở file mới => lấy dòng không HỦY) + ô khác app. */
-export function sqlHangMuc(cot = COT_CT): string {
-  const doi = cot.map(({ k, kieu }) => `'${k}', ${bieuThucKhac(k, kieu)}`).join(',\n      ');
+export function sqlHangMuc(cot = COT_CT, kieuApp: Readonly<Record<string, KieuApp>> = {}): string {
+  const doi = cot.map(({ k, kieu }) => `'${k}', ${bieuThucKhac(k, kieu, kieuApp[k] ?? 'chu')}`).join(',\n      ');
   return `WITH c AS (
     SELECT DISTINCT ON (h.hex) h.*, f.ct_thieu
       FROM cong_trinh_hang_muc h LEFT JOIN bot_tong_hop_file f USING (nguon)

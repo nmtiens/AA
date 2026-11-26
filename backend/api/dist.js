@@ -77012,12 +77012,14 @@ var COT_CT = [
   ...["ngay_khnk_thang", "ngay_khnk_tuan", "ngay_duyet_phieu"].map((k) => ({ k, kieu: "d" }))
 ];
 var TEN_HOP_LE = /^[a-z0-9_]+$/;
-function bieuThucKhac(k, kieu) {
+var KIEU_SO = /* @__PURE__ */ new Set(["double precision", "numeric", "real", "integer", "bigint", "smallint"]);
+var kieuAppTuCsdl = (dataType) => KIEU_SO.has(dataType) ? "so" : dataType === "date" ? "ngay" : "chu";
+function bieuThucKhac(k, kieu, app2 = "chu") {
   if (!TEN_HOP_LE.test(k)) throw new Error(`T\xEAn c\u1ED9t l\u1EA1: ${k}`);
-  const bt = bieuThucKhacGoc(k, kieu);
+  const bt = bieuThucKhacGoc(k, kieu, app2);
   return kieu === "g" ? bt : `CASE WHEN '${k}' = ANY(COALESCE(c.ct_thieu, '{}'::text[])) THEN NULL ELSE ${bt} END`;
 }
-function bieuThucKhacGoc(k, kieu) {
+function bieuThucKhacGoc(k, kieu, app2) {
   const c = `c.${k}`, p = `p.${k}`;
   switch (kieu) {
     case "f":
@@ -77025,17 +77027,18 @@ function bieuThucKhacGoc(k, kieu) {
     case "g":
       return `CASE WHEN NULLIF(${c}, '') IS NOT NULL AND ${c} IS DISTINCT FROM ${p}::text THEN jsonb_build_array(${c}) END`;
     case "n": {
-      const pv = `(CASE WHEN ${p}::text ~ '^\\s*-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\s*$' THEN ${p}::text::float8 END)`;
+      const pv = app2 === "so" ? `${p}::float8` : `(CASE WHEN ${p}::text ~ '^\\s*-?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\s*$' THEN ${p}::text::float8 END)`;
       return `CASE WHEN (${c} IS NULL) <> (${pv} IS NULL) OR abs(${c} - ${pv}) > 1e-6 * greatest(1, abs(${c})) THEN jsonb_build_array(${c}) END`;
     }
     case "d": {
       const cd = `to_char(${c}, 'YYYY-MM-DD')`;
+      if (app2 === "ngay") return `CASE WHEN ${c} IS DISTINCT FROM ${p} THEN jsonb_build_array(${cd}) END`;
       return `CASE WHEN ${cd} IS DISTINCT FROM left(${p}::text, 10) THEN jsonb_build_array(${cd}) END`;
     }
   }
 }
-function sqlHangMuc(cot = COT_CT) {
-  const doi = cot.map(({ k, kieu }) => `'${k}', ${bieuThucKhac(k, kieu)}`).join(",\n      ");
+function sqlHangMuc(cot = COT_CT, kieuApp = {}) {
+  const doi = cot.map(({ k, kieu }) => `'${k}', ${bieuThucKhac(k, kieu, kieuApp[k] ?? "chu")}`).join(",\n      ");
   return `WITH c AS (
     SELECT DISTINCT ON (h.hex) h.*, f.ct_thieu
       FROM cong_trinh_hang_muc h LEFT JOIN bot_tong_hop_file f USING (nguon)
@@ -77094,6 +77097,13 @@ function taoNhoCoHan(hanMs, doc2, bayGio = Date.now) {
 
 // src/routes/congTrinh.ts
 var SQL = sqlHangMuc();
+var sqlNhanh = null;
+var laySql = () => sqlNhanh ??= timedQuery(
+  `SELECT column_name AS k, data_type AS t FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'production_status_app'`
+).then((r) => sqlHangMuc(COT_CT, Object.fromEntries(r.rows.map((x) => [x.k, kieuAppTuCsdl(x.t)])))).catch(() => {
+  sqlNhanh = null;
+  return SQL;
+});
 var SQL_KHOA = `SELECT COALESCE(max(nap_luc)::text, '') || '/' || count(*) AS khoa,
                          to_char(max(nap_luc) FILTER (WHERE loi IS NULL) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cap_nhat,
                          count(*) FILTER (WHERE loi IS NULL)::int AS so_file
@@ -77159,7 +77169,7 @@ async function layFileCongTrinh(moc2) {
         nho2 = { khoa, kq: kq2 };
         return kq2;
       }
-      const r = await timedQuery(SQL, [], { timeoutMs: 6e4, heavy: true, workMemMb: 32 });
+      const r = await timedQuery(await laySql(), [], { timeoutMs: 6e4, heavy: true, workMemMb: 32 });
       const kq = {
         khoa: khoaFile,
         body: {

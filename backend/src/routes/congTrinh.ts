@@ -9,7 +9,7 @@ import { timedQuery } from '../db.js';
 import { app } from '../server/app.js';
 import { chuoi } from '../server/botTongHop.js';
 import { getVersions, hanPhienBan } from '../server/data.js';
-import { COT_CT, sqlHangMuc, moDoi, taoNhoCoHan } from '../server/congTrinh.js';
+import { COT_CT, sqlHangMuc, kieuAppTuCsdl, moDoi, taoNhoCoHan, type KieuApp } from '../server/congTrinh.js';
 import { guiGzip } from '../server/snapshot.js';
 import { laGioNghiDb } from '../server/gioNghi.js';
 
@@ -28,6 +28,12 @@ import { laGioNghiDb } from '../server/gioNghi.js';
 // ============================================================================
 
 const SQL = sqlHangMuc();
+// Câu nhanh theo kiểu cột thật của production_status_app (đọc 1 lần / instance); đọc kiểu lỗi => câu cũ (kết quả như nhau)
+let sqlNhanh: Promise<string> | null = null;
+const laySql = (): Promise<string> => (sqlNhanh ??= timedQuery<{ k: string; t: string }>(
+  `SELECT column_name AS k, data_type AS t FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'production_status_app'`)
+  .then(r => sqlHangMuc(COT_CT, Object.fromEntries(r.rows.map(x => [x.k, kieuAppTuCsdl(x.t)])) as Record<string, KieuApp>))
+  .catch(() => { sqlNhanh = null; return SQL; }));
 const SQL_KHOA = `SELECT COALESCE(max(nap_luc)::text, '') || '/' || count(*) AS khoa,
                          to_char(max(nap_luc) FILTER (WHERE loi IS NULL) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cap_nhat,
                          count(*) FILTER (WHERE loi IS NULL)::int AS so_file
@@ -116,7 +122,7 @@ export async function layFileCongTrinh(moc?: MocFile): Promise<FileCongTrinh> {
         nho = { khoa, kq };
         return kq;
       }
-      const r = await timedQuery(SQL, [], { timeoutMs: 60_000, heavy: true, workMemMb: 32 });
+      const r = await timedQuery(await laySql(), [], { timeoutMs: 60_000, heavy: true, workMemMb: 32 });
       const kq: FileCongTrinh = {
         khoa: khoaFile,
         body: {

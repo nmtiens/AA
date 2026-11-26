@@ -77,3 +77,14 @@ describe('taoNhoCoHan — nhớ có hạn + gộp lần đọc đồng thời', 
     assert.equal(await n.lay(), 'doc3');
   });
 });
+
+describe('sqlHangMuc theo kiểu cột app', () => {
+  it('cột số / ngày của app: so trực tiếp, không dò chữ số; chưa biết kiểu: như cũ', () => {
+    assert.match(bieuThucKhac('tri_gia_don_hang_tong', 'n', 'so'), /abs\(c\.tri_gia_don_hang_tong - p\.tri_gia_don_hang_tong::float8\)/);
+    assert.doesNotMatch(bieuThucKhac('tri_gia_don_hang_tong', 'n', 'so'), /~/);
+    assert.match(bieuThucKhac('ngay_duyet_phieu', 'd', 'ngay'), /c\.ngay_duyet_phieu IS DISTINCT FROM p\.ngay_duyet_phieu THEN/);
+    assert.equal(bieuThucKhac('tri_gia_don_hang_tong', 'n'), bieuThucKhac('tri_gia_don_hang_tong', 'n', 'chu'));
+    assert.equal(sqlHangMuc(), sqlHangMuc(COT_CT, {}));
+    assert.match(sqlHangMuc(COT_CT, { thanh_tien_xuat_kho_luy_ke: 'chu' }), /p\.thanh_tien_xuat_kho_luy_ke::text ~/);
+  });
+});
