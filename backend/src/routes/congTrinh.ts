@@ -170,14 +170,20 @@ async function layBanTruoc(): Promise<FileCongTrinh['body'] | null> {
   if (!k.coBang) return null;
   const bang = verBang(ver.production), khoa = `${k.khoa}|${bang}`;
   if (nho?.khoa === khoa) return null;
-  if (nho && phanBang(nho.khoa) === bang) return nho.kq.body;
+  // Xem bản chung trong DB TRƯỚC bản cũ trong bộ nhớ: instance khác / việc làm nóng thường đã tính xong bản đúng vài giây sau
+  // khi nạp file (đo 26/11/2026: nạp :34, có bản :42) => nhận luôn bản đúng, khỏi hiện số cũ rồi gọi thêm 1 lượt
   const x = await docSnapshotMoiNhat(KHOA_NEN);
-  if (!x || x.ver === khoa || phanBang(x.ver) !== bang) return null;
-  try {
-    return JSON.parse((await giaiNen(x.buf)).toString('utf8')) as FileCongTrinh['body'];
-  } catch {
+  const giai = async (buf: Buffer): Promise<FileCongTrinh['body'] | null> => {
+    try { return JSON.parse((await giaiNen(buf)).toString('utf8')) as FileCongTrinh['body']; } catch { return null; }
+  };
+  if (x?.ver === khoa) {
+    const body = await giai(x.buf);
+    if (body) nho = { khoa, kq: { khoa: k.khoa, body } }; // đường thường ngay sau đó trúng bộ nhớ
     return null;
   }
+  if (nho && phanBang(nho.khoa) === bang) return nho.kq.body;
+  if (!x || phanBang(x.ver) !== bang) return null;
+  return giai(x.buf);
 }
 
 // ?cu=1: nhận bản của lần nạp trước kèm dangCapNhat = true (giao diện gọi lại không có cu để lấy bản đúng).

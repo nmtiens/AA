@@ -77213,14 +77213,22 @@ async function layBanTruoc() {
   if (!k.coBang) return null;
   const bang = verBang2(ver.production), khoa = `${k.khoa}|${bang}`;
   if (nho2?.khoa === khoa) return null;
-  if (nho2 && phanBang(nho2.khoa) === bang) return nho2.kq.body;
   const x = await docSnapshotMoiNhat(KHOA_NEN);
-  if (!x || x.ver === khoa || phanBang(x.ver) !== bang) return null;
-  try {
-    return JSON.parse((await giaiNen(x.buf)).toString("utf8"));
-  } catch {
+  const giai = async (buf) => {
+    try {
+      return JSON.parse((await giaiNen(buf)).toString("utf8"));
+    } catch {
+      return null;
+    }
+  };
+  if (x?.ver === khoa) {
+    const body = await giai(x.buf);
+    if (body) nho2 = { khoa, kq: { khoa: k.khoa, body } };
     return null;
   }
+  if (nho2 && phanBang(nho2.khoa) === bang) return nho2.kq.body;
+  if (!x || phanBang(x.ver) !== bang) return null;
+  return giai(x.buf);
 }
 app.get("/api/cong-trinh/hang-muc", async (req, res) => {
   try {
